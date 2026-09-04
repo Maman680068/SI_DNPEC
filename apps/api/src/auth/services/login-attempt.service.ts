@@ -17,14 +17,19 @@ const LOCK_DURATION_MS = 15 * 60 * 1000;
  * un attaquant qui essaie plusieurs comptes depuis la même IP reste
  * bloqué par IP.
  *
- * Stockage en mémoire (Map) — choix délibéré plutôt que @nestjs/throttler
- * (dont la dernière version, 6.5.0, ne déclare de compatibilité peer
- * qu'avec NestJS ^11, alors que ce projet est sur NestJS 12) ou une table
- * Prisma dédiée : ce compteur est éphémère par nature (fenêtre de 15 min)
- * et cible un déploiement mono-instance (Render, cf. cahier des charges
- * §7.2/§7.8). Limite connue : réinitialisé à chaque redémarrage/déploiement,
- * et ne serait plus correct si l'API est un jour répliquée sur plusieurs
- * instances — passer alors à un store partagé (Redis).
+ * Stockage en mémoire (Map, local au process) — choix délibéré plutôt que
+ * @nestjs/throttler (dont la dernière version, 6.5.0, ne déclare de
+ * compatibilité peer qu'avec NestJS ^11, alors que ce projet est sur
+ * NestJS 12) ou une table Prisma dédiée : ce compteur est éphémère par
+ * nature (fenêtre de 15 min) et cible le déploiement mono-instance actuel
+ * (Render, cf. cahier des charges §7.2/§7.8).
+ *
+ * ⚠️ LIMITE CONNUE — à revoir en Vague 2 : ce stockage est propre à chaque
+ * process. Il est réinitialisé à chaque redémarrage/déploiement, et surtout
+ * il ne serait plus correct si l'API tourne un jour sur plusieurs instances
+ * (scaling horizontal) — chaque instance aurait ses propres compteurs,
+ * multipliant de fait le nombre d'essais autorisés. Passer alors à un store
+ * partagé entre instances (Redis typiquement) avant toute réplication.
  */
 @Injectable()
 export class LoginAttemptService {
