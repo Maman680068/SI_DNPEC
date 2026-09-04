@@ -10,9 +10,9 @@ const KPIS: { key: keyof TaskDashboard; label: string; sub: string; bar: string 
 
 export function KpiRow({ dashboard }: { dashboard: TaskDashboard }) {
   return (
-    <div className="mb-6.5 grid grid-cols-2 gap-3.5 lg:grid-cols-4">
+    <div className="mb-[26px] grid grid-cols-2 gap-3.5 lg:grid-cols-4">
       {KPIS.map((kpi) => (
-        <Card key={kpi.key} className={`border-l-[3px] p-4.5 ${kpi.bar}`}>
+        <Card key={kpi.key} className={`border-l-[3px] px-[18px] py-4 ${kpi.bar}`}>
           <div className="mb-2 text-xs font-semibold text-text-muted">{kpi.label}</div>
           <div className="font-heading text-[26px] font-extrabold">{dashboard[kpi.key]}</div>
           <div className="mt-1 text-[11.5px] text-text-faint">{kpi.sub}</div>

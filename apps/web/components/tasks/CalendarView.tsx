@@ -32,7 +32,7 @@ const PRIORITY_DOT: Record<Task['priority'], string> = {
   FAIBLE: 'bg-text-faint',
 };
 
-export function CalendarView({ tasks }: { tasks: Task[] }) {
+export function CalendarView({ tasks, onSelect }: { tasks: Task[]; onSelect: (id: string) => void }) {
   const [cursor, setCursor] = useState(() => startOfMonth(new Date()));
   const days = useMemo(() => buildMonthGrid(cursor), [cursor]);
   const tasksWithDueDate = useMemo(() => tasks.filter((t): t is Task & { dueDate: string } => Boolean(t.dueDate)), [tasks]);
@@ -72,10 +72,14 @@ export function CalendarView({ tasks }: { tasks: Task[] }) {
                 {day.getDate()}
               </div>
               {dayTasks.slice(0, 3).map((task) => (
-                <div key={task.id} className="mb-1 flex items-center gap-1 truncate text-[10.5px]">
+                <button
+                  key={task.id}
+                  onClick={() => onSelect(task.id)}
+                  className="mb-1 flex w-full items-center gap-1 truncate text-left text-[10.5px] hover:underline"
+                >
                   <span className={`h-1.5 w-1.5 flex-shrink-0 rounded-full ${PRIORITY_DOT[task.priority]}`} />
                   <span className="truncate">{task.title}</span>
-                </div>
+                </button>
               ))}
               {dayTasks.length > 3 && (
                 <div className="text-[10px] text-text-faint">+{dayTasks.length - 3} autres</div>

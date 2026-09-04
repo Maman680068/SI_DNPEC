@@ -27,7 +27,7 @@ export interface Task {
   celluleId: string | null;
   projectId: string | null;
   parentTaskId: string | null;
-  progressPercent: number;
+  progressPercent: number | null;
   isRecurring: boolean;
   createdById: string;
   submittedById: string | null;
@@ -55,3 +55,49 @@ export const KANBAN_COLUMNS: { status: TaskStatus; label: string }[] = [
   { status: 'SOUMISE_VALIDATION', label: 'Soumises' },
   { status: 'TERMINEE', label: 'Terminées' },
 ];
+
+export const STATUS_STEPS: { status: TaskStatus; label: string }[] = [
+  { status: 'A_FAIRE', label: 'À faire' },
+  { status: 'EN_COURS', label: 'En cours' },
+  { status: 'SOUMISE_VALIDATION', label: 'Validation' },
+  { status: 'TERMINEE', label: 'Terminée' },
+];
+
+export interface TaskCommentMention {
+  id: string;
+  commentId: string;
+  mentionedUserId: string;
+}
+
+export interface TaskComment {
+  id: string;
+  taskId: string;
+  authorId: string;
+  body: string;
+  createdAt: string;
+  updatedAt: string;
+  mentions: TaskCommentMention[];
+}
+
+export interface TaskAttachment {
+  id: string;
+  taskId: string;
+  fileName: string;
+  fileKey: string;
+  mimeType: string;
+  sizeBytes: number;
+  uploadedById: string;
+  uploadedAt: string;
+}
+
+export interface CreateTaskInput {
+  title: string;
+  description?: string;
+  priority?: TaskPriority;
+  confidentiality?: TaskConfidentiality;
+  dueDate?: string;
+  divisionId?: string;
+  sectionId?: string;
+  celluleId?: string;
+  assignees?: { userId: string; roleOnTask?: TaskAssigneeRole }[];
+}

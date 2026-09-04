@@ -15,7 +15,7 @@ export async function fetchCurrentUser(accessToken: string): Promise<unknown> {
  * en cookie httpOnly — jamais l'inverse. */
 export async function issueSessionResponse(accessToken: string, refreshToken: string): Promise<NextResponse> {
   const user = await fetchCurrentUser(accessToken);
-  const res = NextResponse.json({ accessToken, user });
+  const res = NextResponse.json({ status: 'authenticated', accessToken, user });
   res.cookies.set(REFRESH_TOKEN_COOKIE, refreshToken, refreshTokenCookieOptions(REFRESH_TOKEN_MAX_AGE_SECONDS));
   return res;
 }

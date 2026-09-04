@@ -44,7 +44,7 @@ export function Sidebar() {
 
       {NAV_GROUPS.map((group) => (
         <div key={group.label}>
-          <div className="mb-2 mt-4.5 px-2.5 text-[11px] font-bold uppercase tracking-wide text-text-faint">
+          <div className="mb-2 mt-[18px] px-2.5 text-[11px] font-bold uppercase tracking-wide text-text-faint">
             {group.label}
           </div>
           {group.items.map((item) => (
@@ -56,7 +56,7 @@ export function Sidebar() {
                   : 'text-text-muted hover:bg-bg hover:text-ink'
               }`}
             >
-              <span className="w-4.5 text-center text-sm opacity-85">{item.icon}</span>
+              <span className="w-[18px] text-center text-sm opacity-85">{item.icon}</span>
               {item.label}
             </a>
           ))}
