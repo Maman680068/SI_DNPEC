@@ -17,21 +17,27 @@
 //    intitulé d'affichage, porté par User.jobTitle (libre, optionnel).
 //    Un Agent rattaché à une Division (divisionId non nul) est ainsi
 //    affiché "Chargé d'Études" par convention métier ; un Agent d'une
-//    cellule a divisionId = null et jobTitle libre.
+//    cellule a divisionId = null, celluleId non nul, et jobTitle libre.
 // 2. Assistant du DN/DNA (ASSISTANT_DIRECTION) : rattaché au dirigeant qu'il
 //    assiste via dnOrDnaId (auto-relation sur User), plutôt qu'à une
-//    Division. Aucune logique de permission n'est encore codée pour ce
-//    rôle — périmètre de droits explicitement à définir par la Direction
-//    (§11 du cahier des charges). Le modèle est prêt à recevoir cette
-//    logique plus tard sans nouvelle migration structurelle.
-// 3. Cellules transversales (CTSCM, CNC, SAF, RH, CSID) : non modélisées
-//    comme unités d'organisation distinctes — aucune exigence fonctionnelle
-//    ne porte spécifiquement sur elles au-delà du rôle ADMIN_SYSTEME (CSID).
-//    À revoir si des tâches/documents doivent un jour être scopés par cellule.
+//    Division ou une Cellule. Aucune logique de permission n'est encore
+//    codée pour ce rôle — périmètre de droits explicitement à définir par
+//    la Direction (§11 du cahier des charges). Le modèle est prêt à
+//    recevoir cette logique plus tard sans nouvelle migration structurelle.
+// 3. Cellules transversales (CTSCM, CNC, SAF, RH, CSID) : modélisées par un
+//    modèle Cellule minimal (id, code, name), distinct de Division/Section
+//    (pas de sous-structure en sections, pas encore de portée sur les
+//    Tâches/GED/Annonces — aucune exigence fonctionnelle ne le demande à ce
+//    stade). Un utilisateur est rattaché à une Division OU à une Cellule,
+//    jamais les deux (voir invariant ci-dessous). Les 5 cellules sont
+//    fournies en données de seed (prisma/seed.ts), à exécuter après la
+//    première migration.
 // 4. Invariants non exprimables nativement en Prisma (à valider en base ou en
-//    application) : User.sectionId doit appartenir à User.divisionId ; de
-//    même pour Task.sectionId / Task.divisionId ; User.dnOrDnaId ne doit
-//    référencer qu'un User de rôle DN ou DNA.
+//    application) : User.sectionId doit appartenir à User.divisionId ;
+//    User.divisionId et User.celluleId sont mutuellement exclusifs (jamais
+//    les deux renseignés en même temps) ; de même pour Task.sectionId /
+//    Task.divisionId ; User.dnOrDnaId ne doit référencer qu'un User de
+//    rôle DN ou DNA.
 // ============================================================================
 
 generator client {
@@ -227,6 +233,22 @@ model Section {
   @@map("sections")
 }
 
+// Cellules transversales rattachées directement au DN ou à la DNA (§2.1) :
+// CTSCM, CNC (sous le DN), SAF, RH, CSID (sous la DNA). Contrairement aux
+// Divisions, elles ne comportent pas de Sections. Les 5 cellules officielles
+// sont fournies en données de seed (prisma/seed.ts).
+model Cellule {
+  id        String   @id @default(cuid())
+  code      String   @unique // CTSCM, CNC, SAF, RH, CSID
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users User[]
+
+  @@map("cellules")
+}
+
 // ----------------------------------------------------------------------------
 // Utilisateurs (§3)
 // ----------------------------------------------------------------------------
@@ -247,19 +269,32 @@ model User {
   // niveau de permission, porté uniquement par `role`.
   jobTitle     String?
 
-  // Rattachement organisationnel (§2.3, cascade hiérarchique) :
-  // - DN / DNA / ADMIN_SYSTEME  -> divisionId = null, sectionId = null
-  // - ASSISTANT_DIRECTION       -> divisionId = null, sectionId = null,
-  //   dnOrDnaId requis (voir plus bas)
-  // - CHEF_DIVISION             -> divisionId requis, sectionId = null
-  // - CHEF_SECTION              -> divisionId + sectionId requis
-  // - AGENT (Division)          -> divisionId requis, sectionId nullable
-  //   (RF-SEC-06 : rattachement à une Division seule, en attendant affectation)
-  // - AGENT (cellule transversale, non modélisée) -> divisionId = null
+  // Rattachement organisationnel (§2.3, cascade hiérarchique). Un utilisateur
+  // est rattaché à une Division OU à une Cellule, jamais les deux
+  // (invariant applicatif — voir en-tête de fichier, décision n°4) :
+  // - DN / DNA                  -> divisionId = null, celluleId = null,
+  //   sectionId = null
+  // - ASSISTANT_DIRECTION       -> divisionId = null, celluleId = null,
+  //   sectionId = null, dnOrDnaId requis (voir plus bas)
+  // - CHEF_DIVISION             -> divisionId requis, celluleId = null,
+  //   sectionId = null
+  // - CHEF_SECTION              -> divisionId + sectionId requis,
+  //   celluleId = null
+  // - AGENT (personnel de Division, affiché "Chargé d'Études")
+  //                             -> divisionId requis, celluleId = null,
+  //   sectionId nullable (RF-SEC-06 : rattachement à une Division seule,
+  //   en attendant affectation à une Section)
+  // - AGENT (personnel d'une cellule transversale)
+  //                             -> celluleId requis, divisionId = null,
+  //   sectionId = null
+  // - ADMIN_SYSTEME             -> typiquement celluleId = CSID,
+  //   divisionId = null, sectionId = null
   divisionId String?
   division   Division? @relation(fields: [divisionId], references: [id])
   sectionId  String?
   section    Section?  @relation(fields: [sectionId], references: [id])
+  celluleId  String?
+  cellule    Cellule?  @relation(fields: [celluleId], references: [id])
 
   // Assistant(e) de direction (ASSISTANT_DIRECTION) : dirigeant DN/DNA
   // assisté, au lieu d'un rattachement à une Division. Aucune règle de
