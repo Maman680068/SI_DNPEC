@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DNPEC · Système d'Information Interne — Maquette</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#1B2A6B;
+    --ink-2:#142057;
+    --accent:#1B2A6B;
+    --accent-soft:#E7E9F5;
+    --gold:#F0B429;
+    --gold-soft:#FDF1D6;
+    --sage:#1C8B4B;
+    --sage-soft:#E1F3E7;
+    --clay:#CE1126;
+    --clay-soft:#FBE3E5;
+    --green-flag:#1C8B4B;
+    --red-flag:#CE1126;
+    --bg:#F5F6FA;
+    --surface:#FFFFFF;
+    --line:#E2E4EE;
+    --text:#1C2233;
+    --text-muted:#5C6270;
+    --text-faint:#9298A8;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:'Inter',sans-serif;
+    background:var(--bg);
+    color:var(--text);
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3,.font-head{font-family:'Montserrat',sans-serif; font-weight:800; letter-spacing:-.01em;}
+  a{color:inherit;text-decoration:none;}
+  button{font-family:inherit;cursor:pointer;}
+  ::selection{background:var(--gold-soft);}
+  .flag-stripe{height:4px; width:100%; display:flex;}
+  .flag-stripe span{flex:1;}
+  .flag-stripe .r{background:var(--red-flag);}
+  .flag-stripe .y{background:var(--gold);}
+  .flag-stripe .g{background:var(--green-flag);}
+
+  /* ---------- Nav de démonstration (switch d'écrans) ---------- */
+  .demo-switch{
+    position:fixed; top:14px; right:14px; z-index:50;
+    background:var(--ink); border-radius:10px; padding:4px;
+    display:flex; gap:2px; box-shadow:0 8px 24px rgba(20,33,61,.25);
+  }
+  .demo-switch button{
+    border:none; background:transparent; color:#B9C4D6;
+    padding:8px 14px; border-radius:7px; font-size:12.5px; font-weight:600;
+    letter-spacing:.01em;
+  }
+  .demo-switch button.active{background:var(--surface); color:var(--ink);}
+
+  .screen{display:none;}
+  .screen.active{display:block;}
+  #screen-login.active{display:flex;}
+
+  /* ===================== ÉCRAN 1 — CONNEXION ===================== */
+  #screen-login{
+    min-height:100vh; position:relative;
+  }
+  .login-side{
+    flex:1.1; background: var(--surface);
+    color:var(--ink); padding:64px; display:flex; flex-direction:column; justify-content:space-between;
+    position:relative; overflow:hidden; border-right:1px solid var(--line);
+  }
+  .login-side::before{
+    content:"";
+    position:absolute; right:-120px; bottom:-140px; width:480px; height:480px;
+    border:1px solid var(--line); border-radius:50%;
+  }
+  .login-side::after{
+    content:"";
+    position:absolute; right:-40px; bottom:-60px; width:340px; height:340px;
+    border:1px solid var(--line); border-radius:50%;
+  }
+  .emblem{display:flex; align-items:center; gap:12px;}
+  .emblem-mark{
+    width:42px; height:42px; border-radius:8px;
+    background:var(--ink);
+    display:flex; align-items:center; justify-content:center;
+    font-family:'Montserrat'; font-weight:800; color:#fff; font-size:16px;
+  }
+  .emblem-text .top{font-size:11.5px; letter-spacing:.06em; color:var(--text-faint); font-weight:600;}
+  .emblem-text .bottom{font-family:'Montserrat'; font-weight:700; font-size:14px; color:var(--ink);}
+  .login-hero{max-width:440px; position:relative; z-index:1;}
+  .login-hero h1{font-size:36px; line-height:1.2; font-weight:800; margin:0 0 18px; color:var(--ink);}
+  .login-hero p{color:var(--text-muted); font-size:15px; line-height:1.6; margin:0;}
+  .login-quote{
+    border-left:3px solid var(--gold); padding-left:16px; margin-top:44px;
+    color:var(--text-muted); font-size:13.5px; line-height:1.7; max-width:360px; position:relative; z-index:1;
+  }
+  .login-foot{color:var(--text-faint); font-size:12.5px; position:relative; z-index:1;}
+
+  .login-form-wrap{
+    flex:1; display:flex; align-items:center; justify-content:center; padding:48px;
+  }
+  .login-form{width:100%; max-width:360px;}
+  .login-form h2{font-size:23px; margin:0 0 6px; font-weight:600;}
+  .login-form .sub{color:var(--text-muted); font-size:14px; margin:0 0 32px;}
+  .field{margin-bottom:18px;}
+  .field label{display:block; font-size:12.5px; font-weight:600; color:var(--text); margin-bottom:7px;}
+  .field input{
+    width:100%; padding:11px 13px; border:1px solid var(--line); border-radius:8px;
+    font-size:14px; font-family:inherit; background:var(--surface); color:var(--text);
+  }
+  .field input:focus{outline:2px solid var(--accent); outline-offset:1px; border-color:var(--accent);}
+  .field-row{display:flex; justify-content:space-between; align-items:center; margin:2px 0 22px;}
+  .field-row label{display:flex; align-items:center; gap:7px; font-size:13px; color:var(--text-muted);}
+  .field-row a{font-size:13px; color:var(--accent); font-weight:600;}
+  .btn-primary{
+    width:100%; padding:12px; border:none; border-radius:8px; background:var(--ink);
+    color:#fff; font-weight:600; font-size:14.5px;
+  }
+  .btn-primary:hover{background:var(--ink-2);}
+  .otp-note{
+    margin-top:16px; padding:11px 13px; background:var(--gold-soft); border-radius:8px;
+    font-size:12.5px; color:#7A5A1C; display:flex; gap:9px; align-items:flex-start;
+  }
+  .divider{display:flex; align-items:center; gap:12px; margin:28px 0; color:var(--text-faint); font-size:12px;}
+  .divider::before,.divider::after{content:"";flex:1;height:1px;background:var(--line);}
+  .signup-line{text-align:center; font-size:13px; color:var(--text-muted);}
+
+  /* ===================== APPLICATION (SHELL) ===================== */
+  .app{display:flex; min-height:100vh;}
+
+  /* --- Sidebar --- */
+  .sidebar{
+    width:250px; background:var(--surface); color:var(--text); flex-shrink:0;
+    display:flex; flex-direction:column; padding:22px 14px; border-right:1px solid var(--line);
+  }
+  .sidebar .emblem{padding:0 8px; margin-bottom:30px;}
+  .sidebar .emblem-mark{width:36px;height:36px;font-size:14px;}
+  .sidebar .emblem-text .top{font-size:11px; color:var(--text-faint);}
+  .sidebar .emblem-text .bottom{font-size:13.5px; color:var(--ink);}
+  .nav-group-label{
+    font-size:11px; letter-spacing:.04em; color:var(--text-faint); margin:18px 10px 8px; font-weight:700; text-transform:uppercase;
+  }
+  .nav-item{
+    display:flex; align-items:center; gap:11px; padding:9px 10px; border-radius:8px;
+    font-size:13.6px; font-weight:500; margin-bottom:2px; color:var(--text-muted);
+  }
+  .nav-item .ic{width:18px; text-align:center; font-size:14px; opacity:.85;}
+  .nav-item.active{background:var(--accent-soft); color:var(--ink); font-weight:700; box-shadow:inset 3px 0 0 var(--gold);}
+  .nav-item:not(.active):hover{background:var(--bg); color:var(--ink);}
+  .nav-item .count{
+    margin-left:auto; background:var(--bg); font-size:10.5px; font-weight:700;
+    padding:1px 6px; border-radius:20px; color:var(--text-muted);
+  }
+  .nav-item.active .count{background:#fff; color:var(--ink);}
+  .sidebar-foot{
+    margin-top:auto; padding-top:16px; border-top:1px solid var(--line);
+    display:flex; align-items:center; gap:10px; padding-left:8px;
+  }
+  .avatar{
+    width:32px; height:32px; border-radius:8px; background:var(--gold); color:var(--ink);
+    display:flex; align-items:center; justify-content:center; font-weight:700; font-size:12.5px;
+    flex-shrink:0;
+  }
+  .sidebar-foot .name{font-size:12.5px; font-weight:600; color:var(--ink);}
+  .sidebar-foot .role{font-size:11px; color:var(--text-faint);}
+
+  /* --- Main --- */
+  .main{flex:1; min-width:0; display:flex; flex-direction:column;}
+  .topbar{
+    height:64px; background:var(--surface); border-bottom:1px solid var(--line);
+    display:flex; align-items:center; justify-content:space-between; padding:0 26px; gap:20px;
+  }
+  .search{
+    flex:1; max-width:380px; position:relative;
+  }
+  .search input{
+    width:100%; padding:9px 13px 9px 34px; border:1px solid var(--line); border-radius:8px;
+    font-size:13.5px; background:var(--bg); font-family:inherit;
+  }
+  .search .ic{position:absolute; left:11px; top:50%; transform:translateY(-50%); color:var(--text-faint); font-size:13px;}
+  .topbar-right{display:flex; align-items:center; gap:18px;}
+  .icon-btn{
+    width:36px; height:36px; border-radius:8px; border:1px solid var(--line); background:var(--surface);
+    display:flex; align-items:center; justify-content:center; position:relative; color:var(--text-muted); font-size:14px;
+  }
+  .icon-btn .dot{
+    position:absolute; top:6px; right:6px; width:7px; height:7px; border-radius:50%; background:var(--clay);
+    border:1.5px solid var(--surface);
+  }
+
+  .content{padding:26px 30px 60px; overflow-y:auto;}
+  .page-head{display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:22px; flex-wrap:wrap; gap:14px;}
+  .page-head h1{font-size:22px; font-weight:800; margin:0 0 4px;}
+  .eyebrow{font-size:11px; font-weight:700; letter-spacing:.06em; color:var(--sage); margin-bottom:6px;}
+  .page-head .meta{color:var(--text-muted); font-size:13.5px;}
+  .head-actions{display:flex; gap:10px;}
+  .btn{
+    padding:9px 16px; border-radius:8px; font-size:13.3px; font-weight:600; border:1px solid var(--line);
+    background:var(--surface); color:var(--text); display:inline-flex; align-items:center; gap:7px;
+  }
+  .btn.solid{background:var(--ink); color:#fff; border-color:var(--ink);}
+  .btn.gold{background:var(--gold); color:var(--ink); border-color:var(--gold);}
+
+  /* KPI row */
+  .kpi-row{display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:26px;}
+  .kpi{
+    background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:16px 18px;
+  }
+  .kpi .lbl{font-size:12px; color:var(--text-muted); font-weight:600; margin-bottom:8px;}
+  .kpi .val{font-family:'Space Grotesk'; font-size:26px; font-weight:600;}
+  .kpi .sub{font-size:11.5px; color:var(--text-faint); margin-top:4px;}
+  .kpi.accentbar{border-left:3px solid var(--accent);}
+  .kpi.goldbar{border-left:3px solid var(--gold);}
+  .kpi.claybar{border-left:3px solid var(--clay);}
+  .kpi.sagebar{border-left:3px solid var(--sage);}
+
+  /* View toggle */
+  .view-toggle{display:flex; gap:2px; background:var(--bg); border:1px solid var(--line); border-radius:8px; padding:3px;}
+  .view-toggle button{border:none; background:transparent; padding:7px 13px; border-radius:6px; font-size:12.5px; font-weight:600; color:var(--text-muted);}
+  .view-toggle button.active{background:var(--surface); color:var(--ink); box-shadow:0 1px 2px rgba(20,33,61,.08);}
+
+  /* Kanban */
+  .board{display:grid; grid-template-columns:repeat(4,1fr); gap:16px; align-items:start;}
+  .col{background:#EEF1F4; border-radius:12px; padding:12px;}
+  .col-head{display:flex; align-items:center; justify-content:space-between; padding:4px 6px 12px;}
+  .col-head .t{font-size:12.5px; font-weight:700; letter-spacing:.02em; color:var(--text-muted);}
+  .col-head .n{font-size:11px; background:var(--surface); border:1px solid var(--line); padding:1px 7px; border-radius:20px; color:var(--text-muted); font-weight:700;}
+
+  .card{
+    background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:13px 14px;
+    margin-bottom:10px; position:relative; overflow:hidden;
+  }
+  .card::before{content:"";position:absolute; left:0; top:0; bottom:0; width:3px;}
+  .card.p-urgent::before{background:var(--clay);}
+  .card.p-normal::before{background:var(--accent);}
+  .card.p-low::before{background:var(--text-faint);}
+  .card .tag{
+    display:inline-block; font-size:10px; font-weight:700; letter-spacing:.02em; padding:2px 7px; border-radius:5px;
+    margin-bottom:9px;
+  }
+  .tag.conf{background:var(--clay-soft); color:var(--clay);}
+  .tag.div{background:var(--accent-soft); color:var(--accent);}
+  .card .title{font-size:13.6px; font-weight:600; line-height:1.4; margin-bottom:9px;}
+  .card .sub-progress{font-size:11px; color:var(--text-muted); display:flex; align-items:center; gap:6px; margin-bottom:10px;}
+  .bar-track{flex:1; height:5px; background:var(--line); border-radius:4px; overflow:hidden;}
+  .bar-fill{height:100%; background:var(--sage); border-radius:4px;}
+  .card-foot{display:flex; justify-content:space-between; align-items:center;}
+  .avatars{display:flex;}
+  .avatars .av{
+    width:24px; height:24px; border-radius:7px; font-size:10px; border:2px solid var(--surface);
+    display:flex; align-items:center; justify-content:center; font-weight:700; margin-left:-7px;
+  }
+  .avatars .av:first-child{margin-left:0;}
+  .due{font-size:11px; color:var(--text-faint); display:flex; align-items:center; gap:4px;}
+  .due.late{color:var(--clay); font-weight:700;}
+
+  .add-card{
+    border:1.5px dashed var(--line); border-radius:10px; padding:11px; text-align:center;
+    font-size:12px; color:var(--text-faint); font-weight:600; background:transparent; width:100%;
+  }
+
+  /* ===== Task detail (slide-over) ===== */
+  .overlay{
+    position:fixed; top:0; right:0; bottom:0; left:0; background:rgba(20,26,38,.42); z-index:40;
+    display:none; align-items:stretch; justify-content:flex-end;
+  }
+  .overlay.open{display:flex;}
+  .drawer{
+    width:460px; max-width:92vw; background:var(--surface); height:100%; overflow-y:auto;
+    box-shadow:-16px 0 40px rgba(20,26,38,.18); padding:26px 26px 40px;
+  }
+  .drawer-top{display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px;}
+  .drawer-close{border:none; background:var(--bg); width:30px; height:30px; border-radius:8px; color:var(--text-muted); font-size:14px;}
+  .drawer .breadcrumb{font-size:12px; color:var(--text-faint); margin-bottom:10px;}
+  .drawer h2{font-size:19px; font-weight:600; margin:0 0 16px; line-height:1.35;}
+
+  .stepper{display:flex; align-items:center; gap:0; margin:20px 0 24px;}
+  .step{flex:1; text-align:center; position:relative;}
+  .step .dot{width:22px; height:22px; border-radius:50%; background:var(--line); color:var(--text-faint); font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center; margin:0 auto 6px;}
+  .step.done .dot{background:var(--sage); color:#fff;}
+  .step.now .dot{background:var(--gold); color:var(--ink);}
+  .step .lbl{font-size:10px; color:var(--text-faint); font-weight:600;}
+  .step.done .lbl,.step.now .lbl{color:var(--text);}
+  .step::after{content:""; position:absolute; top:11px; left:calc(50% + 14px); right:calc(-50% + 14px); height:2px; background:var(--line);}
+  .step:last-child::after{display:none;}
+  .step.done::after{background:var(--sage);}
+
+  .meta-grid{display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:22px;}
+  .meta-item .k{font-size:11px; color:var(--text-faint); font-weight:600; margin-bottom:4px;}
+  .meta-item .v{font-size:13.3px; font-weight:600;}
+  .section-label{font-size:12px; font-weight:700; color:var(--text-muted); margin:22px 0 10px; letter-spacing:.02em;}
+  .desc{font-size:13.5px; line-height:1.65; color:var(--text); background:var(--bg); border-radius:8px; padding:13px;}
+
+  .subtask{display:flex; align-items:center; gap:10px; padding:9px 0; border-bottom:1px solid var(--line); font-size:13px;}
+  .subtask:last-child{border:none;}
+  .subtask .chk{width:17px; height:17px; border-radius:5px; border:1.6px solid var(--line); flex-shrink:0;}
+  .subtask.done .chk{background:var(--sage); border-color:var(--sage);}
+  .subtask.done .lbl{color:var(--text-faint); text-decoration:line-through;}
+  .subtask .who{margin-left:auto; font-size:10.5px; color:var(--text-faint);}
+
+  .comment{display:flex; gap:10px; margin-bottom:16px;}
+  .comment .av{width:28px;height:28px;border-radius:8px;font-size:11px;flex-shrink:0;}
+  .comment .bubble{background:var(--bg); border-radius:10px; padding:9px 12px; font-size:13px; line-height:1.5;}
+  .comment .who{font-size:12px; font-weight:700; margin-bottom:2px;}
+  .comment .when{font-size:10.5px; color:var(--text-faint); margin-left:8px; font-weight:500;}
+  .mention{color:var(--accent); font-weight:700;}
+
+  @media (max-width:1080px){
+    .board{grid-template-columns:1fr 1fr;}
+    .kpi-row{grid-template-columns:1fr 1fr;}
+  }
+</style>
+</head>
+<body>
+
+<div class="demo-switch">
+  <button class="active" data-target="screen-login">Connexion</button>
+  <button data-target="screen-app">Tableau de bord</button>
+</div>
+
+<!-- ===================== ÉCRAN 1 : CONNEXION ===================== -->
+<div id="screen-login" class="screen active">
+  <div class="flag-stripe" style="position:absolute; top:0; left:0; right:0; z-index:5;"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+  <div class="login-side">
+    <div class="emblem">
+      <div class="emblem-mark">DN</div>
+      <div class="emblem-text">
+        <div class="top">RÉPUBLIQUE DE GUINÉE</div>
+        <div class="bottom">DNPEC · Système Interne</div>
+      </div>
+    </div>
+    <div class="login-hero">
+      <h1>La coordination de la Direction, en un seul endroit.</h1>
+      <p>Tâches, communication et archives des cinq divisions, organisées selon la hiérarchie de la DNPEC.</p>
+    </div>
+    <div>
+      <div class="login-quote">« Ce qui se conçoit bien s'énonce clairement — et se suit encore mieux. »</div>
+      <div class="login-foot" style="margin-top:36px;">Cellule des Systèmes d'Informations et de la Digitalisation — CSID</div>
+    </div>
+  </div>
+  <div class="login-form-wrap">
+    <div class="login-form">
+      <h2>Connexion</h2>
+      <p class="sub">Accédez à votre espace de travail DNPEC.</p>
+      <div class="field">
+        <label>Adresse e-mail professionnelle</label>
+        <input type="email" placeholder="prenom.nom@dnpec.gov.gn" value="m.diallo@dnpec.gov.gn">
+      </div>
+      <div class="field">
+        <label>Mot de passe</label>
+        <input type="password" value="••••••••••••">
+      </div>
+      <div class="field-row">
+        <label><input type="checkbox" checked style="margin:0;"> Se souvenir de moi</label>
+        <a href="#">Mot de passe oublié ?</a>
+      </div>
+      <button class="btn-primary">Se connecter</button>
+      <div class="otp-note">🔒 Un code de vérification vous sera envoyé par SMS — l'authentification à deux facteurs est requise pour votre rôle.</div>
+      <div class="divider">nouvel arrivant</div>
+      <div class="signup-line">Compte non activé ? <a href="#" style="color:var(--accent); font-weight:700;">Demander l'accès</a></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== ÉCRAN 2 : APPLICATION ===================== -->
+<div id="screen-app" class="screen">
+  <div class="app">
+
+    <aside class="sidebar">
+      <div class="emblem">
+        <div class="emblem-mark">DN</div>
+        <div class="emblem-text">
+          <div class="top">DNPEC</div>
+          <div class="bottom">Espace de travail</div>
+        </div>
+      </div>
+
+      <div class="nav-group-label">Général</div>
+      <a class="nav-item active"><span class="ic">▦</span> Tableau de bord</a>
+      <a class="nav-item"><span class="ic">✎</span> Mes tâches <span class="count">12</span></a>
+      <a class="nav-item"><span class="ic">✉</span> Communication <span class="count">4</span></a>
+      <a class="nav-item"><span class="ic">🗂</span> Archives &amp; documents</a>
+      <a class="nav-item"><span class="ic">🗓</span> Réunions</a>
+
+      <div class="nav-group-label">Personnel</div>
+      <a class="nav-item"><span class="ic">🌴</span> Congés &amp; absences</a>
+      <a class="nav-item"><span class="ic">☰</span> Annuaire</a>
+      <a class="nav-item"><span class="ic">✦</span> Boîte à suggestions</a>
+
+      <div class="nav-group-label">Direction</div>
+      <a class="nav-item"><span class="ic">◫</span> Sondages</a>
+      <a class="nav-item"><span class="ic">▤</span> Journal d'audit</a>
+
+      <div class="sidebar-foot">
+        <div class="avatar">MD</div>
+        <div>
+          <div class="name">Mariama Diallo</div>
+          <div class="role">Chef · Division DPE</div>
+        </div>
+      </div>
+    </aside>
+
+    <div class="main">
+      <div class="flag-stripe"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+      <div class="topbar">
+        <div class="search">
+          <span class="ic">⌕</span>
+          <input placeholder="Rechercher une tâche, un document, une personne…">
+        </div>
+        <div class="topbar-right">
+          <button class="icon-btn">✉<span class="dot"></span></button>
+          <button class="icon-btn">🔔<span class="dot"></span></button>
+          <div class="avatar" style="width:34px;height:34px;">MD</div>
+        </div>
+      </div>
+
+      <div class="content">
+        <div class="page-head">
+          <div>
+            <div class="eyebrow">DIVISION DPE</div>
+            <h1>Tableau de bord</h1>
+            <div class="meta">Vue de votre périmètre · Prévisions Économiques · 4 sections</div>
+          </div>
+          <div class="head-actions">
+            <button class="btn">⇩ Exporter</button>
+            <button class="btn gold">+ Nouvelle tâche</button>
+          </div>
+        </div>
+
+        <div class="kpi-row">
+          <div class="kpi accentbar">
+            <div class="lbl">Tâches en cours</div>
+            <div class="val">27</div>
+            <div class="sub">sur 41 tâches actives</div>
+          </div>
+          <div class="kpi claybar">
+            <div class="lbl">En retard</div>
+            <div class="val">3</div>
+            <div class="sub">nécessitent une relance</div>
+          </div>
+          <div class="kpi goldbar">
+            <div class="lbl">En attente de validation</div>
+            <div class="val">6</div>
+            <div class="sub">à examiner cette semaine</div>
+          </div>
+          <div class="kpi sagebar">
+            <div class="lbl">Terminées ce mois</div>
+            <div class="val">34</div>
+            <div class="sub">+12% vs mois dernier</div>
+          </div>
+        </div>
+
+        <div class="page-head" style="margin-bottom:14px;">
+          <h1 style="font-size:16px;">Suivi des tâches</h1>
+          <div class="view-toggle">
+            <button class="active">Kanban</button>
+            <button>Calendrier</button>
+          </div>
+        </div>
+
+        <div class="board">
+          <div class="col">
+            <div class="col-head"><span class="t">À FAIRE</span><span class="n">6</span></div>
+
+            <div class="card p-urgent">
+              <span class="tag conf">Confidentiel</span>
+              <div class="title">Note de conjoncture — secteur minier T3</div>
+              <div class="sub-progress">
+                <div class="bar-track"><div class="bar-fill" style="width:0%; background:var(--line);"></div></div>
+                0/4
+              </div>
+              <div class="card-foot">
+                <div class="avatars"><div class="av" style="background:var(--gold);color:var(--ink);">AB</div></div>
+                <div class="due late">⏰ Retard 2 j</div>
+              </div>
+            </div>
+
+            <div class="card p-normal">
+              <span class="tag div">SFP</span>
+              <div class="title">Collecte des données budgétaires mensuelles</div>
+              <div class="card-foot">
+                <div class="avatars">
+                  <div class="av" style="background:var(--accent-soft);color:var(--accent);">FC</div>
+                  <div class="av" style="background:var(--sage-soft);color:var(--sage);">OK</div>
+                </div>
+                <div class="due">14 sept.</div>
+              </div>
+            </div>
+
+            <button class="add-card">+ Ajouter une tâche</button>
+          </div>
+
+          <div class="col">
+            <div class="col-head"><span class="t">EN COURS</span><span class="n">9</span></div>
+
+            <div class="card p-normal" onclick="document.getElementById('taskOverlay').classList.add('open')" style="cursor:pointer;">
+              <span class="tag div">SGOP</span>
+              <div class="title">Mise à jour du modèle de prévision macroéconomique</div>
+              <div class="sub-progress">
+                <div class="bar-track"><div class="bar-fill" style="width:62%;"></div></div>
+                5/8
+              </div>
+              <div class="card-foot">
+                <div class="avatars">
+                  <div class="av" style="background:var(--gold);color:var(--ink);">MD</div>
+                  <div class="av" style="background:var(--accent-soft);color:var(--accent);">SB</div>
+                </div>
+                <div class="due">18 sept.</div>
+              </div>
+            </div>
+
+            <div class="card p-low">
+              <span class="tag div">SSR</span>
+              <div class="title">Revue documentaire — secteur agricole</div>
+              <div class="card-foot">
+                <div class="avatars"><div class="av" style="background:var(--sage-soft);color:var(--sage);">HK</div></div>
+                <div class="due">22 sept.</div>
+              </div>
+            </div>
+
+            <div class="card p-normal">
+              <span class="tag div">SSME</span>
+              <div class="title">Rapprochement des données de la balance des paiements</div>
+              <div class="sub-progress">
+                <div class="bar-track"><div class="bar-fill" style="width:30%;"></div></div>
+                2/6
+              </div>
+              <div class="card-foot">
+                <div class="avatars"><div class="av" style="background:var(--accent-soft);color:var(--accent);">FC</div></div>
+                <div class="due">25 sept.</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col">
+            <div class="col-head"><span class="t">SOUMISE POUR VALIDATION</span><span class="n">3</span></div>
+
+            <div class="card p-normal">
+              <span class="tag div">SFP</span>
+              <div class="title">Rapport trimestriel des finances publiques</div>
+              <div class="card-foot">
+                <div class="avatars"><div class="av" style="background:var(--gold);color:var(--ink);">AB</div></div>
+                <div class="due">Soumis le 2 sept.</div>
+              </div>
+            </div>
+
+            <div class="card p-urgent">
+              <span class="tag conf">Confidentiel</span>
+              <div class="title">Note interne — révision des hypothèses de croissance</div>
+              <div class="card-foot">
+                <div class="avatars"><div class="av" style="background:var(--sage-soft);color:var(--sage);">OK</div></div>
+                <div class="due">Soumis le 1 sept.</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col">
+            <div class="col-head"><span class="t">TERMINÉE</span><span class="n">14</span></div>
+
+            <div class="card p-low" style="opacity:.72;">
+              <span class="tag div">SGOP</span>
+              <div class="title">Publication du Tableau de Bord mensuel — août</div>
+              <div class="card-foot">
+                <div class="avatars"><div class="av" style="background:var(--sage);color:#fff;">✓</div></div>
+                <div class="due">28 août</div>
+              </div>
+            </div>
+
+            <div class="card p-low" style="opacity:.72;">
+              <span class="tag div">SSR</span>
+              <div class="title">Atelier de cadrage — campagne agricole 2026</div>
+              <div class="card-foot">
+                <div class="avatars"><div class="av" style="background:var(--sage);color:#fff;">✓</div></div>
+                <div class="due">21 août</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Panneau détail de tâche ===== -->
+  <div class="overlay" id="taskOverlay">
+    <div class="drawer">
+      <div class="drawer-top">
+        <button class="drawer-close" onclick="document.getElementById('taskOverlay').classList.remove('open')">✕</button>
+      </div>
+      <div class="breadcrumb">DPE → Section SGOP → Tâche</div>
+      <h2>Mise à jour du modèle de prévision macroéconomique</h2>
+
+      <div class="stepper">
+        <div class="step done"><div class="dot">✓</div><div class="lbl">À faire</div></div>
+        <div class="step now"><div class="dot">●</div><div class="lbl">En cours</div></div>
+        <div class="step"><div class="dot">3</div><div class="lbl">Validation</div></div>
+        <div class="step"><div class="dot">4</div><div class="lbl">Terminée</div></div>
+      </div>
+
+      <div class="meta-grid">
+        <div class="meta-item"><div class="k">RESPONSABLES</div><div class="v">M. Diallo, S. Barry</div></div>
+        <div class="meta-item"><div class="k">PRIORITÉ</div><div class="v">Normal</div></div>
+        <div class="meta-item"><div class="k">ÉCHÉANCE</div><div class="v">18 septembre 2026</div></div>
+        <div class="meta-item"><div class="k">CONFIDENTIALITÉ</div><div class="v">Public interne</div></div>
+      </div>
+
+      <div class="section-label">Description</div>
+      <div class="desc">Intégrer les dernières données trimestrielles de l'INS dans le modèle EGC et produire une note de sensibilité sur les hypothèses de croissance pour la revue de fin de mois.</div>
+
+      <div class="section-label">Sous-tâches (5/8)</div>
+      <div class="subtask done"><div class="chk">✓</div><div class="lbl">Récupérer les données INS T2</div><div class="who">M. Diallo</div></div>
+      <div class="subtask done"><div class="chk">✓</div><div class="lbl">Nettoyer et harmoniser le jeu de données</div><div class="who">S. Barry</div></div>
+      <div class="subtask done"><div class="chk">✓</div><div class="lbl">Recalibrer les paramètres du modèle</div><div class="who">M. Diallo</div></div>
+      <div class="subtask"><div class="chk"></div><div class="lbl">Rédiger la note de sensibilité</div><div class="who">S. Barry</div></div>
+      <div class="subtask"><div class="chk"></div><div class="lbl">Relecture par le Chef de Division</div><div class="who">Vous</div></div>
+
+      <div class="section-label">Pièces jointes</div>
+      <div class="desc" style="display:flex; align-items:center; gap:10px; font-weight:600;">📎 modele_EGC_v3_sept2026.xlsx</div>
+
+      <div class="section-label">Commentaires</div>
+      <div class="comment">
+        <div class="avatar av" style="background:var(--accent-soft); color:var(--accent);">SB</div>
+        <div>
+          <div class="who">S. Barry <span class="when">Aujourd'hui, 09:14</span></div>
+          <div class="bubble">Données INS intégrées. <span class="mention">@Mariama Diallo</span> je démarre la note de sensibilité cet après-midi.</div>
+        </div>
+      </div>
+      <div class="comment">
+        <div class="avatar av" style="background:var(--gold); color:var(--ink);">MD</div>
+        <div>
+          <div class="who">Mariama Diallo <span class="when">Aujourd'hui, 09:22</span></div>
+          <div class="bubble">Parfait, merci. Pense à comparer avec l'hypothèse basse du dernier REF.</div>
+        </div>
+      </div>
+      <div class="field" style="margin-top:16px;">
+        <input placeholder="Écrire un commentaire… (@ pour mentionner)">
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.querySelectorAll('.demo-switch button').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      document.querySelectorAll('.demo-switch button').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+      document.getElementById(btn.dataset.target).classList.add('active');
+    });
+  });
+</script>
+</body>
+</html>
