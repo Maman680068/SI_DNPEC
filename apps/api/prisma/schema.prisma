@@ -10,18 +10,28 @@
 // Réunions, Sondages, Boîte à suggestions (RF-CPL-02 à 05).
 //
 // Décisions de conception à noter :
-// 1. Chargés d'Études (C.E.) : suite à la correction du cahier des charges
-//    (§2.2 fait foi), un C.E. est un cas particulier d'Agent — rattaché à
-//    une Division (obligatoire) et à une Section (nullable, RF-SEC-06). Le
-//    supérieur hiérarchique direct est dérivé (Chef de Section si affecté,
-//    sinon Chef de Division) : aucun champ "manager" séparé n'est nécessaire.
-// 2. Cellules transversales (CTSCM, CNC, SAF, RH, CSID) : non modélisées
+// 1. Chargé d'Études vs Agent : ce n'est plus un rôle système distinct — le
+//    rôle reste AGENT dans les deux cas (même permission). "Chargé d'Études"
+//    (personnel des Divisions) et l'intitulé de poste du personnel des
+//    cellules transversales (RH, SAF, CTSCM, CNC, CSID) ne sont qu'un
+//    intitulé d'affichage, porté par User.jobTitle (libre, optionnel).
+//    Un Agent rattaché à une Division (divisionId non nul) est ainsi
+//    affiché "Chargé d'Études" par convention métier ; un Agent d'une
+//    cellule a divisionId = null et jobTitle libre.
+// 2. Assistant du DN/DNA (ASSISTANT_DIRECTION) : rattaché au dirigeant qu'il
+//    assiste via dnOrDnaId (auto-relation sur User), plutôt qu'à une
+//    Division. Aucune logique de permission n'est encore codée pour ce
+//    rôle — périmètre de droits explicitement à définir par la Direction
+//    (§11 du cahier des charges). Le modèle est prêt à recevoir cette
+//    logique plus tard sans nouvelle migration structurelle.
+// 3. Cellules transversales (CTSCM, CNC, SAF, RH, CSID) : non modélisées
 //    comme unités d'organisation distinctes — aucune exigence fonctionnelle
 //    ne porte spécifiquement sur elles au-delà du rôle ADMIN_SYSTEME (CSID).
 //    À revoir si des tâches/documents doivent un jour être scopés par cellule.
-// 3. Invariants non exprimables nativement en Prisma (à valider en base ou en
+// 4. Invariants non exprimables nativement en Prisma (à valider en base ou en
 //    application) : User.sectionId doit appartenir à User.divisionId ; de
-//    même pour Task.sectionId / Task.divisionId.
+//    même pour Task.sectionId / Task.divisionId ; User.dnOrDnaId ne doit
+//    référencer qu'un User de rôle DN ou DNA.
 // ============================================================================
 
 generator client {
@@ -42,9 +52,15 @@ enum SystemRole {
   DNA // Directeur National Adjoint — même autorité que le DN (§2.3)
   CHEF_DIVISION
   CHEF_SECTION
+  // Personnel de base, qu'il soit rattaché à une Division (affiché "Chargé
+  // d'Études" via jobTitle) ou à une cellule transversale (jobTitle libre) —
+  // même niveau de permission dans les deux cas.
   AGENT
-  CHARGE_ETUDES // Agent rattaché à une Division, Section optionnelle (RF-SEC-06)
   ADMIN_SYSTEME // CSID — gestion des comptes et de l'infrastructure
+  // Assistant(e) du DN ou de la DNA (rattaché via dnOrDnaId). Rôle créé en
+  // base sans logique de permission : périmètre de droits non défini,
+  // à concevoir ultérieurement (§11).
+  ASSISTANT_DIRECTION
 
   @@map("system_role")
 }
@@ -225,17 +241,33 @@ model User {
   photoUrl     String?
   role         SystemRole
   status       UserStatus @default(EN_ATTENTE)
+  // Intitulé de poste affiché — ex. "Chargé d'Études" pour un Agent de
+  // Division, ou l'intitulé réel pour un Agent d'une cellule transversale
+  // (RH, SAF, CTSCM, CNC, CSID). Purement déclaratif : ne change pas le
+  // niveau de permission, porté uniquement par `role`.
+  jobTitle     String?
 
   // Rattachement organisationnel (§2.3, cascade hiérarchique) :
   // - DN / DNA / ADMIN_SYSTEME  -> divisionId = null, sectionId = null
+  // - ASSISTANT_DIRECTION       -> divisionId = null, sectionId = null,
+  //   dnOrDnaId requis (voir plus bas)
   // - CHEF_DIVISION             -> divisionId requis, sectionId = null
   // - CHEF_SECTION              -> divisionId + sectionId requis
-  // - AGENT / CHARGE_ETUDES     -> divisionId requis, sectionId nullable
+  // - AGENT (Division)          -> divisionId requis, sectionId nullable
   //   (RF-SEC-06 : rattachement à une Division seule, en attendant affectation)
+  // - AGENT (cellule transversale, non modélisée) -> divisionId = null
   divisionId String?
   division   Division? @relation(fields: [divisionId], references: [id])
   sectionId  String?
   section    Section?  @relation(fields: [sectionId], references: [id])
+
+  // Assistant(e) de direction (ASSISTANT_DIRECTION) : dirigeant DN/DNA
+  // assisté, au lieu d'un rattachement à une Division. Aucune règle de
+  // permission n'est encore associée à ce rattachement (voir en-tête de
+  // fichier, décision de conception n°2).
+  dnOrDnaId  String?
+  dnOrDna    User?   @relation("DirectionAssistants", fields: [dnOrDnaId], references: [id])
+  assistants User[]  @relation("DirectionAssistants")
 
   // Sécurité (§3.3, §7.3, RF-SEC-02/03/05)
   twoFactorEnabled Boolean @default(false)
