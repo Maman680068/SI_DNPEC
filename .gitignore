@@ -4,6 +4,7 @@ build/
 .next/
 .turbo/
 out/
+*.tsbuildinfo
 
 # Env
 .env
