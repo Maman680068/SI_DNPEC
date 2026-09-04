@@ -150,15 +150,11 @@ connexion et du shell applicatif.
 | Rôle                          | Police       | Graisses utilisées    |
 |-------------------------------|--------------|------------------------|
 | Titres (`h1`, `h2`, `h3`)     | Montserrat   | 600, 700, 800          |
+| Valeurs KPI (`.kpi .val`)     | Montserrat   | 800                    |
 | Corps de texte / UI           | Inter        | 400, 500, 600, 700     |
 
-⚠️ **Incohérence relevée dans la maquette** : la valeur KPI (`.kpi .val`) référence
-`font-family:'Space Grotesk'`, mais cette police n'est pas chargée dans le
-`<link>` Google Fonts (seuls Montserrat et Inter sont importés) — le navigateur
-retombe donc sur la police par défaut. À trancher avant intégration : (a) importer
-Space Grotesk pour les valeurs chiffrées (KPI), ou (b) unifier sur Montserrat/Inter
-partout. Je recommande (b) par simplicité, sauf si vous souhaitez un style
-"chiffré" distinct pour les KPIs.
+(Correction appliquée dans la maquette : les valeurs KPI utilisent désormais
+Montserrat 800, au lieu de `Space Grotesk` qui n'était pas importée.)
 
 ### 3.3 Proposition de mapping Tailwind (à valider, non implémenté)
 
