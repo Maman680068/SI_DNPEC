@@ -33,13 +33,17 @@ type TaskScope =
 const TOP_LEVEL_ROLES: SystemRole[] = [SystemRole.DN, SystemRole.DNA, SystemRole.ADMIN_SYSTEME];
 
 /**
- * Rôles à visibilité totale sur le *contenu des tâches*. Volontairement
- * différent de TOP_LEVEL_ROLES : ADMIN_SYSTEME (CSID) gère les comptes et
+ * Rôles de direction, sans ADMIN_SYSTEME : utilisé pour tout ce qui touche
+ * au *contenu métier* plutôt qu'à la gestion de compte — tâches (modifier/
+ * valider/assigner) et congés (valider). Volontairement différent de
+ * TOP_LEVEL_ROLES : ADMIN_SYSTEME (CSID) gère les comptes et
  * l'infrastructure mais "pas d'accès systématique au contenu métier des
- * tâches" (§3.1) — un administrateur ne voit donc que les tâches dont il
- * est lui-même créateur ou assigné, comme un Agent.
+ * tâches" (§3.1), et la validation des congés (§3.1) revient à
+ * DN/DNA/Chef de Division/Section/Cellule — jamais à l'administrateur
+ * système. Un ADMIN_SYSTEME ne voit donc que son propre contenu, comme un
+ * Agent.
  */
-const TASK_TOP_LEVEL_ROLES: SystemRole[] = [SystemRole.DN, SystemRole.DNA];
+const LEADERSHIP_ROLES: SystemRole[] = [SystemRole.DN, SystemRole.DNA];
 
 /** Rôles dont le périmètre passif couvre une Division ou une Cellule entière (tous niveaux confidentialité ≤ CONFIDENTIEL_DIVISION). */
 const TASK_UPPER_TIER_ROLES: SystemRole[] = [SystemRole.CHEF_DIVISION, SystemRole.CHEF_CELLULE];
@@ -55,7 +59,24 @@ const TASK_UPPER_TIER_ROLES: SystemRole[] = [SystemRole.CHEF_DIVISION, SystemRol
 export class CascadeService {
   /** Filtre Prisma à appliquer à User.findMany pour scoper une liste au périmètre de `actor`. */
   getVisibleUserWhere(actor: AuthenticatedUser): Prisma.UserWhereInput {
-    if (TOP_LEVEL_ROLES.includes(actor.role)) {
+    return this.getVisibleUserWhereForTopRoles(actor, TOP_LEVEL_ROLES);
+  }
+
+  /**
+   * Même filtre que getVisibleUserWhere, mais sans ADMIN_SYSTEME dans le
+   * périmètre "tout voir" — pour scoper une ressource de *contenu métier*
+   * par utilisateur (ex. GET /leaves : `where: { user: ... } }`), pas la
+   * gestion des comptes eux-mêmes.
+   */
+  getVisibleUserWhereForLeadershipScope(actor: AuthenticatedUser): Prisma.UserWhereInput {
+    return this.getVisibleUserWhereForTopRoles(actor, LEADERSHIP_ROLES);
+  }
+
+  private getVisibleUserWhereForTopRoles(
+    actor: AuthenticatedUser,
+    topRoles: SystemRole[],
+  ): Prisma.UserWhereInput {
+    if (topRoles.includes(actor.role)) {
       return {};
     }
 
@@ -70,7 +91,7 @@ export class CascadeService {
       case SystemRole.CHEF_CELLULE:
         return { celluleId: actor.celluleId ?? '__none__' };
       default:
-        // AGENT, ASSISTANT_DIRECTION : uniquement soi-même.
+        // AGENT, ASSISTANT_DIRECTION (et ADMIN_SYSTEME hors périmètre leadership) : uniquement soi-même.
         return { id: actor.id };
     }
   }
@@ -79,7 +100,7 @@ export class CascadeService {
    * Cœur de la logique de cascade, factorisé car réutilisé avec deux
    * périmètres "top" différents : la gestion des utilisateurs (ADMIN_SYSTEME
    * inclus) et l'autorité sur le contenu des tâches (ADMIN_SYSTEME exclu,
-   * §3.1 — voir hasTaskAuthorityOver).
+   * §3.1 — voir hasDirectAuthorityOver).
    */
   private hasHierarchicalAuthorityOver(
     actor: AuthenticatedUser,
@@ -120,21 +141,23 @@ export class CascadeService {
   }
 
   /**
-   * `actor` a-t-il autorité hiérarchique sur `target` pour agir sur le
-   * *contenu métier* d'une tâche (modifier/supprimer/valider/rejeter une
-   * tâche créée par `target`, ou lui assigner du travail) ? Exclut
-   * ADMIN_SYSTEME du périmètre "tout" — un administrateur système n'a pas
-   * d'accès systématique au contenu des tâches (§3.1), contrairement à sa
-   * visibilité totale sur les comptes utilisateurs.
+   * `actor` a-t-il autorité hiérarchique sur `target` pour agir sur du
+   * *contenu métier* dont `target` est propriétaire — modifier/valider/
+   * rejeter une tâche créée par `target`, lui assigner du travail, ou
+   * valider/rejeter une demande de congé qu'il/elle a soumise ? Exclut
+   * ADMIN_SYSTEME du périmètre "tout" : ni le contenu des tâches (§3.1),
+   * ni la validation des congés (§3.1, réservée à DN/DNA/Chef de Division/
+   * Section/Cellule) ne relèvent de l'administrateur système, contrairement
+   * à sa visibilité totale sur les comptes utilisateurs.
    */
-  hasTaskAuthorityOver(actor: AuthenticatedUser, target: OrgTarget): boolean {
-    return this.hasHierarchicalAuthorityOver(actor, target, TASK_TOP_LEVEL_ROLES);
+  hasDirectAuthorityOver(actor: AuthenticatedUser, target: OrgTarget): boolean {
+    return this.hasHierarchicalAuthorityOver(actor, target, LEADERSHIP_ROLES);
   }
 
-  assertHasTaskAuthorityOver(actor: AuthenticatedUser, target: OrgTarget): void {
-    if (!this.hasTaskAuthorityOver(actor, target)) {
+  assertHasDirectAuthorityOver(actor: AuthenticatedUser, target: OrgTarget): void {
+    if (!this.hasDirectAuthorityOver(actor, target)) {
       throw new ForbiddenException(
-        "Seuls le créateur de la tâche (ou la personne assignée), et son supérieur hiérarchique direct, peuvent effectuer cette action.",
+        "Seuls le créateur (ou la personne assignée/concernée) et son supérieur hiérarchique direct peuvent effectuer cette action.",
       );
     }
   }
@@ -146,7 +169,7 @@ export class CascadeService {
   // --------------------------------------------------------------------
 
   private getTaskScope(actor: AuthenticatedUser): TaskScope {
-    if (TASK_TOP_LEVEL_ROLES.includes(actor.role)) {
+    if (LEADERSHIP_ROLES.includes(actor.role)) {
       return { kind: 'all' };
     }
     if (actor.role === SystemRole.CHEF_DIVISION) {
@@ -178,7 +201,7 @@ export class CascadeService {
 
   /** Confidentialités visibles *via le périmètre passif* (le créateur/assigné voit toujours sa tâche, quelle que soit sa confidentialité). */
   private getAllowedConfidentialityTiers(actor: AuthenticatedUser): TaskConfidentiality[] {
-    if (TASK_TOP_LEVEL_ROLES.includes(actor.role)) {
+    if (LEADERSHIP_ROLES.includes(actor.role)) {
       return [
         TaskConfidentiality.PUBLIC_INTERNE,
         TaskConfidentiality.CONFIDENTIEL_DIVISION,

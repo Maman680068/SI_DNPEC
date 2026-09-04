@@ -362,7 +362,7 @@ export class TasksService {
   async validate(actor: AuthenticatedUser, id: string, dto: ValidateTaskDto): Promise<TaskWithAssignees> {
     const task = await this.getTaskOrThrow(id);
     const creator = await this.getCreatorOrgFields(task.createdById);
-    this.cascade.assertHasTaskAuthorityOver(actor, creator);
+    this.cascade.assertHasDirectAuthorityOver(actor, creator);
     if (task.status !== TaskStatus.SOUMISE_VALIDATION) {
       throw new ConflictException('Seule une tâche "Soumise pour validation" peut être validée.');
     }
@@ -403,7 +403,7 @@ export class TasksService {
   async reject(actor: AuthenticatedUser, id: string, dto: RejectTaskDto): Promise<TaskWithAssignees> {
     const task = await this.getTaskOrThrow(id);
     const creator = await this.getCreatorOrgFields(task.createdById);
-    this.cascade.assertHasTaskAuthorityOver(actor, creator);
+    this.cascade.assertHasDirectAuthorityOver(actor, creator);
     if (task.status !== TaskStatus.SOUMISE_VALIDATION) {
       throw new ConflictException('Seule une tâche "Soumise pour validation" peut être rejetée.');
     }
@@ -451,7 +451,7 @@ export class TasksService {
       select: { id: true, divisionId: true, sectionId: true, celluleId: true },
     });
     if (!candidate) throw new NotFoundException('Utilisateur introuvable');
-    this.cascade.assertHasTaskAuthorityOver(actor, candidate);
+    this.cascade.assertHasDirectAuthorityOver(actor, candidate);
 
     const roleOnTask = dto.roleOnTask ?? TaskAssigneeRole.RESPONSABLE;
     const assignee = await this.prisma.taskAssignee.upsert({
@@ -727,14 +727,14 @@ export class TasksService {
   private async assertCanModify(actor: AuthenticatedUser, task: TaskWithAssignees): Promise<void> {
     if (actor.id === task.createdById) return;
     const creator = await this.getCreatorOrgFields(task.createdById);
-    this.cascade.assertHasTaskAuthorityOver(actor, creator);
+    this.cascade.assertHasDirectAuthorityOver(actor, creator);
   }
 
   private async assertCanAttach(actor: AuthenticatedUser, task: TaskWithAssignees): Promise<void> {
     if (task.createdById === actor.id) return;
     if (task.assignees.some((a) => a.userId === actor.id)) return;
     const creator = await this.getCreatorOrgFields(task.createdById);
-    if (this.cascade.hasTaskAuthorityOver(actor, creator)) return;
+    if (this.cascade.hasDirectAuthorityOver(actor, creator)) return;
     throw new ForbiddenException(
       'Seuls le créateur, un supérieur hiérarchique, ou une personne assignée peuvent déposer une pièce jointe.',
     );
@@ -765,7 +765,7 @@ export class TasksService {
       throw new NotFoundException('Un ou plusieurs utilisateurs assignés sont introuvables');
     }
     for (const user of users) {
-      this.cascade.assertHasTaskAuthorityOver(actor, user);
+      this.cascade.assertHasDirectAuthorityOver(actor, user);
     }
   }
 
