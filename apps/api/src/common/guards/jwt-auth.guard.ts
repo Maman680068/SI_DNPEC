@@ -6,16 +6,17 @@ import { Request } from 'express';
 import { PrismaService } from '../../prisma/prisma.service';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 import { AuthenticatedUser } from '../types/auth-user.type';
-
-interface AccessTokenPayload {
-  sub: string;
-}
+import { AnyAuthTokenPayload } from '../types/jwt-payload.type';
 
 /**
  * Guard global : vérifie l'access token JWT et peuple request.user.
- * Volontairement indépendant du module `auth` (pas encore construit) —
- * il ne fait que *vérifier* les tokens ; `auth` réutilisera le même
- * JwtService (configuré dans CommonModule) pour les *émettre*.
+ * Volontairement indépendant du module `auth` — il ne fait que *vérifier*
+ * les tokens ; `auth` réutilise le même JwtService (configuré dans
+ * CommonModule) pour les *émettre*.
+ *
+ * N'accepte que purpose === 'access' : les jetons intermédiaires (challenge
+ * 2FA, configuration 2FA requise, émis par AuthService avec le même secret)
+ * sont délibérément rejetés ici pour ne jamais servir de jeton d'accès.
  */
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
@@ -38,11 +39,14 @@ export class JwtAuthGuard implements CanActivate {
       throw new UnauthorizedException('Jeton d’accès manquant');
     }
 
-    let payload: AccessTokenPayload;
+    let payload: AnyAuthTokenPayload;
     try {
-      payload = await this.jwtService.verifyAsync<AccessTokenPayload>(token);
+      payload = await this.jwtService.verifyAsync<AnyAuthTokenPayload>(token);
     } catch {
       throw new UnauthorizedException('Jeton d’accès invalide ou expiré');
+    }
+    if (payload.purpose !== 'access') {
+      throw new UnauthorizedException('Ce jeton ne peut pas être utilisé comme jeton d’accès');
     }
 
     const user = await this.prisma.user.findUnique({

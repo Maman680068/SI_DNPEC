@@ -7,6 +7,7 @@ import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { OrgModule } from './org/org.module';
 import { UsersModule } from './users/users.module';
+import { AuthModule } from './auth/auth.module';
 
 // Modules "métier" à venir (hors périmètre de ce scaffold) : tasks,
 // communication, documents, leaves, notifications, audit-reporting.
@@ -17,6 +18,7 @@ import { UsersModule } from './users/users.module';
     CommonModule,
     OrgModule,
     UsersModule,
+    AuthModule,
   ],
   providers: [
     // Guards globaux, exécutés dans cet ordre : JwtAuthGuard peuple
