@@ -1,6 +1,7 @@
 import { ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import {
   AuditAction,
+  NotificationType,
   Prisma,
   RecurrenceFrequency,
   SystemRole,
@@ -11,6 +12,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../common/audit/audit.service';
 import { CascadeService } from '../org/cascade/cascade.service';
+import { NotificationsService } from '../communication/notifications/notifications.service';
 import { AuthenticatedUser } from '../common/types/auth-user.type';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { CreateTaskAssigneeDto } from './dto/create-task-assignee.dto';
@@ -66,6 +68,7 @@ export class TasksService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly cascade: CascadeService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   // --------------------------------------------------------------------
@@ -121,6 +124,16 @@ export class TasksService {
       entityId: task.id,
       metadata: { title: task.title, confidentiality: task.confidentiality },
     });
+
+    if (assignees.length > 0) {
+      await this.notifications.notifyMany(
+        assignees.map((a) => a.userId).filter((id) => id !== actor.id),
+        NotificationType.TACHE_ASSIGNEE,
+        'Nouvelle tâche assignée',
+        task.title,
+        `/tasks/${task.id}`,
+      );
+    }
 
     return task;
   }
@@ -274,6 +287,16 @@ export class TasksService {
       metadata: { title: subtask.title, parentTaskId: parent.id },
     });
 
+    if (assignees.length > 0) {
+      await this.notifications.notifyMany(
+        assignees.map((a) => a.userId).filter((id) => id !== actor.id),
+        NotificationType.TACHE_ASSIGNEE,
+        'Nouvelle sous-tâche assignée',
+        subtask.title,
+        `/tasks/${subtask.id}`,
+      );
+    }
+
     return subtask;
   }
 
@@ -321,6 +344,17 @@ export class TasksService {
       select: TASK_SELECT,
     });
     await this.logStatusChange(actor, task.status, updated);
+
+    if (task.createdById !== actor.id) {
+      await this.notifications.notify(
+        task.createdById,
+        NotificationType.TACHE_SOUMISE_VALIDATION,
+        'Tâche soumise pour validation',
+        task.title,
+        `/tasks/${id}`,
+      );
+    }
+
     return updated;
   }
 
@@ -353,6 +387,15 @@ export class TasksService {
 
     await this.logStatusChange(actor, task.status, updated, AuditAction.VALIDATION);
     if (task.parentTaskId) await this.recomputeParentProgress(task.parentTaskId);
+
+    await this.notifications.notifyMany(
+      task.assignees.map((a) => a.userId).filter((id) => id !== actor.id),
+      NotificationType.TACHE_VALIDEE,
+      'Tâche validée',
+      task.title,
+      `/tasks/${id}`,
+    );
+
     return updated;
   }
 
@@ -383,6 +426,15 @@ export class TasksService {
     });
 
     await this.logStatusChange(actor, task.status, updated, AuditAction.REJET);
+
+    await this.notifications.notifyMany(
+      task.assignees.map((a) => a.userId).filter((id) => id !== actor.id),
+      NotificationType.TACHE_REJETEE,
+      'Tâche rejetée — à reprendre',
+      dto.comment,
+      `/tasks/${id}`,
+    );
+
     return updated;
   }
 
@@ -416,6 +468,16 @@ export class TasksService {
       metadata: { event: 'assignee_added', userId: dto.userId, roleOnTask },
     });
 
+    if (dto.userId !== actor.id) {
+      await this.notifications.notify(
+        dto.userId,
+        NotificationType.TACHE_ASSIGNEE,
+        'Tâche assignée',
+        task.title,
+        `/tasks/${taskId}`,
+      );
+    }
+
     return assignee;
   }
 
@@ -448,7 +510,7 @@ export class TasksService {
       }
     }
 
-    return this.prisma.taskComment.create({
+    const comment = await this.prisma.taskComment.create({
       data: {
         taskId: task.id,
         authorId: actor.id,
@@ -459,6 +521,18 @@ export class TasksService {
       },
       include: { mentions: true },
     });
+
+    if (dto.mentionedUserIds?.length) {
+      await this.notifications.notifyMany(
+        dto.mentionedUserIds.filter((id) => id !== actor.id),
+        NotificationType.MENTION_COMMENTAIRE,
+        'Vous avez été mentionné',
+        dto.body.length > 200 ? `${dto.body.slice(0, 200)}…` : dto.body,
+        `/tasks/${taskId}`,
+      );
+    }
+
+    return comment;
   }
 
   async listComments(actor: AuthenticatedUser, taskId: string) {

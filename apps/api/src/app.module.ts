@@ -9,9 +9,10 @@ import { OrgModule } from './org/org.module';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
 import { TasksModule } from './tasks/tasks.module';
+import { CommunicationModule } from './communication/communication.module';
 
-// Modules "métier" à venir (hors périmètre de ce scaffold) : communication,
-// documents, leaves, notifications, audit-reporting.
+// Modules "métier" à venir (hors périmètre de ce scaffold) : documents,
+// leaves, audit-reporting.
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -21,6 +22,7 @@ import { TasksModule } from './tasks/tasks.module';
     UsersModule,
     AuthModule,
     TasksModule,
+    CommunicationModule,
   ],
   providers: [
     // Guards globaux, exécutés dans cet ordre : JwtAuthGuard peuple
