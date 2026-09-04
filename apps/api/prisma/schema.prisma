@@ -1,0 +1,699 @@
+// ============================================================================
+// SI DNPEC — Schéma de base de données (Prisma)
+// ============================================================================
+// Portée de cette version : Utilisateurs & rôles, Organisation (Divisions/
+// Sections), Tâches (RF-TAC-*), Communication (RF-COM-*), Archivage/GED
+// (RF-GED-*), Congés (RF-CNG-*), Notifications, Journal d'audit (RF-SEC-04).
+//
+// Non modélisé à ce stade (hors périmètre de cette demande, à traiter
+// séparément si besoin) : Annuaire (dérivable de User/Division/Section),
+// Réunions, Sondages, Boîte à suggestions (RF-CPL-02 à 05).
+//
+// Décisions de conception à noter :
+// 1. Chargés d'Études (C.E.) : suite à la correction du cahier des charges
+//    (§2.2 fait foi), un C.E. est un cas particulier d'Agent — rattaché à
+//    une Division (obligatoire) et à une Section (nullable, RF-SEC-06). Le
+//    supérieur hiérarchique direct est dérivé (Chef de Section si affecté,
+//    sinon Chef de Division) : aucun champ "manager" séparé n'est nécessaire.
+// 2. Cellules transversales (CTSCM, CNC, SAF, RH, CSID) : non modélisées
+//    comme unités d'organisation distinctes — aucune exigence fonctionnelle
+//    ne porte spécifiquement sur elles au-delà du rôle ADMIN_SYSTEME (CSID).
+//    À revoir si des tâches/documents doivent un jour être scopés par cellule.
+// 3. Invariants non exprimables nativement en Prisma (à valider en base ou en
+//    application) : User.sectionId doit appartenir à User.divisionId ; de
+//    même pour Task.sectionId / Task.divisionId.
+// ============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ----------------------------------------------------------------------------
+// Énumérations
+// ----------------------------------------------------------------------------
+
+enum SystemRole {
+  DN // Directeur National
+  DNA // Directeur National Adjoint — même autorité que le DN (§2.3)
+  CHEF_DIVISION
+  CHEF_SECTION
+  AGENT
+  CHARGE_ETUDES // Agent rattaché à une Division, Section optionnelle (RF-SEC-06)
+  ADMIN_SYSTEME // CSID — gestion des comptes et de l'infrastructure
+
+  @@map("system_role")
+}
+
+enum UserStatus {
+  EN_ATTENTE // auto-inscription en attente de validation par l'administrateur
+  ACTIF
+  SUSPENDU
+
+  @@map("user_status")
+}
+
+enum TaskStatus {
+  A_FAIRE
+  EN_COURS
+  SOUMISE_VALIDATION
+  VALIDEE
+  REJETEE
+  TERMINEE
+
+  @@map("task_status")
+}
+
+enum TaskPriority {
+  URGENT
+  NORMAL
+  FAIBLE
+
+  @@map("task_priority")
+}
+
+enum TaskConfidentiality {
+  PUBLIC_INTERNE
+  CONFIDENTIEL_DIVISION
+  TRES_CONFIDENTIEL_DIRIGEANTS
+
+  @@map("task_confidentiality")
+}
+
+enum TaskAssigneeRole {
+  RESPONSABLE // un seul = responsable unique ; plusieurs = co-responsabilité
+  COLLABORATEUR // collaborateur en soutien
+
+  @@map("task_assignee_role")
+}
+
+enum RecurrenceFrequency {
+  QUOTIDIENNE
+  HEBDOMADAIRE
+  MENSUELLE
+
+  @@map("recurrence_frequency")
+}
+
+enum DocumentCategory {
+  ETUDE
+  RAPPORT
+  NOTE_TECHNIQUE
+  AUTRE
+
+  @@map("document_category")
+}
+
+enum DocumentVisibility {
+  PRIVE_DIVISION
+  PUBLIE_DNPEC
+
+  @@map("document_visibility")
+}
+
+enum LeaveRequestStatus {
+  EN_ATTENTE
+  APPROUVEE
+  REJETEE
+  ANNULEE
+
+  @@map("leave_request_status")
+}
+
+enum AnnouncementScope {
+  DNPEC
+  DIVISION
+  SECTION
+  GROUPE_PERSONNALISE
+
+  @@map("announcement_scope")
+}
+
+enum NotificationChannel {
+  IN_APP
+  EMAIL
+  SMS
+
+  @@map("notification_channel")
+}
+
+enum NotificationType {
+  TACHE_ASSIGNEE
+  TACHE_ECHEANCE_PROCHE
+  TACHE_EN_RETARD
+  TACHE_SOUMISE_VALIDATION
+  TACHE_VALIDEE
+  TACHE_REJETEE
+  MENTION_COMMENTAIRE
+  MESSAGE_DIRECT
+  ANNONCE
+  CONGE_SOUMIS
+  CONGE_VALIDE
+  CONGE_REJETE
+  DOCUMENT_PUBLIE
+
+  @@map("notification_type")
+}
+
+enum AuditAction {
+  CREATION
+  MODIFICATION
+  SUPPRESSION
+  VALIDATION
+  REJET
+  PUBLICATION
+  CONNEXION
+  DECONNEXION
+
+  @@map("audit_action")
+}
+
+// ----------------------------------------------------------------------------
+// Organisation — Divisions & Sections (§2)
+// ----------------------------------------------------------------------------
+
+model Division {
+  id        String   @id @default(cuid())
+  code      String   @unique // DPE, DEE, DSPS, DAC, DIPE
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sections      Section[]
+  users         User[]
+  tasks         Task[]
+  projects      Project[]
+  folders       Folder[]
+  documents     Document[]
+  announcements Announcement[]
+
+  @@map("divisions")
+}
+
+model Section {
+  id         String   @id @default(cuid())
+  code       String // SSR, SFP, SSME, SGOP, SE, SDP, SME, ...
+  name       String
+  divisionId String
+  division   Division @relation(fields: [divisionId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  users         User[]
+  tasks         Task[]
+  announcements Announcement[]
+
+  @@unique([divisionId, code])
+  @@map("sections")
+}
+
+// ----------------------------------------------------------------------------
+// Utilisateurs (§3)
+// ----------------------------------------------------------------------------
+
+model User {
+  id           String     @id @default(cuid())
+  email        String     @unique
+  passwordHash String
+  firstName    String
+  lastName     String
+  phone        String?
+  photoUrl     String?
+  role         SystemRole
+  status       UserStatus @default(EN_ATTENTE)
+
+  // Rattachement organisationnel (§2.3, cascade hiérarchique) :
+  // - DN / DNA / ADMIN_SYSTEME  -> divisionId = null, sectionId = null
+  // - CHEF_DIVISION             -> divisionId requis, sectionId = null
+  // - CHEF_SECTION              -> divisionId + sectionId requis
+  // - AGENT / CHARGE_ETUDES     -> divisionId requis, sectionId nullable
+  //   (RF-SEC-06 : rattachement à une Division seule, en attendant affectation)
+  divisionId String?
+  division   Division? @relation(fields: [divisionId], references: [id])
+  sectionId  String?
+  section    Section?  @relation(fields: [sectionId], references: [id])
+
+  // Sécurité (§3.3, §7.3, RF-SEC-02/03/05)
+  twoFactorEnabled Boolean @default(false)
+  twoFactorSecret  String? // secret TOTP, chiffré au repos
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sessions UserSession[]
+
+  // Tâches
+  createdTasks    Task[]           @relation("TaskCreatedBy")
+  submittedTasks  Task[]           @relation("TaskSubmittedBy")
+  validatedTasks  Task[]           @relation("TaskValidatedBy")
+  taskAssignments TaskAssignee[]
+  taskComments    TaskComment[]
+  commentMentions TaskCommentMention[]
+  taskAttachments TaskAttachment[]
+  savedFilters    SavedFilter[]
+  createdProjects Project[]        @relation("ProjectCreatedBy")
+
+  // GED
+  createdFolders           Folder[]
+  createdDocuments         Document[]        @relation("DocumentCreatedBy")
+  publishedDocuments       Document[]        @relation("DocumentPublishedBy")
+  uploadedDocumentVersions DocumentVersion[]
+
+  // Congés
+  leaveRequestsMade    LeaveRequest[] @relation("LeaveRequester")
+  leaveRequestsDecided LeaveRequest[] @relation("LeaveApprover")
+  leaveBalances        LeaveBalance[]
+
+  // Communication
+  sentMessages           DirectMessage[]          @relation("MessageSender")
+  receivedMessages       DirectMessage[]          @relation("MessageRecipient")
+  createdAnnouncements   Announcement[]
+  announcementRecipients AnnouncementRecipient[]
+  announcementReads      AnnouncementRead[]
+
+  notifications Notification[]
+  auditLogs     AuditLog[]
+
+  @@map("users")
+}
+
+// Sessions actives, pour la fonction de déconnexion à distance / partout
+// (RF-SEC-05) — la session n'expire pas automatiquement (§3.3).
+model UserSession {
+  id               String    @id @default(cuid())
+  userId           String
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deviceLabel      String? // ex. "Chrome sur Windows", "App mobile Android"
+  refreshTokenHash String
+  createdAt        DateTime  @default(now())
+  lastUsedAt       DateTime  @default(now())
+  revokedAt        DateTime?
+
+  @@map("user_sessions")
+}
+
+// ----------------------------------------------------------------------------
+// Module Tâches (RF-TAC-*)
+// ----------------------------------------------------------------------------
+
+// Regroupement de tâches sous un Projet/Dossier (RF-TAC-13)
+model Project {
+  id          String    @id @default(cuid())
+  name        String
+  description String?
+  divisionId  String?
+  division    Division? @relation(fields: [divisionId], references: [id])
+  createdById String
+  createdBy   User      @relation("ProjectCreatedBy", fields: [createdById], references: [id])
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  tasks Task[]
+
+  @@map("projects")
+}
+
+model Task {
+  id              String              @id @default(cuid())
+  title           String
+  description     String?
+  status          TaskStatus          @default(A_FAIRE)
+  priority        TaskPriority        @default(NORMAL)
+  confidentiality TaskConfidentiality @default(PUBLIC_INTERNE)
+  dueDate         DateTime?
+
+  // Périmètre d'origine de la tâche, dénormalisé pour les filtres et
+  // tableaux de bord (RF-TAC-11, RF-TAC-12).
+  divisionId String?
+  division   Division? @relation(fields: [divisionId], references: [id])
+  sectionId  String?
+  section    Section?  @relation(fields: [sectionId], references: [id])
+
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id])
+
+  // Sous-tâches (RF-TAC-04) — la progression de la tâche mère est calculée
+  // par l'application à partir de l'avancement des sous-tâches ;
+  // progressPercent est un cache pour les tableaux de bord, pas la source
+  // de vérité.
+  parentTaskId    String?
+  parentTask      Task?   @relation("TaskSubtasks", fields: [parentTaskId], references: [id], onDelete: Cascade)
+  subTasks        Task[]  @relation("TaskSubtasks")
+  progressPercent Int?
+
+  // Tâches récurrentes (RF-TAC-09)
+  isRecurring         Boolean              @default(false)
+  recurrenceFrequency RecurrenceFrequency?
+  recurrenceEndDate   DateTime?
+  // Tâche modèle à l'origine de cette occurrence générée automatiquement
+  recurrenceSourceId    String?
+  recurrenceSource      Task?  @relation("TaskRecurrenceOccurrences", fields: [recurrenceSourceId], references: [id])
+  recurrenceOccurrences Task[] @relation("TaskRecurrenceOccurrences")
+
+  createdById String
+  createdBy   User   @relation("TaskCreatedBy", fields: [createdById], references: [id])
+
+  // Workflow de validation (§4.1)
+  submittedById     String?
+  submittedBy       User?     @relation("TaskSubmittedBy", fields: [submittedById], references: [id])
+  submittedAt       DateTime?
+  validatedById     String?
+  validatedBy       User?     @relation("TaskValidatedBy", fields: [validatedById], references: [id])
+  validatedAt       DateTime?
+  validationComment String?
+  completedAt       DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  assignees   TaskAssignee[]
+  comments    TaskComment[]
+  attachments TaskAttachment[]
+  documents   Document[]       @relation("DocumentSourceTask")
+
+  @@map("tasks")
+}
+
+// Responsables / co-responsables / collaborateurs en soutien (RF-TAC-02) :
+// plusieurs lignes RESPONSABLE = co-responsabilité ; une ligne RESPONSABLE +
+// plusieurs COLLABORATEUR = responsable unique avec soutien.
+model TaskAssignee {
+  id         String            @id @default(cuid())
+  taskId     String
+  task       Task              @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  roleOnTask TaskAssigneeRole  @default(RESPONSABLE)
+  assignedAt DateTime          @default(now())
+
+  @@unique([taskId, userId])
+  @@map("task_assignees")
+}
+
+// Fil de commentaires avec mentions @nom (RF-TAC-08)
+model TaskComment {
+  id        String   @id @default(cuid())
+  taskId    String
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id])
+  body      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  mentions TaskCommentMention[]
+
+  @@map("task_comments")
+}
+
+model TaskCommentMention {
+  id              String      @id @default(cuid())
+  commentId       String
+  comment         TaskComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  mentionedUserId String
+  mentionedUser   User        @relation(fields: [mentionedUserId], references: [id], onDelete: Cascade)
+
+  @@unique([commentId, mentionedUserId])
+  @@map("task_comment_mentions")
+}
+
+// Pièces jointes directement liées à une tâche (RF-TAC-05) — distinct du
+// module GED (Document) qui gère versions + publication institutionnelle.
+model TaskAttachment {
+  id           String   @id @default(cuid())
+  taskId       String
+  task         Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  fileName     String
+  fileKey      String // chemin objet MinIO/S3
+  mimeType     String
+  sizeBytes    Int
+  uploadedById String
+  uploadedBy   User     @relation(fields: [uploadedById], references: [id])
+  uploadedAt   DateTime @default(now())
+
+  @@map("task_attachments")
+}
+
+// Recherches/filtres favoris (RF-TAC-11)
+model SavedFilter {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name       String
+  filterJson Json
+  createdAt  DateTime @default(now())
+
+  @@map("saved_filters")
+}
+
+// ----------------------------------------------------------------------------
+// Module Archivage / GED (RF-GED-*)
+// ----------------------------------------------------------------------------
+
+// Organisation libre en dossiers/sous-dossiers propre à chaque division
+// (RF-GED-04), en complément des catégories fixes portées par Document.
+model Folder {
+  id             String   @id @default(cuid())
+  divisionId     String
+  division       Division @relation(fields: [divisionId], references: [id], onDelete: Cascade)
+  parentFolderId String?
+  parentFolder   Folder?  @relation("FolderTree", fields: [parentFolderId], references: [id])
+  subFolders     Folder[] @relation("FolderTree")
+  name           String
+  createdById    String
+  createdBy      User     @relation(fields: [createdById], references: [id])
+  createdAt      DateTime @default(now())
+
+  documents Document[]
+
+  @@map("folders")
+}
+
+model Document {
+  id          String             @id @default(cuid())
+  title       String
+  description String?
+  category    DocumentCategory   @default(AUTRE)
+  visibility  DocumentVisibility @default(PRIVE_DIVISION)
+  // Seuls les documents marqués "Final" peuvent être publiés (RF-GED-03)
+  isFinal     Boolean            @default(false)
+
+  divisionId String
+  division   Division @relation(fields: [divisionId], references: [id])
+  folderId   String?
+  folder     Folder?  @relation(fields: [folderId], references: [id])
+
+  // Document issu d'une tâche (§4.3 : "le document peut être lié
+  // directement à la tâche dont il est issu")
+  sourceTaskId String?
+  sourceTask   Task?   @relation("DocumentSourceTask", fields: [sourceTaskId], references: [id])
+
+  // Pointeur vers la version courante ; l'historique complet vit dans
+  // DocumentVersion (RF-GED-03 : conservation de l'historique des versions).
+  currentVersionId String?           @unique
+  currentVersion   DocumentVersion?  @relation("DocumentCurrentVersion", fields: [currentVersionId], references: [id])
+  versions         DocumentVersion[] @relation("DocumentVersions")
+
+  // Publication institutionnelle réservée au DN/DNA et aux Chefs de Division
+  // (RF-GED-02)
+  publishedAt   DateTime?
+  publishedById String?
+  publishedBy   User?     @relation("DocumentPublishedBy", fields: [publishedById], references: [id])
+
+  createdById String
+  createdBy   User     @relation("DocumentCreatedBy", fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("documents")
+}
+
+model DocumentVersion {
+  id            String   @id @default(cuid())
+  documentId    String
+  document      Document @relation("DocumentVersions", fields: [documentId], references: [id], onDelete: Cascade)
+  versionNumber Int
+  fileName      String
+  fileKey       String // chemin objet MinIO/S3
+  mimeType      String
+  sizeBytes     Int
+  // Texte extrait par OCR (Tesseract) pour la recherche full-text sur les
+  // PDF scannés (RF-GED-06) — indexé dans Meilisearch en parallèle.
+  ocrText       String?
+  uploadedById  String
+  uploadedBy    User     @relation(fields: [uploadedById], references: [id])
+  uploadedAt    DateTime @default(now())
+
+  documentCurrent Document? @relation("DocumentCurrentVersion")
+
+  @@unique([documentId, versionNumber])
+  @@map("document_versions")
+}
+
+// ----------------------------------------------------------------------------
+// Module Congés et Absences (RF-CNG-*)
+// ----------------------------------------------------------------------------
+
+// Table (et non enum) car les types de congés sont explicitement
+// extensibles par la CSID sans redéploiement (§4.4).
+model LeaveType {
+  id   String @id @default(cuid())
+  code String @unique // CONGE_ANNUEL, CONGE_MALADIE, MISSION, ...
+  name String
+
+  requests LeaveRequest[]
+  balances LeaveBalance[]
+
+  @@map("leave_types")
+}
+
+model LeaveRequest {
+  id          String              @id @default(cuid())
+  userId      String
+  user        User                @relation("LeaveRequester", fields: [userId], references: [id], onDelete: Cascade)
+  leaveTypeId String
+  leaveType   LeaveType           @relation(fields: [leaveTypeId], references: [id])
+  startDate   DateTime
+  endDate     DateTime
+  daysCount   Float
+  reason      String?
+  status      LeaveRequestStatus  @default(EN_ATTENTE)
+
+  // Validation par le supérieur hiérarchique direct, en cascade (§2.3)
+  approverId      String?
+  approver        User?     @relation("LeaveApprover", fields: [approverId], references: [id])
+  decisionComment String?
+  decidedAt       DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("leave_requests")
+}
+
+model LeaveBalance {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  leaveTypeId String
+  leaveType   LeaveType @relation(fields: [leaveTypeId], references: [id])
+  year        Int
+  totalDays   Float
+  usedDays    Float     @default(0)
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([userId, leaveTypeId, year])
+  @@map("leave_balances")
+}
+
+// ----------------------------------------------------------------------------
+// Module Communication (RF-COM-*)
+// ----------------------------------------------------------------------------
+
+model DirectMessage {
+  id             String    @id @default(cuid())
+  senderId       String
+  sender         User      @relation("MessageSender", fields: [senderId], references: [id])
+  recipientId    String
+  recipient      User      @relation("MessageRecipient", fields: [recipientId], references: [id])
+  body           String
+  attachmentKey  String?
+  attachmentName String?
+  // Accusé de lecture horodaté (§4.2 : "vu à 14h32")
+  readAt         DateTime?
+  createdAt      DateTime  @default(now())
+
+  @@map("direct_messages")
+}
+
+// Annonces (messages groupés) ciblées en cascade hiérarchique (RF-COM-02).
+// Le ciblage DNPEC/Division/Section est porté par scope + divisionId/
+// sectionId ; le ciblage "groupe personnalisé" passe par AnnouncementRecipient.
+model Announcement {
+  id         String            @id @default(cuid())
+  authorId   String
+  author     User              @relation(fields: [authorId], references: [id])
+  title      String
+  body       String
+  scope      AnnouncementScope
+  divisionId String?
+  division   Division?         @relation(fields: [divisionId], references: [id])
+  sectionId  String?
+  section    Section?          @relation(fields: [sectionId], references: [id])
+  createdAt  DateTime          @default(now())
+
+  recipients AnnouncementRecipient[]
+  reads      AnnouncementRead[]
+
+  @@map("announcements")
+}
+
+model AnnouncementRecipient {
+  id             String       @id @default(cuid())
+  announcementId String
+  announcement   Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([announcementId, userId])
+  @@map("announcement_recipients")
+}
+
+// Historisation intégrale des échanges (RF-COM-05) : les lectures d'annonces
+// sont journalisées séparément des destinataires ciblés.
+model AnnouncementRead {
+  id             String       @id @default(cuid())
+  announcementId String
+  announcement   Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  readAt         DateTime     @default(now())
+
+  @@unique([announcementId, userId])
+  @@map("announcement_reads")
+}
+
+// ----------------------------------------------------------------------------
+// Notifications multi-canal (in-app + email + SMS — §4.2, RF-COM-03/04)
+// ----------------------------------------------------------------------------
+
+model Notification {
+  id        String              @id @default(cuid())
+  userId    String
+  user      User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType
+  channel   NotificationChannel
+  title     String
+  body      String
+  link      String? // lien profond vers la ressource concernée (tâche, message...)
+  isRead    Boolean             @default(false)
+  sentAt    DateTime?
+  createdAt DateTime            @default(now())
+
+  @@index([userId, isRead])
+  @@map("notifications")
+}
+
+// ----------------------------------------------------------------------------
+// Journal d'audit (RF-SEC-04) — traçabilité intégrale des actions
+// ----------------------------------------------------------------------------
+
+model AuditLog {
+  id         String      @id @default(cuid())
+  actorId    String?
+  actor      User?       @relation(fields: [actorId], references: [id])
+  action     AuditAction
+  entityType String // ex. "Task", "Document", "LeaveRequest"
+  entityId   String
+  // Détail de l'action (champs modifiés, valeurs avant/après...)
+  metadata   Json?
+  createdAt  DateTime    @default(now())
+
+  @@index([entityType, entityId])
+  @@index([actorId])
+  @@map("audit_logs")
+}
