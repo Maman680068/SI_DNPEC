@@ -1,0 +1,11 @@
+{
+  "name": "@dnpec/types",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Types et DTOs partagés entre le frontend, le backend et le mobile — DNPEC SI",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {},
+  "dependencies": {},
+  "devDependencies": {}
+}

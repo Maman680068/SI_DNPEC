@@ -1,0 +1,36 @@
+node_modules/
+dist/
+build/
+.next/
+.turbo/
+out/
+
+# Env
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Editors / OS
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# Coverage
+coverage/
+
+# Expo / React Native (apps/mobile)
+.expo/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Prisma
+apps/api/prisma/*.db

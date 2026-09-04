@@ -1,0 +1,10 @@
+{
+  "name": "@dnpec/config",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Configurations partagées (TypeScript, ESLint, Prettier) pour tout le monorepo DNPEC SI",
+  "devDependencies": {
+    "eslint-config-prettier": "^9.1.0",
+    "typescript-eslint": "^8.18.1"
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "name": "@dnpec/mobile",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Application mobile — React Native via Expo (cahier des charges §7.7)",
+  "scripts": {},
+  "dependencies": {},
+  "devDependencies": {}
+}
