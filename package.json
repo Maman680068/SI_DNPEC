@@ -25,6 +25,6 @@
     "typescript-eslint": "^8.18.1"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["@prisma/client", "@prisma/engines", "prisma"]
+    "onlyBuiltDependencies": ["@prisma/client", "@prisma/engines", "prisma", "argon2"]
   }
 }
