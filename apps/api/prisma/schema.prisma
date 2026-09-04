@@ -169,6 +169,9 @@ enum AnnouncementScope {
   DNPEC
   DIVISION
   SECTION
+  // Symétrique à DIVISION pour les cellules transversales (SAF, RH, CSID —
+  // CTSCM/CNC n'ont pas encore de chef, cf. Cellule.chefId).
+  CELLULE
   GROUPE_PERSONNALISE
 
   @@map("announcement_scope")
@@ -272,8 +275,9 @@ model Cellule {
   updatedAt DateTime @updatedAt
 
   // Rattachement général (membres, y compris le chef lui-même)
-  users User[]
-  tasks Task[]
+  users         User[]
+  tasks         Task[]
+  announcements Announcement[]
 
   @@map("cellules")
 }
@@ -719,8 +723,9 @@ model DirectMessage {
 }
 
 // Annonces (messages groupés) ciblées en cascade hiérarchique (RF-COM-02).
-// Le ciblage DNPEC/Division/Section est porté par scope + divisionId/
-// sectionId ; le ciblage "groupe personnalisé" passe par AnnouncementRecipient.
+// Le ciblage DNPEC/Division/Section/Cellule est porté par scope +
+// divisionId/sectionId/celluleId ; le ciblage "groupe personnalisé" passe
+// par AnnouncementRecipient.
 model Announcement {
   id         String            @id @default(cuid())
   authorId   String
@@ -732,6 +737,8 @@ model Announcement {
   division   Division?         @relation(fields: [divisionId], references: [id])
   sectionId  String?
   section    Section?          @relation(fields: [sectionId], references: [id])
+  celluleId  String?
+  cellule    Cellule?          @relation(fields: [celluleId], references: [id])
   createdAt  DateTime          @default(now())
 
   recipients AnnouncementRecipient[]
