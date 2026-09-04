@@ -26,12 +26,13 @@
 //    recevoir cette logique plus tard sans nouvelle migration structurelle.
 // 3. Cellules transversales (CTSCM, CNC, SAF, RH, CSID) : modélisées par un
 //    modèle Cellule minimal (id, code, name, chefId), distinct de
-//    Division/Section (pas de sous-structure en sections, pas encore de
-//    portée sur les Tâches/GED/Annonces — aucune exigence fonctionnelle ne
-//    le demande à ce stade). Un utilisateur est rattaché à une Division OU
-//    à une Cellule, jamais les deux (voir invariant ci-dessous). Les 5
-//    cellules sont fournies en données de seed (prisma/seed.ts), à exécuter
-//    après la première migration.
+//    Division/Section (pas de sous-structure en sections). Un utilisateur
+//    est rattaché à une Division OU à une Cellule, jamais les deux (voir
+//    invariant ci-dessous) ; il en va de même pour Task.divisionId/
+//    Task.celluleId, afin que CHEF_CELLULE ait une visibilité en cascade
+//    sur les tâches de sa cellule symétrique à celle de CHEF_DIVISION
+//    (module tasks/). Les 5 cellules sont fournies en données de seed
+//    (prisma/seed.ts), à exécuter après la première migration.
 //    - SAF, RH, CSID ont un chef de cellule (rôle CHEF_CELLULE, pointé par
 //      Cellule.chefId) qui gère ses propres Chargés d'Études (rôle AGENT,
 //      celluleId = sa cellule) exactement comme un Chef de Division gère
@@ -46,10 +47,11 @@
 // 4. Invariants non exprimables nativement en Prisma (à valider en base ou en
 //    application) : User.sectionId doit appartenir à User.divisionId ;
 //    User.divisionId et User.celluleId sont mutuellement exclusifs (jamais
-//    les deux renseignés en même temps) ; de même pour Task.sectionId /
-//    Task.divisionId ; User.dnOrDnaId ne doit référencer qu'un User de
-//    rôle DN ou DNA ; un CHEF_CELLULE doit avoir celluleId = l'id de la
-//    Cellule dont il est le chefId.
+//    les deux renseignés en même temps), de même pour Task.divisionId /
+//    Task.celluleId ; Task.sectionId doit appartenir à Task.divisionId ;
+//    User.dnOrDnaId ne doit référencer qu'un User de rôle DN ou DNA ; un
+//    CHEF_CELLULE doit avoir celluleId = l'id de la Cellule dont il est
+//    le chefId.
 // ============================================================================
 
 generator client {
@@ -271,6 +273,7 @@ model Cellule {
 
   // Rattachement général (membres, y compris le chef lui-même)
   users User[]
+  tasks Task[]
 
   @@map("cellules")
 }
@@ -428,11 +431,15 @@ model Task {
   dueDate         DateTime?
 
   // Périmètre d'origine de la tâche, dénormalisé pour les filtres et
-  // tableaux de bord (RF-TAC-11, RF-TAC-12).
+  // tableaux de bord (RF-TAC-11, RF-TAC-12). divisionId/sectionId pour une
+  // tâche de Division ; celluleId pour une tâche portée par une cellule
+  // transversale (SAF/RH/CSID) — mutuellement exclusifs, comme pour User.
   divisionId String?
   division   Division? @relation(fields: [divisionId], references: [id])
   sectionId  String?
   section    Section?  @relation(fields: [sectionId], references: [id])
+  celluleId  String?
+  cellule    Cellule?  @relation(fields: [celluleId], references: [id])
 
   projectId String?
   project   Project? @relation(fields: [projectId], references: [id])
