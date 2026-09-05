@@ -12,8 +12,10 @@ import { TasksModule } from './tasks/tasks.module';
 import { CommunicationModule } from './communication/communication.module';
 import { LeavesModule } from './leaves/leaves.module';
 import { DocumentsModule } from './documents/documents.module';
+import { AppController } from './app.controller';
 
 @Module({
+  controllers: [AppController],
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     PrismaModule,

@@ -1,0 +1,58 @@
+# Blueprint Render pour l'API NestJS (apps/api) — voir docs/deploiement-render.md
+# pour la checklist complète des étapes manuelles (création des secrets, compte
+# Brevo...). Ce fichier ne contient AUCUN secret : les valeurs marquées
+# `sync: false` sont saisies une seule fois dans le tableau de bord Render lors
+# de l'application du Blueprint, jamais commises ici.
+#
+# Les migrations Prisma restent volontairement EXCLUES du build/start ci-dessous
+# — comportement inchangé : elles continuent de s'appliquer uniquement via le
+# workflow GitHub Actions à déclenchement manuel (.github/workflows/db-migrate.yml).
+
+services:
+  - type: web
+    name: dnpec-api
+    runtime: node
+    plan: starter # le plan gratuit ne permet pas d'attacher un disque persistant
+    region: frankfurt # même région que la base PostgreSQL déjà provisionnée
+    branch: main
+    rootDir: .
+    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm --filter @dnpec/api exec prisma generate && pnpm --filter @dnpec/api run build
+    startCommand: pnpm --filter @dnpec/api run start:prod
+    healthCheckPath: /health
+    disk:
+      name: dnpec-documents
+      mountPath: /var/data/documents
+      sizeGB: 1
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Base de données PostgreSQL déjà provisionnée sur Render — connection
+      # string complète (postgresql://user:password@host/db), jamais en dur.
+      - key: DATABASE_URL
+        sync: false
+      # Générée automatiquement par Render au moment de l'application du
+      # Blueprint — jamais saisie ni commise nulle part.
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: JWT_ACCESS_EXPIRES_IN
+        value: "15m"
+      # Stockage des documents GED — pointé sur le disque persistant déclaré
+      # ci-dessus (voir StorageService, apps/api/src/common/storage/).
+      - key: DOCUMENTS_STORAGE_PATH
+        value: /var/data/documents
+      # SMTP réel (Brevo ou équivalent) — voir docs/deploiement-render.md pour
+      # la procédure de création du compte et de récupération des identifiants.
+      # Tant que SMTP_HOST est vide, EmailService retombe sur jsonTransport
+      # (aucun envoi réel) : voir son commentaire.
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_SECURE
+        value: "false"
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+      - key: SMTP_FROM
+        value: "no-reply@dnpec.gov.gn"
