@@ -18,7 +18,7 @@ const NAV_GROUPS: { label: string; items: { icon: string; label: string; href?: 
   {
     label: 'Personnel',
     items: [
-      { icon: '🌴', label: 'Congés & absences' },
+      { icon: '🌴', label: 'Congés & absences', href: '/leaves' },
       { icon: '☰', label: 'Annuaire' },
       { icon: '✦', label: 'Boîte à suggestions' },
     ],
