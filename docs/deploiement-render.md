@@ -45,6 +45,18 @@ lancez le workflow GitHub Actions manuel `db-migrate.yml`
 (`workflow_dispatch`, confirmation texte requise) pour appliquer le schéma
 sur cette base, si ce n'est pas déjà fait.
 
+**État constaté le 05/09/2026** : `db-migrate.yml` n'a été exécuté qu'une
+seule fois (04/09/2026 03:18 UTC), sur le commit qui venait tout juste
+d'ajouter le workflow — donc juste après la migration `init`
+(`20260904025514_init`, qui contient déjà GED et `cellules.chefId`), mais
+avant les deux migrations suivantes créées le même jour :
+`20260904040650_add_task_cellule` (`Task.celluleId`) et
+`20260904143504_add_cellule_scope_to_announcements`
+(`Announcement.celluleId`). Ces deux dernières n'ont donc **jamais** été
+appliquées sur la base Render — relancez `db-migrate.yml` pour les
+appliquer avant d'utiliser les fonctionnalités de visibilité en cascade de
+CHEF_CELLULE sur les tâches et les annonces en production.
+
 ## 3. Compte Brevo (SMTP) pour les emails de notification
 
 1. Créez un compte sur https://www.brevo.com (le plan gratuit couvre
@@ -88,15 +100,31 @@ sans aucun changement de code.
 4. Testez un endpoint réel, ex. `POST /auth/login` avec un compte existant,
    pour confirmer que la connexion à `DATABASE_URL` fonctionne.
 
-## 5. Une fois l'URL confirmée : configurer `apps/web`
+## 5. `apps/web` : pointer vers l'API déployée
 
-Voir la réponse dédiée à l'étape 4 de la demande initiale — en résumé,
-`apps/web` a besoin de deux variables pointant vers l'URL Render obtenue
-ci-dessus au lieu de `http://localhost:3000` :
+L'API est live sur `https://dnpec-api.onrender.com`. `apps/web` a besoin de
+deux variables pointant dessus au lieu de `http://localhost:3000` :
 
-- `API_BASE_URL`
-- `NEXT_PUBLIC_API_BASE_URL`
+- `API_BASE_URL` (lue côté serveur par les Route Handlers `app/api/auth/*`)
+- `NEXT_PUBLIC_API_BASE_URL` (exposée au navigateur pour les appels directs
+  à l'API — voir `apps/web/lib/api/client.ts`)
 
-(voir `apps/web/.env.example` pour leur usage exact : la première est lue
-côté serveur par les Route Handlers `app/api/auth/*`, la seconde est
-exposée au navigateur pour les appels directs à l'API).
+Une fois `apps/web` déployé sur Render à son tour, ajoutez son URL dans
+`CORS_ORIGIN` (section 6) pour restreindre le CORS de l'API à cette seule
+origine.
+
+## 6. CORS
+
+`main.ts` autorise, par défaut (`CORS_ORIGIN` non renseignée), **toute**
+origine à appeler l'API — un choix volontairement permissif tant que
+l'URL du frontend n'est pas connue. Les appels directs du navigateur à
+l'API n'utilisent qu'un en-tête `Authorization: Bearer`, jamais de cookie
+(voir `apps/web/lib/api/client.ts`), donc cette permissivité temporaire
+n'expose aucune session.
+
+Une fois `apps/web` déployé, restreignez l'accès : dans le service Render
+`dnpec-api`, renseignez `CORS_ORIGIN` avec l'URL exacte du frontend (ex.
+`https://dnpec-web.onrender.com`) — plusieurs origines séparées par des
+virgules sont acceptées. Sans cette variable, la restriction ne prend pas
+effet ; ce n'est pas bloquant pour un premier déploiement, seulement moins
+strict.

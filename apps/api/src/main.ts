@@ -15,7 +15,16 @@ async function bootstrap() {
   app.set('trust proxy', 1);
 
   app.use(helmet());
-  app.enableCors();
+  // CORS_ORIGIN : liste d'origines autorisées séparées par des virgules (ex.
+  // https://dnpec-web.onrender.com). Sans cette variable (cas actuel, avant
+  // le déploiement du frontend), on reste permissif — les appels directs du
+  // navigateur à l'API n'utilisent que l'en-tête Authorization, jamais de
+  // cookie (voir apps/web/lib/api/client.ts), donc aucune donnée de session
+  // n'est exposée par cette permissivité temporaire.
+  const corsOrigin = process.env.CORS_ORIGIN;
+  app.enableCors({
+    origin: corsOrigin ? corsOrigin.split(',').map((o) => o.trim()) : true,
+  });
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
