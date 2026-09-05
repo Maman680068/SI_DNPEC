@@ -3,8 +3,11 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '../../lib/auth/AuthProvider';
+import { USERS_PAGE_VISIBLE_ROLES } from '../../lib/users/types';
 
-const NAV_GROUPS: { label: string; items: { icon: string; label: string; href?: string }[] }[] = [
+type NavGroup = { label: string; items: { icon: string; label: string; href?: string }[] };
+
+const NAV_GROUPS: NavGroup[] = [
   {
     label: 'Général',
     items: [
@@ -25,6 +28,13 @@ const NAV_GROUPS: { label: string; items: { icon: string; label: string; href?: 
   },
 ];
 
+/** "Utilisateurs" n'apparaît que pour ADMIN_SYSTEME (gestion complète) et DN/DNA
+ * (lecture seule — voir app/(app)/users/page.tsx). */
+function navGroupsFor(role: string | undefined): NavGroup[] {
+  if (!USERS_PAGE_VISIBLE_ROLES.includes(role ?? '')) return NAV_GROUPS;
+  return [...NAV_GROUPS, { label: 'Administration', items: [{ icon: '👤', label: 'Utilisateurs', href: '/users' }] }];
+}
+
 function initials(firstName: string, lastName: string): string {
   return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
 }
@@ -32,6 +42,7 @@ function initials(firstName: string, lastName: string): string {
 export function Sidebar() {
   const { user, logout } = useAuth();
   const pathname = usePathname();
+  const navGroups = navGroupsFor(user?.role);
 
   return (
     <aside className="flex w-[250px] flex-shrink-0 flex-col border-r border-line bg-surface p-3.5">
@@ -45,7 +56,7 @@ export function Sidebar() {
         </div>
       </div>
 
-      {NAV_GROUPS.map((group) => (
+      {navGroups.map((group) => (
         <div key={group.label}>
           <div className="mb-2 mt-[18px] px-2.5 text-[11px] font-bold uppercase tracking-wide text-text-faint">
             {group.label}
