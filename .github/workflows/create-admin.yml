@@ -1,0 +1,71 @@
+name: Créer le compte administrateur initial (manuel)
+
+# Déclenchement manuel uniquement (workflow_dispatch) — aucune exécution
+# automatique sur push/PR. DATABASE_URL, ADMIN_EMAIL et ADMIN_PASSWORD sont
+# lus depuis des secrets de dépôt (jamais écrits ici). Le script
+# (apps/api/prisma/seed-admin.ts) est idempotent : si un compte existe déjà
+# pour ADMIN_EMAIL, il ne fait rien — rejouable sans risque.
+#
+# Rôle créé : ADMIN_SYSTEME (gestion des comptes/de l'organisation, pas
+# d'autorité sur le contenu métier — voir cascade.service.ts §3.1). Le vrai
+# DN/DNA et les autres dirigeants se créent ensuite via le flux d'inscription
+# + approbation normal, avec ce compte.
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Tapez "create-admin" pour confirmer (crée un compte ADMIN_SYSTEME sur la base pointée par le secret DATABASE_URL, avec ADMIN_EMAIL/ADMIN_PASSWORD)'
+        required: true
+        type: string
+      admin_first_name:
+        description: 'Prénom du compte (optionnel)'
+        required: false
+        type: string
+        default: 'Admin'
+      admin_last_name:
+        description: 'Nom du compte (optionnel)'
+        required: false
+        type: string
+        default: 'Système'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: create-admin
+  cancel-in-progress: false
+
+jobs:
+  create-admin:
+    if: ${{ github.event.inputs.confirm == 'create-admin' }}
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
+      ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+      ADMIN_FIRST_NAME: ${{ github.event.inputs.admin_first_name }}
+      ADMIN_LAST_NAME: ${{ github.event.inputs.admin_last_name }}
+    steps:
+      - name: Checkout du dépôt
+        uses: actions/checkout@v4
+
+      - name: Installer pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+
+      - name: Installer Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Installer les dépendances
+        run: pnpm install --frozen-lockfile
+
+      - name: Générer le client Prisma
+        run: pnpm --filter @dnpec/api exec prisma generate
+
+      - name: Créer le compte administrateur (idempotent)
+        run: pnpm --filter @dnpec/api run db:seed-admin
