@@ -7,6 +7,14 @@ import type { AdminUser } from '../../lib/users/types';
 import { ROLE_LABEL } from '../../lib/users/types';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
+import { AssignChefModal } from './AssignChefModal';
+
+/** "Nommer chef de cellule" n'a de sens que pour un Agent (le cas courant : promouvoir
+ * quelqu'un qui travaille déjà dans la cellule) ou un Chef de Cellule déjà en poste
+ * (réaffectation à une autre cellule). Le masquer pour les autres rôles évite un vrai
+ * piège côté API : CellulesService.assignChef écrase le rôle sans condition — nommer
+ * par erreur un DN ou l'Administrateur Système chef de cellule le rétrograderait. */
+const CAN_BECOME_CHEF_ROLES = ['AGENT', 'CHEF_CELLULE'];
 
 function attachmentLabel(
   user: AdminUser,
@@ -26,17 +34,22 @@ function attachmentLabel(
 export function UsersTable({
   users,
   canManage,
-  onChange,
+  onRefresh,
 }: {
   users: AdminUser[];
   /** ADMIN_SYSTEME uniquement — DN/DNA voient cette liste en lecture seule
-   * (PATCH /users/:id/status est réservé à ADMIN_SYSTEME côté API). */
+   * (PATCH /users/:id/status et POST /org/cellules/:id/chef sont réservés à
+   * ADMIN_SYSTEME côté API). */
   canManage: boolean;
-  onChange: (updated: AdminUser) => void;
+  /** Un rafraîchissement complet plutôt qu'un patch local : nommer un chef de
+   * cellule change deux lignes à la fois (le nouveau chef ET l'ancien, démis),
+   * pas seulement celle sur laquelle l'action a été déclenchée. */
+  onRefresh: () => void;
 }) {
   const { getDivisionName, getSectionName, getCelluleName } = useOrg();
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [assigningChefFor, setAssigningChefFor] = useState<AdminUser | null>(null);
 
   async function handleToggleStatus(user: AdminUser) {
     const nextStatus = user.status === 'SUSPENDU' ? 'ACTIF' : 'SUSPENDU';
@@ -45,8 +58,8 @@ export function UsersTable({
     setPendingId(user.id);
     setError(null);
     try {
-      const updated = await setUserStatus(user.id, nextStatus);
-      onChange(updated);
+      await setUserStatus(user.id, nextStatus);
+      onRefresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Impossible de mettre à jour ce compte');
     } finally {
@@ -90,14 +103,21 @@ export function UsersTable({
                   </Badge>
                 </td>
                 {canManage && (
-                  <td className="px-4 py-3 text-right">
-                    <Button
-                      variant="outline"
-                      disabled={pendingId === user.id}
-                      onClick={() => handleToggleStatus(user)}
-                    >
-                      {user.status === 'SUSPENDU' ? 'Réactiver' : 'Suspendre'}
-                    </Button>
+                  <td className="px-4 py-3">
+                    <div className="flex justify-end gap-2">
+                      {CAN_BECOME_CHEF_ROLES.includes(user.role) && (
+                        <Button variant="outline" onClick={() => setAssigningChefFor(user)}>
+                          Nommer chef de cellule
+                        </Button>
+                      )}
+                      <Button
+                        variant="outline"
+                        disabled={pendingId === user.id}
+                        onClick={() => handleToggleStatus(user)}
+                      >
+                        {user.status === 'SUSPENDU' ? 'Réactiver' : 'Suspendre'}
+                      </Button>
+                    </div>
                   </td>
                 )}
               </tr>
@@ -105,6 +125,17 @@ export function UsersTable({
           </tbody>
         </table>
       </div>
+
+      {assigningChefFor && (
+        <AssignChefModal
+          user={assigningChefFor}
+          onClose={() => setAssigningChefFor(null)}
+          onAssigned={() => {
+            setAssigningChefFor(null);
+            onRefresh();
+          }}
+        />
+      )}
     </div>
   );
 }

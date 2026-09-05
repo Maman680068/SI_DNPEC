@@ -23,6 +23,9 @@ interface OrgContextValue {
    * tronqué le temps de la résolution asynchrone, jamais de manière durable. */
   getUserLabel: (id: string) => string;
   getUserInitials: (id: string) => string;
+  /** Recharge les cellules (chefId notamment) — à appeler après une action qui change
+   * l'un d'eux, ex. AssignChefModal, plutôt que d'attendre un rechargement de page. */
+  refreshCellules: () => Promise<void>;
 }
 
 const OrgContext = createContext<OrgContextValue | null>(null);
@@ -118,9 +121,25 @@ export function OrgProvider({ children }: { children: React.ReactNode }) {
     return '?';
   }
 
+  async function refreshCellules(): Promise<void> {
+    setCellules(await getCellules());
+  }
+
   return (
     <OrgContext.Provider
-      value={{ loading, divisions, sections, cellules, users, getDivisionName, getSectionName, getCelluleName, getUserLabel, getUserInitials }}
+      value={{
+        loading,
+        divisions,
+        sections,
+        cellules,
+        users,
+        getDivisionName,
+        getSectionName,
+        getCelluleName,
+        getUserLabel,
+        getUserInitials,
+        refreshCellules,
+      }}
     >
       {children}
     </OrgContext.Provider>

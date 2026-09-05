@@ -48,10 +48,6 @@ export default function UsersPage() {
   // montre que ce qui est effectivement géré ici (actif/suspendu).
   const activeAndSuspended = (allUsers ?? []).filter((u) => u.status !== 'EN_ATTENTE');
 
-  function handleUserChanged(updated: AdminUser) {
-    setAllUsers((prev) => prev?.map((u) => (u.id === updated.id ? updated : u)) ?? prev);
-  }
-
   function handleCreated(user: AdminUser) {
     setAllUsers((prev) => (prev ? [...prev, user] : [user]));
     setShowCreateModal(false);
@@ -111,7 +107,7 @@ export default function UsersPage() {
         allUsers === null ? (
           <p className="text-sm text-text-muted">Chargement…</p>
         ) : (
-          <UsersTable users={activeAndSuspended} canManage={isAdmin} onChange={handleUserChanged} />
+          <UsersTable users={activeAndSuspended} canManage={isAdmin} onRefresh={loadAll} />
         )
       ) : pendingUsers === null ? (
         <p className="text-sm text-text-muted">Chargement…</p>

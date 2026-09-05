@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from 'react';
 import { approveUser } from '../../lib/api/users';
 import type { AdminUser, OrgAttachment } from '../../lib/users/types';
-import { ROLE_LABEL, SYSTEM_ROLES } from '../../lib/users/types';
+import { ASSIGNABLE_ROLES, ROLE_LABEL } from '../../lib/users/types';
 import type { SystemRole } from '../../lib/auth/types';
 import { OrgAttachmentFields } from './OrgAttachmentFields';
 import { Button } from '../ui/Button';
@@ -58,7 +58,7 @@ export function ApproveRegistrationModal({
             required
             className="w-full rounded-md border border-line bg-surface px-3 py-2.5 text-sm"
           >
-            {SYSTEM_ROLES.map((r) => (
+            {ASSIGNABLE_ROLES.map((r) => (
               <option key={r} value={r}>
                 {ROLE_LABEL[r]}
               </option>

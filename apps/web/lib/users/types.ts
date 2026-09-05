@@ -59,6 +59,18 @@ export const ROLE_LABEL: Record<SystemRole, string> = {
   ASSISTANT_DIRECTION: 'Assistant(e) de Direction',
 };
 
+/**
+ * Rôles proposables à la création/approbation. CHEF_CELLULE en est exclu :
+ * POST /users et POST /users/:id/approve posent role+celluleId sur
+ * l'utilisateur mais ne touchent jamais Cellule.chefId, contrairement à
+ * POST /org/cellules/:id/chef (CellulesService.assignChef) qui est
+ * transactionnel — démet l'ancien chef, promeut le nouveau ET pose
+ * Cellule.chefId, en maintenant l'invariant documenté dans schema.prisma.
+ * Nommer un chef de cellule se fait sur un compte déjà existant, via
+ * l'action "Nommer chef de cellule" de la table (AssignChefModal).
+ */
+export const ASSIGNABLE_ROLES: SystemRole[] = SYSTEM_ROLES.filter((r) => r !== 'CHEF_CELLULE');
+
 export const STATUS_LABEL: Record<UserStatus, string> = {
   EN_ATTENTE: 'En attente',
   ACTIF: 'Actif',

@@ -13,6 +13,13 @@ export function getCellules(): Promise<Cellule[]> {
   return apiFetch<Cellule[]>('/org/cellules');
 }
 
+/** Nomme le chef d'une cellule — transactionnel côté API (CellulesService.assignChef) :
+ * démet l'ancien chef, promeut userId en CHEF_CELLULE et pose Cellule.chefId. C'est le
+ * SEUL chemin qui maintienne cet invariant — jamais via POST /users avec role=CHEF_CELLULE. */
+export function assignCelluleChef(celluleId: string, userId: string): Promise<Cellule> {
+  return apiFetch<Cellule>(`/org/cellules/${celluleId}/chef`, { method: 'POST', body: JSON.stringify({ userId }) });
+}
+
 /** Scopé par le périmètre cascade de l'acteur (ex. un Agent ne voit que lui-même) —
  * voir CascadeService.getVisibleUserWhere côté API. Source des listes de sélection
  * (assignation, mention) : volontairement bornée à ce périmètre. */
