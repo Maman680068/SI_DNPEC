@@ -31,9 +31,9 @@ export function LoginForm() {
       <p className="mb-8 text-sm text-text-muted">Accédez à votre espace de travail DNPEC.</p>
 
       <Field
-        label="Adresse e-mail professionnelle"
+        label="Adresse e-mail"
         type="email"
-        placeholder="prenom.nom@dnpec.gov.gn"
+        placeholder="prenom.nom@exemple.com"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
         required

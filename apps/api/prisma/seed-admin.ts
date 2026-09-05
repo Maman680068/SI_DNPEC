@@ -5,9 +5,12 @@ const prisma = new PrismaClient();
 
 // Même règle que RegisterDto (apps/api/src/auth/dto/register.dto.ts) — un
 // compte créé hors du flux d'inscription normal doit respecter la même
-// politique de mot de passe, pas moins.
+// politique de mot de passe, pas moins. Aucune contrainte de domaine
+// d'email : n'importe quelle adresse valide est acceptée (décision du
+// 05/09/2026 — beaucoup de personnel n'utilise pas activement son adresse
+// @dnpec.gov.gn, l'exiger freinait l'adoption).
 const MIN_PASSWORD_LENGTH = 12;
-const PROFESSIONAL_EMAIL_DOMAIN = /@dnpec\.gov\.gn$/;
+const STANDARD_EMAIL_FORMAT = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /**
  * Amorce le tout premier compte de la base (aucun utilisateur n'existe
@@ -29,8 +32,8 @@ async function main() {
   if (!email) {
     throw new Error('ADMIN_EMAIL manquant (secret GitHub non fourni ou vide).');
   }
-  if (!PROFESSIONAL_EMAIL_DOMAIN.test(email)) {
-    throw new Error(`ADMIN_EMAIL doit être une adresse @dnpec.gov.gn (reçu : "${email}").`);
+  if (!STANDARD_EMAIL_FORMAT.test(email)) {
+    throw new Error(`ADMIN_EMAIL n'est pas une adresse email valide (reçu : "${email}").`);
   }
   if (!password) {
     throw new Error('ADMIN_PASSWORD manquant (secret GitHub non fourni ou vide).');

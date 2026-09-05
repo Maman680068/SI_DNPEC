@@ -1,11 +1,8 @@
-import { IsEmail, IsEnum, IsOptional, IsString, Matches, MinLength } from 'class-validator';
+import { IsEmail, IsEnum, IsOptional, IsString, MinLength } from 'class-validator';
 import { SystemRole } from '@prisma/client';
 
 export class CreateUserDto {
   @IsEmail()
-  @Matches(/@dnpec\.gov\.gn$/, {
-    message: "L'adresse doit être une adresse professionnelle @dnpec.gov.gn",
-  })
   email!: string;
 
   @IsString()
