@@ -14,7 +14,10 @@ Render. `JWT_ACCESS_SECRET` n'a rien à saisir : Render la génère seul.
 ## 1. Appliquer le Blueprint
 
 1. Dashboard Render → **New** → **Blueprint**.
-2. Connectez le repo GitHub `si_dnpec` (branche `main`).
+2. Connectez le repo GitHub `si_dnpec`. Render demande ensuite quelle
+   branche utiliser pour cette application du Blueprint — choisissez la
+   branche qui contient le travail à déployer (`render.yaml` n'impose
+   volontairement aucune branche : voir le commentaire en tête du fichier).
 3. Render détecte `render.yaml` à la racine et propose un service web
    `dnpec-api` (plan **Starter**, région **Frankfurt**, disque persistant
    1 Go monté sur `/var/data/documents`).

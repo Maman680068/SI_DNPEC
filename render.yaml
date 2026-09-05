@@ -7,6 +7,11 @@
 # Les migrations Prisma restent volontairement EXCLUES du build/start ci-dessous
 # — comportement inchangé : elles continuent de s'appliquer uniquement via le
 # workflow GitHub Actions à déclenchement manuel (.github/workflows/db-migrate.yml).
+#
+# Pas de champ `branch:` ici, volontairement : Render déploie alors depuis la
+# branche depuis laquelle le Blueprint est appliqué (voir docs/deploiement-render.md).
+# Le fixer en dur ferait diverger le déploiement dès que le travail avance sur
+# une autre branche que celle codée ici.
 
 services:
   - type: web
@@ -14,7 +19,6 @@ services:
     runtime: node
     plan: starter # le plan gratuit ne permet pas d'attacher un disque persistant
     region: frankfurt # même région que la base PostgreSQL déjà provisionnée
-    branch: main
     rootDir: .
     buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm --filter @dnpec/api exec prisma generate && pnpm --filter @dnpec/api run build
     startCommand: pnpm --filter @dnpec/api run start:prod
