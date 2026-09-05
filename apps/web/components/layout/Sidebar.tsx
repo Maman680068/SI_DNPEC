@@ -1,14 +1,16 @@
 'use client';
 
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { useAuth } from '../../lib/auth/AuthProvider';
 
-const NAV_GROUPS: { label: string; items: { icon: string; label: string; active?: boolean }[] }[] = [
+const NAV_GROUPS: { label: string; items: { icon: string; label: string; href?: string }[] }[] = [
   {
     label: 'Général',
     items: [
-      { icon: '▦', label: 'Tableau de bord', active: true },
+      { icon: '▦', label: 'Tableau de bord', href: '/dashboard' },
       { icon: '✎', label: 'Mes tâches' },
-      { icon: '✉', label: 'Communication' },
+      { icon: '✉', label: 'Communication', href: '/communication' },
       { icon: '🗂', label: 'Archives & documents' },
       { icon: '🗓', label: 'Réunions' },
     ],
@@ -29,6 +31,7 @@ function initials(firstName: string, lastName: string): string {
 
 export function Sidebar() {
   const { user, logout } = useAuth();
+  const pathname = usePathname();
 
   return (
     <aside className="flex w-[250px] flex-shrink-0 flex-col border-r border-line bg-surface p-3.5">
@@ -47,19 +50,29 @@ export function Sidebar() {
           <div className="mb-2 mt-[18px] px-2.5 text-[11px] font-bold uppercase tracking-wide text-text-faint">
             {group.label}
           </div>
-          {group.items.map((item) => (
-            <a
-              key={item.label}
-              className={`mb-0.5 flex items-center gap-3 rounded-md px-2.5 py-2 text-[13.6px] font-medium ${
-                item.active
-                  ? 'bg-accent-soft font-bold text-ink shadow-[inset_3px_0_0_theme(colors.gold.DEFAULT)]'
-                  : 'text-text-muted hover:bg-bg hover:text-ink'
-              }`}
-            >
-              <span className="w-[18px] text-center text-sm opacity-85">{item.icon}</span>
-              {item.label}
-            </a>
-          ))}
+          {group.items.map((item) => {
+            const active = !!item.href && pathname?.startsWith(item.href);
+            const className = `mb-0.5 flex items-center gap-3 rounded-md px-2.5 py-2 text-[13.6px] font-medium ${
+              active
+                ? 'bg-accent-soft font-bold text-ink shadow-[inset_3px_0_0_theme(colors.gold.DEFAULT)]'
+                : 'text-text-muted hover:bg-bg hover:text-ink'
+            }`;
+            const content = (
+              <>
+                <span className="w-[18px] text-center text-sm opacity-85">{item.icon}</span>
+                {item.label}
+              </>
+            );
+            return item.href ? (
+              <Link key={item.label} href={item.href} className={className}>
+                {content}
+              </Link>
+            ) : (
+              <a key={item.label} className={`${className} cursor-default opacity-60`}>
+                {content}
+              </a>
+            );
+          })}
         </div>
       ))}
 

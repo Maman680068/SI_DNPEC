@@ -10,6 +10,7 @@ import { UpdateStatusDto } from './dto/update-status.dto';
 import { UpdateAssignmentDto } from './dto/update-assignment.dto';
 import { ApproveRegistrationDto } from './dto/approve-registration.dto';
 import { ResolveUsersDto } from './dto/resolve-users.dto';
+import { SearchUsersDto } from './dto/search-users.dto';
 
 @Controller('users')
 export class UsersController {
@@ -44,6 +45,17 @@ export class UsersController {
   resolve(@Query() dto: ResolveUsersDto) {
     const ids = dto.ids.split(',').map((id) => id.trim()).filter(Boolean);
     return this.usersService.resolveBasicInfo(ids);
+  }
+
+  /**
+   * Recherche par nom pour trouver un destinataire de message (RF-COM-01 :
+   * la messagerie directe est volontairement sans restriction de cascade).
+   * Mêmes champs non sensibles que /users/resolve, comptes actifs
+   * uniquement. Accessible à tout utilisateur authentifié.
+   */
+  @Get('search')
+  search(@Query() dto: SearchUsersDto) {
+    return this.usersService.searchBasicInfo(dto.q);
   }
 
   @Get(':id')

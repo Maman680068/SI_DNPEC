@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useAuth } from '../../lib/auth/AuthProvider';
 
 function initials(firstName: string, lastName: string): string {
@@ -21,9 +22,9 @@ export function Topbar() {
         />
       </div>
       <div className="flex items-center gap-[18px]">
-        <button className="relative flex h-9 w-9 items-center justify-center rounded-md border border-line text-text-muted">
+        <Link href="/communication" className="relative flex h-9 w-9 items-center justify-center rounded-md border border-line text-text-muted">
           ✉<span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full border border-surface bg-clay" />
-        </button>
+        </Link>
         <button className="relative flex h-9 w-9 items-center justify-center rounded-md border border-line text-text-muted">
           🔔<span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full border border-surface bg-clay" />
         </button>

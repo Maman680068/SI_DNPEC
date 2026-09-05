@@ -27,3 +27,11 @@ export function resolveUsers(ids: string[]): Promise<BasicUserInfo[]> {
   if (ids.length === 0) return Promise.resolve([]);
   return apiFetch<BasicUserInfo[]>(`/users/resolve?ids=${ids.map(encodeURIComponent).join(',')}`);
 }
+
+/** Recherche par nom hors périmètre cascade (GET /users/search) — pour trouver un
+ * destinataire de message (RF-COM-01, sans restriction hiérarchique). Comptes actifs
+ * uniquement, mêmes champs non sensibles que resolveUsers. */
+export function searchUsers(query: string): Promise<BasicUserInfo[]> {
+  if (!query.trim()) return Promise.resolve([]);
+  return apiFetch<BasicUserInfo[]>(`/users/search?q=${encodeURIComponent(query.trim())}`);
+}

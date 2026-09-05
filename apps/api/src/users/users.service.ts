@@ -50,6 +50,7 @@ const BASIC_INFO_SELECT = {
 } satisfies Prisma.UserSelect;
 
 const RESOLVE_MAX_IDS = 200;
+const SEARCH_MAX_RESULTS = 20;
 
 type OrgAttachment = {
   divisionId?: string | null;
@@ -85,6 +86,32 @@ export class UsersService {
     return this.prisma.user.findMany({
       where: { id: { in: uniqueIds } },
       select: BASIC_INFO_SELECT,
+    });
+  }
+
+  /**
+   * Recherche par nom hors périmètre cascade — mêmes principes que
+   * resolveBasicInfo (aucun contrôle d'autorité, champs non sensibles
+   * uniquement) mais par requête textuelle plutôt que par ids connus. Sert à
+   * trouver un destinataire pour la messagerie directe (RF-COM-01, "point à
+   * point entre deux comptes actifs", explicitement sans restriction de
+   * cascade) — sans quoi un Agent ne pourrait démarrer une conversation
+   * qu'avec lui-même. Comptes actifs uniquement.
+   */
+  searchBasicInfo(query: string) {
+    const q = query.trim();
+    if (!q) return [];
+    return this.prisma.user.findMany({
+      where: {
+        status: UserStatus.ACTIF,
+        OR: [
+          { firstName: { contains: q, mode: 'insensitive' } },
+          { lastName: { contains: q, mode: 'insensitive' } },
+        ],
+      },
+      select: BASIC_INFO_SELECT,
+      orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
+      take: SEARCH_MAX_RESULTS,
     });
   }
 
