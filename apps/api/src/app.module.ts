@@ -11,9 +11,8 @@ import { AuthModule } from './auth/auth.module';
 import { TasksModule } from './tasks/tasks.module';
 import { CommunicationModule } from './communication/communication.module';
 import { LeavesModule } from './leaves/leaves.module';
+import { DocumentsModule } from './documents/documents.module';
 
-// Modules "métier" à venir (hors périmètre de ce scaffold) : documents,
-// audit-reporting.
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -25,6 +24,7 @@ import { LeavesModule } from './leaves/leaves.module';
     TasksModule,
     CommunicationModule,
     LeavesModule,
+    DocumentsModule,
   ],
   providers: [
     // Guards globaux, exécutés dans cet ordre : JwtAuthGuard peuple

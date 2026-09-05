@@ -35,3 +35,7 @@ coverage/
 
 # Prisma
 apps/api/prisma/*.db
+
+# GED — stockage disque local de développement (StorageService, non versionné —
+# voir son commentaire sur la bascule Render Persistent Disk / MinIO avant prod)
+apps/api/storage/

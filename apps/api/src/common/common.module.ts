@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { AuditService } from './audit/audit.service';
 import { PasswordService } from './security/password.service';
+import { StorageService } from './storage/storage.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
 
@@ -23,7 +24,7 @@ import { RolesGuard } from './guards/roles.guard';
       }),
     }),
   ],
-  providers: [AuditService, PasswordService, JwtAuthGuard, RolesGuard],
-  exports: [AuditService, PasswordService, JwtModule, JwtAuthGuard, RolesGuard],
+  providers: [AuditService, PasswordService, StorageService, JwtAuthGuard, RolesGuard],
+  exports: [AuditService, PasswordService, StorageService, JwtModule, JwtAuthGuard, RolesGuard],
 })
 export class CommonModule {}

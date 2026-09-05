@@ -171,6 +171,30 @@ export class CascadeService {
     }
   }
 
+  /**
+   * Accès à l'espace de travail privé d'une division (module documents/, RF-GED-01) :
+   * tout membre de la division, quel que soit son rôle (Chef de Section/Cellule y
+   * compris), plus DN/DNA. Volontairement sans granularité section/cellule — le
+   * cahier des charges définit l'espace privé "par division", pas plus finement.
+   */
+  canAccessDivisionWorkspace(actor: AuthenticatedUser, divisionId: string): boolean {
+    if (LEADERSHIP_ROLES.includes(actor.role)) return true;
+    return actor.divisionId === divisionId;
+  }
+
+  /** Vrai si l'acteur voit l'espace privé de TOUTES les divisions (DN/DNA), pour
+   * construire un filtre Prisma de liste — canAccessDivisionWorkspace vérifie une
+   * division déjà connue, celui-ci sert quand on ne peut pas énumérer les divisions. */
+  hasUnrestrictedDivisionAccess(actor: AuthenticatedUser): boolean {
+    return LEADERSHIP_ROLES.includes(actor.role);
+  }
+
+  assertCanAccessDivisionWorkspace(actor: AuthenticatedUser, divisionId: string): void {
+    if (!this.canAccessDivisionWorkspace(actor, divisionId)) {
+      throw new ForbiddenException("Cette division n'est pas dans votre périmètre.");
+    }
+  }
+
   // --------------------------------------------------------------------
   // Tâches (module tasks/) — visibilité passive par périmètre + confidentialité.
   // Le créateur et les assignés voient toujours "leurs" tâches en plus de
