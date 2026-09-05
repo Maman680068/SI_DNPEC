@@ -11,7 +11,7 @@ const NAV_GROUPS: { label: string; items: { icon: string; label: string; href?: 
       { icon: '▦', label: 'Tableau de bord', href: '/dashboard' },
       { icon: '✎', label: 'Mes tâches' },
       { icon: '✉', label: 'Communication', href: '/communication' },
-      { icon: '🗂', label: 'Archives & documents' },
+      { icon: '🗂', label: 'Archives & documents', href: '/documents' },
       { icon: '🗓', label: 'Réunions' },
     ],
   },

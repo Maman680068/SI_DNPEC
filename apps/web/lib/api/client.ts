@@ -1,6 +1,6 @@
 'use client';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:3000';
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:3000';
 
 export class ApiError extends Error {
   constructor(
@@ -23,6 +23,12 @@ export function registerAuthHooks(getter: TokenGetter, refresher: Refresher): vo
   refreshAccessToken = refresher;
 }
 
+/** Pour les cas hors apiFetch (téléchargement de fichier en blob) qui doivent poser
+ * le même en-tête Authorization sans passer par le parsing JSON d'apiFetch. */
+export function getCurrentAccessToken(): string | null {
+  return getAccessToken();
+}
+
 async function parseBody(res: Response): Promise<unknown> {
   const text = await res.text();
   if (!text) return null;
@@ -41,7 +47,11 @@ async function parseBody(res: Response): Promise<unknown> {
 export async function apiFetch<T>(path: string, init: RequestInit = {}, isRetry = false): Promise<T> {
   const token = getAccessToken();
   const headers = new Headers(init.headers);
-  headers.set('Content-Type', 'application/json');
+  // FormData (upload de fichier) : jamais fixer Content-Type nous-mêmes — le
+  // navigateur doit poser le boundary multipart lui-même à partir du body réel.
+  if (!(init.body instanceof FormData)) {
+    headers.set('Content-Type', 'application/json');
+  }
   if (token) headers.set('Authorization', `Bearer ${token}`);
 
   const res = await fetch(`${API_BASE_URL}${path}`, { ...init, headers });
