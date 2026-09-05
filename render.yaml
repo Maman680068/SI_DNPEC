@@ -1,8 +1,9 @@
-# Blueprint Render pour l'API NestJS (apps/api) — voir docs/deploiement-render.md
-# pour la checklist complète des étapes manuelles (création des secrets, compte
-# Brevo...). Ce fichier ne contient AUCUN secret : les valeurs marquées
-# `sync: false` sont saisies une seule fois dans le tableau de bord Render lors
-# de l'application du Blueprint, jamais commises ici.
+# Blueprint Render pour l'API NestJS (apps/api) et le frontend Next.js
+# (apps/web) — voir docs/deploiement-render.md pour la checklist complète des
+# étapes manuelles (création des secrets, compte Brevo...). Ce fichier ne
+# contient AUCUN secret : les valeurs marquées `sync: false` sont saisies une
+# seule fois dans le tableau de bord Render lors de l'application du
+# Blueprint, jamais commises ici.
 #
 # Les migrations Prisma restent volontairement EXCLUES du build/start ci-dessous
 # — comportement inchangé : elles continuent de s'appliquer uniquement via le
@@ -66,3 +67,30 @@ services:
       # une fois le frontend déployé et son URL Render connue.
       - key: CORS_ORIGIN
         sync: false
+
+  - type: web
+    name: dnpec-web
+    runtime: node
+    plan: free # pas de disque ni de calcul lourd ici ; à passer en starter si
+    # le temps de réveil du plan gratuit (jusqu'à ~50s après 15 min d'inactivité)
+    # n'est pas acceptable pour les utilisateurs.
+    region: frankfurt # même région que dnpec-api, pour les appels serveur→serveur
+    # des Route Handlers (app/api/auth/*) vers l'API.
+    rootDir: .
+    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm --filter @dnpec/web run build
+    startCommand: pnpm --filter @dnpec/web run start
+    healthCheckPath: / # testé en local en mode production : la page racine
+    # (app/page.tsx) est un composant client qui ne rend rien côté serveur et
+    # ne dépend pas de l'API — répond 200 même si l'API est indisponible.
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # URL de l'API déployée — voir apps/web/.env.example pour l'usage exact
+      # de chaque variable (API_BASE_URL : lue côté serveur par les Route
+      # Handlers ; NEXT_PUBLIC_API_BASE_URL : injectée dans le bundle client
+      # au moment du build, doit donc être présente ici et pas seulement au
+      # runtime).
+      - key: API_BASE_URL
+        value: https://dnpec-api.onrender.com
+      - key: NEXT_PUBLIC_API_BASE_URL
+        value: https://dnpec-api.onrender.com

@@ -1,4 +1,4 @@
-# Déploiement de l'API sur Render — checklist manuelle
+# Déploiement de l'API et du frontend sur Render — checklist manuelle
 
 Ce document accompagne `render.yaml` (racine du repo). Le Blueprint décrit
 *quoi* déployer (build, start, disque, variables) ; ce document décrit les
@@ -18,12 +18,18 @@ Render. `JWT_ACCESS_SECRET` n'a rien à saisir : Render la génère seul.
    branche utiliser pour cette application du Blueprint — choisissez la
    branche qui contient le travail à déployer (`render.yaml` n'impose
    volontairement aucune branche : voir le commentaire en tête du fichier).
-3. Render détecte `render.yaml` à la racine et propose un service web
-   `dnpec-api` (plan **Starter**, région **Frankfurt**, disque persistant
-   1 Go monté sur `/var/data/documents`).
-   - Le plan **Starter** est nécessaire : le plan gratuit ne permet pas
-     d'attacher un disque persistant. Vérifiez que c'est le coût attendu
-     avant de valider.
+3. Render détecte `render.yaml` à la racine et propose **deux** services web :
+   - `dnpec-api` (plan **Starter**, région **Frankfurt**, disque persistant
+     1 Go monté sur `/var/data/documents`). Le plan **Starter** est
+     nécessaire ici : le plan gratuit ne permet pas d'attacher un disque
+     persistant.
+   - `dnpec-web` (plan **Free** par défaut, région **Frankfurt**). Le plan
+     gratuit met le service en veille après 15 min d'inactivité (réveil
+     jusqu'à ~50s à la requête suivante) — passez `plan: starter` dans
+     `render.yaml` avant d'appliquer si ce délai n'est pas acceptable pour
+     vos utilisateurs.
+   - Vérifiez que ces coûts (Starter pour l'API, Free ou Starter pour le
+     web) correspondent à ce que vous attendez avant de valider.
 4. Render vous demande alors les valeurs des variables `sync: false`
    (voir sections 2 et 3 ci-dessous) — vous pouvez aussi les renseigner
    juste après, dans **Environment** sur le service une fois créé.
@@ -100,31 +106,47 @@ sans aucun changement de code.
 4. Testez un endpoint réel, ex. `POST /auth/login` avec un compte existant,
    pour confirmer que la connexion à `DATABASE_URL` fonctionne.
 
-## 5. `apps/web` : pointer vers l'API déployée
+## 5. `apps/web` : déployé avec l'URL de l'API déjà renseignée
 
-L'API est live sur `https://dnpec-api.onrender.com`. `apps/web` a besoin de
-deux variables pointant dessus au lieu de `http://localhost:3000` :
+`render.yaml` déclare maintenant `dnpec-web` avec `API_BASE_URL` et
+`NEXT_PUBLIC_API_BASE_URL` déjà pointées, en dur, sur
+`https://dnpec-api.onrender.com` (ce ne sont pas des secrets — une URL
+publique — donc pas de `sync: false` ici, rien à saisir à la main). Testé
+en local en mode production avant d'écrire ces valeurs : `next start`
+respecte nativement la variable `PORT` injectée par Render, `GET /` répond
+200 sans dépendre de l'API (page racine = composant client qui ne rend
+rien côté serveur), et `NEXT_PUBLIC_API_BASE_URL` est bien injectée dans le
+bundle JS au moment du build (vérifié dans les fichiers compilés).
 
-- `API_BASE_URL` (lue côté serveur par les Route Handlers `app/api/auth/*`)
-- `NEXT_PUBLIC_API_BASE_URL` (exposée au navigateur pour les appels directs
-  à l'API — voir `apps/web/lib/api/client.ts`)
-
-Une fois `apps/web` déployé sur Render à son tour, ajoutez son URL dans
-`CORS_ORIGIN` (section 6) pour restreindre le CORS de l'API à cette seule
-origine.
+**Si `dnpec-api` n'est pas le nom exact retenu par Render** (nom déjà pris,
+etc.), ou si vous changez de nom pour `dnpec-web`, mettez à jour ces deux
+valeurs dans `render.yaml` avant d'appliquer le Blueprint, ou directement
+dans **Environment** sur le service `dnpec-web` après coup (nécessite un
+redeploy pour que `NEXT_PUBLIC_API_BASE_URL` soit re-injectée au build).
 
 ## 6. CORS
 
 `main.ts` autorise, par défaut (`CORS_ORIGIN` non renseignée), **toute**
 origine à appeler l'API — un choix volontairement permissif tant que
-l'URL du frontend n'est pas connue. Les appels directs du navigateur à
+l'URL du frontend n'était pas connue. Les appels directs du navigateur à
 l'API n'utilisent qu'un en-tête `Authorization: Bearer`, jamais de cookie
 (voir `apps/web/lib/api/client.ts`), donc cette permissivité temporaire
-n'expose aucune session.
+n'a exposé aucune session.
 
-Une fois `apps/web` déployé, restreignez l'accès : dans le service Render
-`dnpec-api`, renseignez `CORS_ORIGIN` avec l'URL exacte du frontend (ex.
-`https://dnpec-web.onrender.com`) — plusieurs origines séparées par des
-virgules sont acceptées. Sans cette variable, la restriction ne prend pas
-effet ; ce n'est pas bloquant pour un premier déploiement, seulement moins
-strict.
+Maintenant que `dnpec-web` est déclaré dans `render.yaml`, l'URL prévisible
+du frontend est `https://dnpec-web.onrender.com` (même remarque que pour
+`dnpec-api` : si ce nom est déjà pris, Render en choisit un autre — vérifiez
+l'URL réelle affichée sur la page du service une fois déployé).
+
+**Valeur à saisir dans `CORS_ORIGIN`** (dashboard Render, service
+`dnpec-api`, après le déploiement de `dnpec-web`) :
+
+```
+https://dnpec-web.onrender.com
+```
+
+(remplacez par l'URL réelle si Render en a assigné une différente).
+Plusieurs origines séparées par des virgules sont acceptées si besoin
+(ex. un environnement de préproduction en plus). Sans cette variable, le
+comportement actuel (permissif) continue — ce n'est pas bloquant pour le
+premier déploiement du frontend, seulement moins strict.
