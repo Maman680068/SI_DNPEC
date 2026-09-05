@@ -500,7 +500,11 @@ export class TasksService {
       select: { id: true, divisionId: true, sectionId: true, celluleId: true },
     });
     if (!candidate) throw new NotFoundException('Utilisateur introuvable');
-    this.cascade.assertHasDirectAuthorityOver(actor, candidate);
+    // S'assigner soi-même du travail n'est pas une action de validation — jamais
+    // bloqué par l'absence d'auto-autorité de CascadeService (voir sa docstring).
+    if (candidate.id !== actor.id) {
+      this.cascade.assertHasDirectAuthorityOver(actor, candidate);
+    }
 
     const roleOnTask = dto.roleOnTask ?? TaskAssigneeRole.RESPONSABLE;
     const assignee = await this.prisma.taskAssignee.upsert({
@@ -843,6 +847,9 @@ export class TasksService {
       throw new NotFoundException('Un ou plusieurs utilisateurs assignés sont introuvables');
     }
     for (const user of users) {
+      // S'assigner soi-même du travail n'est pas une action de validation — jamais
+      // bloqué par l'absence d'auto-autorité de CascadeService (voir sa docstring).
+      if (user.id === actor.id) continue;
       this.cascade.assertHasDirectAuthorityOver(actor, user);
     }
   }

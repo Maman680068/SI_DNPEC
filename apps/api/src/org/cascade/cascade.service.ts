@@ -101,14 +101,23 @@ export class CascadeService {
    * périmètres "top" différents : la gestion des utilisateurs (ADMIN_SYSTEME
    * inclus) et l'autorité sur le contenu des tâches (ADMIN_SYSTEME exclu,
    * §3.1 — voir hasDirectAuthorityOver).
+   *
+   * SÉCURITÉ : `actor.id === target.id` renvoie toujours faux, en premier,
+   * avant même le raccourci topRoles — donc y compris pour DN/DNA/
+   * ADMIN_SYSTEME. Cette méthode sert de garde à des actions de validation/
+   * approbation (validation de tâche, congés) : personne ne doit jamais
+   * pouvoir s'auto-valider, quel que soit son rôle. Un appelant qui a
+   * légitimement besoin d'une action sur soi-même (s'assigner une tâche à
+   * soi-même, consulter son propre profil...) doit faire ce contrôle
+   * explicitement AVANT d'appeler cette méthode, jamais s'appuyer dessus.
    */
   private hasHierarchicalAuthorityOver(
     actor: AuthenticatedUser,
     target: OrgTarget,
     topRoles: SystemRole[],
   ): boolean {
+    if (actor.id === target.id) return false;
     if (topRoles.includes(actor.role)) return true;
-    if (actor.id === target.id) return true;
 
     switch (actor.role) {
       case SystemRole.CHEF_DIVISION:
