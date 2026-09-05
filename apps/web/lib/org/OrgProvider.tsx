@@ -1,8 +1,8 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState } from 'react';
-import { getCellules, getDivisions, getSections, getUsers } from '../api/org';
-import type { Cellule, Division, OrgUser, Section } from './types';
+import { createContext, useContext, useEffect, useRef, useState } from 'react';
+import { getCellules, getDivisions, getSections, getUsers, resolveUsers } from '../api/org';
+import type { BasicUserInfo, Cellule, Division, OrgUser, Section } from './types';
 import { useAuth } from '../auth/AuthProvider';
 
 interface OrgContextValue {
@@ -11,13 +11,16 @@ interface OrgContextValue {
   sections: Section[];
   cellules: Cellule[];
   /** Utilisateurs visibles par l'acteur courant (périmètre cascade — voir
-   * CascadeService.getVisibleUserWhere côté API : un Agent ne s'y voit que lui-même). */
+   * CascadeService.getVisibleUserWhere côté API : un Agent ne s'y voit que lui-même).
+   * Source des listes de sélection (assignation, mention) — pas pour l'affichage
+   * d'un id isolé, voir getUserLabel/getUserInitials. */
   users: OrgUser[];
   getDivisionName: (id: string | null) => string | null;
   getSectionName: (id: string | null) => string | null;
   getCelluleName: (id: string | null) => string | null;
-  /** Nom affichable d'un utilisateur, ou un identifiant tronqué si hors du périmètre
-   * visible par l'acteur (ex. un Agent consultant un commentaire de son supérieur). */
+  /** Nom affichable d'un utilisateur. Résolu via `users` (périmètre cascade) si possible,
+   * sinon via GET /users/resolve (par lots) — voir ensureResolved. Affiche un identifiant
+   * tronqué le temps de la résolution asynchrone, jamais de manière durable. */
   getUserLabel: (id: string) => string;
   getUserInitials: (id: string) => string;
 }
@@ -31,6 +34,13 @@ export function OrgProvider({ children }: { children: React.ReactNode }) {
   const [sections, setSections] = useState<Section[]>([]);
   const [cellules, setCellules] = useState<Cellule[]>([]);
   const [users, setUsers] = useState<OrgUser[]>([]);
+
+  // Cache des résolutions hors périmètre cascade (GET /users/resolve), peuplé à la
+  // demande. pendingRef/timerRef groupent les ids demandés pendant un même passage de
+  // rendu en un seul appel réseau au lieu d'un par id.
+  const [resolvedExtra, setResolvedExtra] = useState<Record<string, BasicUserInfo>>({});
+  const pendingRef = useRef<Set<string>>(new Set());
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (status !== 'authenticated') return;
@@ -53,6 +63,32 @@ export function OrgProvider({ children }: { children: React.ReactNode }) {
     };
   }, [status]);
 
+  function ensureResolved(id: string): void {
+    if (users.some((u) => u.id === id) || resolvedExtra[id] || pendingRef.current.has(id)) return;
+    pendingRef.current.add(id);
+    if (timerRef.current) return;
+
+    timerRef.current = setTimeout(async () => {
+      const ids = Array.from(pendingRef.current);
+      pendingRef.current.clear();
+      timerRef.current = null;
+      try {
+        const resolved = await resolveUsers(ids);
+        setResolvedExtra((prev) => {
+          const next = { ...prev };
+          for (const u of resolved) next[u.id] = u;
+          return next;
+        });
+      } catch {
+        // Silencieux : les ids concernés retombent sur le placeholder tronqué.
+      }
+    }, 30);
+  }
+
+  function findUser(id: string): { firstName: string; lastName: string } | null {
+    return users.find((u) => u.id === id) ?? resolvedExtra[id] ?? null;
+  }
+
   function getDivisionName(id: string | null): string | null {
     if (!id) return null;
     return divisions.find((d) => d.id === id)?.name ?? null;
@@ -69,13 +105,17 @@ export function OrgProvider({ children }: { children: React.ReactNode }) {
   }
 
   function getUserLabel(id: string): string {
-    const user = users.find((u) => u.id === id);
-    return user ? `${user.firstName} ${user.lastName}` : `Utilisateur…${id.slice(-4)}`;
+    const user = findUser(id);
+    if (user) return `${user.firstName} ${user.lastName}`;
+    ensureResolved(id);
+    return `Utilisateur…${id.slice(-4)}`;
   }
 
   function getUserInitials(id: string): string {
-    const user = users.find((u) => u.id === id);
-    return user ? `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`.toUpperCase() : '?';
+    const user = findUser(id);
+    if (user) return `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`.toUpperCase();
+    ensureResolved(id);
+    return '?';
   }
 
   return (

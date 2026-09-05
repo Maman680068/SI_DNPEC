@@ -31,6 +31,26 @@ const USER_LIST_SELECT = {
 /** Champs de profil qu'un utilisateur non-admin peut modifier sur lui-même. */
 const SELF_EDITABLE_FIELDS: (keyof UpdateUserDto)[] = ['phone', 'photoUrl', 'jobTitle'];
 
+/**
+ * Volontairement distinct de USER_LIST_SELECT : ni email, ni rôle, ni statut de
+ * compte — seulement de quoi afficher un nom quelque part où l'auteur d'un
+ * commentaire, un co-responsable ou une personne mentionnée est hors du
+ * périmètre cascade de l'observateur (ex. un Agent consultant un commentaire
+ * de son Chef de Division). Préfigure ce que l'Annuaire (RF-CPL-02) exposera
+ * de toute façon publiquement en interne.
+ */
+const BASIC_INFO_SELECT = {
+  id: true,
+  firstName: true,
+  lastName: true,
+  jobTitle: true,
+  divisionId: true,
+  sectionId: true,
+  celluleId: true,
+} satisfies Prisma.UserSelect;
+
+const RESOLVE_MAX_IDS = 200;
+
 type OrgAttachment = {
   divisionId?: string | null;
   sectionId?: string | null;
@@ -51,6 +71,20 @@ export class UsersService {
       where: this.cascade.getVisibleUserWhere(actor),
       select: USER_LIST_SELECT,
       orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
+    });
+  }
+
+  /**
+   * Résolution de noms hors périmètre cascade — pas de contrôle d'autorité
+   * volontairement : accessible à tout utilisateur authentifié (voir
+   * BASIC_INFO_SELECT ci-dessus pour ce qui reste exclu).
+   */
+  resolveBasicInfo(ids: string[]) {
+    const uniqueIds = Array.from(new Set(ids)).slice(0, RESOLVE_MAX_IDS);
+    if (uniqueIds.length === 0) return [];
+    return this.prisma.user.findMany({
+      where: { id: { in: uniqueIds } },
+      select: BASIC_INFO_SELECT,
     });
   }
 

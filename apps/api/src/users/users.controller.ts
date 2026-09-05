@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { SystemRole } from '@prisma/client';
 import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -9,6 +9,7 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { UpdateStatusDto } from './dto/update-status.dto';
 import { UpdateAssignmentDto } from './dto/update-assignment.dto';
 import { ApproveRegistrationDto } from './dto/approve-registration.dto';
+import { ResolveUsersDto } from './dto/resolve-users.dto';
 
 @Controller('users')
 export class UsersController {
@@ -25,11 +26,24 @@ export class UsersController {
     return this.usersService.findAllVisibleTo(actor);
   }
 
-  // Route statique déclarée avant ":id" pour ne pas être capturée par lui.
+  // Routes statiques déclarées avant ":id" pour ne pas être capturées par lui.
   @Roles(SystemRole.ADMIN_SYSTEME)
   @Get('pending')
   findPending() {
     return this.usersService.findPendingRegistrations();
+  }
+
+  /**
+   * Résolution de noms pour l'affichage (co-responsables, auteurs de
+   * commentaires, mentions...), délibérément non scopée par la cascade —
+   * contrairement à GET /users (gestion) — et limitée à des champs non
+   * sensibles (ni email, ni rôle, ni statut de compte). Accessible à tout
+   * utilisateur authentifié.
+   */
+  @Get('resolve')
+  resolve(@Query() dto: ResolveUsersDto) {
+    const ids = dto.ids.split(',').map((id) => id.trim()).filter(Boolean);
+    return this.usersService.resolveBasicInfo(ids);
   }
 
   @Get(':id')
