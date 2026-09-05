@@ -25,6 +25,12 @@ export function createSubtask(parentId: string, input: CreateTaskInput): Promise
   return apiFetch<Task>(`/tasks/${parentId}/subtasks`, { method: 'POST', body: JSON.stringify(input) });
 }
 
+/** Bascule fait/pas fait (À faire <-> Terminée) — réservé aux sous-tâches, voir
+ * TasksService.toggleSubtaskCompletion. Les tâches racines gardent start/submit/validate/reject. */
+export function toggleSubtask(id: string): Promise<Task> {
+  return apiFetch<Task>(`/tasks/${id}/toggle`, { method: 'POST' });
+}
+
 export function startTask(id: string): Promise<Task> {
   return apiFetch<Task>(`/tasks/${id}/start`, { method: 'POST' });
 }

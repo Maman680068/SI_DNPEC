@@ -75,6 +75,11 @@ export class TasksController {
     return this.tasksService.listSubtasks(actor, id);
   }
 
+  @Post(':id/toggle')
+  toggleSubtaskCompletion(@Param('id') id: string, @CurrentUser() actor: AuthenticatedUser) {
+    return this.tasksService.toggleSubtaskCompletion(actor, id);
+  }
+
   @Post(':id/start')
   start(@Param('id') id: string, @CurrentUser() actor: AuthenticatedUser) {
     return this.tasksService.start(actor, id);

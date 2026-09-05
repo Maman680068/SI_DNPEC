@@ -309,14 +309,61 @@ export class TasksService {
     });
   }
 
+  /**
+   * Bascule fait/pas fait d'une sous-tâche (À faire <-> Terminée) — délibérément
+   * distinct du workflow à 4 états des tâches racines (§4.1) : "Soumise pour
+   * validation" n'a pas de raison d'exister pour une case à cocher. Réservé aux
+   * sous-tâches (task.parentTaskId non nul) ; une tâche racine garde start/submit/
+   * validate/reject.
+   */
+  async toggleSubtaskCompletion(actor: AuthenticatedUser, id: string): Promise<TaskWithAssignees> {
+    const subtask = await this.getTaskOrThrow(id);
+    if (!subtask.parentTaskId) {
+      throw new ConflictException(
+        'Seules les sous-tâches se cochent directement — une tâche racine suit le workflow de validation (start/submit/validate/reject).',
+      );
+    }
+    await this.assertCanToggleSubtask(actor, subtask);
+
+    const nextStatus = subtask.status === TaskStatus.TERMINEE ? TaskStatus.A_FAIRE : TaskStatus.TERMINEE;
+    const updated = await this.prisma.task.update({
+      where: { id },
+      data: {
+        status: nextStatus,
+        completedAt: nextStatus === TaskStatus.TERMINEE ? new Date() : null,
+        // Champs du workflow à 4 états sans objet pour une bascule directe.
+        submittedById: null,
+        submittedAt: null,
+        validatedById: null,
+        validatedAt: null,
+        validationComment: null,
+      },
+      select: TASK_SELECT,
+    });
+
+    await this.recomputeParentProgress(subtask.parentTaskId);
+
+    await this.audit.log({
+      actorId: actor.id,
+      action: AuditAction.MODIFICATION,
+      entityType: 'Task',
+      entityId: id,
+      metadata: { event: 'subtask_toggled', from: subtask.status, to: nextStatus },
+    });
+
+    return updated;
+  }
+
   // --------------------------------------------------------------------
   // Workflow de statut (§4.1) — actions explicites plutôt qu'un PATCH
   // status générique, pour appliquer une règle d'autorisation différente
-  // à chaque transition.
+  // à chaque transition. Réservé aux tâches racines — voir
+  // toggleSubtaskCompletion pour les sous-tâches.
   // --------------------------------------------------------------------
 
   async start(actor: AuthenticatedUser, id: string): Promise<TaskWithAssignees> {
     const task = await this.getTaskOrThrow(id);
+    this.assertIsRootTask(task);
     this.assertIsCreatorOrAnyAssignee(actor, task);
     if (task.status !== TaskStatus.A_FAIRE) {
       throw new ConflictException('Cette tâche ne peut être démarrée que depuis le statut "À faire".');
@@ -333,6 +380,7 @@ export class TasksService {
 
   async submit(actor: AuthenticatedUser, id: string): Promise<TaskWithAssignees> {
     const task = await this.getTaskOrThrow(id);
+    this.assertIsRootTask(task);
     this.assertIsCreatorOrResponsable(actor, task);
     if (task.status !== TaskStatus.EN_COURS) {
       throw new ConflictException('Cette tâche ne peut être soumise que depuis le statut "En cours".');
@@ -361,6 +409,7 @@ export class TasksService {
   /** Soumise → Terminée (§4.1 : traité comme un événement, pas un état de repos "Validée" — cf. maquette à 4 colonnes). */
   async validate(actor: AuthenticatedUser, id: string, dto: ValidateTaskDto): Promise<TaskWithAssignees> {
     const task = await this.getTaskOrThrow(id);
+    this.assertIsRootTask(task);
     const creator = await this.getCreatorOrgFields(task.createdById);
     this.cascade.assertHasDirectAuthorityOver(actor, creator);
     if (task.status !== TaskStatus.SOUMISE_VALIDATION) {
@@ -386,7 +435,6 @@ export class TasksService {
     }
 
     await this.logStatusChange(actor, task.status, updated, AuditAction.VALIDATION);
-    if (task.parentTaskId) await this.recomputeParentProgress(task.parentTaskId);
 
     await this.notifications.notifyMany(
       task.assignees.map((a) => a.userId).filter((id) => id !== actor.id),
@@ -402,6 +450,7 @@ export class TasksService {
   /** Soumise → En cours (§4.1 : "Rejetée (retour en cours)" — événement, pas un état de repos). */
   async reject(actor: AuthenticatedUser, id: string, dto: RejectTaskDto): Promise<TaskWithAssignees> {
     const task = await this.getTaskOrThrow(id);
+    this.assertIsRootTask(task);
     const creator = await this.getCreatorOrgFields(task.createdById);
     this.cascade.assertHasDirectAuthorityOver(actor, creator);
     if (task.status !== TaskStatus.SOUMISE_VALIDATION) {
@@ -754,6 +803,35 @@ export class TasksService {
       return;
     }
     throw new ForbiddenException('Seuls le créateur ou un responsable assigné peuvent effectuer cette action.');
+  }
+
+  private assertIsRootTask(task: TaskWithAssignees): void {
+    if (task.parentTaskId) {
+      throw new ConflictException(
+        'Les sous-tâches ne suivent pas le workflow de validation — utilisez POST /tasks/:id/toggle.',
+      );
+    }
+  }
+
+  /** Créateur, n'importe quel assigné, ou leur supérieur hiérarchique direct à l'un ou l'autre. */
+  private async assertCanToggleSubtask(actor: AuthenticatedUser, subtask: TaskWithAssignees): Promise<void> {
+    if (subtask.createdById === actor.id) return;
+    if (subtask.assignees.some((a) => a.userId === actor.id)) return;
+
+    const creator = await this.getCreatorOrgFields(subtask.createdById);
+    if (this.cascade.hasDirectAuthorityOver(actor, creator)) return;
+
+    if (subtask.assignees.length > 0) {
+      const assigneeUsers = await this.prisma.user.findMany({
+        where: { id: { in: subtask.assignees.map((a) => a.userId) } },
+        select: { id: true, divisionId: true, sectionId: true, celluleId: true },
+      });
+      if (assigneeUsers.some((u) => this.cascade.hasDirectAuthorityOver(actor, u))) return;
+    }
+
+    throw new ForbiddenException(
+      'Seuls le créateur, une personne assignée, ou leur supérieur hiérarchique direct peuvent cocher cette sous-tâche.',
+    );
   }
 
   private async assertCanAssignAll(actor: AuthenticatedUser, userIds: string[]): Promise<void> {

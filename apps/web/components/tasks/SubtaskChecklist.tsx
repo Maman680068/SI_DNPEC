@@ -2,21 +2,8 @@
 
 import { useState, type FormEvent } from 'react';
 import { useOrg } from '../../lib/org/OrgProvider';
-import { createSubtask, startTask, submitTask, validateTask } from '../../lib/api/tasks';
+import { createSubtask, toggleSubtask } from '../../lib/api/tasks';
 import type { Task } from '../../lib/tasks/types';
-
-/** Une sous-tâche est une Task à part entière (parentTaskId renseigné) : il n'existe
- * pas d'action "cocher" dédiée côté API. Cocher fait donc avancer la sous-tâche d'une
- * étape du workflow standard à chaque clic (À faire -> En cours -> Soumise -> Terminée),
- * chaque étape restant soumise à sa propre règle d'autorisation (ex. seul le créateur ou
- * son supérieur direct peut valider) — un clic peut donc s'arrêter avant "Terminée" si
- * l'acteur n'a pas l'autorité de valider lui-même. */
-async function advance(subtask: Task): Promise<Task> {
-  if (subtask.status === 'A_FAIRE') return startTask(subtask.id);
-  if (subtask.status === 'EN_COURS') return submitTask(subtask.id);
-  if (subtask.status === 'SOUMISE_VALIDATION') return validateTask(subtask.id);
-  return subtask;
-}
 
 export function SubtaskChecklist({
   parentId,
@@ -35,19 +22,11 @@ export function SubtaskChecklist({
   const done = subtasks.filter((s) => s.status === 'TERMINEE').length;
 
   async function handleToggle(subtask: Task) {
-    if (subtask.status === 'TERMINEE') return;
     setBusyId(subtask.id);
     setNotice(null);
     try {
-      const updated = await advance(subtask);
+      const updated = await toggleSubtask(subtask.id);
       onChange(subtasks.map((s) => (s.id === updated.id ? updated : s)));
-      if (updated.status !== 'TERMINEE') {
-        setNotice(
-          updated.status === 'SOUMISE_VALIDATION'
-            ? `« ${updated.title} » est soumise pour validation — seul le responsable peut la clore.`
-            : `« ${updated.title} » est maintenant en cours.`,
-        );
-      }
     } catch (err) {
       setNotice(err instanceof Error ? err.message : 'Action impossible sur cette sous-tâche.');
     } finally {
@@ -72,14 +51,10 @@ export function SubtaskChecklist({
         <div key={subtask.id} className="flex items-center gap-2.5 border-b border-line py-2.5 text-[13px] last:border-none">
           <button
             onClick={() => handleToggle(subtask)}
-            disabled={busyId === subtask.id || subtask.status === 'TERMINEE'}
-            aria-label={subtask.status === 'TERMINEE' ? 'Terminée' : 'Marquer comme avancée'}
-            className={`h-[17px] w-[17px] flex-shrink-0 rounded-[5px] border-[1.6px] text-[11px] leading-none ${
-              subtask.status === 'TERMINEE'
-                ? 'border-sage bg-sage text-white'
-                : subtask.status === 'SOUMISE_VALIDATION'
-                  ? 'border-gold bg-gold-soft'
-                  : 'border-line bg-surface'
+            disabled={busyId === subtask.id}
+            aria-label={subtask.status === 'TERMINEE' ? 'Décocher' : 'Cocher comme terminée'}
+            className={`h-[17px] w-[17px] flex-shrink-0 rounded-[5px] border-[1.6px] text-[11px] leading-none disabled:opacity-60 ${
+              subtask.status === 'TERMINEE' ? 'border-sage bg-sage text-white' : 'border-line bg-surface'
             }`}
           >
             {subtask.status === 'TERMINEE' ? '✓' : ''}
@@ -91,7 +66,7 @@ export function SubtaskChecklist({
         </div>
       ))}
 
-      {notice && <p className="mt-2 text-[12px] text-text-muted">{notice}</p>}
+      {notice && <p className="mt-2 text-[12px] text-clay">{notice}</p>}
 
       <form onSubmit={handleAdd} className="mt-2.5 flex gap-2">
         <input
