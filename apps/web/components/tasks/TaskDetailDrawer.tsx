@@ -4,13 +4,17 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '../../lib/auth/AuthProvider';
 import { useOrg } from '../../lib/org/OrgProvider';
 import {
+  addAttachments,
+  downloadAttachment,
   getAttachments,
   getComments,
   getSubtasks,
   getTask,
   rejectTask,
+  removeAttachment,
   startTask,
   submitTask,
+  updateProgress,
   validateTask,
 } from '../../lib/api/tasks';
 import type { Task, TaskAttachment, TaskComment } from '../../lib/tasks/types';
@@ -49,18 +53,26 @@ export function TaskDetailDrawer({
   const [actionBusy, setActionBusy] = useState(false);
   const [showRejectForm, setShowRejectForm] = useState(false);
   const [rejectComment, setRejectComment] = useState('');
+  const [attachmentFiles, setAttachmentFiles] = useState<File[]>([]);
+  const [attachmentBusy, setAttachmentBusy] = useState(false);
+  const [attachmentError, setAttachmentError] = useState<string | null>(null);
+  const [progressDraft, setProgressDraft] = useState(0);
+  const [savingProgress, setSavingProgress] = useState(false);
 
   useEffect(() => {
     if (!taskId) return;
     setLoading(true);
     setActionError(null);
     setShowRejectForm(false);
+    setAttachmentError(null);
+    setAttachmentFiles([]);
     Promise.all([getTask(taskId), getSubtasks(taskId), getComments(taskId), getAttachments(taskId)])
       .then(([taskResult, subtasksResult, commentsResult, attachmentsResult]) => {
         setTask(taskResult);
         setSubtasks(subtasksResult);
         setComments(commentsResult);
         setAttachments(attachmentsResult);
+        setProgressDraft(taskResult.progressPercent ?? 0);
       })
       .finally(() => setLoading(false));
   }, [taskId]);
@@ -93,6 +105,60 @@ export function TaskDetailDrawer({
   const canStart = isCreator || isAssignee;
   const canSubmit = isCreator || isResponsable;
   const canDecide = isCreator || (currentUser ? LEADERSHIP_LIKE_ROLES.includes(currentUser.role) : false);
+  // Même périmètre que la soumission (assertIsCreatorOrResponsable côté API) : un
+  // simple Collaborateur peut démarrer la tâche mais pas déclarer son avancement.
+  const canEditProgress = subtasks.length === 0 && (isCreator || isResponsable);
+
+  async function handleAddAttachments() {
+    if (!task || attachmentFiles.length === 0) return;
+    setAttachmentBusy(true);
+    setAttachmentError(null);
+    try {
+      const added = await addAttachments(task.id, attachmentFiles);
+      setAttachments((prev) => [...added, ...prev]);
+      setAttachmentFiles([]);
+    } catch (err) {
+      setAttachmentError(err instanceof Error ? err.message : 'Envoi impossible.');
+    } finally {
+      setAttachmentBusy(false);
+    }
+  }
+
+  async function handleRemoveAttachment(attachmentId: string) {
+    if (!task) return;
+    setAttachmentError(null);
+    try {
+      await removeAttachment(task.id, attachmentId);
+      setAttachments((prev) => prev.filter((a) => a.id !== attachmentId));
+    } catch (err) {
+      setAttachmentError(err instanceof Error ? err.message : 'Suppression impossible.');
+    }
+  }
+
+  /**
+   * Ajouter ou cocher/décocher une sous-tâche recalcule progressPercent côté
+   * serveur (TasksService.recomputeParentProgress) — sans ce refetch, la
+   * tâche affichée ici (et la carte Kanban derrière, via onTaskChanged)
+   * resterait sur l'ancienne valeur jusqu'au prochain rechargement complet.
+   */
+  function handleSubtasksChange(next: Task[]) {
+    setSubtasks(next);
+    if (task) getTask(task.id).then(applyUpdate);
+  }
+
+  async function handleSaveProgress() {
+    if (!task) return;
+    setSavingProgress(true);
+    setActionError(null);
+    try {
+      const updated = await updateProgress(task.id, progressDraft);
+      applyUpdate(updated);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Enregistrement impossible.');
+    } finally {
+      setSavingProgress(false);
+    }
+  }
 
   const currentStepIndex = task ? STATUS_STEPS.findIndex((s) => s.status === task.status) : -1;
 
@@ -117,7 +183,12 @@ export function TaskDetailDrawer({
           <p className="text-sm text-text-muted">Chargement…</p>
         ) : (
           <>
-            <h2 className="mb-5 text-[19px] font-semibold leading-snug">{task.title}</h2>
+            <h2 className="mb-1.5 text-[19px] font-semibold leading-snug">{task.title}</h2>
+            {task.documentRequired && (
+              <Badge tone="clay" className="mb-3.5">
+                Pièce jointe obligatoire avant soumission
+              </Badge>
+            )}
 
             <div className="mb-6 flex items-center">
               {STATUS_STEPS.map((step, i) => (
@@ -228,6 +299,42 @@ export function TaskDetailDrawer({
             )}
             {actionError && <div className="mb-5 rounded-md bg-clay-soft px-3.5 py-2.5 text-[13px] text-clay">{actionError}</div>}
 
+            <div className="mb-[22px]">
+              <div className="mb-2.5 text-xs font-bold uppercase tracking-wide text-text-muted">Avancement</div>
+              {canEditProgress ? (
+                <div className="flex items-center gap-2.5">
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    value={progressDraft}
+                    onChange={(e) => setProgressDraft(Number(e.target.value))}
+                    className="flex-1"
+                  />
+                  <span className="w-10 text-right text-[13px] font-semibold">{progressDraft}%</span>
+                  <Button
+                    variant="outline"
+                    disabled={savingProgress || progressDraft === (task.progressPercent ?? 0)}
+                    onClick={handleSaveProgress}
+                  >
+                    {savingProgress ? 'Enregistrement…' : 'Enregistrer'}
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2.5">
+                  <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-line">
+                    <div className="h-full rounded-full bg-sage" style={{ width: `${task.progressPercent ?? 0}%` }} />
+                  </div>
+                  <span className="text-[13px] font-semibold">{task.progressPercent ?? 0}%</span>
+                </div>
+              )}
+              {subtasks.length > 0 && (
+                <p className="mt-1.5 text-[11.5px] text-text-faint">
+                  Calculé automatiquement à partir de l&apos;avancement des sous-tâches.
+                </p>
+              )}
+            </div>
+
             {task.description && (
               <>
                 <div className="mb-2.5 mt-[22px] text-xs font-bold uppercase tracking-wide text-text-muted">Description</div>
@@ -236,20 +343,55 @@ export function TaskDetailDrawer({
             )}
 
             <div className="mb-[22px]">
-              <SubtaskChecklist parentId={task.id} subtasks={subtasks} onChange={setSubtasks} />
+              <SubtaskChecklist parentId={task.id} subtasks={subtasks} onChange={handleSubtasksChange} />
             </div>
 
             <div className="mb-[22px]">
               <div className="mb-2.5 text-xs font-bold uppercase tracking-wide text-text-muted">Pièces jointes</div>
               {attachments.length ? (
                 attachments.map((att) => (
-                  <div key={att.id} className="mb-1.5 flex items-center gap-2.5 rounded-md bg-bg px-3.5 py-2.5 text-[13.5px] font-semibold">
-                    📎 {att.fileName}
+                  <div key={att.id} className="mb-1.5 flex items-center justify-between gap-2.5 rounded-md bg-bg px-3.5 py-2.5 text-[13.5px]">
+                    <button
+                      type="button"
+                      onClick={() => downloadAttachment(task.id, att.id, att.fileName)}
+                      className="truncate font-semibold hover:underline"
+                      title="Télécharger"
+                    >
+                      📎 {att.fileName}
+                    </button>
+                    {(att.uploadedById === currentUser?.id || isCreator) && (
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveAttachment(att.id)}
+                        className="flex-shrink-0 text-[11.5px] font-semibold text-text-faint hover:text-clay"
+                      >
+                        Supprimer
+                      </button>
+                    )}
                   </div>
                 ))
               ) : (
-                <p className="text-[13px] text-text-faint">Aucune pièce jointe.</p>
+                <p className="mb-2.5 text-[13px] text-text-faint">Aucune pièce jointe.</p>
               )}
+
+              {(isCreator || isAssignee) && (
+                <div className="mt-2.5 flex items-center gap-2">
+                  <input
+                    type="file"
+                    multiple
+                    onChange={(e) => setAttachmentFiles(Array.from(e.target.files ?? []))}
+                    className="min-w-0 flex-1 text-[12px]"
+                  />
+                  <Button
+                    variant="outline"
+                    disabled={attachmentFiles.length === 0 || attachmentBusy}
+                    onClick={handleAddAttachments}
+                  >
+                    {attachmentBusy ? 'Envoi…' : 'Ajouter'}
+                  </Button>
+                </div>
+              )}
+              {attachmentError && <p className="mt-1.5 text-[12px] text-clay">{attachmentError}</p>}
             </div>
 
             <div>

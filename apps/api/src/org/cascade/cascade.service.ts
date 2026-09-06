@@ -172,6 +172,31 @@ export class CascadeService {
   }
 
   /**
+   * Autorité pour diffuser une tâche à toute une division (RF-TAC, diffusion
+   * collective/individuelle) : DN/DNA sur n'importe laquelle, un Chef de
+   * Division sur la sienne uniquement. Volontairement PAS une boucle
+   * "ai-je autorité sur chaque membre" (comme assertCanAssignAll) — une
+   * division sans membre rendrait une telle boucle vide de sens (aucune
+   * itération = jamais rejeté), ce qui autoriserait n'importe qui à
+   * "diffuser" sur une division vide sans autorité réelle. Ici l'autorité se
+   * juge sur le rôle/rattachement de l'acteur, indépendamment de l'effectif
+   * de la division ciblée — TasksService vérifie séparément que la division
+   * a au moins un membre actif avant de créer quoi que ce soit.
+   */
+  canBroadcastToDivision(actor: AuthenticatedUser, divisionId: string): boolean {
+    if (LEADERSHIP_ROLES.includes(actor.role)) return true;
+    return actor.role === SystemRole.CHEF_DIVISION && actor.divisionId === divisionId;
+  }
+
+  assertCanBroadcastToDivision(actor: AuthenticatedUser, divisionId: string): void {
+    if (!this.canBroadcastToDivision(actor, divisionId)) {
+      throw new ForbiddenException(
+        'Seuls le Chef de la division concernée et la Direction peuvent diffuser une tâche à toute une division.',
+      );
+    }
+  }
+
+  /**
    * Accès à l'espace de travail privé d'une division (module documents/, RF-GED-01) :
    * tout membre de la division, quel que soit son rôle (Chef de Section/Cellule y
    * compris), plus DN/DNA. Volontairement sans granularité section/cellule — le

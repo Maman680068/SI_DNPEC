@@ -1,16 +1,38 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  Res,
+  StreamableFile,
+  UploadedFiles,
+  UseInterceptors,
+} from '@nestjs/common';
+import { FilesInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
+import type { Response } from 'express';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { AuthenticatedUser } from '../common/types/auth-user.type';
 import { TasksService } from './tasks.service';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { CreateTaskAssigneeDto } from './dto/create-task-assignee.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
+import { UpdateProgressDto } from './dto/update-progress.dto';
+import { BroadcastTaskDto } from './dto/broadcast-task.dto';
 import { RejectTaskDto } from './dto/reject-task.dto';
 import { ValidateTaskDto } from './dto/validate-task.dto';
 import { TaskFiltersDto } from './dto/task-filters.dto';
 import { CreateCommentDto } from './dto/create-comment.dto';
-import { CreateAttachmentDto } from './dto/create-attachment.dto';
 import { CreateSavedFilterDto } from './dto/create-saved-filter.dto';
+
+// Même plafond que la GED (documents.controller.ts) — voir StorageService.
+const MAX_FILE_SIZE_BYTES = 25 * 1024 * 1024;
+const MAX_FILES_PER_UPLOAD = 10;
+const filesInterceptorOptions = { storage: memoryStorage(), limits: { fileSize: MAX_FILE_SIZE_BYTES } };
 
 @Controller('tasks')
 export class TasksController {
@@ -19,6 +41,11 @@ export class TasksController {
   @Post()
   create(@Body() dto: CreateTaskDto, @CurrentUser() actor: AuthenticatedUser) {
     return this.tasksService.create(actor, dto);
+  }
+
+  @Post('broadcast')
+  broadcast(@Body() dto: BroadcastTaskDto, @CurrentUser() actor: AuthenticatedUser) {
+    return this.tasksService.broadcastToDivision(actor, dto);
   }
 
   @Get()
@@ -59,6 +86,15 @@ export class TasksController {
   @Delete(':id')
   remove(@Param('id') id: string, @CurrentUser() actor: AuthenticatedUser) {
     return this.tasksService.remove(actor, id);
+  }
+
+  @Patch(':id/progress')
+  updateProgress(
+    @Param('id') id: string,
+    @Body() dto: UpdateProgressDto,
+    @CurrentUser() actor: AuthenticatedUser,
+  ) {
+    return this.tasksService.updateProgress(actor, id, dto);
   }
 
   @Post(':id/subtasks')
@@ -137,17 +173,33 @@ export class TasksController {
   }
 
   @Post(':id/attachments')
-  addAttachment(
+  @UseInterceptors(FilesInterceptor('files', MAX_FILES_PER_UPLOAD, filesInterceptorOptions))
+  addAttachments(
     @Param('id') id: string,
-    @Body() dto: CreateAttachmentDto,
+    @UploadedFiles() files: Express.Multer.File[],
     @CurrentUser() actor: AuthenticatedUser,
   ) {
-    return this.tasksService.addAttachment(actor, id, dto);
+    return this.tasksService.addAttachments(actor, id, files ?? []);
   }
 
   @Get(':id/attachments')
   listAttachments(@Param('id') id: string, @CurrentUser() actor: AuthenticatedUser) {
     return this.tasksService.listAttachments(actor, id);
+  }
+
+  @Get(':id/attachments/:attachmentId/download')
+  async downloadAttachment(
+    @Param('id') id: string,
+    @Param('attachmentId') attachmentId: string,
+    @CurrentUser() actor: AuthenticatedUser,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<StreamableFile> {
+    const { attachment, stream } = await this.tasksService.downloadAttachment(actor, id, attachmentId);
+    res.set({
+      'Content-Type': attachment.mimeType,
+      'Content-Disposition': `attachment; filename="${encodeURIComponent(attachment.fileName)}"`,
+    });
+    return new StreamableFile(stream);
   }
 
   @Delete(':id/attachments/:attachmentId')

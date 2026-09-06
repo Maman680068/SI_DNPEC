@@ -465,6 +465,12 @@ model Task {
   confidentiality TaskConfidentiality @default(PUBLIC_INTERNE)
   dueDate         DateTime?
 
+  // Pièce jointe obligatoire avant de passer à SOUMISE_VALIDATION (voir
+  // TasksService.submit). Uniquement significatif pour une tâche racine —
+  // les sous-tâches ne passent jamais par ce statut (voir toggleSubtaskCompletion),
+  // donc ce champ n'a aucun effet si posé sur l'une d'elles.
+  documentRequired Boolean @default(false)
+
   // Périmètre d'origine de la tâche, dénormalisé pour les filtres et
   // tableaux de bord (RF-TAC-11, RF-TAC-12). divisionId/sectionId pour une
   // tâche de Division ; celluleId pour une tâche portée par une cellule
@@ -479,10 +485,13 @@ model Task {
   projectId String?
   project   Project? @relation(fields: [projectId], references: [id])
 
-  // Sous-tâches (RF-TAC-04) — la progression de la tâche mère est calculée
-  // par l'application à partir de l'avancement des sous-tâches ;
-  // progressPercent est un cache pour les tableaux de bord, pas la source
-  // de vérité.
+  // Sous-tâches (RF-TAC-04) — dès qu'il en existe au moins une, progressPercent
+  // est calculé automatiquement par l'application à partir de leur avancement
+  // (voir TasksService.recomputeParentProgress) et n'est plus modifiable à la
+  // main. Une tâche SANS sous-tâche peut au contraire recevoir une valeur
+  // manuelle (TasksService.updateProgress, réservé au créateur/responsable) —
+  // les deux mécanismes ne coexistent jamais : l'un ou l'autre selon qu'il
+  // existe des sous-tâches à l'instant considéré, jamais les deux ensemble.
   parentTaskId    String?
   parentTask      Task?   @relation("TaskSubtasks", fields: [parentTaskId], references: [id], onDelete: Cascade)
   subTasks        Task[]  @relation("TaskSubtasks")

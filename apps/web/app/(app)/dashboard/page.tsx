@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { useAuth } from '../../../lib/auth/AuthProvider';
 import { getTasks, getDashboard } from '../../../lib/api/tasks';
 import type { Task, TaskDashboard } from '../../../lib/tasks/types';
 import { KpiRow } from '../../../components/tasks/KpiRow';
@@ -9,15 +10,25 @@ import { KanbanBoard } from '../../../components/tasks/KanbanBoard';
 import { CalendarView } from '../../../components/tasks/CalendarView';
 import { TaskDetailDrawer } from '../../../components/tasks/TaskDetailDrawer';
 import { CreateTaskModal } from '../../../components/tasks/CreateTaskModal';
+import { BroadcastTaskModal } from '../../../components/tasks/BroadcastTaskModal';
 import { Button } from '../../../components/ui/Button';
 
+/** Rôles pouvant plausiblement diffuser une tâche à une division (voir
+ * CascadeService.canBroadcastToDivision) — DN/DNA n'importe laquelle, Chef de
+ * Division la sienne. Indication côté client uniquement : le serveur reste
+ * seul juge (voir assertCanBroadcastToDivision). */
+const CAN_BROADCAST_ROLES = ['DN', 'DNA', 'CHEF_DIVISION'];
+
 export default function DashboardPage() {
+  const { user: currentUser } = useAuth();
   const [tasks, setTasks] = useState<Task[] | null>(null);
   const [dashboard, setDashboard] = useState<TaskDashboard | null>(null);
   const [view, setView] = useState<TaskView>('kanban');
   const [error, setError] = useState<string | null>(null);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showBroadcastModal, setShowBroadcastModal] = useState(false);
+  const canBroadcast = CAN_BROADCAST_ROLES.includes(currentUser?.role ?? '');
 
   const load = useCallback(() => {
     Promise.all([getTasks(), getDashboard()])
@@ -44,6 +55,12 @@ export default function DashboardPage() {
     setSelectedTaskId(task.id);
   }
 
+  function handleBroadcastCreated(created: Task[]) {
+    setTasks((prev) => (prev ? [...created, ...prev] : created));
+    setShowBroadcastModal(false);
+    getDashboard().then(setDashboard);
+  }
+
   return (
     <div>
       <div className="mb-[22px] flex flex-wrap items-end justify-between gap-3.5">
@@ -51,9 +68,16 @@ export default function DashboardPage() {
           <div className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-sage">Mon périmètre</div>
           <h1 className="text-[22px] font-extrabold">Tableau de bord</h1>
         </div>
-        <Button variant="gold" onClick={() => setShowCreateModal(true)}>
-          + Nouvelle tâche
-        </Button>
+        <div className="flex gap-2.5">
+          {canBroadcast && (
+            <Button variant="outline" onClick={() => setShowBroadcastModal(true)}>
+              Diffuser à une division
+            </Button>
+          )}
+          <Button variant="gold" onClick={() => setShowCreateModal(true)}>
+            + Nouvelle tâche
+          </Button>
+        </div>
       </div>
 
       {error && <div className="mb-5 rounded-md bg-clay-soft px-4 py-3 text-sm text-clay">{error}</div>}
@@ -75,6 +99,9 @@ export default function DashboardPage() {
 
       <TaskDetailDrawer taskId={selectedTaskId} onClose={() => setSelectedTaskId(null)} onTaskChanged={handleTaskChanged} />
       {showCreateModal && <CreateTaskModal onClose={() => setShowCreateModal(false)} onCreated={handleCreated} />}
+      {showBroadcastModal && (
+        <BroadcastTaskModal onClose={() => setShowBroadcastModal(false)} onCreated={handleBroadcastCreated} />
+      )}
     </div>
   );
 }

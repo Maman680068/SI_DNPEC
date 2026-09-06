@@ -2,6 +2,7 @@ import { Type } from 'class-transformer';
 import {
   ArrayUnique,
   IsArray,
+  IsBoolean,
   IsDateString,
   IsEnum,
   IsOptional,
@@ -48,6 +49,13 @@ export class CreateTaskDto {
   @IsOptional()
   @IsString()
   projectId?: string;
+
+  // Bloque le passage à SOUMISE_VALIDATION tant qu'aucune pièce jointe n'est
+  // présente (voir TasksService.submit). Sans effet sur une sous-tâche — voir
+  // le commentaire de Task.documentRequired dans schema.prisma.
+  @IsOptional()
+  @IsBoolean()
+  documentRequired?: boolean;
 
   // Assignation initiale (RF-TAC-02) — optionnelle, l'assignation peut aussi
   // se faire ensuite via POST /tasks/:id/assignees.

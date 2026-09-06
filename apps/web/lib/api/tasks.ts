@@ -1,8 +1,15 @@
-import { apiFetch } from './client';
-import type { CreateTaskInput, Task, TaskAttachment, TaskComment, TaskDashboard } from '../tasks/types';
+import { apiFetch, API_BASE_URL, getCurrentAccessToken } from './client';
+import type { BroadcastTaskInput, CreateTaskInput, Task, TaskAttachment, TaskComment, TaskDashboard } from '../tasks/types';
 
 export function getTasks(): Promise<Task[]> {
   return apiFetch<Task[]>('/tasks');
+}
+
+/** Voir TasksService.broadcastToDivision — renvoie toujours un tableau (1 tâche
+ * en mode COLLECTIVE, une par membre en mode INDIVIDUAL), pour que l'appelant
+ * n'ait pas à distinguer les deux formes de réponse. */
+export function broadcastTask(input: BroadcastTaskInput): Promise<Task[]> {
+  return apiFetch<Task[]>('/tasks/broadcast', { method: 'POST', body: JSON.stringify(input) });
 }
 
 export function getDashboard(): Promise<TaskDashboard> {
@@ -47,6 +54,11 @@ export function rejectTask(id: string, comment: string): Promise<Task> {
   return apiFetch<Task>(`/tasks/${id}/reject`, { method: 'POST', body: JSON.stringify({ comment }) });
 }
 
+/** Voir TasksService.updateProgress — refusé (409) si la tâche a des sous-tâches. */
+export function updateProgress(id: string, progressPercent: number): Promise<Task> {
+  return apiFetch<Task>(`/tasks/${id}/progress`, { method: 'PATCH', body: JSON.stringify({ progressPercent }) });
+}
+
 export function getComments(taskId: string): Promise<TaskComment[]> {
   return apiFetch<TaskComment[]>(`/tasks/${taskId}/comments`);
 }
@@ -60,4 +72,32 @@ export function addComment(taskId: string, body: string, mentionedUserIds: strin
 
 export function getAttachments(taskId: string): Promise<TaskAttachment[]> {
   return apiFetch<TaskAttachment[]>(`/tasks/${taskId}/attachments`);
+}
+
+/** Un ou plusieurs fichiers en un seul appel — voir TasksController.addAttachments. */
+export function addAttachments(taskId: string, files: File[]): Promise<TaskAttachment[]> {
+  const form = new FormData();
+  for (const file of files) form.append('files', file);
+  return apiFetch<TaskAttachment[]>(`/tasks/${taskId}/attachments`, { method: 'POST', body: form });
+}
+
+export function removeAttachment(taskId: string, attachmentId: string): Promise<void> {
+  return apiFetch<void>(`/tasks/${taskId}/attachments/${attachmentId}`, { method: 'DELETE' });
+}
+
+/** Hors apiFetch : la réponse est un flux binaire, pas du JSON — même mécanisme
+ * que documents.ts (downloadVersion), déclenche un téléchargement navigateur. */
+export async function downloadAttachment(taskId: string, attachmentId: string, fileName: string): Promise<void> {
+  const token = getCurrentAccessToken();
+  const res = await fetch(`${API_BASE_URL}/tasks/${taskId}/attachments/${attachmentId}/download`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  });
+  if (!res.ok) throw new Error('Téléchargement impossible');
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = fileName;
+  link.click();
+  URL.revokeObjectURL(url);
 }

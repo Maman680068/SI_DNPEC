@@ -8,20 +8,23 @@ import {
   TaskAssigneeRole,
   TaskConfidentiality,
   TaskStatus,
+  UserStatus,
 } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../common/audit/audit.service';
+import { StorageService } from '../common/storage/storage.service';
 import { CascadeService } from '../org/cascade/cascade.service';
 import { NotificationsService } from '../communication/notifications/notifications.service';
 import { AuthenticatedUser } from '../common/types/auth-user.type';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { CreateTaskAssigneeDto } from './dto/create-task-assignee.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
+import { UpdateProgressDto } from './dto/update-progress.dto';
 import { RejectTaskDto } from './dto/reject-task.dto';
 import { ValidateTaskDto } from './dto/validate-task.dto';
 import { TaskFiltersDto } from './dto/task-filters.dto';
 import { CreateCommentDto } from './dto/create-comment.dto';
-import { CreateAttachmentDto } from './dto/create-attachment.dto';
+import { BroadcastMode, BroadcastTaskDto } from './dto/broadcast-task.dto';
 import { CreateSavedFilterDto } from './dto/create-saved-filter.dto';
 
 const TASK_SELECT = {
@@ -32,6 +35,7 @@ const TASK_SELECT = {
   priority: true,
   confidentiality: true,
   dueDate: true,
+  documentRequired: true,
   divisionId: true,
   sectionId: true,
   celluleId: true,
@@ -67,6 +71,7 @@ export class TasksService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly storage: StorageService,
     private readonly cascade: CascadeService,
     private readonly notifications: NotificationsService,
   ) {}
@@ -99,6 +104,7 @@ export class TasksService {
         priority: dto.priority,
         confidentiality,
         dueDate: dto.dueDate ? new Date(dto.dueDate) : undefined,
+        documentRequired: dto.documentRequired ?? false,
         ...orgAttachment,
         projectId: dto.projectId,
         isRecurring: !!dto.recurrenceFrequency,
@@ -137,6 +143,51 @@ export class TasksService {
     }
 
     return task;
+  }
+
+  /**
+   * Diffusion à une division (RF-TAC) : mode COLLECTIVE (une tâche, tous les
+   * membres actifs en co-responsables) ou INDIVIDUAL (une tâche par membre,
+   * statut indépendant pour chacune). Réutilise `create()` telle quelle plutôt
+   * que de dupliquer la logique de création/notification/audit — un appel par
+   * tâche créée. L'autorité (assertCanBroadcastToDivision) est vérifiée à
+   * part, avant toute requête sur l'effectif : voir sa docstring pour
+   * pourquoi une division vide ne doit jamais suffire à "prouver" une
+   * autorité qu'on n'a pas.
+   */
+  async broadcastToDivision(actor: AuthenticatedUser, dto: BroadcastTaskDto): Promise<TaskWithAssignees[]> {
+    this.cascade.assertCanBroadcastToDivision(actor, dto.divisionId);
+
+    const division = await this.prisma.division.findUnique({ where: { id: dto.divisionId } });
+    if (!division) throw new NotFoundException('Division introuvable');
+
+    const members = await this.prisma.user.findMany({
+      where: { divisionId: dto.divisionId, status: UserStatus.ACTIF, id: { not: actor.id } },
+      select: { id: true },
+    });
+    if (members.length === 0) {
+      throw new ConflictException('Cette division n’a aucun membre actif — impossible de diffuser une tâche.');
+    }
+
+    const base: Omit<CreateTaskDto, 'assignees'> = {
+      title: dto.title,
+      description: dto.description,
+      priority: dto.priority,
+      dueDate: dto.dueDate,
+      divisionId: dto.divisionId,
+      documentRequired: dto.documentRequired,
+    };
+
+    if (dto.mode === BroadcastMode.COLLECTIVE) {
+      const task = await this.create(actor, { ...base, assignees: members.map((m) => ({ userId: m.id })) });
+      return [task];
+    }
+
+    const tasks: TaskWithAssignees[] = [];
+    for (const member of members) {
+      tasks.push(await this.create(actor, { ...base, assignees: [{ userId: member.id }] }));
+    }
+    return tasks;
   }
 
   async findAllVisibleTo(actor: AuthenticatedUser, filters: TaskFiltersDto): Promise<TaskWithAssignees[]> {
@@ -255,6 +306,9 @@ export class TasksService {
       await this.assertCanAssignAll(actor, assignees.map((a) => a.userId));
     }
 
+    // dto.documentRequired est délibérément ignoré ici : une sous-tâche ne
+    // passe jamais par SOUMISE_VALIDATION (voir toggleSubtaskCompletion), le
+    // champ resterait sans effet — la colonne garde sa valeur par défaut.
     const subtask = await this.prisma.task.create({
       data: {
         title: dto.title,
@@ -387,6 +441,14 @@ export class TasksService {
     if (task.status !== TaskStatus.EN_COURS) {
       throw new ConflictException('Cette tâche ne peut être soumise que depuis le statut "En cours".');
     }
+    if (task.documentRequired) {
+      const attachmentCount = await this.prisma.taskAttachment.count({ where: { taskId: id } });
+      if (attachmentCount === 0) {
+        throw new ConflictException(
+          'Cette tâche exige au moins une pièce jointe avant de pouvoir être soumise pour validation.',
+        );
+      }
+    }
 
     const updated = await this.prisma.task.update({
       where: { id },
@@ -405,6 +467,47 @@ export class TasksService {
         task.title,
       );
     }
+
+    return updated;
+  }
+
+  /**
+   * Avancement manuel (RF-TAC) — uniquement pour une tâche SANS sous-tâche :
+   * dès qu'il en existe au moins une, progressPercent est recalculé
+   * automatiquement (recomputeParentProgress) et n'est plus modifiable ici.
+   * Si toutes les sous-tâches sont ensuite supprimées, l'édition manuelle
+   * redevient possible — les deux mécanismes ne coexistent jamais, l'un
+   * prend le relais de l'autre selon l'effectif de sous-tâches à l'instant
+   * considéré. Réservé au créateur ou à un Responsable assigné (pas un
+   * simple Collaborateur) — même périmètre que la soumission pour
+   * validation (assertIsCreatorOrResponsable) : les deux sont des
+   * déclarations sur l'état d'avancement de la tâche, pas de simples
+   * contributions.
+   */
+  async updateProgress(actor: AuthenticatedUser, id: string, dto: UpdateProgressDto): Promise<TaskWithAssignees> {
+    const task = await this.getTaskOrThrow(id);
+    this.assertIsCreatorOrResponsable(actor, task);
+
+    const subtaskCount = await this.prisma.task.count({ where: { parentTaskId: id } });
+    if (subtaskCount > 0) {
+      throw new ConflictException(
+        'Le pourcentage se calcule automatiquement à partir des sous-tâches — retirez-les toutes pour le modifier manuellement.',
+      );
+    }
+
+    const updated = await this.prisma.task.update({
+      where: { id },
+      data: { progressPercent: dto.progressPercent },
+      select: TASK_SELECT,
+    });
+
+    await this.audit.log({
+      actorId: actor.id,
+      action: AuditAction.MODIFICATION,
+      entityType: 'Task',
+      entityId: id,
+      metadata: { event: 'manual_progress', progressPercent: dto.progressPercent },
+    });
 
     return updated;
   }
@@ -607,35 +710,54 @@ export class TasksService {
   // Pièces jointes (RF-TAC-05) — métadonnées uniquement, cf. dto.
   // --------------------------------------------------------------------
 
-  async addAttachment(actor: AuthenticatedUser, taskId: string, dto: CreateAttachmentDto) {
+  /** Une ou plusieurs pièces jointes en un seul appel (RF-TAC : documents de
+   * référence à la création, pièce jointe avant soumission) — voir StorageService,
+   * le même stockage disque que la GED (§7.7, doc du même nom sur la limite
+   * du disque éphémère en production). */
+  async addAttachments(actor: AuthenticatedUser, taskId: string, files: Express.Multer.File[]) {
     const task = await this.getTaskOrThrow(taskId);
     await this.assertCanAttach(actor, task);
+    if (files.length === 0) throw new ConflictException('Aucun fichier reçu.');
 
-    const attachment = await this.prisma.taskAttachment.create({
-      data: {
-        taskId,
-        fileName: dto.fileName,
-        fileKey: dto.fileKey,
-        mimeType: dto.mimeType,
-        sizeBytes: dto.sizeBytes,
-        uploadedById: actor.id,
-      },
-    });
+    const attachments = [];
+    for (const file of files) {
+      const { fileKey, sizeBytes } = await this.storage.save(file.buffer, file.originalname);
+      const attachment = await this.prisma.taskAttachment.create({
+        data: {
+          taskId,
+          fileName: file.originalname,
+          fileKey,
+          mimeType: file.mimetype,
+          sizeBytes,
+          uploadedById: actor.id,
+        },
+      });
+      attachments.push(attachment);
 
-    await this.audit.log({
-      actorId: actor.id,
-      action: AuditAction.CREATION,
-      entityType: 'TaskAttachment',
-      entityId: attachment.id,
-      metadata: { taskId, fileName: dto.fileName },
-    });
+      await this.audit.log({
+        actorId: actor.id,
+        action: AuditAction.CREATION,
+        entityType: 'TaskAttachment',
+        entityId: attachment.id,
+        metadata: { taskId, fileName: file.originalname },
+      });
+    }
 
-    return attachment;
+    return attachments;
   }
 
   async listAttachments(actor: AuthenticatedUser, taskId: string) {
     await this.findOneVisibleTo(actor, taskId);
     return this.prisma.taskAttachment.findMany({ where: { taskId }, orderBy: { uploadedAt: 'desc' } });
+  }
+
+  async downloadAttachment(actor: AuthenticatedUser, taskId: string, attachmentId: string) {
+    await this.findOneVisibleTo(actor, taskId);
+    const attachment = await this.prisma.taskAttachment.findUnique({ where: { id: attachmentId } });
+    if (!attachment || attachment.taskId !== taskId) {
+      throw new NotFoundException('Pièce jointe introuvable');
+    }
+    return { attachment, stream: this.storage.createReadStream(attachment.fileKey) };
   }
 
   async removeAttachment(actor: AuthenticatedUser, taskId: string, attachmentId: string): Promise<void> {
@@ -650,6 +772,7 @@ export class TasksService {
     }
 
     await this.prisma.taskAttachment.delete({ where: { id: attachmentId } });
+    await this.storage.delete(attachment.fileKey);
 
     await this.audit.log({
       actorId: actor.id,

@@ -22,6 +22,7 @@ export interface Task {
   priority: TaskPriority;
   confidentiality: TaskConfidentiality;
   dueDate: string | null;
+  documentRequired: boolean;
   divisionId: string | null;
   sectionId: string | null;
   celluleId: string | null;
@@ -96,8 +97,24 @@ export interface CreateTaskInput {
   priority?: TaskPriority;
   confidentiality?: TaskConfidentiality;
   dueDate?: string;
+  documentRequired?: boolean;
   divisionId?: string;
   sectionId?: string;
   celluleId?: string;
   assignees?: { userId: string; roleOnTask?: TaskAssigneeRole }[];
+}
+
+/** Voir TasksService.broadcastToDivision : COLLECTIVE = une tâche, tous les
+ * membres actifs en co-responsables ; INDIVIDUAL = une tâche par membre,
+ * statut indépendant pour chacune. */
+export type BroadcastMode = 'COLLECTIVE' | 'INDIVIDUAL';
+
+export interface BroadcastTaskInput {
+  divisionId: string;
+  mode: BroadcastMode;
+  title: string;
+  description?: string;
+  priority?: TaskPriority;
+  dueDate?: string;
+  documentRequired?: boolean;
 }
