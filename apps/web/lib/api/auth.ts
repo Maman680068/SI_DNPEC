@@ -1,4 +1,4 @@
-import type { AuthUser, LoginProxyResult } from '../auth/types';
+import type { AuthUser, LoginProxyResult, RegistrationOrgOptions } from '../auth/types';
 
 const PUBLIC_API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:3000';
 
@@ -25,6 +25,9 @@ export async function registerRequest(input: {
   password: string;
   firstName: string;
   lastName: string;
+  declaredDivisionId?: string;
+  declaredSectionId?: string;
+  declaredCelluleId?: string;
 }): Promise<{ message: string }> {
   const res = await fetch(`${PUBLIC_API_BASE_URL}/auth/register`, {
     method: 'POST',
@@ -34,6 +37,13 @@ export async function registerRequest(input: {
   const body = await parseJson(res);
   await assertOk(res, body);
   return body as { message: string };
+}
+
+export async function getRegistrationOrgOptionsRequest(): Promise<RegistrationOrgOptions> {
+  const res = await fetch(`${PUBLIC_API_BASE_URL}/auth/register/org-options`);
+  const body = await parseJson(res);
+  await assertOk(res, body);
+  return body as RegistrationOrgOptions;
 }
 
 export async function forgotPasswordRequest(email: string): Promise<{ message: string }> {

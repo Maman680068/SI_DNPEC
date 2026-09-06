@@ -1,4 +1,4 @@
-import { IsEmail, IsString, MinLength } from 'class-validator';
+import { IsEmail, IsOptional, IsString, MinLength } from 'class-validator';
 
 export class RegisterDto {
   @IsEmail()
@@ -13,4 +13,18 @@ export class RegisterDto {
 
   @IsString()
   lastName!: string;
+
+  // Rattachement souhaité, purement déclaratif — voir AuthService.register
+  // et le commentaire sur User.declaredDivisionId dans schema.prisma.
+  @IsOptional()
+  @IsString()
+  declaredDivisionId?: string;
+
+  @IsOptional()
+  @IsString()
+  declaredSectionId?: string;
+
+  @IsOptional()
+  @IsString()
+  declaredCelluleId?: string;
 }

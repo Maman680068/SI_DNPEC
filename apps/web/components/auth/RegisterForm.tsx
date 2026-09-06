@@ -1,26 +1,50 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import Link from 'next/link';
-import { registerRequest } from '../../lib/api/auth';
+import { getRegistrationOrgOptionsRequest, registerRequest } from '../../lib/api/auth';
+import type { RegistrationOrgOptions } from '../../lib/auth/types';
+import { DeclaredAttachmentFields, type DeclaredAttachment } from './DeclaredAttachmentFields';
 import { Field } from '../ui/Input';
 import { Button } from '../ui/Button';
+
+const EMPTY_DECLARATION: DeclaredAttachment = {
+  declaredDivisionId: null,
+  declaredSectionId: null,
+  declaredCelluleId: null,
+};
 
 export function RegisterForm() {
   const [email, setEmail] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [password, setPassword] = useState('');
+  const [declaration, setDeclaration] = useState<DeclaredAttachment>(EMPTY_DECLARATION);
+  const [orgOptions, setOrgOptions] = useState<RegistrationOrgOptions | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+
+  useEffect(() => {
+    getRegistrationOrgOptionsRequest()
+      .then(setOrgOptions)
+      .catch(() => setOrgOptions({ divisions: [], cellules: [] }));
+  }, []);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     setError(null);
     setSubmitting(true);
     try {
-      await registerRequest({ email, password, firstName, lastName });
+      await registerRequest({
+        email,
+        password,
+        firstName,
+        lastName,
+        declaredDivisionId: declaration.declaredDivisionId ?? undefined,
+        declaredSectionId: declaration.declaredSectionId ?? undefined,
+        declaredCelluleId: declaration.declaredCelluleId ?? undefined,
+      });
       setSubmitted(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Impossible de créer le compte');
@@ -86,6 +110,15 @@ export function RegisterForm() {
         autoComplete="new-password"
       />
       <p className="-mt-3 mb-4 text-[11.5px] text-text-faint">12 caractères minimum.</p>
+
+      {orgOptions && (orgOptions.divisions.length > 0 || orgOptions.cellules.length > 0) && (
+        <DeclaredAttachmentFields
+          divisions={orgOptions.divisions}
+          cellules={orgOptions.cellules}
+          value={declaration}
+          onChange={setDeclaration}
+        />
+      )}
 
       {error && (
         <div className="mb-4 rounded-md bg-clay-soft px-3 py-2.5 text-[13px] text-clay">{error}</div>

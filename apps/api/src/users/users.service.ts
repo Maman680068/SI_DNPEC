@@ -24,6 +24,12 @@ const USER_LIST_SELECT = {
   divisionId: true,
   sectionId: true,
   celluleId: true,
+  // Rattachement déclaré à l'auto-inscription (purement informatif — voir
+  // schema.prisma, User.declaredDivisionId) : affiché sur "Inscriptions en
+  // attente" pour pré-remplir l'approbation, voir ApproveRegistrationModal.
+  declaredDivisionId: true,
+  declaredSectionId: true,
+  declaredCelluleId: true,
   createdAt: true,
   updatedAt: true,
 } satisfies Prisma.UserSelect;

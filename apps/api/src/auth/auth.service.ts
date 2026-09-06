@@ -2,6 +2,7 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -34,6 +35,11 @@ const MANDATORY_2FA_ROLES: SystemRole[] = [
   SystemRole.CHEF_CELLULE,
 ];
 
+/** Cellules transversales dont la structure interne (chef, effectif) est
+ * définie (§11 — CTSCM/CNC restent à définir) — seules celles-ci peuvent
+ * être déclarées à l'auto-inscription, voir schema.prisma (Cellule §3). */
+const DECLARABLE_CELLULE_CODES = ['SAF', 'RH', 'CSID'];
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -49,10 +55,30 @@ export class AuthService {
     private readonly config: ConfigService,
   ) {}
 
+  /** Options d'organisation utilisables à l'inscription (page publique, avant authentification) :
+   * les 5 Divisions avec leurs Sections, et seulement les Cellules transversales dont la
+   * structure est définie (voir DECLARABLE_CELLULE_CODES). */
+  async getRegistrationOrgOptions() {
+    const [divisions, cellules] = await Promise.all([
+      this.prisma.division.findMany({
+        select: { id: true, code: true, name: true, sections: { select: { id: true, code: true, name: true } } },
+        orderBy: { name: 'asc' },
+      }),
+      this.prisma.cellule.findMany({
+        where: { code: { in: DECLARABLE_CELLULE_CODES } },
+        select: { id: true, code: true, name: true },
+        orderBy: { name: 'asc' },
+      }),
+    ]);
+    return { divisions, cellules };
+  }
+
   /** Auto-inscription (RF-SEC-01, modalité 2) — soumise à validation admin, cf. UsersService.approveRegistration. */
   async register(dto: RegisterDto, ip: string) {
     const existing = await this.prisma.user.findUnique({ where: { email: dto.email } });
     if (existing) throw new ConflictException('Un compte existe déjà avec cet email');
+
+    await this.assertDeclaredAttachmentValid(dto);
 
     const passwordHash = await this.passwordService.hash(dto.password);
     const user = await this.prisma.user.create({
@@ -63,6 +89,9 @@ export class AuthService {
         lastName: dto.lastName,
         role: SystemRole.AGENT, // valeur d'attente, fixée réellement par l'admin à l'approbation
         status: UserStatus.EN_ATTENTE,
+        declaredDivisionId: dto.declaredDivisionId ?? null,
+        declaredSectionId: dto.declaredSectionId ?? null,
+        declaredCelluleId: dto.declaredCelluleId ?? null,
       },
     });
 
@@ -316,5 +345,43 @@ export class AuthService {
     const user = await this.prisma.user.findUnique({ where: { id } });
     if (!user) throw new UnauthorizedException('Utilisateur introuvable');
     return user;
+  }
+
+  /** Même invariant Division/Cellule mutuellement exclusives que
+   * UsersService.assertOrgAttachmentValid, plus une contrainte propre à la
+   * déclaration à l'inscription : seules les cellules DECLARABLE_CELLULE_CODES
+   * sont acceptées (CTSCM/CNC exclues — structure interne non définie, §11). */
+  private async assertDeclaredAttachmentValid(dto: {
+    declaredDivisionId?: string;
+    declaredSectionId?: string;
+    declaredCelluleId?: string;
+  }): Promise<void> {
+    const { declaredDivisionId, declaredSectionId, declaredCelluleId } = dto;
+
+    if (declaredDivisionId && declaredCelluleId) {
+      throw new ConflictException(
+        'Vous ne pouvez déclarer qu’une Division OU une Cellule, jamais les deux.',
+      );
+    }
+    if (declaredSectionId && !declaredDivisionId) {
+      throw new ConflictException('Une Section déclarée nécessite une Division déclarée.');
+    }
+
+    if (declaredDivisionId) {
+      const division = await this.prisma.division.findUnique({ where: { id: declaredDivisionId } });
+      if (!division) throw new NotFoundException('Division déclarée introuvable.');
+    }
+    if (declaredSectionId) {
+      const section = await this.prisma.section.findUnique({ where: { id: declaredSectionId } });
+      if (!section || section.divisionId !== declaredDivisionId) {
+        throw new ConflictException('Cette Section ne correspond pas à la Division déclarée.');
+      }
+    }
+    if (declaredCelluleId) {
+      const cellule = await this.prisma.cellule.findUnique({ where: { id: declaredCelluleId } });
+      if (!cellule || !DECLARABLE_CELLULE_CODES.includes(cellule.code)) {
+        throw new ConflictException('Cette Cellule ne peut pas être déclarée à l’inscription.');
+      }
+    }
   }
 }

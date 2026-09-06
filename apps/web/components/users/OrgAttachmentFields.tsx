@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useOrg } from '../../lib/org/OrgProvider';
 import type { SystemRole } from '../../lib/auth/types';
 import type { OrgAttachment } from '../../lib/users/types';
@@ -52,8 +52,18 @@ export function OrgAttachmentFields({
   // Un changement de rôle change la "famille" de rattachement acceptée — repartir
   // d'un état vide évite de soumettre un divisionId/celluleId devenu incohérent
   // avec le nouveau rôle (ex. CHEF_DIVISION -> CHEF_CELLULE en gardant divisionId).
+  // Sauf au tout premier montage : `value` peut alors être pré-rempli délibérément
+  // (ex. ApproveRegistrationModal, avec le rattachement déclaré à l'inscription).
+  // Comparer à la valeur précédente de `kind` (plutôt qu'un simple drapeau "premier
+  // rendu") résiste au double-appel des effets du Strict Mode en dev : ce drapeau se
+  // ferait autrement basculer par le second appel, qui déclencherait alors une
+  // réinitialisation juste après le montage.
+  const previousKind = useRef<Kind | null>(null);
   useEffect(() => {
-    onChange(EMPTY);
+    if (previousKind.current !== null && previousKind.current !== kind) {
+      onChange(EMPTY);
+    }
+    previousKind.current = kind;
   }, [kind]);
 
   if (kind === 'none') {

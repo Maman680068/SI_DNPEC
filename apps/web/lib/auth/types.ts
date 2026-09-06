@@ -25,3 +25,25 @@ export type LoginProxyResult =
   | { status: 'authenticated'; accessToken: string; user: AuthUser }
   | { status: 'two_fa_challenge_required'; challengeToken: string }
   | { status: 'two_fa_setup_required'; setupToken: string };
+
+/** Réponse de GET /auth/register/org-options (public, avant authentification) —
+ * les seuls choix de rattachement déclarable à l'inscription : les 5 Divisions
+ * avec leurs Sections, et les Cellules dont la structure est définie (CTSCM/CNC
+ * exclues côté API, voir AuthService.DECLARABLE_CELLULE_CODES). */
+export interface RegistrationDivisionOption {
+  id: string;
+  code: string;
+  name: string;
+  sections: { id: string; code: string; name: string }[];
+}
+
+export interface RegistrationCelluleOption {
+  id: string;
+  code: string;
+  name: string;
+}
+
+export interface RegistrationOrgOptions {
+  divisions: RegistrationDivisionOption[];
+  cellules: RegistrationCelluleOption[];
+}

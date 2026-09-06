@@ -43,6 +43,14 @@ export class AuthController {
     return this.authService.register(dto, clientIp(req));
   }
 
+  // Route statique déclarée avant tout GET(':something') éventuel — ici sans
+  // conflit puisqu'aucune autre route GET /auth/register/* n'existe.
+  @Public()
+  @Get('register/org-options')
+  getRegistrationOrgOptions() {
+    return this.authService.getRegistrationOrgOptions();
+  }
+
   @Public()
   @HttpCode(HttpStatus.OK)
   @Post('forgot-password')

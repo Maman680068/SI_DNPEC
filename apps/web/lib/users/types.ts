@@ -15,6 +15,11 @@ export interface AdminUser {
   divisionId: string | null;
   sectionId: string | null;
   celluleId: string | null;
+  /** Rattachement souhaité, déclaré par la personne elle-même à l'inscription
+   * — purement informatif, jamais une affectation réelle (voir schema.prisma). */
+  declaredDivisionId: string | null;
+  declaredSectionId: string | null;
+  declaredCelluleId: string | null;
   createdAt: string;
   updatedAt: string;
 }

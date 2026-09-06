@@ -333,6 +333,18 @@ model User {
   celluleId  String?
   cellule    Cellule?  @relation(fields: [celluleId], references: [id])
 
+  // Rattachement SOUHAITÉ, déclaré par la personne elle-même lors de
+  // l'auto-inscription (RF-SEC-01, modalité 2) — jamais posé automatiquement
+  // comme divisionId/sectionId/celluleId ci-dessus, qui restent entièrement
+  // la décision de l'admin à l'approbation (UsersService.approveRegistration).
+  // Pas de relation Prisma (délibéré) : purement informatif, affiché à
+  // l'admin pour pré-remplir le formulaire d'approbation, jamais utilisé
+  // pour un contrôle de permission ni un filtre de cascade. Même exclusivité
+  // Division/Cellule que ci-dessus, validée dans AuthService.register.
+  declaredDivisionId String?
+  declaredSectionId  String?
+  declaredCelluleId  String?
+
   // Cellule dont cet utilisateur est le chef (réciproque de Cellule.chefId) —
   // distinct de `cellule` ci-dessus qui porte le simple rattachement/membre.
   celluleLed Cellule? @relation("CelluleChef")

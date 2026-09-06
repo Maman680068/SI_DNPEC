@@ -2,13 +2,12 @@
 
 import { useState, type FormEvent } from 'react';
 import { approveUser } from '../../lib/api/users';
+import { useOrg } from '../../lib/org/OrgProvider';
 import type { AdminUser, OrgAttachment } from '../../lib/users/types';
 import { ASSIGNABLE_ROLES, ROLE_LABEL } from '../../lib/users/types';
 import type { SystemRole } from '../../lib/auth/types';
 import { OrgAttachmentFields } from './OrgAttachmentFields';
 import { Button } from '../ui/Button';
-
-const EMPTY_ATTACHMENT: OrgAttachment = { divisionId: null, sectionId: null, celluleId: null };
 
 export function ApproveRegistrationModal({
   user,
@@ -19,10 +18,25 @@ export function ApproveRegistrationModal({
   onClose: () => void;
   onApproved: (user: AdminUser) => void;
 }) {
+  const { getDivisionName, getSectionName, getCelluleName } = useOrg();
   const [role, setRole] = useState<SystemRole>('AGENT');
-  const [attachment, setAttachment] = useState<OrgAttachment>(EMPTY_ATTACHMENT);
+  // Pré-rempli avec le rattachement déclaré à l'inscription (voir OrgAttachmentFields :
+  // son effet de réinitialisation-au-changement-de-rôle s'abstient exprès au premier
+  // montage pour laisser passer ces valeurs) — l'admin n'a plus qu'à confirmer ou corriger.
+  const [attachment, setAttachment] = useState<OrgAttachment>({
+    divisionId: user.declaredDivisionId,
+    sectionId: user.declaredSectionId,
+    celluleId: user.declaredCelluleId,
+  });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const hasDeclaration = !!(user.declaredDivisionId || user.declaredCelluleId);
+  const declarationLabel = user.declaredCelluleId
+    ? getCelluleName(user.declaredCelluleId)
+    : [getDivisionName(user.declaredDivisionId), getSectionName(user.declaredSectionId)]
+        .filter(Boolean)
+        .join(' · ');
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -49,6 +63,12 @@ export function ApproveRegistrationModal({
         <p className="mb-5 text-[13px] text-text-muted">
           {user.firstName} {user.lastName} · {user.email}
         </p>
+
+        {hasDeclaration && (
+          <div className="mb-5 rounded-md bg-gold-soft px-3.5 py-2.5 text-[12.5px] text-ink">
+            <strong>Rattachement déclaré à l’inscription :</strong> {declarationLabel}
+          </div>
+        )}
 
         <div className="mb-4">
           <label className="mb-1.5 block text-[12.5px] font-semibold text-text">Rôle attribué</label>
