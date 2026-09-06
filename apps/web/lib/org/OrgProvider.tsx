@@ -23,9 +23,10 @@ interface OrgContextValue {
    * tronqué le temps de la résolution asynchrone, jamais de manière durable. */
   getUserLabel: (id: string) => string;
   getUserInitials: (id: string) => string;
-  /** Recharge les cellules (chefId notamment) — à appeler après une action qui change
-   * l'un d'eux, ex. AssignChefModal, plutôt que d'attendre un rechargement de page. */
-  refreshCellules: () => Promise<void>;
+  /** Recharge divisions/sections/cellules — à appeler après toute action qui en change
+   * un (AssignChefModal, page Organisation), plutôt que d'attendre un rechargement
+   * de page complet. */
+  refreshOrg: () => Promise<void>;
 }
 
 const OrgContext = createContext<OrgContextValue | null>(null);
@@ -49,22 +50,35 @@ export function OrgProvider({ children }: { children: React.ReactNode }) {
     if (status !== 'authenticated') return;
     let cancelled = false;
 
-    Promise.all([getDivisions(), getCellules(), getUsers()]).then(async ([divisionsResult, cellulesResult, usersResult]) => {
-      if (cancelled) return;
-      setDivisions(divisionsResult);
-      setCellules(cellulesResult);
-      setUsers(usersResult);
-
-      const sectionsByDivision = await Promise.all(divisionsResult.map((d) => getSections(d.id)));
-      if (cancelled) return;
-      setSections(sectionsByDivision.flat());
-      setLoading(false);
+    loadOrg(() => cancelled).finally(() => {
+      if (!cancelled) setLoading(false);
     });
 
     return () => {
       cancelled = true;
     };
   }, [status]);
+
+  async function loadOrg(isCancelled: () => boolean): Promise<void> {
+    const [divisionsResult, cellulesResult, usersResult] = await Promise.all([
+      getDivisions(),
+      getCellules(),
+      getUsers(),
+    ]);
+    if (isCancelled()) return;
+    setDivisions(divisionsResult);
+    setCellules(cellulesResult);
+    setUsers(usersResult);
+
+    const sectionsByDivision = await Promise.all(divisionsResult.map((d) => getSections(d.id)));
+    if (isCancelled()) return;
+    setSections(sectionsByDivision.flat());
+  }
+
+  /** Même logique que le chargement initial, réutilisable à la demande (jamais annulée). */
+  function refreshOrg(): Promise<void> {
+    return loadOrg(() => false);
+  }
 
   function ensureResolved(id: string): void {
     if (users.some((u) => u.id === id) || resolvedExtra[id] || pendingRef.current.has(id)) return;
@@ -121,10 +135,6 @@ export function OrgProvider({ children }: { children: React.ReactNode }) {
     return '?';
   }
 
-  async function refreshCellules(): Promise<void> {
-    setCellules(await getCellules());
-  }
-
   return (
     <OrgContext.Provider
       value={{
@@ -138,7 +148,7 @@ export function OrgProvider({ children }: { children: React.ReactNode }) {
         getCelluleName,
         getUserLabel,
         getUserInitials,
-        refreshCellules,
+        refreshOrg,
       }}
     >
       {children}

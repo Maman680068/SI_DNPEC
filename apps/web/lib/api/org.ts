@@ -13,6 +13,52 @@ export function getCellules(): Promise<Cellule[]> {
   return apiFetch<Cellule[]>('/org/cellules');
 }
 
+export interface OrgEntityInput {
+  code: string;
+  name: string;
+}
+
+export function createDivision(input: OrgEntityInput): Promise<Division> {
+  return apiFetch<Division>('/org/divisions', { method: 'POST', body: JSON.stringify(input) });
+}
+
+export function updateDivision(id: string, input: Partial<OrgEntityInput>): Promise<Division> {
+  return apiFetch<Division>(`/org/divisions/${id}`, { method: 'PATCH', body: JSON.stringify(input) });
+}
+
+/** L'API refuse (409) si la Division a encore des Sections, utilisateurs ou tâches
+ * rattachés — voir DivisionsService.remove. Le message d'erreur est déjà clair,
+ * à afficher tel quel (ApiError.message). */
+export function deleteDivision(id: string): Promise<void> {
+  return apiFetch<void>(`/org/divisions/${id}`, { method: 'DELETE' });
+}
+
+export function createSection(divisionId: string, input: OrgEntityInput): Promise<Section> {
+  return apiFetch<Section>(`/org/divisions/${divisionId}/sections`, { method: 'POST', body: JSON.stringify(input) });
+}
+
+export function updateSection(id: string, input: Partial<OrgEntityInput>): Promise<Section> {
+  return apiFetch<Section>(`/org/sections/${id}`, { method: 'PATCH', body: JSON.stringify(input) });
+}
+
+/** Même garde que deleteDivision, côté SectionsService.remove. */
+export function deleteSection(id: string): Promise<void> {
+  return apiFetch<void>(`/org/sections/${id}`, { method: 'DELETE' });
+}
+
+export function createCellule(input: OrgEntityInput): Promise<Cellule> {
+  return apiFetch<Cellule>('/org/cellules', { method: 'POST', body: JSON.stringify(input) });
+}
+
+export function updateCellule(id: string, input: Partial<OrgEntityInput>): Promise<Cellule> {
+  return apiFetch<Cellule>(`/org/cellules/${id}`, { method: 'PATCH', body: JSON.stringify(input) });
+}
+
+/** Même garde que deleteDivision, côté CellulesService.remove. */
+export function deleteCellule(id: string): Promise<void> {
+  return apiFetch<void>(`/org/cellules/${id}`, { method: 'DELETE' });
+}
+
 /** Nomme le chef d'une cellule — transactionnel côté API (CellulesService.assignChef) :
  * démet l'ancien chef, promeut userId en CHEF_CELLULE et pose Cellule.chefId. C'est le
  * SEUL chemin qui maintienne cet invariant — jamais via POST /users avec role=CHEF_CELLULE. */

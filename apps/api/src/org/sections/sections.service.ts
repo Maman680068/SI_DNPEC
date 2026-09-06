@@ -34,8 +34,27 @@ export class SectionsService {
     return this.prisma.section.update({ where: { id }, data: dto });
   }
 
+  /** users.sectionId / tasks.sectionId sont ON DELETE SET NULL — sans ce contrôle,
+   * supprimer une Section encore utilisée orphelinerait silencieusement ces lignes. */
   async remove(id: string): Promise<void> {
     await this.findOneOrThrow(id);
+
+    const [userCount, taskCount] = await Promise.all([
+      this.prisma.user.count({ where: { sectionId: id } }),
+      this.prisma.task.count({ where: { sectionId: id } }),
+    ]);
+
+    if (userCount > 0) {
+      throw new ConflictException(
+        `Cette Section a encore ${userCount} utilisateur(s) rattaché(s) — impossible à supprimer.`,
+      );
+    }
+    if (taskCount > 0) {
+      throw new ConflictException(
+        `Cette Section a encore ${taskCount} tâche(s) rattachée(s) — impossible à supprimer.`,
+      );
+    }
+
     await this.prisma.section.delete({ where: { id } });
   }
 

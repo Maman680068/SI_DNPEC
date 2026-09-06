@@ -12,8 +12,11 @@ export interface DeclaredAttachment {
 type Mode = 'division' | 'cellule';
 
 /**
- * Rattachement SOUHAITÉ par la personne qui s'inscrit — purement déclaratif,
- * jamais l'affectation réelle (voir schema.prisma, User.declaredDivisionId).
+ * Rattachement ACTUEL déclaré par la personne qui s'inscrit — une affirmation de
+ * fait à vérifier par l'admin à l'approbation, pas une préférence (voir
+ * schema.prisma, User.declaredDivisionId : jamais posé comme rattachement réel
+ * tant que l'admin ne l'a pas confirmé). Obligatoire : AuthService.register
+ * rejette une inscription sans Division ni Cellule déclarée.
  * Autonome (pas de useOrg()) car la page d'inscription est publique, avant
  * authentification : les options viennent de GET /auth/register/org-options.
  */
@@ -39,11 +42,11 @@ export function DeclaredAttachmentFields({
   return (
     <div className="mb-4">
       <label className="mb-1.5 block text-[12.5px] font-semibold text-text">
-        Rattachement souhaité (optionnel)
+        Votre division ou cellule actuelle
       </label>
       <p className="mb-2 text-[11.5px] text-text-faint">
-        Une indication pour l’administrateur — le rattachement réel sera confirmé à l’approbation
-        de votre compte.
+        Indiquez où vous travaillez actuellement à la DNPEC. Un administrateur vérifiera cette
+        information avant d’activer votre compte.
       </p>
 
       <div className="mb-2.5 flex gap-0.5 rounded-md border border-line bg-bg p-0.5" style={{ width: 'fit-content' }}>
@@ -77,6 +80,7 @@ export function DeclaredAttachmentFields({
                 declaredCelluleId: null,
               })
             }
+            required
             className="mb-2.5 w-full rounded-md border border-line bg-surface px-3 py-2.5 text-sm"
           >
             <option value="">— Sélectionner une division —</option>
@@ -110,6 +114,7 @@ export function DeclaredAttachmentFields({
               declaredCelluleId: e.target.value || null,
             })
           }
+          required
           className="w-full rounded-md border border-line bg-surface px-3 py-2.5 text-sm"
         >
           <option value="">— Sélectionner une cellule —</option>

@@ -21,7 +21,7 @@ export function AssignChefModal({
   onClose: () => void;
   onAssigned: () => void;
 }) {
-  const { cellules, refreshCellules } = useOrg();
+  const { cellules, refreshOrg } = useOrg();
   const [celluleId, setCelluleId] = useState(cellules[0]?.id ?? '');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -35,7 +35,7 @@ export function AssignChefModal({
     setError(null);
     try {
       await assignCelluleChef(celluleId, user.id);
-      await refreshCellules();
+      await refreshOrg();
       onAssigned();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Impossible de nommer ce chef de cellule");

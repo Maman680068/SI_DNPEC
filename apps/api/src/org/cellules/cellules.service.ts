@@ -34,8 +34,28 @@ export class CellulesService {
     return this.prisma.cellule.update({ where: { id }, data: dto });
   }
 
+  /** users.celluleId / tasks.celluleId sont ON DELETE SET NULL — sans ce contrôle,
+   * supprimer une Cellule encore utilisée orphelinerait silencieusement ces lignes
+   * (le chef éventuel est lui aussi rattaché via celluleId, donc déjà couvert). */
   async remove(id: string): Promise<void> {
     await this.findOneOrThrow(id);
+
+    const [userCount, taskCount] = await Promise.all([
+      this.prisma.user.count({ where: { celluleId: id } }),
+      this.prisma.task.count({ where: { celluleId: id } }),
+    ]);
+
+    if (userCount > 0) {
+      throw new ConflictException(
+        `Cette Cellule a encore ${userCount} utilisateur(s) rattaché(s) — impossible à supprimer.`,
+      );
+    }
+    if (taskCount > 0) {
+      throw new ConflictException(
+        `Cette Cellule a encore ${taskCount} tâche(s) rattachée(s) — impossible à supprimer.`,
+      );
+    }
+
     await this.prisma.cellule.delete({ where: { id } });
   }
 

@@ -29,10 +29,18 @@ const NAV_GROUPS: NavGroup[] = [
 ];
 
 /** "Utilisateurs" n'apparaît que pour ADMIN_SYSTEME (gestion complète) et DN/DNA
- * (lecture seule — voir app/(app)/users/page.tsx). */
+ * (lecture seule — voir app/(app)/users/page.tsx). "Organisation" est réservée à
+ * ADMIN_SYSTEME uniquement (voir app/(app)/organisation/page.tsx). */
 function navGroupsFor(role: string | undefined): NavGroup[] {
-  if (!USERS_PAGE_VISIBLE_ROLES.includes(role ?? '')) return NAV_GROUPS;
-  return [...NAV_GROUPS, { label: 'Administration', items: [{ icon: '👤', label: 'Utilisateurs', href: '/users' }] }];
+  const adminItems: NavGroup['items'] = [];
+  if (USERS_PAGE_VISIBLE_ROLES.includes(role ?? '')) {
+    adminItems.push({ icon: '👤', label: 'Utilisateurs', href: '/users' });
+  }
+  if (role === 'ADMIN_SYSTEME') {
+    adminItems.push({ icon: '🏛', label: 'Organisation', href: '/organisation' });
+  }
+  if (adminItems.length === 0) return NAV_GROUPS;
+  return [...NAV_GROUPS, { label: 'Administration', items: adminItems }];
 }
 
 function initials(firstName: string, lastName: string): string {

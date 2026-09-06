@@ -348,9 +348,11 @@ export class AuthService {
   }
 
   /** Même invariant Division/Cellule mutuellement exclusives que
-   * UsersService.assertOrgAttachmentValid, plus une contrainte propre à la
-   * déclaration à l'inscription : seules les cellules DECLARABLE_CELLULE_CODES
-   * sont acceptées (CTSCM/CNC exclues — structure interne non définie, §11). */
+   * UsersService.assertOrgAttachmentValid, plus deux contraintes propres à la
+   * déclaration à l'inscription : l'une des deux est OBLIGATOIRE (c'est une
+   * déclaration de fait à vérifier par l'admin, pas une préférence facultative),
+   * et seules les cellules DECLARABLE_CELLULE_CODES sont acceptées (CTSCM/CNC
+   * exclues — structure interne non définie, §11). */
   private async assertDeclaredAttachmentValid(dto: {
     declaredDivisionId?: string;
     declaredSectionId?: string;
@@ -358,6 +360,9 @@ export class AuthService {
   }): Promise<void> {
     const { declaredDivisionId, declaredSectionId, declaredCelluleId } = dto;
 
+    if (!declaredDivisionId && !declaredCelluleId) {
+      throw new ConflictException('Indiquez votre division ou cellule actuelle.');
+    }
     if (declaredDivisionId && declaredCelluleId) {
       throw new ConflictException(
         'Vous ne pouvez déclarer qu’une Division OU une Cellule, jamais les deux.',
