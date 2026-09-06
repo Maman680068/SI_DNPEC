@@ -132,6 +132,7 @@ export class TasksService {
         'Nouvelle tâche assignée',
         task.title,
         `/tasks/${task.id}`,
+        task.title,
       );
     }
 
@@ -294,6 +295,7 @@ export class TasksService {
         'Nouvelle sous-tâche assignée',
         subtask.title,
         `/tasks/${subtask.id}`,
+        subtask.title,
       );
     }
 
@@ -400,6 +402,7 @@ export class TasksService {
         'Tâche soumise pour validation',
         task.title,
         `/tasks/${id}`,
+        task.title,
       );
     }
 
@@ -442,6 +445,7 @@ export class TasksService {
       'Tâche validée',
       task.title,
       `/tasks/${id}`,
+      task.title,
     );
 
     return updated;
@@ -482,6 +486,7 @@ export class TasksService {
       'Tâche rejetée — à reprendre',
       dto.comment,
       `/tasks/${id}`,
+      task.title,
     );
 
     return updated;
@@ -528,6 +533,7 @@ export class TasksService {
         'Tâche assignée',
         task.title,
         `/tasks/${taskId}`,
+        task.title,
       );
     }
 

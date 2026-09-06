@@ -1,7 +1,27 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { NotificationChannel, NotificationType } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { EmailService } from './email.service';
+import { buildEmailContent } from './email-template';
+
+/** Libellé du bouton d'action de l'email, adapté à la ressource concernée
+ * par chaque type de notification (voir schema.prisma pour la liste complète). */
+const NOTIFICATION_BUTTON_LABELS: Record<NotificationType, string> = {
+  TACHE_ASSIGNEE: 'Voir la tâche',
+  TACHE_ECHEANCE_PROCHE: 'Voir la tâche',
+  TACHE_EN_RETARD: 'Voir la tâche',
+  TACHE_SOUMISE_VALIDATION: 'Voir la tâche',
+  TACHE_VALIDEE: 'Voir la tâche',
+  TACHE_REJETEE: 'Voir la tâche',
+  MENTION_COMMENTAIRE: 'Voir le commentaire',
+  MESSAGE_DIRECT: 'Lire le message',
+  ANNONCE: "Voir l'annonce",
+  CONGE_SOUMIS: 'Voir la demande',
+  CONGE_VALIDE: 'Voir ma demande de congé',
+  CONGE_REJETE: 'Voir la demande',
+  DOCUMENT_PUBLIE: 'Voir le document',
+};
 
 /**
  * Point d'entrée unique des notifications (in-app + email — SMS différé,
@@ -20,19 +40,46 @@ export class NotificationsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly email: EmailService,
+    private readonly config: ConfigService,
   ) {}
 
-  async notify(userId: string, type: NotificationType, title: string, body: string, link?: string): Promise<void> {
+  /**
+   * `subjectDetail` (ex. le titre de la tâche concernée) est ajouté à l'objet
+   * de l'email quand fourni — pour que plusieurs notifications du même type
+   * reçues le même jour (ex. deux tâches assignées) restent distinguables
+   * dans la boîte de réception sans avoir à les ouvrir une par une. Le titre
+   * seul (`title`) reste utilisé pour la notification in-app et, sans
+   * `subjectDetail`, pour l'objet de l'email.
+   */
+  async notify(
+    userId: string,
+    type: NotificationType,
+    title: string,
+    body: string,
+    link?: string,
+    subjectDetail?: string,
+  ): Promise<void> {
     await this.prisma.notification.create({
       data: { userId, type, channel: NotificationChannel.IN_APP, title, body, link, sentAt: new Date() },
     });
 
-    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true, firstName: true },
+    });
     await this.prisma.notification.create({
       data: { userId, type, channel: NotificationChannel.EMAIL, title, body, link, sentAt: new Date() },
     });
     if (user) {
-      await this.email.send(user.email, title, body);
+      const webAppUrl = this.config.get<string>('WEB_APP_URL', 'http://localhost:3100');
+      const subject = subjectDetail ? `${title} : ${subjectDetail}` : title;
+      const { html, text } = buildEmailContent({
+        recipientFirstName: user.firstName,
+        paragraphs: [title, body],
+        buttonLabel: link ? NOTIFICATION_BUTTON_LABELS[type] : undefined,
+        buttonUrl: link ? `${webAppUrl}${link}` : undefined,
+      });
+      await this.email.send(user.email, subject, text, html);
     }
   }
 
@@ -42,8 +89,9 @@ export class NotificationsService {
     title: string,
     body: string,
     link?: string,
+    subjectDetail?: string,
   ): Promise<void> {
-    await Promise.all(userIds.map((userId) => this.notify(userId, type, title, body, link)));
+    await Promise.all(userIds.map((userId) => this.notify(userId, type, title, body, link, subjectDetail)));
   }
 
   listForUser(userId: string) {

@@ -33,7 +33,7 @@ export class EmailService {
       : nodemailer.createTransport({ jsonTransport: true });
   }
 
-  async send(to: string, subject: string, text: string): Promise<void> {
+  async send(to: string, subject: string, text: string, html?: string): Promise<void> {
     if (!this.configured) {
       // jsonTransport n'envoie réellement rien — journaliser le corps est ce qui rend
       // le docstring ci-dessus ("encodé et journalisé") vrai, et permet de tester en
@@ -42,6 +42,6 @@ export class EmailService {
         `Email non envoyé (SMTP non configuré) — destinataire=${to}, sujet="${subject}"\n${text}`,
       );
     }
-    await this.transporter.sendMail({ from: this.from, to, subject, text });
+    await this.transporter.sendMail({ from: this.from, to, subject, text, html });
   }
 }

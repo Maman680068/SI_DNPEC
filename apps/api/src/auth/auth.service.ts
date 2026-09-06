@@ -12,6 +12,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../common/audit/audit.service';
 import { PasswordService } from '../common/security/password.service';
 import { EmailService } from '../communication/notifications/email.service';
+import { buildEmailContent } from '../communication/notifications/email-template';
 import {
   AccessTokenPayload,
   TwoFaLoginChallengePayload,
@@ -117,14 +118,19 @@ export class AuthService {
       const token = await this.passwordReset.createResetToken(user.id);
       const webAppUrl = this.config.get<string>('WEB_APP_URL', 'http://localhost:3100');
       const resetUrl = `${webAppUrl}/reset-password?token=${token}`;
-      await this.emailService.send(
-        user.email,
-        'Réinitialisation de votre mot de passe — DNPEC SI',
-        `Bonjour ${user.firstName},\n\n` +
-          `Une demande de réinitialisation de mot de passe a été effectuée pour votre compte DNPEC SI.\n` +
-          `Cliquez sur le lien suivant pour choisir un nouveau mot de passe (valable 1 heure) :\n\n${resetUrl}\n\n` +
-          `Si vous n'êtes pas à l'origine de cette demande, ignorez cet email — votre mot de passe reste inchangé.`,
-      );
+      const { html, text } = buildEmailContent({
+        recipientFirstName: user.firstName,
+        paragraphs: [
+          'Vous avez demandé à changer le mot de passe de votre compte DNPEC.',
+          'Pour choisir un nouveau mot de passe, cliquez sur le bouton ci-dessous. Ce lien est valable pendant 1 heure.',
+        ],
+        buttonLabel: 'Changer mon mot de passe',
+        buttonUrl: resetUrl,
+        afterButtonParagraphs: [
+          "Si vous n'êtes pas à l'origine de cette demande, vous pouvez ignorer cet email : votre mot de passe actuel ne changera pas.",
+        ],
+      });
+      await this.emailService.send(user.email, 'Réinitialisation de votre mot de passe DNPEC', text, html);
     }
     return { message: 'Si un compte existe avec cette adresse, un email de réinitialisation a été envoyé.' };
   }
