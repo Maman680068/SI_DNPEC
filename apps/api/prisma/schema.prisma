@@ -352,7 +352,8 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  sessions UserSession[]
+  sessions             UserSession[]
+  passwordResetTokens  PasswordResetToken[]
 
   // Tâches
   createdTasks    Task[]           @relation("TaskCreatedBy")
@@ -402,6 +403,24 @@ model UserSession {
   revokedAt        DateTime?
 
   @@map("user_sessions")
+}
+
+// Jetons de réinitialisation de mot de passe (mot de passe oublié). Même
+// principe de sécurité que UserSession.refreshTokenHash : seul le SHA-256 du
+// jeton est stocké, jamais le jeton en clair (voir PasswordResetService) — la
+// valeur envoyée par email a 32 octets d'entropie aléatoire, un hachage lent
+// n'apporte rien ici. `usedAt` rend un jeton à usage unique même avant
+// expiration ; `expiresAt` le rend caduc après une heure (voir AuthService).
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String
+  createdAt DateTime  @default(now())
+  expiresAt DateTime
+  usedAt    DateTime?
+
+  @@map("password_reset_tokens")
 }
 
 // ----------------------------------------------------------------------------

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, type FormEvent } from 'react';
+import Link from 'next/link';
 import { useAuth } from '../../lib/auth/AuthProvider';
 import { Field } from '../ui/Input';
 import { Button } from '../ui/Button';
@@ -47,6 +48,11 @@ export function LoginForm() {
         required
         autoComplete="current-password"
       />
+      <div className="-mt-2 mb-4 text-right">
+        <Link href="/forgot-password" className="text-[12.5px] font-semibold text-accent hover:underline">
+          Mot de passe oublié ?
+        </Link>
+      </div>
 
       {error && (
         <div className="mb-4 rounded-md bg-clay-soft px-3 py-2.5 text-[13px] text-clay">{error}</div>
@@ -55,6 +61,13 @@ export function LoginForm() {
       <Button type="submit" variant="solid" className="w-full" disabled={submitting}>
         {submitting ? 'Connexion…' : 'Se connecter'}
       </Button>
+
+      <p className="mt-5 text-center text-[13px] text-text-muted">
+        Pas encore de compte ?{' '}
+        <Link href="/register" className="font-semibold text-accent hover:underline">
+          Demander l’accès
+        </Link>
+      </p>
     </form>
   );
 }

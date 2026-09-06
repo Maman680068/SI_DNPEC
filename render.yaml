@@ -67,6 +67,11 @@ services:
       # une fois le frontend déployé et son URL Render connue.
       - key: CORS_ORIGIN
         sync: false
+      # URL du frontend déployé — construit le lien envoyé par email pour la
+      # réinitialisation de mot de passe (voir auth.service.ts, forgotPassword).
+      # Même valeur que celle utilisée pour dnpec-web ci-dessous.
+      - key: WEB_APP_URL
+        value: https://dnpec-web.onrender.com
 
   - type: web
     name: dnpec-web

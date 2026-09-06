@@ -35,7 +35,12 @@ export class EmailService {
 
   async send(to: string, subject: string, text: string): Promise<void> {
     if (!this.configured) {
-      this.logger.debug(`Email non envoyé (SMTP non configuré) — destinataire=${to}, sujet="${subject}"`);
+      // jsonTransport n'envoie réellement rien — journaliser le corps est ce qui rend
+      // le docstring ci-dessus ("encodé et journalisé") vrai, et permet de tester en
+      // local un lien à usage unique (réinitialisation de mot de passe) sans SMTP réel.
+      this.logger.debug(
+        `Email non envoyé (SMTP non configuré) — destinataire=${to}, sujet="${subject}"\n${text}`,
+      );
     }
     await this.transporter.sendMail({ from: this.from, to, subject, text });
   }

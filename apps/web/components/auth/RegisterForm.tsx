@@ -1,0 +1,106 @@
+'use client';
+
+import { useState, type FormEvent } from 'react';
+import Link from 'next/link';
+import { registerRequest } from '../../lib/api/auth';
+import { Field } from '../ui/Input';
+import { Button } from '../ui/Button';
+
+export function RegisterForm() {
+  const [email, setEmail] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+
+  async function handleSubmit(event: FormEvent) {
+    event.preventDefault();
+    setError(null);
+    setSubmitting(true);
+    try {
+      await registerRequest({ email, password, firstName, lastName });
+      setSubmitted(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Impossible de créer le compte');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  if (submitted) {
+    return (
+      <div>
+        <h2 className="mb-1.5 text-[23px] font-semibold">Demande envoyée</h2>
+        <p className="mb-6 text-sm text-text-muted">
+          Votre demande est en attente de validation par un administrateur. Vous recevrez un accès
+          dès qu’elle aura été approuvée.
+        </p>
+        <Link href="/login" className="text-[13px] font-semibold text-accent hover:underline">
+          Retour à la connexion
+        </Link>
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <h2 className="mb-1.5 text-[23px] font-semibold">Demander l’accès</h2>
+      <p className="mb-8 text-sm text-text-muted">
+        Votre demande sera examinée par un administrateur avant activation du compte.
+      </p>
+
+      <Field
+        label="Adresse e-mail"
+        type="email"
+        placeholder="prenom.nom@exemple.com"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        required
+        autoComplete="email"
+      />
+      <div className="grid grid-cols-2 gap-3">
+        <Field
+          label="Prénom"
+          value={firstName}
+          onChange={(e) => setFirstName(e.target.value)}
+          required
+          autoComplete="given-name"
+        />
+        <Field
+          label="Nom"
+          value={lastName}
+          onChange={(e) => setLastName(e.target.value)}
+          required
+          autoComplete="family-name"
+        />
+      </div>
+      <Field
+        label="Mot de passe"
+        type="password"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+        minLength={12}
+        required
+        autoComplete="new-password"
+      />
+      <p className="-mt-3 mb-4 text-[11.5px] text-text-faint">12 caractères minimum.</p>
+
+      {error && (
+        <div className="mb-4 rounded-md bg-clay-soft px-3 py-2.5 text-[13px] text-clay">{error}</div>
+      )}
+
+      <Button type="submit" variant="solid" className="w-full" disabled={submitting}>
+        {submitting ? 'Envoi…' : 'Envoyer la demande'}
+      </Button>
+
+      <p className="mt-5 text-center text-[13px] text-text-muted">
+        Déjà un compte ?{' '}
+        <Link href="/login" className="font-semibold text-accent hover:underline">
+          Se connecter
+        </Link>
+      </p>
+    </form>
+  );
+}

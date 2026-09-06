@@ -18,6 +18,46 @@ async function assertOk(res: Response, body: unknown): Promise<void> {
  * app/api/auth/* — jamais l'API NestJS directement — car leur réponse amont contient un
  * refresh token que ces proxys interceptent pour le poser en cookie httpOnly. */
 
+/** Appel direct à l'API réelle, comme setupTwoFaRequest : aucun token en jeu dans
+ * la réponse (juste un message), donc pas besoin d'un proxy Route Handler. */
+export async function registerRequest(input: {
+  email: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+}): Promise<{ message: string }> {
+  const res = await fetch(`${PUBLIC_API_BASE_URL}/auth/register`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  const body = await parseJson(res);
+  await assertOk(res, body);
+  return body as { message: string };
+}
+
+export async function forgotPasswordRequest(email: string): Promise<{ message: string }> {
+  const res = await fetch(`${PUBLIC_API_BASE_URL}/auth/forgot-password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  });
+  const body = await parseJson(res);
+  await assertOk(res, body);
+  return body as { message: string };
+}
+
+export async function resetPasswordRequest(token: string, newPassword: string): Promise<{ message: string }> {
+  const res = await fetch(`${PUBLIC_API_BASE_URL}/auth/reset-password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token, newPassword }),
+  });
+  const body = await parseJson(res);
+  await assertOk(res, body);
+  return body as { message: string };
+}
+
 export async function loginRequest(email: string, password: string): Promise<LoginProxyResult> {
   const res = await fetch('/api/auth/login', {
     method: 'POST',

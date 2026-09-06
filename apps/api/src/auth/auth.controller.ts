@@ -22,6 +22,8 @@ import { LoginDto } from './dto/login.dto';
 import { LoginTwoFaDto } from './dto/login-2fa.dto';
 import { EnableTwoFaDto } from './dto/enable-2fa.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 
 function clientIp(req: Request): string {
   return req.ip ?? 'unknown';
@@ -39,6 +41,20 @@ export class AuthController {
   @Post('register')
   register(@Body() dto: RegisterDto, @Req() req: Request) {
     return this.authService.register(dto, clientIp(req));
+  }
+
+  @Public()
+  @HttpCode(HttpStatus.OK)
+  @Post('forgot-password')
+  forgotPassword(@Body() dto: ForgotPasswordDto) {
+    return this.authService.forgotPassword(dto.email);
+  }
+
+  @Public()
+  @HttpCode(HttpStatus.OK)
+  @Post('reset-password')
+  resetPassword(@Body() dto: ResetPasswordDto) {
+    return this.authService.resetPassword(dto);
   }
 
   @Public()

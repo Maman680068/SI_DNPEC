@@ -14,6 +14,8 @@ import { EmailService } from './notifications/email.service';
   providers: [MessagesService, AnnouncementsService, NotificationsService, EmailService],
   // NotificationsService exporté pour être réutilisé par TasksModule
   // (notifications d'assignation, de mention, de soumission/validation/rejet).
-  exports: [NotificationsService],
+  // EmailService exporté pour être réutilisé par AuthModule (email de
+  // réinitialisation de mot de passe).
+  exports: [NotificationsService, EmailService],
 })
 export class CommunicationModule {}

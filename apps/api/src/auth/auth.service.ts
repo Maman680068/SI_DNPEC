@@ -5,10 +5,12 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
 import { AuditAction, SystemRole, User, UserStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../common/audit/audit.service';
 import { PasswordService } from '../common/security/password.service';
+import { EmailService } from '../communication/notifications/email.service';
 import {
   AccessTokenPayload,
   TwoFaLoginChallengePayload,
@@ -17,10 +19,12 @@ import {
 import { TotpService } from './services/totp.service';
 import { SessionService } from './services/session.service';
 import { LoginAttemptService } from './services/login-attempt.service';
+import { PasswordResetService } from './services/password-reset.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { LoginTwoFaDto } from './dto/login-2fa.dto';
 import { EnableTwoFaDto } from './dto/enable-2fa.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 
 /** Rôles pour lesquels la 2FA est obligatoire (§3.3 du cahier des charges). */
 const MANDATORY_2FA_ROLES: SystemRole[] = [
@@ -40,6 +44,9 @@ export class AuthService {
     private readonly sessionService: SessionService,
     private readonly loginAttempts: LoginAttemptService,
     private readonly audit: AuditService,
+    private readonly passwordReset: PasswordResetService,
+    private readonly emailService: EmailService,
+    private readonly config: ConfigService,
   ) {}
 
   /** Auto-inscription (RF-SEC-01, modalité 2) — soumise à validation admin, cf. UsersService.approveRegistration. */
@@ -68,6 +75,50 @@ export class AuthService {
     });
 
     return { message: 'Compte créé, en attente de validation par l’administrateur.' };
+  }
+
+  /**
+   * Mot de passe oublié — répond TOUJOURS le même message, que l'email
+   * corresponde ou non à un compte (anti-énumération). L'email n'est envoyé
+   * (et le jeton créé) que si un compte ACTIF existe réellement.
+   */
+  async forgotPassword(email: string): Promise<{ message: string }> {
+    const user = await this.prisma.user.findUnique({ where: { email } });
+    if (user && user.status === UserStatus.ACTIF) {
+      const token = await this.passwordReset.createResetToken(user.id);
+      const webAppUrl = this.config.get<string>('WEB_APP_URL', 'http://localhost:3100');
+      const resetUrl = `${webAppUrl}/reset-password?token=${token}`;
+      await this.emailService.send(
+        user.email,
+        'Réinitialisation de votre mot de passe — DNPEC SI',
+        `Bonjour ${user.firstName},\n\n` +
+          `Une demande de réinitialisation de mot de passe a été effectuée pour votre compte DNPEC SI.\n` +
+          `Cliquez sur le lien suivant pour choisir un nouveau mot de passe (valable 1 heure) :\n\n${resetUrl}\n\n` +
+          `Si vous n'êtes pas à l'origine de cette demande, ignorez cet email — votre mot de passe reste inchangé.`,
+      );
+    }
+    return { message: 'Si un compte existe avec cette adresse, un email de réinitialisation a été envoyé.' };
+  }
+
+  /** Consomme le jeton (usage unique, cf. PasswordResetService), change le mot de
+   * passe, puis révoque toutes les sessions actives — un reset invalide tout accès
+   * obtenu avant que l'utilisateur (ou un tiers) n'ait changé le mot de passe. */
+  async resetPassword(dto: ResetPasswordDto): Promise<{ message: string }> {
+    const userId = await this.passwordReset.consumeToken(dto.token);
+    const passwordHash = await this.passwordService.hash(dto.newPassword);
+
+    await this.prisma.user.update({ where: { id: userId }, data: { passwordHash } });
+    await this.sessionService.revokeAllSessions(userId);
+
+    await this.audit.log({
+      actorId: userId,
+      action: AuditAction.MODIFICATION,
+      entityType: 'User',
+      entityId: userId,
+      metadata: { event: 'password_reset' },
+    });
+
+    return { message: 'Mot de passe réinitialisé avec succès.' };
   }
 
   async login(dto: LoginDto, ip: string) {
