@@ -10,7 +10,7 @@ export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   if (!hasSessionCookie && pathname.startsWith('/dashboard')) {
-    return NextResponse.redirect(new URL('/login', req.url));
+    return NextResponse.redirect(new URL('/', req.url));
   }
   if (hasSessionCookie && pathname === '/login') {
     return NextResponse.redirect(new URL('/dashboard', req.url));

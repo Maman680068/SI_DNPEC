@@ -93,7 +93,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = useCallback(async (): Promise<void> => {
     await logoutRequest();
     clearSession();
-    router.push('/login');
+    router.push('/');
   }, [clearSession, router]);
 
   return (

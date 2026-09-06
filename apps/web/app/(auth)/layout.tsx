@@ -1,3 +1,5 @@
+import Link from 'next/link';
+
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="relative flex min-h-screen">
@@ -10,7 +12,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       </div>
 
       <div className="relative hidden flex-[1.1] flex-col justify-between overflow-hidden border-r border-line bg-surface p-16 text-ink md:flex">
-        <div className="flex items-center gap-3">
+        <Link href="/" className="flex items-center gap-3">
           <div className="flex h-[42px] w-[42px] items-center justify-center rounded-md bg-ink font-heading text-base font-extrabold text-white">
             DN
           </div>
@@ -20,7 +22,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
             </div>
             <div className="font-heading text-sm font-bold text-ink">DNPEC · Système Interne</div>
           </div>
-        </div>
+        </Link>
 
         <div className="relative z-10 max-w-[440px]">
           <h1 className="mb-4 text-4xl leading-tight text-ink">
@@ -42,8 +44,16 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         </div>
       </div>
 
-      <div className="flex flex-1 items-center justify-center p-12">
-        <div className="w-full max-w-[360px]">{children}</div>
+      <div className="flex flex-1 flex-col items-center justify-center p-12">
+        <div className="w-full max-w-[360px]">
+          <Link
+            href="/"
+            className="mb-5 inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-text-faint hover:text-ink md:hidden"
+          >
+            ← Retour à l&apos;accueil
+          </Link>
+          {children}
+        </div>
       </div>
     </div>
   );

@@ -12,7 +12,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { status } = useAuth();
 
   useEffect(() => {
-    if (status === 'unauthenticated') router.replace('/login');
+    if (status === 'unauthenticated') router.replace('/');
   }, [status, router]);
 
   if (status !== 'authenticated') {
