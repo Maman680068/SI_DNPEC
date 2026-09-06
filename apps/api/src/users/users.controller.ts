@@ -58,6 +58,16 @@ export class UsersController {
     return this.usersService.searchBasicInfo(dto.q);
   }
 
+  /**
+   * Annuaire du personnel (RF-CPL-02) — tout le personnel actif, sans
+   * restriction de cascade ni de recherche préalable (contrairement à
+   * /search). Accessible à tout utilisateur authentifié.
+   */
+  @Get('directory')
+  directory() {
+    return this.usersService.listDirectory();
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string, @CurrentUser() actor: AuthenticatedUser) {
     return this.usersService.findOneVisibleTo(actor, id);

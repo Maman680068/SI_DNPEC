@@ -55,6 +55,27 @@ const BASIC_INFO_SELECT = {
   celluleId: true,
 } satisfies Prisma.UserSelect;
 
+/**
+ * Annuaire du personnel (RF-CPL-02) : plus riche que BASIC_INFO_SELECT (rôle
+ * et photo en plus, utiles pour "relié à l'organigramme"), mais toujours
+ * sans email ni téléphone — non demandés par le cahier des charges, et un
+ * email professionnel visible nécessiterait un champ opt-in dédié, pas
+ * encore justifié par un besoin réel. Comme BASIC_INFO_SELECT et
+ * searchBasicInfo, volontairement hors périmètre cascade : c'est tout le
+ * personnel actif, pas seulement le sous-ensemble visible par l'acteur.
+ */
+const DIRECTORY_SELECT = {
+  id: true,
+  firstName: true,
+  lastName: true,
+  jobTitle: true,
+  role: true,
+  photoUrl: true,
+  divisionId: true,
+  sectionId: true,
+  celluleId: true,
+} satisfies Prisma.UserSelect;
+
 const RESOLVE_MAX_IDS = 200;
 const SEARCH_MAX_RESULTS = 20;
 
@@ -118,6 +139,23 @@ export class UsersService {
       select: BASIC_INFO_SELECT,
       orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
       take: SEARCH_MAX_RESULTS,
+    });
+  }
+
+  /**
+   * Annuaire du personnel (RF-CPL-02) — tout le personnel actif, hors
+   * périmètre cascade (voir DIRECTORY_SELECT), accessible à tout utilisateur
+   * authentifié. Élargit la VISIBILITÉ, pas les droits d'action : agir
+   * ensuite sur une personne trouvée ici (ex. lui assigner une tâche) reste
+   * soumis aux mêmes contrôles d'autorité qu'ailleurs (CascadeService),
+   * appliqués côté serveur indépendamment de la façon dont l'id a été
+   * obtenu.
+   */
+  listDirectory() {
+    return this.prisma.user.findMany({
+      where: { status: UserStatus.ACTIF },
+      select: DIRECTORY_SELECT,
+      orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
     });
   }
 

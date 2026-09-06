@@ -40,6 +40,17 @@ export default function CommunicationPage() {
     loadAnnouncements();
   }, [loadConversations, loadAnnouncements]);
 
+  // Ouvre directement une conversation depuis un lien externe (ex. la fiche d'une
+  // personne dans l'Annuaire, "/communication?with=<id>") — lu une seule fois au
+  // montage via window.location plutôt que useSearchParams, qui exigerait
+  // d'englober la page dans un Suspense pour rien : cette page est de toute façon
+  // entièrement pilotée côté client, la réactivité aux changements d'URL une fois
+  // montée n'est pas nécessaire ici.
+  useEffect(() => {
+    const withId = new URLSearchParams(window.location.search).get('with');
+    if (withId) setSelectedUserId(withId);
+  }, []);
+
   const selectedAnnouncement = useMemo(
     () => announcements?.find((a) => a.id === selectedAnnouncementId) ?? null,
     [announcements, selectedAnnouncementId],

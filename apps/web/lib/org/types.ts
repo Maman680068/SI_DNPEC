@@ -40,3 +40,17 @@ export interface BasicUserInfo {
   sectionId: string | null;
   celluleId: string | null;
 }
+
+/** Réponse de GET /users/directory (RF-CPL-02) — tout le personnel actif,
+ * hors périmètre cascade. Ni email ni téléphone (voir UsersService). */
+export interface DirectoryUser {
+  id: string;
+  firstName: string;
+  lastName: string;
+  jobTitle: string | null;
+  role: string;
+  photoUrl: string | null;
+  divisionId: string | null;
+  sectionId: string | null;
+  celluleId: string | null;
+}

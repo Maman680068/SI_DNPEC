@@ -22,7 +22,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: 'Personnel',
     items: [
       { icon: '🌴', label: 'Congés & absences', href: '/leaves' },
-      { icon: '☰', label: 'Annuaire' },
+      { icon: '☰', label: 'Annuaire', href: '/annuaire' },
       { icon: '✦', label: 'Boîte à suggestions' },
     ],
   },

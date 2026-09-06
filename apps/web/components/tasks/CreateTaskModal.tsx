@@ -8,18 +8,42 @@ import type { Task, TaskPriority } from '../../lib/tasks/types';
 import { Field } from '../ui/Input';
 import { Button } from '../ui/Button';
 
-export function CreateTaskModal({ onClose, onCreated }: { onClose: () => void; onCreated: (task: Task) => void }) {
+/** Personne à pré-assigner à l'ouverture, typiquement choisie depuis l'Annuaire —
+ * donc potentiellement hors du périmètre cascade (`useOrg().users`) qui alimente
+ * la liste normale. On l'ajoute à la liste affichée sans rien présumer de plus :
+ * POST /tasks revérifie l'autorité côté serveur pour CHAQUE assigné (voir
+ * TasksService.assertCanAssignAll), qu'il vienne de la liste cascade ou d'ici. */
+export interface PresetAssignee {
+  id: string;
+  firstName: string;
+  lastName: string;
+  jobTitle: string | null;
+}
+
+export function CreateTaskModal({
+  onClose,
+  onCreated,
+  presetAssignee,
+}: {
+  onClose: () => void;
+  onCreated: (task: Task) => void;
+  presetAssignee?: PresetAssignee;
+}) {
   const { user: currentUser } = useAuth();
   const { users } = useOrg();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState<TaskPriority>('NORMAL');
   const [dueDate, setDueDate] = useState('');
-  const [assigneeIds, setAssigneeIds] = useState<string[]>([]);
+  const [assigneeIds, setAssigneeIds] = useState<string[]>(presetAssignee ? [presetAssignee.id] : []);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const assignableUsers = users.filter((u) => u.id !== currentUser?.id);
+  const cascadeAssignable = users.filter((u) => u.id !== currentUser?.id);
+  const assignableUsers =
+    presetAssignee && !cascadeAssignable.some((u) => u.id === presetAssignee.id)
+      ? [presetAssignee, ...cascadeAssignable]
+      : cascadeAssignable;
 
   function toggleAssignee(userId: string) {
     setAssigneeIds((prev) => (prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]));
@@ -55,7 +79,9 @@ export function CreateTaskModal({ onClose, onCreated }: { onClose: () => void; o
         onClick={(e) => e.stopPropagation()}
         className="w-full max-w-[440px] rounded-lg bg-surface p-6"
       >
-        <h2 className="mb-5 text-[19px] font-semibold">Nouvelle tâche</h2>
+        <h2 className="mb-5 text-[19px] font-semibold">
+          {presetAssignee ? `Nouvelle tâche pour ${presetAssignee.firstName} ${presetAssignee.lastName}` : 'Nouvelle tâche'}
+        </h2>
 
         <Field label="Titre" value={title} onChange={(e) => setTitle(e.target.value)} required autoFocus />
 

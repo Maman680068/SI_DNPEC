@@ -1,5 +1,5 @@
 import { apiFetch } from './client';
-import type { BasicUserInfo, Division, Section, Cellule, OrgUser } from '../org/types';
+import type { BasicUserInfo, Division, Section, Cellule, DirectoryUser, OrgUser } from '../org/types';
 
 export function getDivisions(): Promise<Division[]> {
   return apiFetch<Division[]>('/org/divisions');
@@ -87,4 +87,12 @@ export function resolveUsers(ids: string[]): Promise<BasicUserInfo[]> {
 export function searchUsers(query: string): Promise<BasicUserInfo[]> {
   if (!query.trim()) return Promise.resolve([]);
   return apiFetch<BasicUserInfo[]>(`/users/search?q=${encodeURIComponent(query.trim())}`);
+}
+
+/** Annuaire du personnel (RF-CPL-02, GET /users/directory) — tout le personnel actif,
+ * hors périmètre cascade. Élargit la visibilité, pas les droits d'action : les actions
+ * lancées depuis l'Annuaire (message, assignation de tâche) restent soumises aux mêmes
+ * contrôles d'autorité que partout ailleurs, appliqués côté serveur. */
+export function getDirectory(): Promise<DirectoryUser[]> {
+  return apiFetch<DirectoryUser[]>('/users/directory');
 }
