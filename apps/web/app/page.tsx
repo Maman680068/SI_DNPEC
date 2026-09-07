@@ -29,14 +29,14 @@ export default function RootPage() {
   if (status !== 'unauthenticated') return null;
 
   return (
-    <div className="min-h-screen bg-bg">
+    <div className="bg-bg">
       <div className="flag-stripe">
         <span className="flag-r" />
         <span className="flag-y" />
         <span className="flag-g" />
       </div>
 
-      <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-7 md:px-10">
+      <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-6 md:px-10">
         <div className="flex items-center gap-3">
           <div className="flex h-[42px] w-[42px] items-center justify-center rounded-md bg-ink font-heading text-base font-extrabold text-white">
             DN
@@ -51,7 +51,7 @@ export default function RootPage() {
         </Link>
       </header>
 
-      <main className="mx-auto max-w-6xl px-6 pb-24 pt-6 md:px-10 md:pt-14">
+      <main className="mx-auto max-w-6xl px-6 pb-16 pt-4 md:px-10 md:pt-8">
         <section className="mx-auto max-w-[640px] text-center">
           <h1 className="mb-5 text-[34px] leading-tight text-ink md:text-[42px]">
             La coordination de la Direction, en un seul endroit.
@@ -71,7 +71,7 @@ export default function RootPage() {
           </div>
         </section>
 
-        <section className="mt-20">
+        <section className="mt-14">
           <div className="mb-8 text-center text-[11px] font-bold uppercase tracking-wide text-sage">Modules</div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
             {MODULES.map((m) => (
