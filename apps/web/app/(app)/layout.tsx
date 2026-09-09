@@ -21,9 +21,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <OrgProvider>
-      <div className="flex min-h-screen">
+      <div className="flex h-screen overflow-hidden">
         <Sidebar />
-        <div className="flex flex-1 flex-col">
+        <div className="flex flex-1 flex-col overflow-hidden">
           <div className="flag-stripe">
             <span className="flag-r" />
             <span className="flag-y" />
