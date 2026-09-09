@@ -2,8 +2,12 @@
 
 import { useEffect, useState, type FormEvent } from 'react';
 import Link from 'next/link';
-import { getRegistrationOrgOptionsRequest, registerRequest } from '../../lib/api/auth';
-import type { RegistrationOrgOptions } from '../../lib/auth/types';
+import {
+  getRegistrationOrgOptionsRequest,
+  getRegistrationSupervisorOptionsRequest,
+  registerRequest,
+} from '../../lib/api/auth';
+import type { RegistrationOrgOptions, RegistrationSupervisorOption } from '../../lib/auth/types';
 import { DeclaredAttachmentFields, type DeclaredAttachment } from './DeclaredAttachmentFields';
 import { Field } from '../ui/Input';
 import { Button } from '../ui/Button';
@@ -12,6 +16,7 @@ const EMPTY_DECLARATION: DeclaredAttachment = {
   declaredDivisionId: null,
   declaredSectionId: null,
   declaredCelluleId: null,
+  declaredSupervisorId: null,
 };
 
 export function RegisterForm() {
@@ -21,6 +26,7 @@ export function RegisterForm() {
   const [password, setPassword] = useState('');
   const [declaration, setDeclaration] = useState<DeclaredAttachment>(EMPTY_DECLARATION);
   const [orgOptions, setOrgOptions] = useState<RegistrationOrgOptions | null>(null);
+  const [supervisorOptions, setSupervisorOptions] = useState<RegistrationSupervisorOption[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -29,6 +35,9 @@ export function RegisterForm() {
     getRegistrationOrgOptionsRequest()
       .then(setOrgOptions)
       .catch(() => setOrgOptions({ divisions: [], cellules: [] }));
+    getRegistrationSupervisorOptionsRequest()
+      .then(setSupervisorOptions)
+      .catch(() => setSupervisorOptions([]));
   }, []);
 
   async function handleSubmit(event: FormEvent) {
@@ -44,6 +53,7 @@ export function RegisterForm() {
         declaredDivisionId: declaration.declaredDivisionId ?? undefined,
         declaredSectionId: declaration.declaredSectionId ?? undefined,
         declaredCelluleId: declaration.declaredCelluleId ?? undefined,
+        declaredSupervisorId: declaration.declaredSupervisorId ?? undefined,
       });
       setSubmitted(true);
     } catch (err) {
@@ -111,14 +121,16 @@ export function RegisterForm() {
       />
       <p className="-mt-3 mb-4 text-[11.5px] text-text-faint">12 caractères minimum.</p>
 
-      {orgOptions && (orgOptions.divisions.length > 0 || orgOptions.cellules.length > 0) && (
-        <DeclaredAttachmentFields
-          divisions={orgOptions.divisions}
-          cellules={orgOptions.cellules}
-          value={declaration}
-          onChange={setDeclaration}
-        />
-      )}
+      {orgOptions &&
+        (orgOptions.divisions.length > 0 || orgOptions.cellules.length > 0 || supervisorOptions.length > 0) && (
+          <DeclaredAttachmentFields
+            divisions={orgOptions.divisions}
+            cellules={orgOptions.cellules}
+            supervisors={supervisorOptions}
+            value={declaration}
+            onChange={setDeclaration}
+          />
+        )}
 
       {error && (
         <div className="mb-4 rounded-md bg-clay-soft px-3 py-2.5 text-[13px] text-clay">{error}</div>

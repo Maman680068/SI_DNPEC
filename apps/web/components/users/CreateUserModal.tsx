@@ -9,7 +9,7 @@ import { OrgAttachmentFields } from './OrgAttachmentFields';
 import { Field } from '../ui/Input';
 import { Button } from '../ui/Button';
 
-const EMPTY_ATTACHMENT: OrgAttachment = { divisionId: null, sectionId: null, celluleId: null };
+const EMPTY_ATTACHMENT: OrgAttachment = { divisionId: null, sectionId: null, celluleId: null, supervisorId: null };
 
 export function CreateUserModal({ onClose, onCreated }: { onClose: () => void; onCreated: (user: AdminUser) => void }) {
   const [email, setEmail] = useState('');

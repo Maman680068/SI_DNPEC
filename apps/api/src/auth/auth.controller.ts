@@ -52,6 +52,12 @@ export class AuthController {
   }
 
   @Public()
+  @Get('register/supervisor-options')
+  getRegistrationSupervisorOptions() {
+    return this.authService.getRegistrationSupervisorOptions();
+  }
+
+  @Public()
   @HttpCode(HttpStatus.OK)
   @Post('forgot-password')
   forgotPassword(@Body() dto: ForgotPasswordDto) {

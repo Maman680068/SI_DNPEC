@@ -27,4 +27,8 @@ export class RegisterDto {
   @IsOptional()
   @IsString()
   declaredCelluleId?: string;
+
+  @IsOptional()
+  @IsString()
+  declaredSupervisorId?: string;
 }

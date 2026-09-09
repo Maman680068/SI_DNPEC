@@ -19,5 +19,9 @@ export class ApproveRegistrationDto {
 
   @IsOptional()
   @IsString()
+  supervisorId?: string;
+
+  @IsOptional()
+  @IsString()
   jobTitle?: string;
 }

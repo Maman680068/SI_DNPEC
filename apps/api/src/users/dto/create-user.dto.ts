@@ -37,4 +37,8 @@ export class CreateUserDto {
   @IsOptional()
   @IsString()
   celluleId?: string;
+
+  @IsOptional()
+  @IsString()
+  supervisorId?: string;
 }

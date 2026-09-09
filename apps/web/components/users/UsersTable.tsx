@@ -21,7 +21,9 @@ function attachmentLabel(
   getDivisionName: (id: string | null) => string | null,
   getSectionName: (id: string | null) => string | null,
   getCelluleName: (id: string | null) => string | null,
+  getUserLabel: (id: string) => string,
 ): string {
+  if (user.supervisorId) return `Assiste ${getUserLabel(user.supervisorId)}`;
   if (user.celluleId) return getCelluleName(user.celluleId) ?? '—';
   if (user.divisionId) {
     const division = getDivisionName(user.divisionId);
@@ -46,7 +48,7 @@ export function UsersTable({
    * pas seulement celle sur laquelle l'action a été déclenchée. */
   onRefresh: () => void;
 }) {
-  const { getDivisionName, getSectionName, getCelluleName } = useOrg();
+  const { getDivisionName, getSectionName, getCelluleName, getUserLabel } = useOrg();
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [assigningChefFor, setAssigningChefFor] = useState<AdminUser | null>(null);
@@ -93,7 +95,7 @@ export function UsersTable({
               </Badge>
             </div>
             <div className="mb-3 text-[12.5px] text-text-muted">
-              {ROLE_LABEL[user.role]} · {attachmentLabel(user, getDivisionName, getSectionName, getCelluleName)}
+              {ROLE_LABEL[user.role]} · {attachmentLabel(user, getDivisionName, getSectionName, getCelluleName, getUserLabel)}
             </div>
             {canManage && (
               <div className="flex flex-wrap gap-2">
@@ -132,7 +134,7 @@ export function UsersTable({
                 <td className="px-4 py-3 text-text-muted">{user.email}</td>
                 <td className="px-4 py-3">{ROLE_LABEL[user.role]}</td>
                 <td className="px-4 py-3 text-text-muted">
-                  {attachmentLabel(user, getDivisionName, getSectionName, getCelluleName)}
+                  {attachmentLabel(user, getDivisionName, getSectionName, getCelluleName, getUserLabel)}
                 </td>
                 <td className="px-4 py-3">
                   <Badge tone={user.status === 'SUSPENDU' ? 'clay' : 'sage'}>

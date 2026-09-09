@@ -18,8 +18,14 @@ export function ApproveRegistrationModal({
   onClose: () => void;
   onApproved: (user: AdminUser) => void;
 }) {
-  const { getDivisionName, getSectionName, getCelluleName } = useOrg();
-  const [role, setRole] = useState<SystemRole>('AGENT');
+  const { getDivisionName, getSectionName, getCelluleName, getUserLabel } = useOrg();
+  // Une Division/Cellule déclarée reste compatible avec le rôle par défaut AGENT
+  // (le cas courant), donc pas besoin de deviner un rôle différent — mais un
+  // superviseur déclaré ne peut correspondre qu'au rôle ASSISTANT_DIRECTION :
+  // partir d'AGENT ici forcerait l'admin à changer le rôle manuellement, ce qui
+  // effacerait aussitôt le pré-remplissage (OrgAttachmentFields réinitialise
+  // l'attachement à chaque changement de "famille" de rattachement).
+  const [role, setRole] = useState<SystemRole>(user.declaredSupervisorId ? 'ASSISTANT_DIRECTION' : 'AGENT');
   // Pré-rempli avec le rattachement déclaré à l'inscription (voir OrgAttachmentFields :
   // son effet de réinitialisation-au-changement-de-rôle s'abstient exprès au premier
   // montage pour laisser passer ces valeurs) — l'admin n'a plus qu'à confirmer ou corriger.
@@ -27,16 +33,19 @@ export function ApproveRegistrationModal({
     divisionId: user.declaredDivisionId,
     sectionId: user.declaredSectionId,
     celluleId: user.declaredCelluleId,
+    supervisorId: user.declaredSupervisorId,
   });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const hasDeclaration = !!(user.declaredDivisionId || user.declaredCelluleId);
-  const declarationLabel = user.declaredCelluleId
-    ? getCelluleName(user.declaredCelluleId)
-    : [getDivisionName(user.declaredDivisionId), getSectionName(user.declaredSectionId)]
-        .filter(Boolean)
-        .join(' · ');
+  const hasDeclaration = !!(user.declaredDivisionId || user.declaredCelluleId || user.declaredSupervisorId);
+  const declarationLabel = user.declaredSupervisorId
+    ? `Assiste ${getUserLabel(user.declaredSupervisorId)}`
+    : user.declaredCelluleId
+      ? getCelluleName(user.declaredCelluleId)
+      : [getDivisionName(user.declaredDivisionId), getSectionName(user.declaredSectionId)]
+          .filter(Boolean)
+          .join(' · ');
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();

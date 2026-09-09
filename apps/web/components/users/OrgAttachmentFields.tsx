@@ -2,13 +2,28 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useOrg } from '../../lib/org/OrgProvider';
-import type { SystemRole } from '../../lib/auth/types';
+import { getRegistrationSupervisorOptionsRequest } from '../../lib/api/auth';
+import type { RegistrationSupervisorOption, SystemRole } from '../../lib/auth/types';
 import type { OrgAttachment } from '../../lib/users/types';
 
-type Kind = 'none' | 'division' | 'division_section' | 'cellule' | 'cellule_optional' | 'agent';
+type Kind = 'none' | 'division' | 'division_section' | 'cellule' | 'cellule_optional' | 'agent' | 'supervisor';
 type AgentMode = 'division' | 'cellule';
 
-const EMPTY: OrgAttachment = { divisionId: null, sectionId: null, celluleId: null };
+const EMPTY: OrgAttachment = { divisionId: null, sectionId: null, celluleId: null, supervisorId: null };
+
+const SUPERVISOR_ROLE_LABEL: Record<string, string> = {
+  DN: 'Directeur National',
+  DNA: 'Directeur National Adjoint',
+  CHEF_CELLULE: 'Chef de Cellule',
+};
+
+function supervisorLabel(option: RegistrationSupervisorOption): string {
+  const roleLabel =
+    option.role === 'CHEF_CELLULE' && option.celluleName
+      ? `Chef de cellule ${option.celluleName}`
+      : SUPERVISOR_ROLE_LABEL[option.role];
+  return `${option.firstName} ${option.lastName} — ${roleLabel}`;
+}
 
 /** Reflète l'invariant documenté dans schema.prisma (User, §2.3) : quel rattachement
  * organisationnel un rôle accepte, pour construire le bon jeu de champs. */
@@ -16,8 +31,9 @@ function attachmentKind(role: SystemRole): Kind {
   switch (role) {
     case 'DN':
     case 'DNA':
-    case 'ASSISTANT_DIRECTION':
       return 'none';
+    case 'ASSISTANT_DIRECTION':
+      return 'supervisor';
     case 'CHEF_DIVISION':
       return 'division';
     case 'CHEF_SECTION':
@@ -48,6 +64,16 @@ export function OrgAttachmentFields({
   const { divisions, sections, cellules } = useOrg();
   const kind = attachmentKind(role);
   const [agentMode, setAgentMode] = useState<AgentMode>(value.celluleId ? 'cellule' : 'division');
+  const [supervisorOptions, setSupervisorOptions] = useState<RegistrationSupervisorOption[]>([]);
+
+  // Même endpoint public que l'inscription (GET /auth/register/supervisor-options) —
+  // pas de duplication de la logique de filtrage DN/DNA/Chef de Cellule actif.
+  useEffect(() => {
+    if (kind !== 'supervisor') return;
+    getRegistrationSupervisorOptionsRequest()
+      .then(setSupervisorOptions)
+      .catch(() => setSupervisorOptions([]));
+  }, [kind]);
 
   // Un changement de rôle change la "famille" de rattachement acceptée — repartir
   // d'un état vide évite de soumettre un divisionId/celluleId devenu incohérent
@@ -77,6 +103,7 @@ export function OrgAttachmentFields({
   const showDivision = kind === 'division' || kind === 'division_section' || (kind === 'agent' && agentMode === 'division');
   const showSection = kind === 'division_section' || (kind === 'agent' && agentMode === 'division');
   const showCellule = kind === 'cellule' || kind === 'cellule_optional' || (kind === 'agent' && agentMode === 'cellule');
+  const showSupervisor = kind === 'supervisor';
   const divisionRequired = kind === 'division' || kind === 'division_section' || (kind === 'agent' && agentMode === 'division');
   const sectionRequired = kind === 'division_section';
   const celluleRequired = kind === 'cellule';
@@ -116,7 +143,7 @@ export function OrgAttachmentFields({
           </label>
           <select
             value={value.divisionId ?? ''}
-            onChange={(e) => onChange({ divisionId: e.target.value || null, sectionId: null, celluleId: null })}
+            onChange={(e) => onChange({ ...EMPTY, divisionId: e.target.value || null })}
             required={divisionRequired}
             className="w-full rounded-md border border-line bg-surface px-3 py-2.5 text-sm"
           >
@@ -159,7 +186,7 @@ export function OrgAttachmentFields({
           </label>
           <select
             value={value.celluleId ?? ''}
-            onChange={(e) => onChange({ divisionId: null, sectionId: null, celluleId: e.target.value || null })}
+            onChange={(e) => onChange({ ...EMPTY, celluleId: e.target.value || null })}
             required={celluleRequired}
             className="w-full rounded-md border border-line bg-surface px-3 py-2.5 text-sm"
           >
@@ -167,6 +194,27 @@ export function OrgAttachmentFields({
             {cellules.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {showSupervisor && (
+        <div className="mb-3">
+          <label className="mb-1.5 block text-[12.5px] font-semibold text-text">
+            Personne assistée <span className="text-clay">*</span>
+          </label>
+          <select
+            value={value.supervisorId ?? ''}
+            onChange={(e) => onChange({ ...EMPTY, supervisorId: e.target.value || null })}
+            required
+            className="w-full rounded-md border border-line bg-surface px-3 py-2.5 text-sm"
+          >
+            <option value="">— Sélectionner —</option>
+            {supervisorOptions.map((s) => (
+              <option key={s.id} value={s.id}>
+                {supervisorLabel(s)}
               </option>
             ))}
           </select>

@@ -47,3 +47,14 @@ export interface RegistrationOrgOptions {
   divisions: RegistrationDivisionOption[];
   cellules: RegistrationCelluleOption[];
 }
+
+/** Réponse de GET /auth/register/supervisor-options (public) — les personnes
+ * pouvant être déclarées "assistées" à l'inscription : DN, DNA et Chefs de
+ * Cellule ACTIFS. celluleName n'est renseigné que pour un CHEF_CELLULE. */
+export interface RegistrationSupervisorOption {
+  id: string;
+  firstName: string;
+  lastName: string;
+  role: SystemRole;
+  celluleName: string | null;
+}

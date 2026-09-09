@@ -41,6 +41,11 @@ const MANDATORY_2FA_ROLES: SystemRole[] = [
  * être déclarées à l'auto-inscription, voir schema.prisma (Cellule §3). */
 const DECLARABLE_CELLULE_CODES = ['SAF', 'RH', 'CSID'];
 
+/** Rôles pouvant être désignés comme superviseur d'un Assistant de direction
+ * (User.supervisorId / declaredSupervisorId) — un Chef de Division en est
+ * délibérément exclu (voir schema.prisma, décision de conception n°2). */
+const SUPERVISOR_ROLES: SystemRole[] = [SystemRole.DN, SystemRole.DNA, SystemRole.CHEF_CELLULE];
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -74,6 +79,26 @@ export class AuthService {
     return { divisions, cellules };
   }
 
+  /** Personnes pouvant être déclarées "assistées" à l'inscription (troisième option de
+   * DeclaredAttachmentFields, à côté de Division/Cellule) : DN, DNA et Chefs de Cellule
+   * ACTIFS uniquement — un compte non encore actif ne peut pas être choisi. Le nom de
+   * cellule n'est renvoyé que pour un CHEF_CELLULE, pour distinguer par ex. deux chefs
+   * de cellules différentes. */
+  async getRegistrationSupervisorOptions() {
+    const users = await this.prisma.user.findMany({
+      where: { role: { in: SUPERVISOR_ROLES }, status: UserStatus.ACTIF },
+      select: { id: true, firstName: true, lastName: true, role: true, cellule: { select: { name: true } } },
+      orderBy: [{ role: 'asc' }, { lastName: 'asc' }],
+    });
+    return users.map((u) => ({
+      id: u.id,
+      firstName: u.firstName,
+      lastName: u.lastName,
+      role: u.role,
+      celluleName: u.cellule?.name ?? null,
+    }));
+  }
+
   /** Auto-inscription (RF-SEC-01, modalité 2) — soumise à validation admin, cf. UsersService.approveRegistration. */
   async register(dto: RegisterDto, ip: string) {
     const existing = await this.prisma.user.findUnique({ where: { email: dto.email } });
@@ -93,6 +118,7 @@ export class AuthService {
         declaredDivisionId: dto.declaredDivisionId ?? null,
         declaredSectionId: dto.declaredSectionId ?? null,
         declaredCelluleId: dto.declaredCelluleId ?? null,
+        declaredSupervisorId: dto.declaredSupervisorId ?? null,
       },
     });
 
@@ -354,24 +380,31 @@ export class AuthService {
   }
 
   /** Même invariant Division/Cellule mutuellement exclusives que
-   * UsersService.assertOrgAttachmentValid, plus deux contraintes propres à la
-   * déclaration à l'inscription : l'une des deux est OBLIGATOIRE (c'est une
-   * déclaration de fait à vérifier par l'admin, pas une préférence facultative),
-   * et seules les cellules DECLARABLE_CELLULE_CODES sont acceptées (CTSCM/CNC
-   * exclues — structure interne non définie, §11). */
+   * UsersService.assertOrgAttachmentValid, généralisé à trois options
+   * mutuellement exclusives (Division / Cellule / Assistant de direction),
+   * plus les contraintes propres à la déclaration à l'inscription : l'une
+   * des trois est OBLIGATOIRE (c'est une déclaration de fait à vérifier par
+   * l'admin, pas une préférence facultative), seules les cellules
+   * DECLARABLE_CELLULE_CODES sont acceptées (CTSCM/CNC exclues — structure
+   * interne non définie, §11), et la personne déclarée assistée doit avoir
+   * le rôle DN/DNA/CHEF_CELLULE et être ACTIVE. */
   private async assertDeclaredAttachmentValid(dto: {
     declaredDivisionId?: string;
     declaredSectionId?: string;
     declaredCelluleId?: string;
+    declaredSupervisorId?: string;
   }): Promise<void> {
-    const { declaredDivisionId, declaredSectionId, declaredCelluleId } = dto;
+    const { declaredDivisionId, declaredSectionId, declaredCelluleId, declaredSupervisorId } = dto;
+    const declaredCount = [declaredDivisionId, declaredCelluleId, declaredSupervisorId].filter(Boolean).length;
 
-    if (!declaredDivisionId && !declaredCelluleId) {
-      throw new ConflictException('Indiquez votre division ou cellule actuelle.');
-    }
-    if (declaredDivisionId && declaredCelluleId) {
+    if (declaredCount === 0) {
       throw new ConflictException(
-        'Vous ne pouvez déclarer qu’une Division OU une Cellule, jamais les deux.',
+        'Indiquez votre division, votre cellule actuelle, ou la personne que vous assistez.',
+      );
+    }
+    if (declaredCount > 1) {
+      throw new ConflictException(
+        'Vous ne pouvez déclarer qu’une seule option parmi Division, Cellule et Assistant de direction.',
       );
     }
     if (declaredSectionId && !declaredDivisionId) {
@@ -392,6 +425,14 @@ export class AuthService {
       const cellule = await this.prisma.cellule.findUnique({ where: { id: declaredCelluleId } });
       if (!cellule || !DECLARABLE_CELLULE_CODES.includes(cellule.code)) {
         throw new ConflictException('Cette Cellule ne peut pas être déclarée à l’inscription.');
+      }
+    }
+    if (declaredSupervisorId) {
+      const supervisor = await this.prisma.user.findUnique({ where: { id: declaredSupervisorId } });
+      if (!supervisor || !SUPERVISOR_ROLES.includes(supervisor.role) || supervisor.status !== UserStatus.ACTIF) {
+        throw new ConflictException(
+          'La personne déclarée comme assistée doit être un DN, une DNA ou un Chef de Cellule actif.',
+        );
       }
     }
   }

@@ -15,11 +15,14 @@ export interface AdminUser {
   divisionId: string | null;
   sectionId: string | null;
   celluleId: string | null;
+  /** Personne assistée (ASSISTANT_DIRECTION uniquement) — voir schema.prisma, User.supervisorId. */
+  supervisorId: string | null;
   /** Rattachement souhaité, déclaré par la personne elle-même à l'inscription
    * — purement informatif, jamais une affectation réelle (voir schema.prisma). */
   declaredDivisionId: string | null;
   declaredSectionId: string | null;
   declaredCelluleId: string | null;
+  declaredSupervisorId: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -28,6 +31,7 @@ export interface OrgAttachment {
   divisionId: string | null;
   sectionId: string | null;
   celluleId: string | null;
+  supervisorId: string | null;
 }
 
 export interface CreateUserInput extends OrgAttachment {

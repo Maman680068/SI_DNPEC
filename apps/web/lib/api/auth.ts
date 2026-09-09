@@ -1,4 +1,4 @@
-import type { AuthUser, LoginProxyResult, RegistrationOrgOptions } from '../auth/types';
+import type { AuthUser, LoginProxyResult, RegistrationOrgOptions, RegistrationSupervisorOption } from '../auth/types';
 
 const PUBLIC_API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:3000';
 
@@ -28,6 +28,7 @@ export async function registerRequest(input: {
   declaredDivisionId?: string;
   declaredSectionId?: string;
   declaredCelluleId?: string;
+  declaredSupervisorId?: string;
 }): Promise<{ message: string }> {
   const res = await fetch(`${PUBLIC_API_BASE_URL}/auth/register`, {
     method: 'POST',
@@ -44,6 +45,13 @@ export async function getRegistrationOrgOptionsRequest(): Promise<RegistrationOr
   const body = await parseJson(res);
   await assertOk(res, body);
   return body as RegistrationOrgOptions;
+}
+
+export async function getRegistrationSupervisorOptionsRequest(): Promise<RegistrationSupervisorOption[]> {
+  const res = await fetch(`${PUBLIC_API_BASE_URL}/auth/register/supervisor-options`);
+  const body = await parseJson(res);
+  await assertOk(res, body);
+  return body as RegistrationSupervisorOption[];
 }
 
 export async function forgotPasswordRequest(email: string): Promise<{ message: string }> {

@@ -24,12 +24,14 @@ const USER_LIST_SELECT = {
   divisionId: true,
   sectionId: true,
   celluleId: true,
+  supervisorId: true,
   // Rattachement déclaré à l'auto-inscription (purement informatif — voir
   // schema.prisma, User.declaredDivisionId) : affiché sur "Inscriptions en
   // attente" pour pré-remplir l'approbation, voir ApproveRegistrationModal.
   declaredDivisionId: true,
   declaredSectionId: true,
   declaredCelluleId: true,
+  declaredSupervisorId: true,
   createdAt: true,
   updatedAt: true,
 } satisfies Prisma.UserSelect;
@@ -79,10 +81,17 @@ const DIRECTORY_SELECT = {
 const RESOLVE_MAX_IDS = 200;
 const SEARCH_MAX_RESULTS = 20;
 
+/** Rôles pouvant être désignés comme superviseur d'un Assistant de direction
+ * — un Chef de Division en est délibérément exclu (schema.prisma, décision
+ * de conception n°2). Même liste que AuthService.SUPERVISOR_ROLES, pour la
+ * déclaration à l'inscription. */
+const SUPERVISOR_ROLES: SystemRole[] = [SystemRole.DN, SystemRole.DNA, SystemRole.CHEF_CELLULE];
+
 type OrgAttachment = {
   divisionId?: string | null;
   sectionId?: string | null;
   celluleId?: string | null;
+  supervisorId?: string | null;
 };
 
 @Injectable()
@@ -190,6 +199,7 @@ export class UsersService {
         divisionId: dto.divisionId ?? null,
         sectionId: dto.sectionId ?? null,
         celluleId: dto.celluleId ?? null,
+        supervisorId: dto.supervisorId ?? null,
       },
       select: USER_LIST_SELECT,
     });
@@ -290,6 +300,9 @@ export class UsersService {
       divisionId: dto.divisionId !== undefined ? dto.divisionId : target.divisionId,
       sectionId: dto.sectionId !== undefined ? dto.sectionId : target.sectionId,
       celluleId: dto.celluleId !== undefined ? dto.celluleId : target.celluleId,
+      // UpdateAssignmentDto ne porte pas supervisorId (hors périmètre de cet
+      // endpoint, réservé à la création/l'approbation) — jamais touché ici.
+      supervisorId: target.supervisorId,
     };
     await this.assertOrgAttachmentValid(nextAttachment);
 
@@ -337,6 +350,7 @@ export class UsersService {
       divisionId: dto.divisionId ?? null,
       sectionId: dto.sectionId ?? null,
       celluleId: dto.celluleId ?? null,
+      supervisorId: dto.supervisorId ?? null,
     };
     await this.assertOrgAttachmentValid(attachment);
 
@@ -411,6 +425,13 @@ export class UsersService {
     if (input.celluleId) {
       const cellule = await this.prisma.cellule.findUnique({ where: { id: input.celluleId } });
       if (!cellule) throw new NotFoundException('Cellule introuvable');
+    }
+
+    if (input.supervisorId) {
+      const supervisor = await this.prisma.user.findUnique({ where: { id: input.supervisorId } });
+      if (!supervisor || !SUPERVISOR_ROLES.includes(supervisor.role)) {
+        throw new ConflictException('Le superviseur doit être un DN, une DNA ou un Chef de Cellule.');
+      }
     }
   }
 }
