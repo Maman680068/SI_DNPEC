@@ -76,24 +76,53 @@ export class CascadeService {
     actor: AuthenticatedUser,
     topRoles: SystemRole[],
   ): Prisma.UserWhereInput {
-    if (topRoles.includes(actor.role)) {
+    const effective = this.getVisibilityActor(actor);
+    if (topRoles.includes(effective.role)) {
       return {};
     }
 
-    switch (actor.role) {
+    switch (effective.role) {
       case SystemRole.CHEF_DIVISION:
-        return { divisionId: actor.divisionId ?? '__none__' };
+        return { divisionId: effective.divisionId ?? '__none__' };
       case SystemRole.CHEF_SECTION:
         return {
-          divisionId: actor.divisionId ?? '__none__',
-          sectionId: actor.sectionId ?? '__none__',
+          divisionId: effective.divisionId ?? '__none__',
+          sectionId: effective.sectionId ?? '__none__',
         };
       case SystemRole.CHEF_CELLULE:
-        return { celluleId: actor.celluleId ?? '__none__' };
+        return { celluleId: effective.celluleId ?? '__none__' };
       default:
-        // AGENT, ASSISTANT_DIRECTION (et ADMIN_SYSTEME hors périmètre leadership) : uniquement soi-même.
+        // AGENT, ASSISTANT_DIRECTION sans superviseur (et ADMIN_SYSTEME hors
+        // périmètre leadership) : uniquement soi-même.
         return { id: actor.id };
     }
+  }
+
+  /**
+   * Vue effective de l'acteur pour la visibilité en cascade (getTaskScope et
+   * getVisibleUserWhereForTopRoles ci-dessus) UNIQUEMENT : un
+   * ASSISTANT_DIRECTION avec un superviseur (User.supervisorId) voit comme
+   * le rôle et la celluleId de celui-ci — jamais sa divisionId/sectionId, un
+   * superviseur (DN/DNA/CHEF_CELLULE) n'en ayant pas (invariant n°4).
+   *
+   * Ne jamais réutiliser cette vue pour l'autorité d'action
+   * (hasHierarchicalAuthorityOver et ses dérivés : canManageUser,
+   * hasDirectAuthorityOver, canBroadcastToDivision) ni pour la confidentialité
+   * consultable/assignable (getAllowedConfidentialityTiers,
+   * assertCanSetTaskConfidentiality) : ceux-ci continuent de juger sur le
+   * rôle propre de l'Assistant, par décision de conception (l'Assistant voit
+   * plus, mais n'hérite d'aucun pouvoir d'action ni d'un niveau de
+   * confidentialité supérieur).
+   */
+  private getVisibilityActor(actor: AuthenticatedUser): AuthenticatedUser {
+    if (actor.role !== SystemRole.ASSISTANT_DIRECTION || !actor.supervisorRole) {
+      return actor;
+    }
+    return {
+      ...actor,
+      role: actor.supervisorRole,
+      celluleId: actor.supervisorCelluleId,
+    };
   }
 
   /**
@@ -227,32 +256,33 @@ export class CascadeService {
   // --------------------------------------------------------------------
 
   private getTaskScope(actor: AuthenticatedUser): TaskScope {
-    if (LEADERSHIP_ROLES.includes(actor.role)) {
+    const effective = this.getVisibilityActor(actor);
+    if (LEADERSHIP_ROLES.includes(effective.role)) {
       return { kind: 'all' };
     }
-    if (actor.role === SystemRole.CHEF_DIVISION) {
-      return actor.divisionId ? { kind: 'division', divisionId: actor.divisionId } : { kind: 'none' };
+    if (effective.role === SystemRole.CHEF_DIVISION) {
+      return effective.divisionId ? { kind: 'division', divisionId: effective.divisionId } : { kind: 'none' };
     }
-    if (actor.role === SystemRole.CHEF_CELLULE) {
-      return actor.celluleId ? { kind: 'cellule', celluleId: actor.celluleId } : { kind: 'none' };
+    if (effective.role === SystemRole.CHEF_CELLULE) {
+      return effective.celluleId ? { kind: 'cellule', celluleId: effective.celluleId } : { kind: 'none' };
     }
-    if (actor.role === SystemRole.CHEF_SECTION) {
-      return actor.divisionId && actor.sectionId
-        ? { kind: 'division_section', divisionId: actor.divisionId, sectionId: actor.sectionId }
+    if (effective.role === SystemRole.CHEF_SECTION) {
+      return effective.divisionId && effective.sectionId
+        ? { kind: 'division_section', divisionId: effective.divisionId, sectionId: effective.sectionId }
         : { kind: 'none' };
     }
-    if (actor.role === SystemRole.AGENT) {
+    if (effective.role === SystemRole.AGENT) {
       // Un Agent voit, en lecture, les tâches de tout son périmètre direct
       // (§3.1 : "tâches de sa section" pour un Agent de Division — étendu
       // par symétrie à "tâches de sa cellule" pour un Agent de cellule).
-      if (actor.celluleId) return { kind: 'cellule', celluleId: actor.celluleId };
-      if (actor.divisionId && actor.sectionId) {
-        return { kind: 'division_section', divisionId: actor.divisionId, sectionId: actor.sectionId };
+      if (effective.celluleId) return { kind: 'cellule', celluleId: effective.celluleId };
+      if (effective.divisionId && effective.sectionId) {
+        return { kind: 'division_section', divisionId: effective.divisionId, sectionId: effective.sectionId };
       }
       return { kind: 'none' };
     }
     // ADMIN_SYSTEME (§3.1 : pas d'accès systématique au contenu des tâches),
-    // ASSISTANT_DIRECTION (périmètre non défini — §11) : aucune visibilité
+    // ASSISTANT_DIRECTION sans superviseur renseigné : aucune visibilité
     // passive, seulement les tâches dont ils sont créateur/assigné.
     return { kind: 'none' };
   }

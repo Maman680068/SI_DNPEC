@@ -58,6 +58,7 @@ export class JwtAuthGuard implements CanActivate {
         divisionId: true,
         sectionId: true,
         celluleId: true,
+        supervisor: { select: { role: true, celluleId: true } },
       },
     });
 
@@ -65,7 +66,14 @@ export class JwtAuthGuard implements CanActivate {
       throw new UnauthorizedException('Compte introuvable ou inactif');
     }
 
-    (request as Request & { user: AuthenticatedUser }).user = user;
+    const { supervisor, ...rest } = user;
+    const authenticatedUser: AuthenticatedUser = {
+      ...rest,
+      supervisorRole: supervisor?.role ?? null,
+      supervisorCelluleId: supervisor?.celluleId ?? null,
+    };
+
+    (request as Request & { user: AuthenticatedUser }).user = authenticatedUser;
     return true;
   }
 

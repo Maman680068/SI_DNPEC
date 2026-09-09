@@ -8,4 +8,10 @@ export interface AuthenticatedUser {
   divisionId: string | null;
   sectionId: string | null;
   celluleId: string | null;
+  // Renseignés uniquement pour ASSISTANT_DIRECTION avec un superviseur
+  // (User.supervisorId) — permettent à CascadeService de faire hériter la
+  // visibilité (pas l'autorité ni le niveau de confidentialité) du
+  // superviseur sans requête supplémentaire. null pour tous les autres rôles.
+  supervisorRole: SystemRole | null;
+  supervisorCelluleId: string | null;
 }

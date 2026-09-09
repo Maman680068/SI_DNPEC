@@ -18,12 +18,17 @@
 //    Un Agent rattaché à une Division (divisionId non nul) est ainsi
 //    affiché "Chargé d'Études" par convention métier ; un Agent d'une
 //    cellule a divisionId = null, celluleId non nul, et jobTitle libre.
-// 2. Assistant du DN/DNA (ASSISTANT_DIRECTION) : rattaché au dirigeant qu'il
-//    assiste via dnOrDnaId (auto-relation sur User), plutôt qu'à une
-//    Division ou une Cellule. Aucune logique de permission n'est encore
-//    codée pour ce rôle — périmètre de droits explicitement à définir par
-//    la Direction (§11 du cahier des charges). Le modèle est prêt à
-//    recevoir cette logique plus tard sans nouvelle migration structurelle.
+// 2. Assistant de direction (ASSISTANT_DIRECTION) : rattaché à la personne
+//    qu'il assiste via supervisorId (auto-relation sur User), plutôt qu'à
+//    une Division ou une Cellule. Le superviseur doit avoir le rôle DN, DNA
+//    ou CHEF_CELLULE (invariant applicatif, voir décision n°4) — un Chef de
+//    Division est délibérément exclu, l'Assistant restant réservé à la
+//    direction générale et aux cellules transversales. Visibilité en
+//    cascade (CascadeService) : l'Assistant voit ce que voit son
+//    superviseur (tâches, périmètre utilisateurs), mais ni le niveau de
+//    confidentialité qu'il peut consulter/créer, ni son autorité d'action
+//    (gestion de comptes, diffusion à une division, etc.) ne sont étendus —
+//    ceux-ci restent ceux du rôle ASSISTANT_DIRECTION lui-même.
 // 3. Cellules transversales (CTSCM, CNC, SAF, RH, CSID) : modélisées par un
 //    modèle Cellule minimal (id, code, name, chefId), distinct de
 //    Division/Section (pas de sous-structure en sections). Un utilisateur
@@ -49,9 +54,9 @@
 //    User.divisionId et User.celluleId sont mutuellement exclusifs (jamais
 //    les deux renseignés en même temps), de même pour Task.divisionId /
 //    Task.celluleId ; Task.sectionId doit appartenir à Task.divisionId ;
-//    User.dnOrDnaId ne doit référencer qu'un User de rôle DN ou DNA ; un
-//    CHEF_CELLULE doit avoir celluleId = l'id de la Cellule dont il est
-//    le chefId.
+//    User.supervisorId ne doit référencer qu'un User de rôle DN, DNA ou
+//    CHEF_CELLULE ; un CHEF_CELLULE doit avoir celluleId = l'id de la
+//    Cellule dont il est le chefId.
 // ============================================================================
 
 generator client {
@@ -82,9 +87,10 @@ enum SystemRole {
   // même niveau de permission dans les deux cas.
   AGENT
   ADMIN_SYSTEME // CSID — gestion des comptes et de l'infrastructure
-  // Assistant(e) du DN ou de la DNA (rattaché via dnOrDnaId). Rôle créé en
-  // base sans logique de permission : périmètre de droits non défini,
-  // à concevoir ultérieurement (§11).
+  // Assistant(e) de direction, rattaché à un DN/DNA ou un Chef de Cellule
+  // (rôle du superviseur porté par User.supervisorId, jamais un Chef de
+  // Division). Voit ce que voit son superviseur (CascadeService) mais son
+  // niveau de confidentialité et son autorité d'action restent les siens.
   ASSISTANT_DIRECTION
 
   @@map("system_role")
@@ -308,7 +314,7 @@ model User {
   // - DN / DNA                  -> divisionId = null, celluleId = null,
   //   sectionId = null
   // - ASSISTANT_DIRECTION       -> divisionId = null, celluleId = null,
-  //   sectionId = null, dnOrDnaId requis (voir plus bas)
+  //   sectionId = null, supervisorId requis (voir plus bas)
   // - CHEF_DIVISION             -> divisionId requis, celluleId = null,
   //   sectionId = null
   // - CHEF_SECTION              -> divisionId + sectionId requis,
@@ -349,13 +355,13 @@ model User {
   // distinct de `cellule` ci-dessus qui porte le simple rattachement/membre.
   celluleLed Cellule? @relation("CelluleChef")
 
-  // Assistant(e) de direction (ASSISTANT_DIRECTION) : dirigeant DN/DNA
-  // assisté, au lieu d'un rattachement à une Division. Aucune règle de
-  // permission n'est encore associée à ce rattachement (voir en-tête de
-  // fichier, décision de conception n°2).
-  dnOrDnaId  String?
-  dnOrDna    User?   @relation("DirectionAssistants", fields: [dnOrDnaId], references: [id])
-  assistants User[]  @relation("DirectionAssistants")
+  // Assistant(e) de direction (ASSISTANT_DIRECTION) : personne assistée, au
+  // lieu d'un rattachement à une Division — DN, DNA ou CHEF_CELLULE
+  // uniquement (voir en-tête de fichier, décision de conception n°2 et
+  // invariant n°4).
+  supervisorId String?
+  supervisor   User?   @relation("AssistantSupervisors", fields: [supervisorId], references: [id])
+  assistants   User[]  @relation("AssistantSupervisors")
 
   // Sécurité (§3.3, §7.3, RF-SEC-02/03/05)
   twoFactorEnabled Boolean @default(false)
