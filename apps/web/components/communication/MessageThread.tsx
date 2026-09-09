@@ -13,7 +13,15 @@ function formatWhen(iso: string): string {
   return isToday ? time : `${date.toLocaleDateString('fr-FR')} ${time}`;
 }
 
-export function MessageThread({ otherUserId, onSent }: { otherUserId: string; onSent: () => void }) {
+export function MessageThread({
+  otherUserId,
+  onSent,
+  onBack,
+}: {
+  otherUserId: string;
+  onSent: () => void;
+  onBack?: () => void;
+}) {
   const { user: currentUser } = useAuth();
   const { getUserLabel } = useOrg();
   const [messages, setMessages] = useState<DirectMessage[] | null>(null);
@@ -55,7 +63,14 @@ export function MessageThread({ otherUserId, onSent }: { otherUserId: string; on
 
   return (
     <div className="flex h-full flex-col">
-      <div className="border-b border-line px-5 py-3.5">
+      <div className="flex items-center gap-2 border-b border-line px-5 py-3.5">
+        <button
+          onClick={onBack}
+          aria-label="Retour à la liste des conversations"
+          className="-ml-1 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md text-text-muted md:hidden"
+        >
+          ←
+        </button>
         <div className="text-[13.5px] font-bold">{getUserLabel(otherUserId)}</div>
       </div>
 

@@ -93,7 +93,14 @@ export default function CommunicationPage() {
 
       {tab === 'messages' ? (
         <div className="flex h-[calc(100vh-260px)] min-h-[420px] overflow-hidden rounded-lg border border-line bg-surface">
-          <div className="w-[300px] flex-shrink-0 overflow-y-auto border-r border-line">
+          {/* Sur mobile, la liste et le fil sont mutuellement exclusifs (un seul
+           * panneau plein écran à la fois) — les deux côte à côte comme sur
+           * desktop n'y laisseraient que quelques dizaines de pixels au fil. */}
+          <div
+            className={`w-full flex-shrink-0 overflow-y-auto border-r border-line md:block md:w-[300px] ${
+              selectedUserId ? 'hidden' : ''
+            }`}
+          >
             <NewConversationSearch onPick={setSelectedUserId} />
             {conversations === null ? (
               <p className="px-4 py-6 text-center text-[13px] text-text-muted">Chargement…</p>
@@ -101,9 +108,13 @@ export default function CommunicationPage() {
               <ConversationList conversations={conversations} selectedUserId={selectedUserId} onSelect={setSelectedUserId} />
             )}
           </div>
-          <div className="flex-1">
+          <div className={`flex-1 ${selectedUserId ? '' : 'hidden md:block'}`}>
             {selectedUserId ? (
-              <MessageThread otherUserId={selectedUserId} onSent={loadConversations} />
+              <MessageThread
+                otherUserId={selectedUserId}
+                onSent={loadConversations}
+                onBack={() => setSelectedUserId(null)}
+              />
             ) : (
               <div className="flex h-full items-center justify-center text-[13px] text-text-faint">
                 Sélectionnez une conversation ou démarrez-en une nouvelle.

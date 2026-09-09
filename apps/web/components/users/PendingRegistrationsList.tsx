@@ -64,7 +64,7 @@ export function PendingRegistrationsList({
       {users.map((user) => {
         const declared = declarationLabel(user, getDivisionName, getSectionName, getCelluleName);
         return (
-          <Card key={user.id} className="flex items-center justify-between gap-3 p-[18px]">
+          <Card key={user.id} className="flex flex-col gap-3 p-[18px] sm:flex-row sm:items-center sm:justify-between">
             <div>
               <div className="text-[14px] font-bold">
                 {user.firstName} {user.lastName}
@@ -74,7 +74,7 @@ export function PendingRegistrationsList({
               </div>
               {declared && <Badge tone="gold">Souhaite : {declared}</Badge>}
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-shrink-0 gap-2">
               <Button
                 variant="outline"
                 className="border-clay text-clay hover:bg-clay-soft"

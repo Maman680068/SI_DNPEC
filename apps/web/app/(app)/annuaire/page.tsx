@@ -75,7 +75,7 @@ export default function AnnuairePage() {
         <select
           value={encodeUnit(unit)}
           onChange={(e) => setUnit(decodeUnit(e.target.value))}
-          className="rounded-md border border-line bg-surface px-3 py-2.5 text-[13px]"
+          className="w-full max-w-[280px] rounded-md border border-line bg-surface px-3 py-2.5 text-[13px] sm:w-auto sm:max-w-[220px]"
         >
           <option value="">Toutes les unités</option>
           <optgroup label="Divisions">

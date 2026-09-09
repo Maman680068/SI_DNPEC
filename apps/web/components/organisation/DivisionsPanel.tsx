@@ -66,7 +66,7 @@ export function DivisionsPanel() {
             const isExpanded = expandedId === division.id;
             return (
               <Card key={division.id} className="p-[18px]">
-                <div className="flex items-center justify-between gap-3">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <button
                     type="button"
                     onClick={() => setExpandedId(isExpanded ? null : division.id)}
@@ -108,7 +108,10 @@ export function DivisionsPanel() {
                     ) : (
                       <div className="space-y-2">
                         {divisionSections.map((section) => (
-                          <div key={section.id} className="flex items-center justify-between rounded-md bg-bg px-3.5 py-2.5">
+                          <div
+                            key={section.id}
+                            className="flex flex-col gap-2 rounded-md bg-bg px-3.5 py-2.5 sm:flex-row sm:items-center sm:justify-between"
+                          >
                             <div>
                               <div className="text-[13px] font-semibold">{section.name}</div>
                               <div className="text-[11.5px] text-text-faint">{section.code}</div>

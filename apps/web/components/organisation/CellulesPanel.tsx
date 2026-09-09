@@ -45,7 +45,7 @@ export function CellulesPanel() {
       ) : (
         <div className="space-y-2">
           {cellules.map((cellule) => (
-            <Card key={cellule.id} className="flex items-center justify-between p-[18px]">
+            <Card key={cellule.id} className="flex flex-col gap-3 p-[18px] sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <div className="text-[14px] font-bold">{cellule.name}</div>
                 <div className="text-[12px] text-text-muted">

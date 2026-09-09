@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '../../lib/auth/AuthProvider';
@@ -47,22 +48,45 @@ function initials(firstName: string, lastName: string): string {
   return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
 }
 
-export function Sidebar() {
+export function Sidebar({ open = false, onClose }: { open?: boolean; onClose?: () => void }) {
   const { user, logout } = useAuth();
   const pathname = usePathname();
   const navGroups = navGroupsFor(user?.role);
 
+  // Referme le tiroir mobile à chaque changement de page — sans ça, naviguer
+  // depuis le tiroir le laisserait ouvert par-dessus la page suivante.
+  useEffect(() => {
+    onClose?.();
+  }, [pathname]);
+
   return (
-    <aside className="flex h-full w-[250px] flex-shrink-0 flex-col border-r border-line bg-surface p-3.5">
-      <div className="mb-7 flex flex-shrink-0 items-center gap-3 px-2">
-        <div className="flex h-9 w-9 items-center justify-center rounded-md bg-ink font-heading text-sm font-extrabold text-white">
-          DN
+    <>
+      {/* Fond assombri derrière le tiroir mobile — absent en desktop, où la
+       * sidebar est toujours visible dans le flux normal (voir md:static). */}
+      {open && (
+        <div className="fixed inset-0 z-40 bg-[rgba(20,26,38,0.42)] md:hidden" onClick={onClose} />
+      )}
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 flex w-[250px] flex-shrink-0 flex-col border-r border-line bg-surface p-3.5 transition-transform duration-200 md:static md:z-auto md:translate-x-0 ${
+          open ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
+        <div className="mb-7 flex flex-shrink-0 items-center gap-3 px-2">
+          <div className="flex h-9 w-9 items-center justify-center rounded-md bg-ink font-heading text-sm font-extrabold text-white">
+            DN
+          </div>
+          <div>
+            <div className="text-[11px] text-text-faint">DNPEC</div>
+            <div className="font-heading text-[13.5px] font-bold text-ink">Espace de travail</div>
+          </div>
+          <button
+            onClick={onClose}
+            aria-label="Fermer le menu"
+            className="ml-auto flex h-7 w-7 items-center justify-center rounded-md text-text-muted md:hidden"
+          >
+            ✕
+          </button>
         </div>
-        <div>
-          <div className="text-[11px] text-text-faint">DNPEC</div>
-          <div className="font-heading text-[13.5px] font-bold text-ink">Espace de travail</div>
-        </div>
-      </div>
 
       {/* Seule cette liste défile si elle dépasse la hauteur disponible — le
        * logo (au-dessus) et le profil (en-dessous) restent toujours ancrés,
@@ -120,6 +144,7 @@ export function Sidebar() {
           </button>
         </div>
       )}
-    </aside>
+      </aside>
+    </>
   );
 }

@@ -115,7 +115,7 @@ export default function DocumentsPage() {
                 setSelectedDivisionId(e.target.value);
                 setCurrentFolderId(null);
               }}
-              className="mb-3 rounded-md border border-line bg-surface px-3 py-1.5 text-[13px]"
+              className="mb-3 w-full max-w-[280px] rounded-md border border-line bg-surface px-3 py-1.5 text-[13px]"
             >
               {divisions.map((d) => (
                 <option key={d.id} value={d.id}>

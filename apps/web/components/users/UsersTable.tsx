@@ -74,7 +74,44 @@ export function UsersTable({
   return (
     <div>
       {error && <div className="mb-3 rounded-md bg-clay-soft px-3 py-2.5 text-[13px] text-clay">{error}</div>}
-      <div className="overflow-x-auto rounded-lg border border-line">
+
+      {/* En dessous de md, un tableau à 5-6 colonnes ne tient pas sur un écran de
+       * téléphone même avec un scroll horizontal (en-têtes tronqués, actions hors
+       * champ) — on bascule sur des cartes empilées, une par utilisateur. */}
+      <div className="space-y-2.5 md:hidden">
+        {users.map((user) => (
+          <div key={user.id} className="rounded-lg border border-line p-3.5">
+            <div className="mb-2 flex items-start justify-between gap-2">
+              <div>
+                <div className="text-[13.5px] font-semibold">
+                  {user.firstName} {user.lastName}
+                </div>
+                <div className="text-[12px] text-text-muted">{user.email}</div>
+              </div>
+              <Badge tone={user.status === 'SUSPENDU' ? 'clay' : 'sage'}>
+                {user.status === 'SUSPENDU' ? 'Suspendu' : 'Actif'}
+              </Badge>
+            </div>
+            <div className="mb-3 text-[12.5px] text-text-muted">
+              {ROLE_LABEL[user.role]} · {attachmentLabel(user, getDivisionName, getSectionName, getCelluleName)}
+            </div>
+            {canManage && (
+              <div className="flex flex-wrap gap-2">
+                {CAN_BECOME_CHEF_ROLES.includes(user.role) && (
+                  <Button variant="outline" onClick={() => setAssigningChefFor(user)}>
+                    Nommer chef de cellule
+                  </Button>
+                )}
+                <Button variant="outline" disabled={pendingId === user.id} onClick={() => handleToggleStatus(user)}>
+                  {user.status === 'SUSPENDU' ? 'Réactiver' : 'Suspendre'}
+                </Button>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      <div className="hidden overflow-x-auto rounded-lg border border-line md:block">
         <table className="w-full text-left text-[13px]">
           <thead>
             <tr className="border-b border-line bg-bg text-[11px] font-bold uppercase tracking-wide text-text-faint">
