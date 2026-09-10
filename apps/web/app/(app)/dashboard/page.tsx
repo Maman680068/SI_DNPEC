@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../../../lib/auth/AuthProvider';
 import { getTasks, getDashboard } from '../../../lib/api/tasks';
+import { exportDashboardPdf, exportTasksExcel } from '../../../lib/api/export';
 import type { Task, TaskDashboard } from '../../../lib/tasks/types';
 import { KpiRow } from '../../../components/tasks/KpiRow';
 import { ViewToggle, type TaskView } from '../../../components/tasks/ViewToggle';
@@ -28,7 +29,20 @@ export default function DashboardPage() {
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showBroadcastModal, setShowBroadcastModal] = useState(false);
+  const [exporting, setExporting] = useState<'excel' | 'pdf' | null>(null);
   const canBroadcast = CAN_BROADCAST_ROLES.includes(currentUser?.role ?? '');
+
+  async function handleExport(kind: 'excel' | 'pdf') {
+    setExporting(kind);
+    setError(null);
+    try {
+      await (kind === 'excel' ? exportTasksExcel() : exportDashboardPdf());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Impossible de générer l'export");
+    } finally {
+      setExporting(null);
+    }
+  }
 
   const load = useCallback(() => {
     Promise.all([getTasks(), getDashboard()])
@@ -68,7 +82,13 @@ export default function DashboardPage() {
           <div className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-sage">Mon périmètre</div>
           <h1 className="text-[22px] font-extrabold">Tableau de bord</h1>
         </div>
-        <div className="flex gap-2.5">
+        <div className="flex flex-wrap gap-2.5">
+          <Button variant="outline" disabled={exporting !== null} onClick={() => handleExport('excel')}>
+            {exporting === 'excel' ? 'Export…' : 'Exporter (Excel)'}
+          </Button>
+          <Button variant="outline" disabled={exporting !== null} onClick={() => handleExport('pdf')}>
+            {exporting === 'pdf' ? 'Export…' : 'Exporter (PDF)'}
+          </Button>
           {canBroadcast && (
             <Button variant="outline" onClick={() => setShowBroadcastModal(true)}>
               Diffuser à une division
