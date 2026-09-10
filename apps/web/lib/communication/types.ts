@@ -52,3 +52,36 @@ export const SCOPE_LABEL: Record<AnnouncementScope, string> = {
   CELLULE: 'Cellule',
   GROUPE_PERSONNALISE: 'Groupe personnalisé',
 };
+
+/** Portée d'audience (annonces ET sondages — même enum, même autorité de
+ * ciblage côté API). Reflète (côté UX seulement — l'autorité réelle est
+ * vérifiée par l'API à chaque niveau) ce que *Service.resolveAudienceAndAuthorize
+ * accepte pour chaque rôle, pour ne proposer que des portées qui ont une
+ * chance d'aboutir. */
+export function getAvailableAudienceScopes(role: string): AnnouncementScope[] {
+  switch (role) {
+    case 'DN':
+    case 'DNA':
+      return ['DNPEC', 'DIVISION', 'SECTION', 'CELLULE', 'GROUPE_PERSONNALISE'];
+    case 'ADMIN_SYSTEME':
+      return ['DIVISION', 'SECTION', 'CELLULE', 'GROUPE_PERSONNALISE'];
+    case 'CHEF_DIVISION':
+      return ['DIVISION', 'SECTION', 'GROUPE_PERSONNALISE'];
+    case 'CHEF_SECTION':
+      return ['SECTION', 'GROUPE_PERSONNALISE'];
+    case 'CHEF_CELLULE':
+      return ['CELLULE', 'GROUPE_PERSONNALISE'];
+    default:
+      return [];
+  }
+}
+
+/** Valeur contrôlée partagée par AudienceScopeFields — annonces et sondages
+ * portent chacun leur propre state applicatif mais soumettent la même forme. */
+export interface AudienceScopeValue {
+  scope: AnnouncementScope;
+  divisionId: string;
+  sectionId: string;
+  celluleId: string;
+  recipientUserIds: string[];
+}

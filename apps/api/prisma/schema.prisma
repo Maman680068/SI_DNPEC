@@ -7,7 +7,7 @@
 //
 // Non modélisé à ce stade (hors périmètre de cette demande, à traiter
 // séparément si besoin) : Annuaire (dérivable de User/Division/Section),
-// Réunions, Sondages, Boîte à suggestions (RF-CPL-02 à 05).
+// Boîte à suggestions (RF-CPL-02, RF-CPL-05).
 //
 // Décisions de conception à noter :
 // 1. Chargé d'Études vs Agent : ce n'est plus un rôle système distinct — le
@@ -208,6 +208,7 @@ enum NotificationType {
   REUNION_PLANIFIEE
   REUNION_RAPPEL
   REUNION_ANNULEE
+  SONDAGE_CREE
 
   @@map("notification_type")
 }
@@ -243,6 +244,7 @@ model Division {
   folders       Folder[]
   documents     Document[]
   announcements Announcement[]
+  Poll          Poll[]
 
   @@map("divisions")
 }
@@ -259,6 +261,7 @@ model Section {
   users         User[]
   tasks         Task[]
   announcements Announcement[]
+  Poll          Poll[]
 
   @@unique([divisionId, code])
   @@map("sections")
@@ -287,6 +290,7 @@ model Cellule {
   users         User[]
   tasks         Task[]
   announcements Announcement[]
+  Poll          Poll[]
 
   @@map("cellules")
 }
@@ -409,6 +413,11 @@ model User {
   createdAnnouncements   Announcement[]
   announcementRecipients AnnouncementRecipient[]
   announcementReads      AnnouncementRead[]
+
+  // Sondages
+  createdPolls   Poll[]
+  pollVotes      PollVote[]
+  pollRecipients PollRecipient[]
 
   // Réunions
   organizedMeetings     Meeting[]            @relation("MeetingOrganizer")
@@ -828,6 +837,89 @@ model AnnouncementRead {
 
   @@unique([announcementId, userId])
   @@map("announcement_reads")
+}
+
+// ----------------------------------------------------------------------------
+// Module Sondages (RF-CPL-04) — décisions rapides à choix simples
+// ----------------------------------------------------------------------------
+
+// Ciblage (qui peut créer un sondage pour quel périmètre) rigoureusement
+// identique aux annonces : même enum AnnouncementScope réutilisé tel quel
+// (pas de doublon), même astuce de "cible synthétique" pour
+// CascadeService.assertCanManageUser côté service (voir PollsService).
+// Nominatif comme AnnouncementRead : qui a voté quoi n'est visible qu'à
+// l'auteur et à la direction (DN/DNA/ADMIN_SYSTEME) — tout le monde d'autre
+// ne voit que les totaux agrégés par option.
+model Poll {
+  id            String            @id @default(cuid())
+  authorId      String
+  author        User              @relation(fields: [authorId], references: [id])
+  question      String
+  // Choix unique par défaut (une nouvelle réponse remplace la précédente,
+  // voir PollsService.vote) ; choix multiple optionnel à la création.
+  allowMultiple Boolean           @default(false)
+  scope         AnnouncementScope
+  divisionId    String?
+  division      Division?         @relation(fields: [divisionId], references: [id])
+  sectionId     String?
+  section       Section?          @relation(fields: [sectionId], references: [id])
+  celluleId     String?
+  cellule       Cellule?          @relation(fields: [celluleId], references: [id])
+  // Échéance optionnelle (clôture automatique côté application, aucun job
+  // planifié nécessaire : un vote après closesAt est simplement rejeté) et
+  // clôture manuelle par l'auteur (POST /polls/:id/close).
+  closesAt      DateTime?
+  closedAt      DateTime?
+  createdAt     DateTime          @default(now())
+
+  options    PollOption[]
+  votes      PollVote[]
+  recipients PollRecipient[]
+
+  @@map("polls")
+}
+
+model PollOption {
+  id     String     @id @default(cuid())
+  pollId String
+  poll   Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  label  String
+  order  Int        @default(0)
+  votes  PollVote[]
+
+  @@map("poll_options")
+}
+
+// @@unique sur les trois colonnes (pas juste pollId+userId) car le choix
+// multiple autorise plusieurs lignes pour la même personne sur le même
+// sondage — PollsService.vote supprime les lignes précédentes de la
+// personne avant d'insérer, sauf si allowMultiple.
+model PollVote {
+  id       String     @id @default(cuid())
+  pollId   String
+  poll     Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  optionId String
+  option   PollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  userId   String
+  user     User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  votedAt  DateTime   @default(now())
+
+  @@unique([pollId, userId, optionId])
+  @@map("poll_votes")
+}
+
+// Mêmes rôle et structure qu'AnnouncementRecipient : uniquement peuplé pour
+// le scope GROUPE_PERSONNALISE, les autres scopes calculent l'audience à la
+// volée (voir PollsService.visibilityWhere).
+model PollRecipient {
+  id     String @id @default(cuid())
+  pollId String
+  poll   Poll   @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([pollId, userId])
+  @@map("poll_recipients")
 }
 
 // ----------------------------------------------------------------------------

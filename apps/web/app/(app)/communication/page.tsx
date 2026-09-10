@@ -3,17 +3,24 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../../../lib/auth/AuthProvider';
 import { getAnnouncements, getConversations } from '../../../lib/api/communication';
+import { getPolls } from '../../../lib/api/polls';
 import type { Announcement, Conversation } from '../../../lib/communication/types';
+import type { Poll } from '../../../lib/polls/types';
 import { ConversationList } from '../../../components/communication/ConversationList';
 import { NewConversationSearch } from '../../../components/communication/NewConversationSearch';
 import { MessageThread } from '../../../components/communication/MessageThread';
 import { AnnouncementList } from '../../../components/communication/AnnouncementList';
 import { AnnouncementDetailDrawer } from '../../../components/communication/AnnouncementDetailDrawer';
 import { CreateAnnouncementModal } from '../../../components/communication/CreateAnnouncementModal';
+import { PollList } from '../../../components/communication/PollList';
+import { PollDetailDrawer } from '../../../components/communication/PollDetailDrawer';
+import { CreatePollModal } from '../../../components/communication/CreatePollModal';
 import { Button } from '../../../components/ui/Button';
 
-type Tab = 'messages' | 'announcements';
+type Tab = 'messages' | 'announcements' | 'polls';
 
+// Même ciblage cascade que les annonces (AnnouncementScope) : même ensemble de
+// rôles peut créer l'un ou l'autre, voir PollsService.resolveAudienceAndAuthorize.
 const CAN_ANNOUNCE_ROLES = ['DN', 'DNA', 'ADMIN_SYSTEME', 'CHEF_DIVISION', 'CHEF_SECTION', 'CHEF_CELLULE'];
 
 export default function CommunicationPage() {
@@ -27,6 +34,10 @@ export default function CommunicationPage() {
   const [selectedAnnouncementId, setSelectedAnnouncementId] = useState<string | null>(null);
   const [showCreateAnnouncement, setShowCreateAnnouncement] = useState(false);
 
+  const [polls, setPolls] = useState<Poll[] | null>(null);
+  const [selectedPollId, setSelectedPollId] = useState<string | null>(null);
+  const [showCreatePoll, setShowCreatePoll] = useState(false);
+
   const loadConversations = useCallback(() => {
     getConversations().then(setConversations);
   }, []);
@@ -35,10 +46,15 @@ export default function CommunicationPage() {
     getAnnouncements().then(setAnnouncements);
   }, []);
 
+  const loadPolls = useCallback(() => {
+    getPolls().then(setPolls);
+  }, []);
+
   useEffect(() => {
     loadConversations();
     loadAnnouncements();
-  }, [loadConversations, loadAnnouncements]);
+    loadPolls();
+  }, [loadConversations, loadAnnouncements, loadPolls]);
 
   // Ouvre directement une conversation depuis un lien externe (ex. la fiche d'une
   // personne dans l'Annuaire, "/communication?with=<id>") — lu une seule fois au
@@ -47,14 +63,22 @@ export default function CommunicationPage() {
   // entièrement pilotée côté client, la réactivité aux changements d'URL une fois
   // montée n'est pas nécessaire ici.
   useEffect(() => {
-    const withId = new URLSearchParams(window.location.search).get('with');
+    const params = new URLSearchParams(window.location.search);
+    const withId = params.get('with');
     if (withId) setSelectedUserId(withId);
+    const pollId = params.get('pollId');
+    if (pollId) {
+      setTab('polls');
+      setSelectedPollId(pollId);
+    }
   }, []);
 
   const selectedAnnouncement = useMemo(
     () => announcements?.find((a) => a.id === selectedAnnouncementId) ?? null,
     [announcements, selectedAnnouncementId],
   );
+
+  const selectedPoll = useMemo(() => polls?.find((p) => p.id === selectedPollId) ?? null, [polls, selectedPollId]);
 
   const canAnnounce = CAN_ANNOUNCE_ROLES.includes(currentUser?.role ?? '');
 
@@ -70,13 +94,19 @@ export default function CommunicationPage() {
             + Nouvelle annonce
           </Button>
         )}
+        {tab === 'polls' && canAnnounce && (
+          <Button variant="gold" onClick={() => setShowCreatePoll(true)}>
+            + Nouveau sondage
+          </Button>
+        )}
       </div>
 
-      <div className="mb-4 flex gap-0.5 rounded-md border border-line bg-bg p-0.5" style={{ width: 'fit-content' }}>
+      <div className="mb-4 flex flex-wrap gap-0.5 rounded-md border border-line bg-bg p-0.5" style={{ width: 'fit-content' }}>
         {(
           [
             { key: 'messages', label: 'Messagerie' },
             { key: 'announcements', label: 'Annonces' },
+            { key: 'polls', label: 'Sondages' },
           ] as const
         ).map((option) => (
           <button
@@ -122,10 +152,16 @@ export default function CommunicationPage() {
             )}
           </div>
         </div>
-      ) : announcements === null ? (
+      ) : tab === 'announcements' ? (
+        announcements === null ? (
+          <p className="text-sm text-text-muted">Chargement…</p>
+        ) : (
+          <AnnouncementList announcements={announcements} onSelect={setSelectedAnnouncementId} />
+        )
+      ) : polls === null ? (
         <p className="text-sm text-text-muted">Chargement…</p>
       ) : (
-        <AnnouncementList announcements={announcements} onSelect={setSelectedAnnouncementId} />
+        <PollList polls={polls} onSelect={setSelectedPollId} />
       )}
 
       {selectedAnnouncement && (
@@ -137,6 +173,23 @@ export default function CommunicationPage() {
           onCreated={(announcement) => {
             setAnnouncements((prev) => (prev ? [announcement, ...prev] : [announcement]));
             setShowCreateAnnouncement(false);
+          }}
+        />
+      )}
+
+      {selectedPoll && (
+        <PollDetailDrawer
+          poll={selectedPoll}
+          onClose={() => setSelectedPollId(null)}
+          onUpdated={(updated) => setPolls((prev) => prev?.map((p) => (p.id === updated.id ? updated : p)) ?? prev)}
+        />
+      )}
+      {showCreatePoll && (
+        <CreatePollModal
+          onClose={() => setShowCreatePoll(false)}
+          onCreated={(poll) => {
+            setPolls((prev) => (prev ? [poll, ...prev] : [poll]));
+            setShowCreatePoll(false);
           }}
         />
       )}
