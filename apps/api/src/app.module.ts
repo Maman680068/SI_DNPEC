@@ -15,6 +15,7 @@ import { LeavesModule } from './leaves/leaves.module';
 import { DocumentsModule } from './documents/documents.module';
 import { MeetingsModule } from './meetings/meetings.module';
 import { ExportModule } from './export/export.module';
+import { SuggestionsModule } from './suggestions/suggestions.module';
 import { AppController } from './app.controller';
 
 @Module({
@@ -35,6 +36,7 @@ import { AppController } from './app.controller';
     DocumentsModule,
     MeetingsModule,
     ExportModule,
+    SuggestionsModule,
   ],
   providers: [
     // Guards globaux, exécutés dans cet ordre : JwtAuthGuard peuple

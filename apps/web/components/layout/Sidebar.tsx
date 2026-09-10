@@ -24,7 +24,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { icon: '🌴', label: 'Congés & absences', href: '/leaves' },
       { icon: '☰', label: 'Annuaire', href: '/annuaire' },
-      { icon: '✦', label: 'Boîte à suggestions' },
+      { icon: '✦', label: 'Boîte à suggestions', href: '/suggestions' },
     ],
   },
 ];

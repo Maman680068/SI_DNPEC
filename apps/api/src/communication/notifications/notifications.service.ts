@@ -25,6 +25,8 @@ const NOTIFICATION_BUTTON_LABELS: Record<NotificationType, string> = {
   REUNION_RAPPEL: 'Voir la réunion',
   REUNION_ANNULEE: 'Voir la réunion',
   SONDAGE_CREE: 'Voir le sondage',
+  SUGGESTION_RECUE: 'Voir la suggestion',
+  SUGGESTION_STATUT_MAJ: 'Voir ma suggestion',
 };
 
 /**

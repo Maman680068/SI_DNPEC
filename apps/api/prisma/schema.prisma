@@ -6,8 +6,8 @@
 // (RF-GED-*), Congés (RF-CNG-*), Notifications, Journal d'audit (RF-SEC-04).
 //
 // Non modélisé à ce stade (hors périmètre de cette demande, à traiter
-// séparément si besoin) : Annuaire (dérivable de User/Division/Section),
-// Boîte à suggestions (RF-CPL-02, RF-CPL-05).
+// séparément si besoin) : Annuaire (dérivable de User/Division/Section,
+// RF-CPL-02).
 //
 // Décisions de conception à noter :
 // 1. Chargé d'Études vs Agent : ce n'est plus un rôle système distinct — le
@@ -209,6 +209,8 @@ enum NotificationType {
   REUNION_RAPPEL
   REUNION_ANNULEE
   SONDAGE_CREE
+  SUGGESTION_RECUE
+  SUGGESTION_STATUT_MAJ
 
   @@map("notification_type")
 }
@@ -418,6 +420,10 @@ model User {
   createdPolls   Poll[]
   pollVotes      PollVote[]
   pollRecipients PollRecipient[]
+
+  // Boîte à suggestions
+  submittedSuggestions Suggestion[] @relation("SuggestionAuthor")
+  respondedSuggestions Suggestion[] @relation("SuggestionRespondedBy")
 
   // Réunions
   organizedMeetings     Meeting[]            @relation("MeetingOrganizer")
@@ -920,6 +926,43 @@ model PollRecipient {
 
   @@unique([pollId, userId])
   @@map("poll_recipients")
+}
+
+// ----------------------------------------------------------------------------
+// Module Boîte à suggestions (RF-CPL-05) — décidément le plus simple des
+// modules de communication : pas de ciblage cascade, pas de vote. Visibilité
+// fixe : l'auteur voit ses propres suggestions (sauf anonymes, voir plus
+// bas), DN/DNA voient tout. Changement de statut réservé au DN/DNA.
+// ----------------------------------------------------------------------------
+
+enum SuggestionStatus {
+  RECUE
+  EN_ETUDE
+  RETENUE
+  NON_RETENUE
+
+  @@map("suggestion_status")
+}
+
+// authorId nullable : une suggestion soumise anonymement (isAnonymous=true)
+// n'a délibérément aucun auteur enregistré, pas seulement masqué à l'écran —
+// une vraie anonymisation, pas cosmétique. Conséquence acceptée : ni suivi
+// personnel ("mes suggestions") ni notification de changement de statut ne
+// sont possibles pour une suggestion anonyme, faute de destinataire.
+model Suggestion {
+  id            String           @id @default(cuid())
+  authorId      String?
+  author        User?            @relation("SuggestionAuthor", fields: [authorId], references: [id])
+  isAnonymous   Boolean          @default(false)
+  content       String
+  status        SuggestionStatus @default(RECUE)
+  response      String?
+  respondedById String?
+  respondedBy   User?            @relation("SuggestionRespondedBy", fields: [respondedById], references: [id])
+  respondedAt   DateTime?
+  createdAt     DateTime         @default(now())
+
+  @@map("suggestions")
 }
 
 // ----------------------------------------------------------------------------
