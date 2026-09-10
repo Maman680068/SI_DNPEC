@@ -205,6 +205,9 @@ enum NotificationType {
   CONGE_VALIDE
   CONGE_REJETE
   DOCUMENT_PUBLIE
+  REUNION_PLANIFIEE
+  REUNION_RAPPEL
+  REUNION_ANNULEE
 
   @@map("notification_type")
 }
@@ -348,9 +351,9 @@ model User {
   // pour un contrôle de permission ni un filtre de cascade. Exclusivité à
   // trois (Division / Cellule / Assistant de direction), validée dans
   // AuthService.register.
-  declaredDivisionId String?
-  declaredSectionId  String?
-  declaredCelluleId  String?
+  declaredDivisionId   String?
+  declaredSectionId    String?
+  declaredCelluleId    String?
   // Idem, pour la déclaration "Assistant de direction" — la personne choisie
   // doit avoir le rôle DN, DNA ou CHEF_CELLULE et être ACTIF (même invariant
   // que supervisorId ci-dessus), validé dans AuthService.register.
@@ -375,19 +378,19 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  sessions             UserSession[]
-  passwordResetTokens  PasswordResetToken[]
+  sessions            UserSession[]
+  passwordResetTokens PasswordResetToken[]
 
   // Tâches
-  createdTasks    Task[]           @relation("TaskCreatedBy")
-  submittedTasks  Task[]           @relation("TaskSubmittedBy")
-  validatedTasks  Task[]           @relation("TaskValidatedBy")
+  createdTasks    Task[]               @relation("TaskCreatedBy")
+  submittedTasks  Task[]               @relation("TaskSubmittedBy")
+  validatedTasks  Task[]               @relation("TaskValidatedBy")
   taskAssignments TaskAssignee[]
   taskComments    TaskComment[]
   commentMentions TaskCommentMention[]
   taskAttachments TaskAttachment[]
   savedFilters    SavedFilter[]
-  createdProjects Project[]        @relation("ProjectCreatedBy")
+  createdProjects Project[]            @relation("ProjectCreatedBy")
 
   // GED
   createdFolders           Folder[]
@@ -401,11 +404,15 @@ model User {
   leaveBalances        LeaveBalance[]
 
   // Communication
-  sentMessages           DirectMessage[]          @relation("MessageSender")
-  receivedMessages       DirectMessage[]          @relation("MessageRecipient")
+  sentMessages           DirectMessage[]         @relation("MessageSender")
+  receivedMessages       DirectMessage[]         @relation("MessageRecipient")
   createdAnnouncements   Announcement[]
   announcementRecipients AnnouncementRecipient[]
   announcementReads      AnnouncementRead[]
+
+  // Réunions
+  organizedMeetings     Meeting[]            @relation("MeetingOrganizer")
+  meetingParticipations MeetingParticipant[]
 
   notifications Notification[]
   auditLogs     AuditLog[]
@@ -509,13 +516,13 @@ model Task {
   progressPercent Int?
 
   // Tâches récurrentes (RF-TAC-09)
-  isRecurring         Boolean              @default(false)
-  recurrenceFrequency RecurrenceFrequency?
-  recurrenceEndDate   DateTime?
+  isRecurring           Boolean              @default(false)
+  recurrenceFrequency   RecurrenceFrequency?
+  recurrenceEndDate     DateTime?
   // Tâche modèle à l'origine de cette occurrence générée automatiquement
   recurrenceSourceId    String?
-  recurrenceSource      Task?  @relation("TaskRecurrenceOccurrences", fields: [recurrenceSourceId], references: [id])
-  recurrenceOccurrences Task[] @relation("TaskRecurrenceOccurrences")
+  recurrenceSource      Task?                @relation("TaskRecurrenceOccurrences", fields: [recurrenceSourceId], references: [id])
+  recurrenceOccurrences Task[]               @relation("TaskRecurrenceOccurrences")
 
   createdById String
   createdBy   User   @relation("TaskCreatedBy", fields: [createdById], references: [id])
@@ -545,13 +552,13 @@ model Task {
 // plusieurs lignes RESPONSABLE = co-responsabilité ; une ligne RESPONSABLE +
 // plusieurs COLLABORATEUR = responsable unique avec soutien.
 model TaskAssignee {
-  id         String            @id @default(cuid())
+  id         String           @id @default(cuid())
   taskId     String
-  task       Task              @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  task       Task             @relation(fields: [taskId], references: [id], onDelete: Cascade)
   userId     String
-  user       User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  roleOnTask TaskAssigneeRole  @default(RESPONSABLE)
-  assignedAt DateTime          @default(now())
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  roleOnTask TaskAssigneeRole @default(RESPONSABLE)
+  assignedAt DateTime         @default(now())
 
   @@unique([taskId, userId])
   @@map("task_assignees")
@@ -715,16 +722,16 @@ model LeaveType {
 }
 
 model LeaveRequest {
-  id          String              @id @default(cuid())
+  id          String             @id @default(cuid())
   userId      String
-  user        User                @relation("LeaveRequester", fields: [userId], references: [id], onDelete: Cascade)
+  user        User               @relation("LeaveRequester", fields: [userId], references: [id], onDelete: Cascade)
   leaveTypeId String
-  leaveType   LeaveType           @relation(fields: [leaveTypeId], references: [id])
+  leaveType   LeaveType          @relation(fields: [leaveTypeId], references: [id])
   startDate   DateTime
   endDate     DateTime
   daysCount   Float
   reason      String?
-  status      LeaveRequestStatus  @default(EN_ATTENTE)
+  status      LeaveRequestStatus @default(EN_ATTENTE)
 
   // Validation par le supérieur hiérarchique direct, en cascade (§2.3)
   approverId      String?
@@ -821,6 +828,72 @@ model AnnouncementRead {
 
   @@unique([announcementId, userId])
   @@map("announcement_reads")
+}
+
+// ----------------------------------------------------------------------------
+// Module Réunions (RF-CPL-03) — calendrier partagé de réunions
+// ----------------------------------------------------------------------------
+
+// Visibilité (MeetingsService.getMeetingVisibilityWhere, pas ici) : organisateur
+// et participants toujours ; la hiérarchie directe des participants en lecture
+// seule, via CascadeService.getVisibleUserWhereForLeadershipScope — réutilisé
+// tel quel, aucune méthode de cascade dédiée aux réunions. Aucune autorité
+// d'action dérivée de cette visibilité élargie : seul l'organisateur peut
+// annuler sa réunion (une réunion est un artefact personnel d'agenda, pas du
+// contenu métier délégué en cascade comme une tâche).
+model Meeting {
+  id                 String        @id @default(cuid())
+  title              String
+  agenda             String? // ordre du jour, texte libre
+  location           String? // lieu/salle : texte libre, pas de modèle Salle séparé (hors périmètre §4.6)
+  startAt            DateTime
+  endAt              DateTime?
+  status             MeetingStatus @default(PLANIFIEE)
+  cancelledAt        DateTime?
+  cancellationReason String?
+  // Anti-doublon du rappel envoyé par le job planifié (MeetingsService.sendDueReminders) :
+  // posé une fois pour toutes à l'envoi, jamais réinitialisé.
+  reminderSentAt     DateTime?
+
+  createdById String
+  createdBy   User     @relation("MeetingOrganizer", fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  participants MeetingParticipant[]
+
+  @@map("meetings")
+}
+
+enum MeetingStatus {
+  PLANIFIEE
+  ANNULEE
+
+  @@map("meeting_status")
+}
+
+// L'organisateur est aussi inséré ici (responseStatus CONFIRME dès la création,
+// voir MeetingsService.create) pour apparaître dans la liste des participants
+// sans avoir à répondre à sa propre invitation.
+model MeetingParticipant {
+  id             String                @id @default(cuid())
+  meetingId      String
+  meeting        Meeting               @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  responseStatus MeetingResponseStatus @default(EN_ATTENTE)
+  respondedAt    DateTime?
+
+  @@unique([meetingId, userId])
+  @@map("meeting_participants")
+}
+
+enum MeetingResponseStatus {
+  EN_ATTENTE
+  CONFIRME
+  DECLINE
+
+  @@map("meeting_response_status")
 }
 
 // ----------------------------------------------------------------------------

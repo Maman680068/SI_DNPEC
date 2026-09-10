@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { ScheduleModule } from '@nestjs/schedule';
 import { APP_GUARD } from '@nestjs/core';
 import { PrismaModule } from './prisma/prisma.module';
 import { CommonModule } from './common/common.module';
@@ -12,12 +13,16 @@ import { TasksModule } from './tasks/tasks.module';
 import { CommunicationModule } from './communication/communication.module';
 import { LeavesModule } from './leaves/leaves.module';
 import { DocumentsModule } from './documents/documents.module';
+import { MeetingsModule } from './meetings/meetings.module';
 import { AppController } from './app.controller';
 
 @Module({
   controllers: [AppController],
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    // Nécessaire au rappel planifié des réunions (MeetingsService.sendDueReminders,
+    // @Cron) — premier usage d'un job planifié dans le projet.
+    ScheduleModule.forRoot(),
     PrismaModule,
     CommonModule,
     OrgModule,
@@ -27,6 +32,7 @@ import { AppController } from './app.controller';
     CommunicationModule,
     LeavesModule,
     DocumentsModule,
+    MeetingsModule,
   ],
   providers: [
     // Guards globaux, exécutés dans cet ordre : JwtAuthGuard peuple

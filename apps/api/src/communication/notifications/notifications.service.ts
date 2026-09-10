@@ -21,6 +21,9 @@ const NOTIFICATION_BUTTON_LABELS: Record<NotificationType, string> = {
   CONGE_VALIDE: 'Voir ma demande de congé',
   CONGE_REJETE: 'Voir la demande',
   DOCUMENT_PUBLIE: 'Voir le document',
+  REUNION_PLANIFIEE: 'Voir la réunion',
+  REUNION_RAPPEL: 'Voir la réunion',
+  REUNION_ANNULEE: 'Voir la réunion',
 };
 
 /**
