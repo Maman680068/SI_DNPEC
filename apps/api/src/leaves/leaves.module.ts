@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { OrgModule } from '../org/org.module';
+import { CommunicationModule } from '../communication/communication.module';
 import { LeaveTypesController } from './leave-types/leave-types.controller';
 import { LeaveTypesService } from './leave-types/leave-types.service';
 import { LeaveRequestsController } from './leave-requests/leave-requests.controller';
@@ -8,7 +9,7 @@ import { LeaveBalancesController } from './leave-balances/leave-balances.control
 import { LeaveBalancesService } from './leave-balances/leave-balances.service';
 
 @Module({
-  imports: [OrgModule],
+  imports: [OrgModule, CommunicationModule],
   controllers: [LeaveTypesController, LeaveRequestsController, LeaveBalancesController],
   providers: [LeaveTypesService, LeaveRequestsService, LeaveBalancesService],
 })

@@ -1,8 +1,9 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { AuditAction, LeaveRequestStatus, Prisma } from '@prisma/client';
+import { AuditAction, LeaveRequestStatus, NotificationType, Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../../common/audit/audit.service';
 import { CascadeService } from '../../org/cascade/cascade.service';
+import { NotificationsService } from '../../communication/notifications/notifications.service';
 import { AuthenticatedUser } from '../../common/types/auth-user.type';
 import { CreateLeaveRequestDto } from '../dto/create-leave-request.dto';
 import { DecideLeaveRequestDto } from '../dto/decide-leave-request.dto';
@@ -44,6 +45,7 @@ export class LeaveRequestsService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly cascade: CascadeService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async create(actor: AuthenticatedUser, dto: CreateLeaveRequestDto): Promise<LeaveRequestWithUser> {
@@ -76,6 +78,23 @@ export class LeaveRequestsService {
       entityId: leaveRequest.id,
       metadata: { leaveType: leaveType.code, startDate: dto.startDate, endDate: dto.endDate, daysCount },
     });
+
+    // Le(s) validateur(s) potentiel(s) de cette demande (chef direct de son
+    // périmètre + DN/DNA) — jamais un id fixe, voir CascadeService.hasDirectAuthorityOver.
+    const validators = await this.prisma.user.findMany({
+      where: this.cascade.getUsersWithDirectAuthorityOverWhere(leaveRequest.user),
+      select: { id: true },
+    });
+    if (validators.length > 0) {
+      await this.notifications.notifyMany(
+        validators.map((v) => v.id),
+        NotificationType.CONGE_SOUMIS,
+        'Nouvelle demande de congé',
+        `${leaveRequest.user.firstName} ${leaveRequest.user.lastName} — ${leaveType.name}, ${daysCount} jour${daysCount > 1 ? 's' : ''}`,
+        `/leaves?id=${leaveRequest.id}`,
+        `${leaveRequest.user.firstName} ${leaveRequest.user.lastName}`,
+      );
+    }
 
     return leaveRequest;
   }
@@ -146,6 +165,15 @@ export class LeaveRequestsService {
       metadata: { daysCount: updated.daysCount },
     });
 
+    await this.notifications.notify(
+      updated.userId,
+      NotificationType.CONGE_VALIDE,
+      'Demande de congé approuvée',
+      `${updated.leaveType.name} — ${updated.daysCount} jour${updated.daysCount > 1 ? 's' : ''}`,
+      `/leaves?id=${id}`,
+      updated.leaveType.name,
+    );
+
     return updated;
   }
 
@@ -172,6 +200,15 @@ export class LeaveRequestsService {
       entityId: id,
       metadata: { comment: dto.comment },
     });
+
+    await this.notifications.notify(
+      updated.userId,
+      NotificationType.CONGE_REJETE,
+      'Demande de congé rejetée',
+      dto.comment,
+      `/leaves?id=${id}`,
+      updated.leaveType.name,
+    );
 
     return updated;
   }

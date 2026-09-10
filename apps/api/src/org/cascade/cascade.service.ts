@@ -201,6 +201,30 @@ export class CascadeService {
   }
 
   /**
+   * Filtre Prisma inverse de hasDirectAuthorityOver : les utilisateurs ayant
+   * une autorité hiérarchique directe *sur* `target` — pour notifier le ou
+   * les validateurs d'un événement (ex. soumission d'une demande de congé),
+   * jamais pour vérifier une autorisation (utiliser assertHasDirectAuthorityOver
+   * pour ça). Mêmes rôles que hasDirectAuthorityOver (LEADERSHIP_ROLES en
+   * plus du chef direct de la division/section/cellule de `target`),
+   * ADMIN_SYSTEME exclu pour la même raison. `target` lui-même est toujours
+   * exclu, y compris s'il est par ailleurs chef de sa propre unité.
+   */
+  getUsersWithDirectAuthorityOverWhere(target: OrgTarget): Prisma.UserWhereInput {
+    return {
+      id: { not: target.id },
+      OR: [
+        { role: { in: LEADERSHIP_ROLES } },
+        ...(target.divisionId ? [{ role: SystemRole.CHEF_DIVISION, divisionId: target.divisionId }] : []),
+        ...(target.divisionId && target.sectionId
+          ? [{ role: SystemRole.CHEF_SECTION, divisionId: target.divisionId, sectionId: target.sectionId }]
+          : []),
+        ...(target.celluleId ? [{ role: SystemRole.CHEF_CELLULE, celluleId: target.celluleId }] : []),
+      ],
+    };
+  }
+
+  /**
    * Autorité pour diffuser une tâche à toute une division (RF-TAC, diffusion
    * collective/individuelle) : DN/DNA sur n'importe laquelle, un Chef de
    * Division sur la sienne uniquement. Volontairement PAS une boucle
