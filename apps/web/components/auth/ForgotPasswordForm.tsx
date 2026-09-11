@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { forgotPasswordRequest } from '../../lib/api/auth';
 import { Field } from '../ui/Input';
 import { Button } from '../ui/Button';
+import { OrDivider } from './OrDivider';
+import { SecondaryAuthLink } from './SecondaryAuthLink';
 
 export function ForgotPasswordForm() {
   const [email, setEmail] = useState('');
@@ -67,11 +69,9 @@ export function ForgotPasswordForm() {
         {submitting ? 'Envoi…' : 'Envoyer le lien de réinitialisation'}
       </Button>
 
-      <p className="mt-5 text-center text-[13px] text-text-muted">
-        <Link href="/login" className="font-semibold text-accent hover:underline">
-          Retour à la connexion
-        </Link>
-      </p>
+      <OrDivider />
+
+      <SecondaryAuthLink href="/login">← Retour à la connexion</SecondaryAuthLink>
     </form>
   );
 }

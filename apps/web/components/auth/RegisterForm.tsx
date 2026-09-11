@@ -11,6 +11,8 @@ import type { RegistrationOrgOptions, RegistrationSupervisorOption } from '../..
 import { DeclaredAttachmentFields, type DeclaredAttachment } from './DeclaredAttachmentFields';
 import { Field } from '../ui/Input';
 import { Button } from '../ui/Button';
+import { OrDivider } from './OrDivider';
+import { SecondaryAuthLink } from './SecondaryAuthLink';
 
 const EMPTY_DECLARATION: DeclaredAttachment = {
   declaredDivisionId: null,
@@ -140,12 +142,9 @@ export function RegisterForm() {
         {submitting ? 'Envoi…' : 'Envoyer la demande'}
       </Button>
 
-      <p className="mt-5 text-center text-[13px] text-text-muted">
-        Déjà un compte ?{' '}
-        <Link href="/login" className="font-semibold text-accent hover:underline">
-          Se connecter
-        </Link>
-      </p>
+      <OrDivider />
+
+      <SecondaryAuthLink href="/login">Se connecter →</SecondaryAuthLink>
     </form>
   );
 }

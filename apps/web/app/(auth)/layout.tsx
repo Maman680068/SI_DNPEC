@@ -3,14 +3,6 @@ import Link from 'next/link';
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="relative flex h-screen overflow-hidden">
-      <div className="absolute left-0 right-0 top-0 z-10">
-        <div className="flag-stripe">
-          <span className="flag-r" />
-          <span className="flag-y" />
-          <span className="flag-g" />
-        </div>
-      </div>
-
       {/* Hauteur ancrée à l'écran et scroll propre — indépendant du panneau de
        * droite, qui peut être bien plus long (ex. /register) sans l'étirer. */}
       <div className="relative hidden h-full w-1/2 flex-col justify-between overflow-y-auto overflow-x-hidden border-r border-line bg-surface p-16 text-ink md:flex">
@@ -45,19 +37,26 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       </div>
 
       {/* Défile seul quand le formulaire (ex. /register) dépasse la hauteur de
-       * l'écran — le wrapper interne min-h-full centre verticalement les
-       * formulaires courts (/login, /forgot-password) sans gêner ce scroll. */}
-      <div className="h-full w-full overflow-y-auto md:w-1/2">
-        <div className="flex min-h-full flex-col items-center justify-center p-12">
-          <div className="w-full max-w-[360px]">
-            <Link
-              href="/"
-              className="mb-5 inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-text-faint hover:text-ink md:hidden"
-            >
-              ← Retour à l&apos;accueil
-            </Link>
-            {children}
+       * l'écran — le wrapper interne min-h-full garde la carte centrée sans
+       * gêner ce scroll, quelle que soit la longueur du formulaire. */}
+      <div className="h-full w-full overflow-y-auto bg-bg md:w-1/2">
+        <div className="flex min-h-full flex-col p-8">
+          <Link
+            href="/"
+            className="inline-flex w-fit items-center gap-1.5 text-[12.5px] font-semibold text-text-faint hover:text-ink"
+          >
+            ← Retour à l&apos;accueil
+          </Link>
+
+          <div className="flex flex-1 items-center justify-center py-8">
+            <div className="w-full max-w-[420px] rounded-[18px] bg-surface p-10 shadow-[0_20px_40px_-12px_rgba(27,42,107,0.14)]">
+              {children}
+            </div>
           </div>
+
+          <p className="pb-2 text-center text-[11.5px] text-text-faint">
+            Ministère de l&apos;Économie, des Finances et du Budget · République de Guinée
+          </p>
         </div>
       </div>
     </div>

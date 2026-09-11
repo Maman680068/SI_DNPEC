@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { useAuth } from '../../lib/auth/AuthProvider';
 import { Field } from '../ui/Input';
 import { Button } from '../ui/Button';
+import { OrDivider } from './OrDivider';
+import { SecondaryAuthLink } from './SecondaryAuthLink';
 
 export function LoginForm() {
   const { login } = useAuth();
@@ -62,12 +64,9 @@ export function LoginForm() {
         {submitting ? 'Connexion…' : 'Se connecter'}
       </Button>
 
-      <p className="mt-5 text-center text-[13px] text-text-muted">
-        Pas encore de compte ?{' '}
-        <Link href="/register" className="font-semibold text-accent hover:underline">
-          Demander l’accès
-        </Link>
-      </p>
+      <OrDivider />
+
+      <SecondaryAuthLink href="/register">Demander l’accès →</SecondaryAuthLink>
     </form>
   );
 }
