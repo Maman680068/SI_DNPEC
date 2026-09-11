@@ -38,9 +38,7 @@ export default function RootPage() {
 
       <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-6 md:px-10">
         <div className="flex items-center gap-3">
-          <div className="flex h-[42px] w-[42px] items-center justify-center rounded-md bg-ink font-heading text-base font-extrabold text-white">
-            DN
-          </div>
+          <img src="/logo-dnpec.png" alt="DNPEC" className="h-[42px] w-[42px] flex-shrink-0 object-contain" />
           <div>
             <div className="text-[11.5px] font-semibold tracking-wide text-text-faint">RÉPUBLIQUE DE GUINÉE</div>
             <div className="font-heading text-sm font-bold text-ink">DNPEC · Système Interne</div>

@@ -13,9 +13,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
 
       <div className="relative hidden flex-[1.1] flex-col justify-between overflow-hidden border-r border-line bg-surface p-16 text-ink md:flex">
         <Link href="/" className="flex items-center gap-3">
-          <div className="flex h-[42px] w-[42px] items-center justify-center rounded-md bg-ink font-heading text-base font-extrabold text-white">
-            DN
-          </div>
+          <img src="/logo-dnpec.png" alt="DNPEC" className="h-[42px] w-[42px] flex-shrink-0 object-contain" />
           <div>
             <div className="text-[11.5px] font-semibold tracking-wide text-text-faint">
               RÉPUBLIQUE DE GUINÉE

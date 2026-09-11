@@ -18,6 +18,7 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "DNPEC · Système d'Information Interne",
   description: 'Coordination des tâches, communication et archives de la DNPEC.',
+  icons: { icon: '/logo-dnpec.png' },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

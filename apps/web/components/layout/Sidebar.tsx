@@ -72,9 +72,7 @@ export function Sidebar({ open = false, onClose }: { open?: boolean; onClose?: (
         }`}
       >
         <div className="mb-7 flex flex-shrink-0 items-center gap-3 px-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-md bg-ink font-heading text-sm font-extrabold text-white">
-            DN
-          </div>
+          <img src="/logo-dnpec.png" alt="DNPEC" className="h-9 w-9 flex-shrink-0 object-contain" />
           <div>
             <div className="text-[11px] text-text-faint">DNPEC</div>
             <div className="font-heading text-[13.5px] font-bold text-ink">Espace de travail</div>
