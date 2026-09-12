@@ -181,6 +181,7 @@ export class UsersService {
   /** Création manuelle par l'Administrateur système (RF-SEC-01, modalité 1). */
   async create(dto: CreateUserDto, actor: AuthenticatedUser) {
     await this.assertOrgAttachmentValid(dto);
+    await this.assertNoActiveChiefConflict(dto.role, dto);
 
     const existing = await this.prisma.user.findUnique({ where: { email: dto.email } });
     if (existing) throw new ConflictException('Un compte existe déjà avec cet email');
@@ -354,6 +355,7 @@ export class UsersService {
       supervisorId: dto.supervisorId ?? null,
     };
     await this.assertOrgAttachmentValid(attachment);
+    await this.assertNoActiveChiefConflict(dto.role, attachment);
 
     const updated = await this.prisma.user.update({
       where: { id: target.id },
@@ -432,6 +434,45 @@ export class UsersService {
       const supervisor = await this.prisma.user.findUnique({ where: { id: input.supervisorId } });
       if (!supervisor || !SUPERVISOR_ROLES.includes(supervisor.role)) {
         throw new ConflictException('Le superviseur doit être un DN, une DNA ou un Chef de Cellule.');
+      }
+    }
+  }
+
+  /**
+   * Contrairement à Cellule.chefId (unique, verrouillé par transaction dans
+   * CellulesService.assignChef), rien n'empêchait nativement d'avoir deux
+   * Chefs de Division ou deux Chefs de Section ACTIFS simultanément sur la
+   * même unité — possible par création manuelle ou approbation d'inscription
+   * avant ce garde-fou. Bloque explicitement plutôt que de laisser un état
+   * incohérent silencieux (deux comptes avec la même autorité de cascade sur
+   * le même périmètre). Appelé par create() et approveRegistration()
+   * uniquement : ce sont les deux seuls endroits qui attribuent `role`.
+   */
+  private async assertNoActiveChiefConflict(role: SystemRole, attachment: OrgAttachment): Promise<void> {
+    if (role === SystemRole.CHEF_DIVISION && attachment.divisionId) {
+      const existing = await this.prisma.user.findFirst({
+        where: { role: SystemRole.CHEF_DIVISION, divisionId: attachment.divisionId, status: UserStatus.ACTIF },
+      });
+      if (existing) {
+        throw new ConflictException(
+          `Cette division a déjà un Chef de Division actif : ${existing.firstName} ${existing.lastName}. Retirez-le d'abord ou choisissez un autre rôle.`,
+        );
+      }
+    }
+
+    if (role === SystemRole.CHEF_SECTION && attachment.sectionId) {
+      const existing = await this.prisma.user.findFirst({
+        where: {
+          role: SystemRole.CHEF_SECTION,
+          divisionId: attachment.divisionId,
+          sectionId: attachment.sectionId,
+          status: UserStatus.ACTIF,
+        },
+      });
+      if (existing) {
+        throw new ConflictException(
+          `Cette section a déjà un Chef de Section actif : ${existing.firstName} ${existing.lastName}. Retirez-le d'abord ou choisissez un autre rôle.`,
+        );
       }
     }
   }

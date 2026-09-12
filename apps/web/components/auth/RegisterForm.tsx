@@ -181,18 +181,16 @@ export function RegisterForm() {
         </select>
       </div>
 
-      {showAttachmentSection &&
-        orgOptions &&
-        (orgOptions.divisions.length > 0 || orgOptions.cellules.length > 0 || supervisorOptions.length > 0) && (
-          <DeclaredAttachmentFields
-            divisions={orgOptions.divisions}
-            cellules={orgOptions.cellules}
-            supervisors={supervisorOptions}
-            allowedModes={allowedModes}
-            value={declaration}
-            onChange={setDeclaration}
-          />
-        )}
+      {showAttachmentSection && orgOptions && (
+        <DeclaredAttachmentFields
+          divisions={orgOptions.divisions}
+          cellules={orgOptions.cellules}
+          supervisors={supervisorOptions}
+          allowedModes={allowedModes}
+          value={declaration}
+          onChange={setDeclaration}
+        />
+      )}
 
       {error && (
         <div className="mb-4 rounded-md bg-clay-soft px-3 py-2.5 text-[13px] text-clay">{error}</div>
