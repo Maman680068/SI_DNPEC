@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type {
   RegistrationCelluleOption,
   RegistrationDivisionOption,
@@ -14,7 +14,7 @@ export interface DeclaredAttachment {
   declaredSupervisorId: string | null;
 }
 
-type Mode = 'division' | 'cellule' | 'supervisor';
+export type Mode = 'division' | 'cellule' | 'supervisor';
 
 const SUPERVISOR_ROLE_LABEL: Record<string, string> = {
   DN: 'Directeur National',
@@ -46,23 +46,44 @@ const EMPTY: DeclaredAttachment = {
   declaredSupervisorId: null,
 };
 
+const TAB_LABEL: Record<Mode, string> = {
+  division: 'Division',
+  cellule: 'Cellule transversale',
+  supervisor: 'Assistant de direction',
+};
+
 export function DeclaredAttachmentFields({
   divisions,
   cellules,
   supervisors,
+  allowedModes,
   value,
   onChange,
 }: {
   divisions: RegistrationDivisionOption[];
   cellules: RegistrationCelluleOption[];
   supervisors: RegistrationSupervisorOption[];
+  allowedModes: Mode[];
   value: DeclaredAttachment;
   onChange: (next: DeclaredAttachment) => void;
 }) {
-  const [mode, setMode] = useState<Mode>(
-    value.declaredCelluleId ? 'cellule' : value.declaredSupervisorId ? 'supervisor' : 'division',
-  );
+  const [mode, setMode] = useState<Mode>(() => {
+    const derived = value.declaredCelluleId ? 'cellule' : value.declaredSupervisorId ? 'supervisor' : 'division';
+    return allowedModes.includes(derived) ? derived : (allowedModes[0] ?? 'division');
+  });
   const selectedDivision = divisions.find((d) => d.id === value.declaredDivisionId);
+
+  // Le poste déclaré (RegisterForm) restreint les onglets pertinents — si le
+  // poste change et rend l'onglet actif invalide, on ne laisse jamais une
+  // valeur incohérente cachée derrière un onglet qui a disparu. allowedModes
+  // ne devrait jamais être vide ici : RegisterForm ne monte ce composant que
+  // pour un poste qui déclare un rattachement (voir showAttachmentSection).
+  useEffect(() => {
+    if (!allowedModes.includes(mode)) {
+      setMode(allowedModes[0] ?? 'division');
+      onChange(EMPTY);
+    }
+  }, [allowedModes]);
 
   function switchMode(next: Mode) {
     setMode(next);
@@ -74,28 +95,18 @@ export function DeclaredAttachmentFields({
       <label className="mb-1.5 block text-[12.5px] font-semibold text-text">
         Votre situation actuelle
       </label>
-      <p className="mb-2 text-[11.5px] text-text-faint">
-        Indiquez où vous travaillez actuellement à la DNPEC. Un administrateur vérifiera cette
-        information avant d’activer votre compte.
-      </p>
 
       <div className="mb-2.5 flex flex-wrap gap-0.5 rounded-md border border-line bg-bg p-0.5" style={{ width: 'fit-content' }}>
-        {(
-          [
-            { key: 'division', label: 'Division' },
-            { key: 'cellule', label: 'Cellule transversale' },
-            { key: 'supervisor', label: 'Assistant de direction' },
-          ] as const
-        ).map((option) => (
+        {allowedModes.map((key) => (
           <button
             type="button"
-            key={option.key}
-            onClick={() => switchMode(option.key)}
+            key={key}
+            onClick={() => switchMode(key)}
             className={`rounded-[6px] px-3 py-1.5 text-[12px] font-semibold ${
-              mode === option.key ? 'bg-surface text-ink shadow-sm' : 'text-text-muted'
+              mode === key ? 'bg-surface text-ink shadow-sm' : 'text-text-muted'
             }`}
           >
-            {option.label}
+            {TAB_LABEL[key]}
           </button>
         ))}
       </div>

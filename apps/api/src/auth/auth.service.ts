@@ -394,14 +394,22 @@ export class AuthService {
     declaredSectionId?: string;
     declaredCelluleId?: string;
     declaredSupervisorId?: string;
+    declaredRole?: string;
   }): Promise<void> {
     const { declaredDivisionId, declaredSectionId, declaredCelluleId, declaredSupervisorId } = dto;
     const declaredCount = [declaredDivisionId, declaredCelluleId, declaredSupervisorId].filter(Boolean).length;
+    // DN/DNA ne déclarent aucun rattachement (aucun sens à ce niveau) — seul
+    // cas où l'absence de déclaration est attendue, voir RegisterForm côté web
+    // qui masque entièrement "Votre situation actuelle" pour ces deux postes.
+    const isTopLeadership = dto.declaredRole === 'DN' || dto.declaredRole === 'DNA';
 
-    if (declaredCount === 0) {
+    if (declaredCount === 0 && !isTopLeadership) {
       throw new ConflictException(
         'Indiquez votre division, votre cellule actuelle, ou la personne que vous assistez.',
       );
+    }
+    if (declaredCount > 0 && isTopLeadership) {
+      throw new ConflictException('Le Directeur National et la Directrice Nationale Adjointe ne déclarent pas de rattachement.');
     }
     if (declaredCount > 1) {
       throw new ConflictException(

@@ -9,7 +9,7 @@ import {
 } from '../../lib/api/auth';
 import { DECLARABLE_ROLES, DECLARABLE_ROLE_LABEL } from '../../lib/auth/types';
 import type { RegistrationOrgOptions, RegistrationSupervisorOption } from '../../lib/auth/types';
-import { DeclaredAttachmentFields, type DeclaredAttachment } from './DeclaredAttachmentFields';
+import { DeclaredAttachmentFields, type DeclaredAttachment, type Mode } from './DeclaredAttachmentFields';
 import { Field } from '../ui/Input';
 import { Button } from '../ui/Button';
 import { OrDivider } from './OrDivider';
@@ -21,6 +21,26 @@ const EMPTY_DECLARATION: DeclaredAttachment = {
   declaredCelluleId: null,
   declaredSupervisorId: null,
 };
+
+const ALL_MODES: Mode[] = ['division', 'cellule', 'supervisor'];
+
+// Onglets pertinents de "Votre situation actuelle" selon le poste déclaré —
+// DN et DNA en sont délibérément absents : ce niveau ne déclare aucun
+// rattachement, voir showAttachmentSection ci-dessous.
+const ATTACHMENT_MODES_BY_ROLE: Record<string, Mode[]> = {
+  AGENT: ['division', 'cellule'],
+  CHEF_SECTION: ['division'],
+  CHEF_DIVISION: ['division'],
+  CHEF_CELLULE: ['cellule'],
+  ASSISTANT_DIRECTION: ['supervisor'],
+};
+
+function modeOf(declaration: DeclaredAttachment): Mode | null {
+  if (declaration.declaredCelluleId) return 'cellule';
+  if (declaration.declaredSupervisorId) return 'supervisor';
+  if (declaration.declaredDivisionId) return 'division';
+  return null;
+}
 
 export function RegisterForm() {
   const [email, setEmail] = useState('');
@@ -43,6 +63,24 @@ export function RegisterForm() {
       .then(setSupervisorOptions)
       .catch(() => setSupervisorOptions([]));
   }, []);
+
+  // DN/DNA ne déclarent aucun rattachement (aucun sens à ce niveau) — la
+  // section "Votre situation actuelle" disparaît entièrement pour eux.
+  const showAttachmentSection = declaredRole !== 'DN' && declaredRole !== 'DNA';
+  const allowedModes = ATTACHMENT_MODES_BY_ROLE[declaredRole] ?? ALL_MODES;
+
+  function handleDeclaredRoleChange(next: string) {
+    setDeclaredRole(next);
+    const hideSection = next === 'DN' || next === 'DNA';
+    const nextModes = hideSection ? [] : (ATTACHMENT_MODES_BY_ROLE[next] ?? ALL_MODES);
+    const currentMode = modeOf(declaration);
+    // Si l'onglet déjà rempli n'a plus de sens pour le nouveau poste (ou que
+    // la section disparaît entièrement), on réinitialise plutôt que de
+    // soumettre une valeur incohérente cachée derrière un onglet disparu.
+    if (currentMode && !nextModes.includes(currentMode)) {
+      setDeclaration(EMPTY_DECLARATION);
+    }
+  }
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -128,12 +166,9 @@ export function RegisterForm() {
 
       <div className="mb-4">
         <label className="mb-1.5 block text-[12.5px] font-semibold text-text">Poste actuel</label>
-        <p className="mb-2 text-[11.5px] text-text-faint">
-          Purement déclaratif : un administrateur choisira lui-même le rôle réel à l’approbation.
-        </p>
         <select
           value={declaredRole}
-          onChange={(e) => setDeclaredRole(e.target.value)}
+          onChange={(e) => handleDeclaredRoleChange(e.target.value)}
           required
           className="w-full rounded-md border border-line bg-surface px-3 py-2.5 text-sm"
         >
@@ -146,12 +181,14 @@ export function RegisterForm() {
         </select>
       </div>
 
-      {orgOptions &&
+      {showAttachmentSection &&
+        orgOptions &&
         (orgOptions.divisions.length > 0 || orgOptions.cellules.length > 0 || supervisorOptions.length > 0) && (
           <DeclaredAttachmentFields
             divisions={orgOptions.divisions}
             cellules={orgOptions.cellules}
             supervisors={supervisorOptions}
+            allowedModes={allowedModes}
             value={declaration}
             onChange={setDeclaration}
           />
