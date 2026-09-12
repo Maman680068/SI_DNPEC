@@ -7,6 +7,7 @@ import {
   getRegistrationSupervisorOptionsRequest,
   registerRequest,
 } from '../../lib/api/auth';
+import { DECLARABLE_ROLES, DECLARABLE_ROLE_LABEL } from '../../lib/auth/types';
 import type { RegistrationOrgOptions, RegistrationSupervisorOption } from '../../lib/auth/types';
 import { DeclaredAttachmentFields, type DeclaredAttachment } from './DeclaredAttachmentFields';
 import { Field } from '../ui/Input';
@@ -26,6 +27,7 @@ export function RegisterForm() {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [password, setPassword] = useState('');
+  const [declaredRole, setDeclaredRole] = useState('');
   const [declaration, setDeclaration] = useState<DeclaredAttachment>(EMPTY_DECLARATION);
   const [orgOptions, setOrgOptions] = useState<RegistrationOrgOptions | null>(null);
   const [supervisorOptions, setSupervisorOptions] = useState<RegistrationSupervisorOption[]>([]);
@@ -56,6 +58,7 @@ export function RegisterForm() {
         declaredSectionId: declaration.declaredSectionId ?? undefined,
         declaredCelluleId: declaration.declaredCelluleId ?? undefined,
         declaredSupervisorId: declaration.declaredSupervisorId ?? undefined,
+        declaredRole,
       });
       setSubmitted(true);
     } catch (err) {
@@ -122,6 +125,26 @@ export function RegisterForm() {
         autoComplete="new-password"
       />
       <p className="-mt-3 mb-4 text-[11.5px] text-text-faint">12 caractères minimum.</p>
+
+      <div className="mb-4">
+        <label className="mb-1.5 block text-[12.5px] font-semibold text-text">Poste actuel</label>
+        <p className="mb-2 text-[11.5px] text-text-faint">
+          Purement déclaratif : un administrateur choisira lui-même le rôle réel à l’approbation.
+        </p>
+        <select
+          value={declaredRole}
+          onChange={(e) => setDeclaredRole(e.target.value)}
+          required
+          className="w-full rounded-md border border-line bg-surface px-3 py-2.5 text-sm"
+        >
+          <option value="">— Sélectionner votre poste actuel —</option>
+          {DECLARABLE_ROLES.map((r) => (
+            <option key={r} value={r}>
+              {DECLARABLE_ROLE_LABEL[r]}
+            </option>
+          ))}
+        </select>
+      </div>
 
       {orgOptions &&
         (orgOptions.divisions.length > 0 || orgOptions.cellules.length > 0 || supervisorOptions.length > 0) && (

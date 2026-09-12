@@ -23,6 +23,9 @@ export interface AdminUser {
   declaredSectionId: string | null;
   declaredCelluleId: string | null;
   declaredSupervisorId: string | null;
+  /** Poste actuel déclaré à l'inscription (ex. "CHEF_DIVISION") — voir
+   * schema.prisma, User.declaredRole. Purement informatif. */
+  declaredRole: string | null;
   createdAt: string;
   updatedAt: string;
 }

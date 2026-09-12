@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { rejectUser } from '../../lib/api/users';
 import { useOrg } from '../../lib/org/OrgProvider';
+import { DECLARABLE_ROLE_LABEL, type DeclarableRole } from '../../lib/auth/types';
 import type { AdminUser } from '../../lib/users/types';
 import { Card } from '../ui/Card';
 import { Badge } from '../ui/Badge';
@@ -72,7 +73,14 @@ export function PendingRegistrationsList({
               <div className="mb-1.5 text-[13px] text-text-muted">
                 {user.email} · Inscrit le {formatDate(user.createdAt)}
               </div>
-              {declared && <Badge tone="gold">Souhaite : {declared}</Badge>}
+              <div className="flex flex-wrap gap-1.5">
+                {user.declaredRole && (
+                  <Badge tone="accent">
+                    Poste déclaré : {DECLARABLE_ROLE_LABEL[user.declaredRole as DeclarableRole] ?? user.declaredRole}
+                  </Badge>
+                )}
+                {declared && <Badge tone="gold">Souhaite : {declared}</Badge>}
+              </div>
             </div>
             <div className="flex flex-shrink-0 gap-2">
               <Button

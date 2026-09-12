@@ -32,6 +32,7 @@ const USER_LIST_SELECT = {
   declaredSectionId: true,
   declaredCelluleId: true,
   declaredSupervisorId: true,
+  declaredRole: true,
   createdAt: true,
   updatedAt: true,
 } satisfies Prisma.UserSelect;

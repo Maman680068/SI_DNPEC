@@ -29,6 +29,7 @@ export async function registerRequest(input: {
   declaredSectionId?: string;
   declaredCelluleId?: string;
   declaredSupervisorId?: string;
+  declaredRole: string;
 }): Promise<{ message: string }> {
   const res = await fetch(`${PUBLIC_API_BASE_URL}/auth/register`, {
     method: 'POST',

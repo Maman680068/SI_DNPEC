@@ -58,3 +58,28 @@ export interface RegistrationSupervisorOption {
   role: SystemRole;
   celluleName: string | null;
 }
+
+/** Postes déclarables à l'inscription (User.declaredRole, API) — délibérément
+ * une simple liste de chaînes, pas SystemRole : purement informatif, jamais
+ * attribué automatiquement (voir ApproveRegistrationModal). */
+export const DECLARABLE_ROLES = [
+  'AGENT',
+  'CHEF_SECTION',
+  'CHEF_DIVISION',
+  'CHEF_CELLULE',
+  'DN',
+  'DNA',
+  'ASSISTANT_DIRECTION',
+] as const;
+
+export type DeclarableRole = (typeof DECLARABLE_ROLES)[number];
+
+export const DECLARABLE_ROLE_LABEL: Record<DeclarableRole, string> = {
+  AGENT: 'Chargé d’Études / Agent',
+  CHEF_SECTION: 'Chef de Section',
+  CHEF_DIVISION: 'Chef de Division',
+  CHEF_CELLULE: 'Chef de Cellule',
+  DN: 'Directeur National',
+  DNA: 'Directeur National Adjoint',
+  ASSISTANT_DIRECTION: 'Assistant(e) de Direction',
+};

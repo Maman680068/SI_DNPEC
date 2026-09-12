@@ -364,6 +364,13 @@ model User {
   // doit avoir le rôle DN, DNA ou CHEF_CELLULE et être ACTIF (même invariant
   // que supervisorId ci-dessus), validé dans AuthService.register.
   declaredSupervisorId String?
+  // Poste actuel déclaré par la personne elle-même à l'inscription (ex.
+  // "CHEF_DIVISION") — String simple et non un SystemRole : délibérément
+  // découplé du champ `role` réel, purement informatif pour aider l'admin à
+  // choisir le rôle à l'approbation (voir ApproveRegistrationModal côté web,
+  // qui l'utilise pour pré-sélectionner le rôle sans jamais l'attribuer
+  // automatiquement). Valeurs acceptées listées dans RegisterDto.
+  declaredRole         String?
 
   // Cellule dont cet utilisateur est le chef (réciproque de Cellule.chefId) —
   // distinct de `cellule` ci-dessus qui porte le simple rattachement/membre.

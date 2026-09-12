@@ -5,9 +5,25 @@ import { approveUser } from '../../lib/api/users';
 import { useOrg } from '../../lib/org/OrgProvider';
 import type { AdminUser, OrgAttachment } from '../../lib/users/types';
 import { ASSIGNABLE_ROLES, ROLE_LABEL } from '../../lib/users/types';
-import type { SystemRole } from '../../lib/auth/types';
+import { DECLARABLE_ROLE_LABEL, type DeclarableRole, type SystemRole } from '../../lib/auth/types';
 import { OrgAttachmentFields } from './OrgAttachmentFields';
 import { Button } from '../ui/Button';
+
+/**
+ * Rôle réel le plus proche du poste déclaré à l'inscription (jamais attribué
+ * automatiquement — juste une pré-sélection que l'admin confirme ou corrige,
+ * voir schema.prisma User.declaredRole). Le poste déclaré est prioritaire sur
+ * le rattachement déclaré s'ils divergent : il est plus directement lié au
+ * rôle que la simple présence d'un superviseur déclaré.
+ * CHEF_CELLULE en est exclu (comme ASSIGNABLE_ROLES) : sa nomination passe
+ * par "Nommer chef de cellule" sur un compte déjà créé, pas par ici.
+ */
+function nearestAssignableRole(user: AdminUser): SystemRole {
+  if (user.declaredRole && (ASSIGNABLE_ROLES as string[]).includes(user.declaredRole)) {
+    return user.declaredRole as SystemRole;
+  }
+  return user.declaredSupervisorId ? 'ASSISTANT_DIRECTION' : 'AGENT';
+}
 
 export function ApproveRegistrationModal({
   user,
@@ -19,13 +35,12 @@ export function ApproveRegistrationModal({
   onApproved: (user: AdminUser) => void;
 }) {
   const { getDivisionName, getSectionName, getCelluleName, getUserLabel } = useOrg();
-  // Une Division/Cellule déclarée reste compatible avec le rôle par défaut AGENT
-  // (le cas courant), donc pas besoin de deviner un rôle différent — mais un
-  // superviseur déclaré ne peut correspondre qu'au rôle ASSISTANT_DIRECTION :
-  // partir d'AGENT ici forcerait l'admin à changer le rôle manuellement, ce qui
-  // effacerait aussitôt le pré-remplissage (OrgAttachmentFields réinitialise
+  // Pré-sélectionné à partir du poste déclaré (nearestAssignableRole) — l'admin
+  // garde la main pour corriger. Partir d'un rôle cohérent dès le montage évite
+  // aussi que l'admin doive changer le rôle manuellement, ce qui effacerait le
+  // pré-remplissage du rattachement (OrgAttachmentFields réinitialise
   // l'attachement à chaque changement de "famille" de rattachement).
-  const [role, setRole] = useState<SystemRole>(user.declaredSupervisorId ? 'ASSISTANT_DIRECTION' : 'AGENT');
+  const [role, setRole] = useState<SystemRole>(() => nearestAssignableRole(user));
   // Pré-rempli avec le rattachement déclaré à l'inscription (voir OrgAttachmentFields :
   // son effet de réinitialisation-au-changement-de-rôle s'abstient exprès au premier
   // montage pour laisser passer ces valeurs) — l'admin n'a plus qu'à confirmer ou corriger.
@@ -73,9 +88,19 @@ export function ApproveRegistrationModal({
           {user.firstName} {user.lastName} · {user.email}
         </p>
 
-        {hasDeclaration && (
-          <div className="mb-5 rounded-md bg-gold-soft px-3.5 py-2.5 text-[12.5px] text-ink">
-            <strong>Rattachement déclaré à l’inscription :</strong> {declarationLabel}
+        {(user.declaredRole || hasDeclaration) && (
+          <div className="mb-5 space-y-1 rounded-md bg-gold-soft px-3.5 py-2.5 text-[12.5px] text-ink">
+            {user.declaredRole && (
+              <div>
+                <strong>Poste déclaré à l’inscription :</strong>{' '}
+                {DECLARABLE_ROLE_LABEL[user.declaredRole as DeclarableRole] ?? user.declaredRole}
+              </div>
+            )}
+            {hasDeclaration && (
+              <div>
+                <strong>Rattachement déclaré :</strong> {declarationLabel}
+              </div>
+            )}
           </div>
         )}
 

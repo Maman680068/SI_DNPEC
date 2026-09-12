@@ -119,6 +119,7 @@ export class AuthService {
         declaredSectionId: dto.declaredSectionId ?? null,
         declaredCelluleId: dto.declaredCelluleId ?? null,
         declaredSupervisorId: dto.declaredSupervisorId ?? null,
+        declaredRole: dto.declaredRole,
       },
     });
 
