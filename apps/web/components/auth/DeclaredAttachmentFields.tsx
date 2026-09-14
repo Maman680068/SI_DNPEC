@@ -22,7 +22,7 @@ const SUPERVISOR_ROLE_LABEL: Record<string, string> = {
   CHEF_CELLULE: 'Chef de Cellule',
 };
 
-function supervisorLabel(option: RegistrationSupervisorOption): string {
+export function supervisorLabel(option: RegistrationSupervisorOption): string {
   const roleLabel =
     option.role === 'CHEF_CELLULE' && option.celluleName
       ? `Chef de cellule ${option.celluleName}`
@@ -73,11 +73,12 @@ export function DeclaredAttachmentFields({
   });
   const selectedDivision = divisions.find((d) => d.id === value.declaredDivisionId);
 
-  // Le poste déclaré (RegisterForm) restreint les onglets pertinents — si le
-  // poste change et rend l'onglet actif invalide, on ne laisse jamais une
-  // valeur incohérente cachée derrière un onglet qui a disparu. allowedModes
-  // ne devrait jamais être vide ici : RegisterForm ne monte ce composant que
-  // pour un poste qui déclare un rattachement (voir showAttachmentSection).
+  // Le poste déclaré (RegisterWizard, étape 3) restreint les onglets pertinents
+  // — si le poste change et rend l'onglet actif invalide, on ne laisse jamais
+  // une valeur incohérente cachée derrière un onglet qui a disparu.
+  // allowedModes ne devrait jamais être vide ici : RegisterWizard ne monte ce
+  // composant que pour un poste qui déclare un rattachement (voir
+  // showAttachmentSection).
   useEffect(() => {
     if (!allowedModes.includes(mode)) {
       setMode(allowedModes[0] ?? 'division');
