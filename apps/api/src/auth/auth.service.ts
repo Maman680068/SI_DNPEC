@@ -201,8 +201,13 @@ export class AuthService {
       throw new UnauthorizedException('Identifiants invalides');
     }
 
-    if (user.status !== UserStatus.ACTIF) {
-      throw new ForbiddenException("Ce compte n'est pas actif.");
+    if (user.status === UserStatus.EN_ATTENTE) {
+      throw new ForbiddenException(
+        "Votre demande d'accès est en cours d'examen par un administrateur. Vous recevrez un accès dès qu'elle sera approuvée.",
+      );
+    }
+    if (user.status === UserStatus.SUSPENDU) {
+      throw new ForbiddenException('Votre compte a été suspendu. Contactez un administrateur pour plus d’informations.');
     }
 
     this.loginAttempts.recordSuccess(dto.email, ip);

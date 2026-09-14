@@ -34,6 +34,17 @@ const ATTACHMENT_MODES_BY_ROLE: Record<string, Mode[]> = {
   ASSISTANT_DIRECTION: ['supervisor'],
 };
 
+// Un Chef de Division n'est jamais rattaché à une section précise (il dirige
+// la division entière) : Section disparaît complètement pour ce poste, reste
+// visible et facultative pour un Agent, visible et obligatoire pour un Chef
+// de Section — même règle que le pendant admin, OrgAttachmentFields.attachmentKind.
+const SECTION_RULE_BY_ROLE: Record<string, { showSection: boolean; sectionRequired: boolean }> = {
+  AGENT: { showSection: true, sectionRequired: false },
+  CHEF_SECTION: { showSection: true, sectionRequired: true },
+  CHEF_DIVISION: { showSection: false, sectionRequired: false },
+};
+const DEFAULT_SECTION_RULE = { showSection: true, sectionRequired: false };
+
 function modeOf(declaration: DeclaredAttachment): Mode | null {
   if (declaration.declaredCelluleId) return 'cellule';
   if (declaration.declaredSupervisorId) return 'supervisor';
@@ -108,6 +119,7 @@ export function RegisterWizard() {
   // section "Votre situation actuelle" disparaît entièrement pour eux.
   const showAttachmentSection = declaredRole !== 'DN' && declaredRole !== 'DNA';
   const allowedModes = ATTACHMENT_MODES_BY_ROLE[declaredRole] ?? ALL_MODES;
+  const sectionRule = SECTION_RULE_BY_ROLE[declaredRole] ?? DEFAULT_SECTION_RULE;
 
   function handleDeclaredRoleChange(next: string) {
     setDeclaredRole(next);
@@ -349,6 +361,8 @@ export function RegisterWizard() {
                     cellules={orgOptions.cellules}
                     supervisors={supervisorOptions}
                     allowedModes={allowedModes}
+                    showSection={sectionRule.showSection}
+                    sectionRequired={sectionRule.sectionRequired}
                     value={declaration}
                     onChange={setDeclaration}
                   />

@@ -57,6 +57,8 @@ export function DeclaredAttachmentFields({
   cellules,
   supervisors,
   allowedModes,
+  showSection,
+  sectionRequired,
   value,
   onChange,
 }: {
@@ -64,6 +66,13 @@ export function DeclaredAttachmentFields({
   cellules: RegistrationCelluleOption[];
   supervisors: RegistrationSupervisorOption[];
   allowedModes: Mode[];
+  // Un Chef de Division n'est jamais rattaché à une section précise : le
+  // poste déclaré (RegisterWizard, étape 3) décide si Section a un sens du
+  // tout (showSection) et, si oui, si elle est obligatoire (Chef de
+  // Section) ou facultative (Agent) — même vocabulaire que le pendant admin
+  // OrgAttachmentFields (showSection/sectionRequired par rôle).
+  showSection: boolean;
+  sectionRequired: boolean;
   value: DeclaredAttachment;
   onChange: (next: DeclaredAttachment) => void;
 }) {
@@ -85,6 +94,15 @@ export function DeclaredAttachmentFields({
       onChange(EMPTY);
     }
   }, [allowedModes]);
+
+  // Idem si Section disparaît (ex. Agent -> Chef de Division) alors qu'une
+  // section était déjà choisie : on ne la laisse jamais posée en silence
+  // derrière un champ qui n'existe plus.
+  useEffect(() => {
+    if (!showSection && value.declaredSectionId) {
+      onChange({ ...value, declaredSectionId: null });
+    }
+  }, [showSection]);
 
   function switchMode(next: Mode) {
     setMode(next);
@@ -129,19 +147,22 @@ export function DeclaredAttachmentFields({
               </option>
             ))}
           </select>
-          <select
-            value={value.declaredSectionId ?? ''}
-            onChange={(e) => onChange({ ...value, declaredSectionId: e.target.value || null })}
-            disabled={!selectedDivision}
-            className="w-full rounded-md border border-line bg-surface px-3 py-2.5 text-sm disabled:opacity-50"
-          >
-            <option value="">— Section (optionnel) —</option>
-            {(selectedDivision?.sections ?? []).map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </select>
+          {showSection && (
+            <select
+              value={value.declaredSectionId ?? ''}
+              onChange={(e) => onChange({ ...value, declaredSectionId: e.target.value || null })}
+              disabled={!selectedDivision}
+              required={sectionRequired}
+              className="w-full rounded-md border border-line bg-surface px-3 py-2.5 text-sm disabled:opacity-50"
+            >
+              <option value="">{sectionRequired ? '— Sélectionner une section —' : '— Section (optionnel) —'}</option>
+              {(selectedDivision?.sections ?? []).map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+          )}
         </>
       )}
 
