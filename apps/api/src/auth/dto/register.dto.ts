@@ -19,7 +19,7 @@ export class RegisterDto {
   email!: string;
 
   @IsString()
-  @MinLength(12, { message: 'Le mot de passe doit contenir au moins 12 caractères' })
+  @MinLength(8, { message: 'Le mot de passe doit contenir au moins 8 caractères' })
   password!: string;
 
   @IsString()

@@ -9,7 +9,7 @@ const prisma = new PrismaClient();
 // d'email : n'importe quelle adresse valide est acceptée (décision du
 // 05/09/2026 — beaucoup de personnel n'utilise pas activement son adresse
 // @dnpec.gov.gn, l'exiger freinait l'adoption).
-const MIN_PASSWORD_LENGTH = 12;
+const MIN_PASSWORD_LENGTH = 8;
 const STANDARD_EMAIL_FORMAT = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /**

@@ -54,10 +54,10 @@ export function CreateUserModal({ onClose, onCreated }: { onClose: () => void; o
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          minLength={12}
+          minLength={8}
           required
         />
-        <p className="-mt-3 mb-4 text-[11.5px] text-text-faint">12 caractères minimum.</p>
+        <p className="-mt-3 mb-4 text-[11.5px] text-text-faint">8 caractères minimum.</p>
 
         <div className="mb-4">
           <label className="mb-1.5 block text-[12.5px] font-semibold text-text">Rôle</label>

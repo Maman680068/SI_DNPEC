@@ -2,12 +2,26 @@
 
 import { useState } from 'react';
 import { useOrg } from '../../lib/org/OrgProvider';
-import { setUserStatus } from '../../lib/api/users';
-import type { AdminUser } from '../../lib/users/types';
+import type { AdminUser, UserStatus } from '../../lib/users/types';
 import { ROLE_LABEL } from '../../lib/users/types';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
 import { AssignChefModal } from './AssignChefModal';
+import { ManageAccountModal } from './ManageAccountModal';
+
+const STATUS_BADGE_TONE: Record<UserStatus, 'sage' | 'clay' | 'muted'> = {
+  EN_ATTENTE: 'muted',
+  ACTIF: 'sage',
+  SUSPENDU: 'clay',
+  SUPPRIME: 'muted',
+};
+
+const STATUS_BADGE_LABEL: Record<UserStatus, string> = {
+  EN_ATTENTE: 'En attente',
+  ACTIF: 'Actif',
+  SUSPENDU: 'Suspendu',
+  SUPPRIME: 'Supprimé',
+};
 
 /** "Nommer chef de cellule" n'a de sens que pour un Agent (le cas courant : promouvoir
  * quelqu'un qui travaille déjà dans la cellule) ou un Chef de Cellule déjà en poste
@@ -49,25 +63,8 @@ export function UsersTable({
   onRefresh: () => void;
 }) {
   const { getDivisionName, getSectionName, getCelluleName, getUserLabel } = useOrg();
-  const [pendingId, setPendingId] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [assigningChefFor, setAssigningChefFor] = useState<AdminUser | null>(null);
-
-  async function handleToggleStatus(user: AdminUser) {
-    const nextStatus = user.status === 'SUSPENDU' ? 'ACTIF' : 'SUSPENDU';
-    const verb = nextStatus === 'SUSPENDU' ? 'suspendre' : 'réactiver';
-    if (!window.confirm(`Confirmer : ${verb} le compte de ${user.firstName} ${user.lastName} ?`)) return;
-    setPendingId(user.id);
-    setError(null);
-    try {
-      await setUserStatus(user.id, nextStatus);
-      onRefresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Impossible de mettre à jour ce compte');
-    } finally {
-      setPendingId(null);
-    }
-  }
+  const [managingAccountFor, setManagingAccountFor] = useState<AdminUser | null>(null);
 
   if (users.length === 0) {
     return <p className="py-8 text-center text-[13px] text-text-faint">Aucun compte.</p>;
@@ -75,8 +72,6 @@ export function UsersTable({
 
   return (
     <div>
-      {error && <div className="mb-3 rounded-md bg-clay-soft px-3 py-2.5 text-[13px] text-clay">{error}</div>}
-
       {/* En dessous de md, un tableau à 5-6 colonnes ne tient pas sur un écran de
        * téléphone même avec un scroll horizontal (en-têtes tronqués, actions hors
        * champ) — on bascule sur des cartes empilées, une par utilisateur. */}
@@ -90,9 +85,7 @@ export function UsersTable({
                 </div>
                 <div className="text-[12px] text-text-muted">{user.email}</div>
               </div>
-              <Badge tone={user.status === 'SUSPENDU' ? 'clay' : 'sage'}>
-                {user.status === 'SUSPENDU' ? 'Suspendu' : 'Actif'}
-              </Badge>
+              <Badge tone={STATUS_BADGE_TONE[user.status]}>{STATUS_BADGE_LABEL[user.status]}</Badge>
             </div>
             <div className="mb-3 text-[12.5px] text-text-muted">
               {ROLE_LABEL[user.role]} · {attachmentLabel(user, getDivisionName, getSectionName, getCelluleName, getUserLabel)}
@@ -104,8 +97,8 @@ export function UsersTable({
                     Nommer chef de cellule
                   </Button>
                 )}
-                <Button variant="outline" disabled={pendingId === user.id} onClick={() => handleToggleStatus(user)}>
-                  {user.status === 'SUSPENDU' ? 'Réactiver' : 'Suspendre'}
+                <Button variant="outline" onClick={() => setManagingAccountFor(user)}>
+                  Gérer
                 </Button>
               </div>
             )}
@@ -137,9 +130,7 @@ export function UsersTable({
                   {attachmentLabel(user, getDivisionName, getSectionName, getCelluleName, getUserLabel)}
                 </td>
                 <td className="px-4 py-3">
-                  <Badge tone={user.status === 'SUSPENDU' ? 'clay' : 'sage'}>
-                    {user.status === 'SUSPENDU' ? 'Suspendu' : 'Actif'}
-                  </Badge>
+                  <Badge tone={STATUS_BADGE_TONE[user.status]}>{STATUS_BADGE_LABEL[user.status]}</Badge>
                 </td>
                 {canManage && (
                   <td className="px-4 py-3">
@@ -149,12 +140,8 @@ export function UsersTable({
                           Nommer chef de cellule
                         </Button>
                       )}
-                      <Button
-                        variant="outline"
-                        disabled={pendingId === user.id}
-                        onClick={() => handleToggleStatus(user)}
-                      >
-                        {user.status === 'SUSPENDU' ? 'Réactiver' : 'Suspendre'}
+                      <Button variant="outline" onClick={() => setManagingAccountFor(user)}>
+                        Gérer
                       </Button>
                     </div>
                   </td>
@@ -171,6 +158,17 @@ export function UsersTable({
           onClose={() => setAssigningChefFor(null)}
           onAssigned={() => {
             setAssigningChefFor(null);
+            onRefresh();
+          }}
+        />
+      )}
+
+      {managingAccountFor && (
+        <ManageAccountModal
+          user={managingAccountFor}
+          onClose={() => setManagingAccountFor(null)}
+          onChanged={() => {
+            setManagingAccountFor(null);
             onRefresh();
           }}
         />

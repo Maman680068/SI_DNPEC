@@ -1,6 +1,6 @@
 import type { SystemRole } from '../auth/types';
 
-export type UserStatus = 'EN_ATTENTE' | 'ACTIF' | 'SUSPENDU';
+export type UserStatus = 'EN_ATTENTE' | 'ACTIF' | 'SUSPENDU' | 'SUPPRIME';
 
 export interface AdminUser {
   id: string;
@@ -87,6 +87,10 @@ export const STATUS_LABEL: Record<UserStatus, string> = {
   EN_ATTENTE: 'En attente',
   ACTIF: 'Actif',
   SUSPENDU: 'Suspendu',
+  // Suppression logique (voir schema.prisma, UserStatus.SUPPRIME) : le
+  // compte et tout ce qui lui est lié restent intacts, seule la connexion
+  // est bloquée.
+  SUPPRIME: 'Supprimé',
 };
 
 /** Rôles pour lesquels la page Utilisateurs apparaît dans le menu — ADMIN_SYSTEME en

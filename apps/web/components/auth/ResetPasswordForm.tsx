@@ -74,17 +74,17 @@ export function ResetPasswordForm() {
         type="password"
         value={newPassword}
         onChange={(e) => setNewPassword(e.target.value)}
-        minLength={12}
+        minLength={8}
         required
         autoComplete="new-password"
       />
-      <p className="-mt-3 mb-4 text-[11.5px] text-text-faint">12 caractères minimum.</p>
+      <p className="-mt-3 mb-4 text-[11.5px] text-text-faint">8 caractères minimum.</p>
       <Field
         label="Confirmer le mot de passe"
         type="password"
         value={confirmPassword}
         onChange={(e) => setConfirmPassword(e.target.value)}
-        minLength={12}
+        minLength={8}
         required
         autoComplete="new-password"
       />

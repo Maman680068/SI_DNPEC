@@ -18,6 +18,7 @@ import {
   TwoFaLoginChallengePayload,
   TwoFaSetupRequiredPayload,
 } from '../common/types/jwt-payload.type';
+import { AuthenticatedUser } from '../common/types/auth-user.type';
 import { TotpService } from './services/totp.service';
 import { SessionService } from './services/session.service';
 import { LoginAttemptService } from './services/login-attempt.service';
@@ -27,6 +28,7 @@ import { LoginDto } from './dto/login.dto';
 import { LoginTwoFaDto } from './dto/login-2fa.dto';
 import { EnableTwoFaDto } from './dto/enable-2fa.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { AdminSetPasswordDto } from './dto/admin-set-password.dto';
 
 /** Cellules transversales dont la structure interne (chef, effectif) est
  * définie (§11 — CTSCM/CNC restent à définir) — seules celles-ci peuvent
@@ -175,6 +177,78 @@ export class AuthService {
     return { message: 'Mot de passe réinitialisé avec succès.' };
   }
 
+  /**
+   * Réinitialisation déclenchée par un administrateur sur la fiche d'un compte
+   * (RF-SEC), option (a) : même mécanisme que forgotPassword (jeton à usage
+   * unique, 1h), mais ciblé par id plutôt que par email auto-déclaré — pas
+   * besoin de la réponse neutre de forgotPassword, l'admin sait déjà que le
+   * compte existe. Exige un compte ACTIF : envoyer un lien à un compte
+   * suspendu/supprimé serait sans effet (login le bloquerait de toute façon).
+   */
+  async adminSendResetEmail(actor: AuthenticatedUser, userId: string): Promise<{ message: string }> {
+    const user = await this.getUserOrThrow(userId);
+    if (user.status !== UserStatus.ACTIF) {
+      throw new ConflictException("Ce compte n'est pas actif : impossible d'envoyer un lien de réinitialisation.");
+    }
+
+    const token = await this.passwordReset.createResetToken(user.id);
+    const webAppUrl = this.config.get<string>('WEB_APP_URL', 'http://localhost:3100');
+    const resetUrl = `${webAppUrl}/reset-password?token=${token}`;
+    const { html, text } = buildEmailContent({
+      recipientFirstName: user.firstName,
+      paragraphs: [
+        'Un administrateur a déclenché la réinitialisation du mot de passe de votre compte DNPEC.',
+        'Pour choisir un nouveau mot de passe, cliquez sur le bouton ci-dessous. Ce lien est valable pendant 1 heure.',
+      ],
+      buttonLabel: 'Changer mon mot de passe',
+      buttonUrl: resetUrl,
+      afterButtonParagraphs: [
+        "Si vous n'êtes pas à l'origine de cette demande, contactez un administrateur.",
+      ],
+    });
+    await this.emailService.send(user.email, 'Réinitialisation de votre mot de passe DNPEC', text, html);
+
+    await this.audit.log({
+      actorId: actor.id,
+      action: AuditAction.MODIFICATION,
+      entityType: 'User',
+      entityId: user.id,
+      metadata: { event: 'admin_triggered_password_reset_email' },
+    });
+
+    return { message: 'Email de réinitialisation envoyé.' };
+  }
+
+  /**
+   * Option (b) : l'admin définit lui-même un mot de passe temporaire qu'il
+   * communique à la personne par un autre canal. Mêmes effets de bord qu'un
+   * reset classique — révocation de toutes les sessions actives, pour qu'un
+   * ancien mot de passe compromis ne reste pas exploitable ailleurs (RF-SEC).
+   * Pas de restriction de statut : peut aussi servir à préparer un compte
+   * avant sa réactivation.
+   */
+  async adminSetPassword(
+    actor: AuthenticatedUser,
+    userId: string,
+    dto: AdminSetPasswordDto,
+  ): Promise<{ message: string }> {
+    const user = await this.getUserOrThrow(userId);
+    const passwordHash = await this.passwordService.hash(dto.newPassword);
+
+    await this.prisma.user.update({ where: { id: user.id }, data: { passwordHash } });
+    await this.sessionService.revokeAllSessions(user.id);
+
+    await this.audit.log({
+      actorId: actor.id,
+      action: AuditAction.MODIFICATION,
+      entityType: 'User',
+      entityId: user.id,
+      metadata: { event: 'admin_set_password' },
+    });
+
+    return { message: 'Mot de passe défini. Les sessions actives de ce compte ont été révoquées.' };
+  }
+
   async login(dto: LoginDto, ip: string) {
     this.loginAttempts.assertNotLocked(dto.email, ip);
 
@@ -200,6 +274,9 @@ export class AuthService {
     }
     if (user.status === UserStatus.SUSPENDU) {
       throw new ForbiddenException('Votre compte a été suspendu. Contactez un administrateur pour plus d’informations.');
+    }
+    if (user.status === UserStatus.SUPPRIME) {
+      throw new ForbiddenException('Ce compte a été supprimé. Contactez un administrateur pour plus d’informations.');
     }
 
     this.loginAttempts.recordSuccess(dto.email, ip);

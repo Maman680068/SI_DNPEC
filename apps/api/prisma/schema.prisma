@@ -109,6 +109,18 @@ enum UserStatus {
   EN_ATTENTE // auto-inscription en attente de validation par l'administrateur
   ACTIF
   SUSPENDU
+  // Suppression LOGIQUE d'un compte par l'administrateur — distinct de
+  // SUSPENDU (réversible sans distinction fonctionnelle entre les deux à ce
+  // stade, mais un statut dédié plutôt qu'un réemploi de SUSPENDU garde le
+  // motif explicite dans l'historique). Ni le compte ni rien de ce qui lui
+  // est lié (tâches créées/assignées, messages, commentaires, entrées
+  // d'audit...) n'est supprimé ni réattribué — seule la connexion est
+  // bloquée (JwtAuthGuard/AuthService.login, comme SUSPENDU) et le compte
+  // disparaît des surfaces qui filtrent déjà sur status: ACTIF (annuaire,
+  // ciblage tâches/annonces/sondages, notifications...). Reste visible dans
+  // la gestion des comptes (GET /users, sans filtre de statut) pour
+  // traçabilité et réactivation éventuelle.
+  SUPPRIME
 
   @@map("user_status")
 }

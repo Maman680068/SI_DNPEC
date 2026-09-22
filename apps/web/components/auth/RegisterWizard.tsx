@@ -328,11 +328,11 @@ export function RegisterWizard() {
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  minLength={12}
+                  minLength={8}
                   required
                   autoComplete="new-password"
                 />
-                <p className="-mt-3 text-[11.5px] text-text-faint">12 caractères minimum.</p>
+                <p className="-mt-3 text-[11.5px] text-text-faint">8 caractères minimum.</p>
               </>
             )}
 

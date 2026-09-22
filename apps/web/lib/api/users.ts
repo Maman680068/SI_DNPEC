@@ -27,3 +27,18 @@ export function rejectUser(id: string): Promise<void> {
 export function setUserStatus(id: string, status: UserStatus): Promise<AdminUser> {
   return apiFetch<AdminUser>(`/users/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) });
 }
+
+/** Réinitialisation par un administrateur, depuis la fiche d'un compte — option (a) :
+ * réutilise le mécanisme "mot de passe oublié" (email avec lien à usage unique, 1h). */
+export function sendPasswordResetEmail(id: string): Promise<{ message: string }> {
+  return apiFetch<{ message: string }>(`/users/${id}/password/send-reset-email`, { method: 'POST' });
+}
+
+/** Option (b) : l'admin définit lui-même un mot de passe temporaire — révoque aussi
+ * les sessions actives du compte côté API. */
+export function setUserPassword(id: string, newPassword: string): Promise<{ message: string }> {
+  return apiFetch<{ message: string }>(`/users/${id}/password/set`, {
+    method: 'POST',
+    body: JSON.stringify({ newPassword }),
+  });
+}
