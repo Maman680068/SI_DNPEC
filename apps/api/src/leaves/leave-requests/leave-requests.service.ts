@@ -9,6 +9,7 @@ import { CreateLeaveRequestDto } from '../dto/create-leave-request.dto';
 import { DecideLeaveRequestDto } from '../dto/decide-leave-request.dto';
 import { RejectLeaveRequestDto } from '../dto/reject-leave-request.dto';
 import { LeaveRequestFiltersDto } from '../dto/leave-request-filters.dto';
+import { LeaveMedicalPrivacyService } from '../leave-medical-privacy.service';
 
 const LEAVE_REQUEST_SELECT = {
   id: true,
@@ -30,6 +31,14 @@ const LEAVE_REQUEST_SELECT = {
 
 type LeaveRequestWithUser = Prisma.LeaveRequestGetPayload<{ select: typeof LEAVE_REQUEST_SELECT }>;
 
+/** Vue exposée à l'appelant : `leaveTypeId`/`leaveType` deviennent nullable une fois
+ * masqués par l'exception "besoin d'en connaître" (congé maladie, voir
+ * LeaveMedicalPrivacyService) — jamais modifié en base, seulement à la sortie. */
+type LeaveRequestView = Omit<LeaveRequestWithUser, 'leaveTypeId' | 'leaveType'> & {
+  leaveTypeId: string | null;
+  leaveType: { code: string | null; name: string };
+};
+
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 /**
@@ -46,11 +55,13 @@ export class LeaveRequestsService {
     private readonly audit: AuditService,
     private readonly cascade: CascadeService,
     private readonly notifications: NotificationsService,
+    private readonly medicalPrivacy: LeaveMedicalPrivacyService,
   ) {}
 
-  async create(actor: AuthenticatedUser, dto: CreateLeaveRequestDto): Promise<LeaveRequestWithUser> {
+  async create(actor: AuthenticatedUser, dto: CreateLeaveRequestDto): Promise<LeaveRequestView> {
     const leaveType = await this.prisma.leaveType.findUnique({ where: { id: dto.leaveTypeId } });
     if (!leaveType) throw new NotFoundException('Type de congé introuvable');
+    const isSensitive = this.medicalPrivacy.isSensitiveCode(leaveType.code);
 
     const startDate = new Date(dto.startDate);
     const endDate = new Date(dto.endDate);
@@ -71,37 +82,59 @@ export class LeaveRequestsService {
       select: LEAVE_REQUEST_SELECT,
     });
 
+    // Le motif médical précis n'a pas sa place dans un journal d'audit lisible par
+    // l'administration/la direction (même principe "besoin d'en connaître" que la
+    // visibilité de la demande elle-même) — masqué inconditionnellement, pas
+    // seulement quand le lecteur serait DN/DNA.
     await this.audit.log({
       actorId: actor.id,
       action: AuditAction.CREATION,
       entityType: 'LeaveRequest',
       entityId: leaveRequest.id,
-      metadata: { leaveType: leaveType.code, startDate: dto.startDate, endDate: dto.endDate, daysCount },
+      metadata: {
+        leaveType: isSensitive ? 'PROTEGE' : leaveType.code,
+        startDate: dto.startDate,
+        endDate: dto.endDate,
+        daysCount,
+      },
     });
 
     // Le(s) validateur(s) potentiel(s) de cette demande (chef direct de son
     // périmètre + DN/DNA) — jamais un id fixe, voir CascadeService.hasDirectAuthorityOver.
     const validators = await this.prisma.user.findMany({
       where: this.cascade.getUsersWithDirectAuthorityOverWhere(leaveRequest.user),
-      select: { id: true },
+      select: { id: true, role: true },
     });
     if (validators.length > 0) {
-      await this.notifications.notifyMany(
-        validators.map((v) => v.id),
-        NotificationType.CONGE_SOUMIS,
-        'Nouvelle demande de congé',
-        `${leaveRequest.user.firstName} ${leaveRequest.user.lastName} — ${leaveType.name}, ${daysCount} jour${daysCount > 1 ? 's' : ''}`,
-        `/leaves?id=${leaveRequest.id}`,
-        `${leaveRequest.user.firstName} ${leaveRequest.user.lastName}`,
-      );
+      // Un chef plus proche parmi les validateurs signifie que DN/DNA ne sont que des
+      // superviseurs en cascade sur CETTE demande : ils reçoivent une notification
+      // masquée, le chef reçoit la vraie. Sans chef plus proche, DN/DNA sont le
+      // validateur réel et reçoivent la vraie notification (voir LeaveMedicalPrivacyService).
+      const hasCloserChief = isSensitive && validators.some((v) => !this.cascade.isLeadershipRole(v.role));
+      for (const validator of validators) {
+        const mustMask = isSensitive && hasCloserChief && this.cascade.isLeadershipRole(validator.role);
+        const label = mustMask ? 'Absence' : leaveType.name;
+        await this.notifications.notify(
+          validator.id,
+          NotificationType.CONGE_SOUMIS,
+          'Nouvelle demande de congé',
+          `${leaveRequest.user.firstName} ${leaveRequest.user.lastName} — ${label}, ${daysCount} jour${daysCount > 1 ? 's' : ''}`,
+          `/leaves?id=${leaveRequest.id}`,
+          `${leaveRequest.user.firstName} ${leaveRequest.user.lastName}`,
+        );
+      }
     }
 
+    // Jamais masqué pour l'auteur lui-même : c'est sa propre demande.
     return leaveRequest;
   }
 
-  /** Mes propres demandes + celles de mon périmètre si j'ai autorité de validation (DN/DNA/Chef de Division/Section/Cellule). */
-  findAllVisibleTo(actor: AuthenticatedUser, filters: LeaveRequestFiltersDto): Promise<LeaveRequestWithUser[]> {
-    return this.prisma.leaveRequest.findMany({
+  /** Mes propres demandes + celles de mon périmètre si j'ai autorité de validation
+   * (DN/DNA/Chef de Division/Section/Cellule). Pour DN/DNA, une demande de congé
+   * maladie est masquée dès qu'un chef plus proche existe pour son auteur — voir
+   * LeaveMedicalPrivacyService. */
+  async findAllVisibleTo(actor: AuthenticatedUser, filters: LeaveRequestFiltersDto): Promise<LeaveRequestView[]> {
+    const requests = await this.prisma.leaveRequest.findMany({
       where: {
         user: this.cascade.getVisibleUserWhereForLeadershipScope(actor),
         status: filters.status,
@@ -112,17 +145,26 @@ export class LeaveRequestsService {
       select: LEAVE_REQUEST_SELECT,
       orderBy: { createdAt: 'desc' },
     });
+
+    if (!this.cascade.isLeadershipRole(actor.role)) return requests;
+    const chiefCandidates = await this.medicalPrivacy.loadChiefCandidates();
+    return requests.map((r) =>
+      this.medicalPrivacy.shouldMaskWithCandidates(actor, r.user, r.leaveType.code, chiefCandidates)
+        ? this.maskMedical(r)
+        : r,
+    );
   }
 
-  async findOneVisibleTo(actor: AuthenticatedUser, id: string): Promise<LeaveRequestWithUser> {
+  async findOneVisibleTo(actor: AuthenticatedUser, id: string): Promise<LeaveRequestView> {
     const leaveRequest = await this.getLeaveRequestOrThrow(id);
     if (leaveRequest.userId !== actor.id && !this.cascade.hasDirectAuthorityOver(actor, leaveRequest.user)) {
       throw new ForbiddenException('Cette demande de congé est hors de votre périmètre.');
     }
-    return leaveRequest;
+    const shouldMask = await this.medicalPrivacy.shouldMask(actor, leaveRequest.user, leaveRequest.leaveType.code);
+    return shouldMask ? this.maskMedical(leaveRequest) : leaveRequest;
   }
 
-  async approve(actor: AuthenticatedUser, id: string, dto: DecideLeaveRequestDto): Promise<LeaveRequestWithUser> {
+  async approve(actor: AuthenticatedUser, id: string, dto: DecideLeaveRequestDto): Promise<LeaveRequestView> {
     const leaveRequest = await this.getLeaveRequestOrThrow(id);
     this.cascade.assertHasDirectAuthorityOver(actor, leaveRequest.user);
     this.assertPending(leaveRequest);
@@ -174,10 +216,13 @@ export class LeaveRequestsService {
       updated.leaveType.name,
     );
 
-    return updated;
+    // updated.userId reçoit toujours le vrai libellé ci-dessus (sa propre demande) —
+    // seule la valeur RENVOYÉE à actor (le validateur) est éventuellement masquée.
+    const shouldMask = await this.medicalPrivacy.shouldMask(actor, updated.user, updated.leaveType.code);
+    return shouldMask ? this.maskMedical(updated) : updated;
   }
 
-  async reject(actor: AuthenticatedUser, id: string, dto: RejectLeaveRequestDto): Promise<LeaveRequestWithUser> {
+  async reject(actor: AuthenticatedUser, id: string, dto: RejectLeaveRequestDto): Promise<LeaveRequestView> {
     const leaveRequest = await this.getLeaveRequestOrThrow(id);
     this.cascade.assertHasDirectAuthorityOver(actor, leaveRequest.user);
     this.assertPending(leaveRequest);
@@ -210,11 +255,12 @@ export class LeaveRequestsService {
       updated.leaveType.name,
     );
 
-    return updated;
+    const shouldMask = await this.medicalPrivacy.shouldMask(actor, updated.user, updated.leaveType.code);
+    return shouldMask ? this.maskMedical(updated) : updated;
   }
 
   /** Par le demandeur ou son supérieur cascade. Recrédite le solde si la demande était déjà approuvée. */
-  async cancel(actor: AuthenticatedUser, id: string): Promise<LeaveRequestWithUser> {
+  async cancel(actor: AuthenticatedUser, id: string): Promise<LeaveRequestView> {
     const leaveRequest = await this.getLeaveRequestOrThrow(id);
     const isRequester = leaveRequest.userId === actor.id;
     if (!isRequester && !this.cascade.hasDirectAuthorityOver(actor, leaveRequest.user)) {
@@ -255,7 +301,12 @@ export class LeaveRequestsService {
       metadata: { event: 'leave_cancelled', refunded: wasApproved },
     });
 
-    return updated;
+    const shouldMask = await this.medicalPrivacy.shouldMask(actor, updated.user, updated.leaveType.code);
+    return shouldMask ? this.maskMedical(updated) : updated;
+  }
+
+  private maskMedical(request: LeaveRequestWithUser): LeaveRequestView {
+    return { ...request, reason: null, leaveTypeId: null, leaveType: this.medicalPrivacy.maskedLeaveType() };
   }
 
   private async getLeaveRequestOrThrow(id: string): Promise<LeaveRequestWithUser> {

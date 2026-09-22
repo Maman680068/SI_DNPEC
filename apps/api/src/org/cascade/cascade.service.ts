@@ -141,7 +141,7 @@ export class CascadeService {
    * explicitement AVANT d'appeler cette méthode, jamais s'appuyer dessus.
    */
   private hasHierarchicalAuthorityOver(
-    actor: AuthenticatedUser,
+    actor: OrgTarget & { role: SystemRole },
     target: OrgTarget,
     topRoles: SystemRole[],
   ): boolean {
@@ -190,6 +190,28 @@ export class CascadeService {
    */
   hasDirectAuthorityOver(actor: AuthenticatedUser, target: OrgTarget): boolean {
     return this.hasHierarchicalAuthorityOver(actor, target, LEADERSHIP_ROLES);
+  }
+
+  /** Vrai si `role` fait partie de LEADERSHIP_ROLES (DN/DNA) — exposé en lecture
+   * seule pour les modules qui doivent composer avec cette liste (ex. l'exception
+   * "besoin d'en connaître" des congés maladie, voir LeaveMedicalPrivacyService)
+   * sans dupliquer la constante ni l'exporter telle quelle. */
+  isLeadershipRole(role: SystemRole): boolean {
+    return LEADERSHIP_ROLES.includes(role);
+  }
+
+  /**
+   * Variante de hasDirectAuthorityOver SANS le raccourci LEADERSHIP_ROLES :
+   * `actor` a-t-il autorité en tant que chef direct (Division/Section/Cellule) de
+   * `target`, quel que soit le rôle de `actor` par ailleurs ? Sert à détecter si un
+   * chef PLUS PROCHE que DN/DNA existe pour une ressource donnée — l'exception
+   * "besoin d'en connaître" des congés maladie (LeaveMedicalPrivacyService) l'utilise
+   * pour décider si DN/DNA sont de simples superviseurs en cascade (un chef plus
+   * proche existe : motif masqué) ou le seul validateur réel (aucun chef plus
+   * proche : motif visible, pour pouvoir juger).
+   */
+  hasCloserAuthorityOver(actor: OrgTarget & { role: SystemRole }, target: OrgTarget): boolean {
+    return this.hasHierarchicalAuthorityOver(actor, target, []);
   }
 
   assertHasDirectAuthorityOver(actor: AuthenticatedUser, target: OrgTarget): void {
@@ -250,26 +272,44 @@ export class CascadeService {
   }
 
   /**
-   * Accès à l'espace de travail privé d'une division (module documents/, RF-GED-01) :
-   * tout membre de la division, quel que soit son rôle (Chef de Section/Cellule y
-   * compris), plus DN/DNA. Volontairement sans granularité section/cellule — le
-   * cahier des charges définit l'espace privé "par division", pas plus finement.
+   * Autorité de GESTION sur l'espace de travail d'une division (créer un
+   * document/dossier dedans, module documents/) : tout membre de la division, quel
+   * que soit son rôle (Chef de Section/Cellule y compris), plus DN/DNA en cascade
+   * complète — une décision de conception distincte de la LECTURE du contenu privé
+   * (voir isMemberOfDivision) : la cascade hiérarchique reste le bon critère pour
+   * "qui peut déposer/gérer du contenu", "besoin d'en connaître" pour "qui peut lire
+   * du contenu privé qu'il n'a pas créé" (RF-GED-01). Volontairement sans
+   * granularité section/cellule — le cahier des charges définit l'espace privé "par
+   * division", pas plus finement.
    */
   canAccessDivisionWorkspace(actor: AuthenticatedUser, divisionId: string): boolean {
     if (LEADERSHIP_ROLES.includes(actor.role)) return true;
     return actor.divisionId === divisionId;
   }
 
-  /** Vrai si l'acteur voit l'espace privé de TOUTES les divisions (DN/DNA), pour
-   * construire un filtre Prisma de liste — canAccessDivisionWorkspace vérifie une
-   * division déjà connue, celui-ci sert quand on ne peut pas énumérer les divisions. */
-  hasUnrestrictedDivisionAccess(actor: AuthenticatedUser): boolean {
-    return LEADERSHIP_ROLES.includes(actor.role);
-  }
-
   assertCanAccessDivisionWorkspace(actor: AuthenticatedUser, divisionId: string): void {
     if (!this.canAccessDivisionWorkspace(actor, divisionId)) {
       throw new ForbiddenException("Cette division n'est pas dans votre périmètre.");
+    }
+  }
+
+  /**
+   * Appartenance structurelle à une division — utilisé pour restreindre la LECTURE
+   * du contenu privé (Documents/Folders, RF-GED-01) au principe "besoin d'en
+   * connaître", jamais à la cascade hiérarchique : contrairement à
+   * canAccessDivisionWorkspace, DN/DNA n'ont ICI aucun raccourci. N'étant
+   * structurellement rattachés à aucune division (attachmentKind 'none'), cette
+   * méthode leur renvoie donc toujours faux — ils ne lisent que les documents
+   * PUBLIE_DNPEC en dehors de toute division, jamais le PRIVE_DIVISION d'une
+   * division dont ils ne sont pas membres.
+   */
+  isMemberOfDivision(actor: AuthenticatedUser, divisionId: string): boolean {
+    return actor.divisionId === divisionId;
+  }
+
+  assertIsMemberOfDivision(actor: AuthenticatedUser, divisionId: string): void {
+    if (!this.isMemberOfDivision(actor, divisionId)) {
+      throw new ForbiddenException('Cet espace documentaire privé est hors de votre périmètre.');
     }
   }
 

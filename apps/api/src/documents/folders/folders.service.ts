@@ -41,8 +41,11 @@ export class FoldersService {
     return folder;
   }
 
+  /** Lister l'arborescence privée d'une division est une LECTURE (RF-GED-01,
+   * "besoin d'en connaître") — appartenance structurelle, pas cascade
+   * hiérarchique, voir CascadeService.isMemberOfDivision. */
   async findAllForDivision(actor: AuthenticatedUser, divisionId: string): Promise<Folder[]> {
-    this.cascade.assertCanAccessDivisionWorkspace(actor, divisionId);
+    this.cascade.assertIsMemberOfDivision(actor, divisionId);
     return this.prisma.folder.findMany({ where: { divisionId }, orderBy: { name: 'asc' } });
   }
 

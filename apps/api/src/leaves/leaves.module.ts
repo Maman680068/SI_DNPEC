@@ -7,10 +7,11 @@ import { LeaveRequestsController } from './leave-requests/leave-requests.control
 import { LeaveRequestsService } from './leave-requests/leave-requests.service';
 import { LeaveBalancesController } from './leave-balances/leave-balances.controller';
 import { LeaveBalancesService } from './leave-balances/leave-balances.service';
+import { LeaveMedicalPrivacyService } from './leave-medical-privacy.service';
 
 @Module({
   imports: [OrgModule, CommunicationModule],
   controllers: [LeaveTypesController, LeaveRequestsController, LeaveBalancesController],
-  providers: [LeaveTypesService, LeaveRequestsService, LeaveBalancesService],
+  providers: [LeaveTypesService, LeaveRequestsService, LeaveBalancesService, LeaveMedicalPrivacyService],
 })
 export class LeavesModule {}

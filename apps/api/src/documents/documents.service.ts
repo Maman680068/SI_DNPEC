@@ -256,11 +256,12 @@ export class DocumentsService {
 
   // --------------------------------------------------------------------
 
+  /** Le PRIVE_DIVISION suit l'appartenance structurelle (RF-GED-01, "besoin d'en
+   * connaître"), pas la cascade hiérarchique : DN/DNA n'y ont aucun raccourci, voir
+   * CascadeService.isMemberOfDivision. */
   private visibilityClauses(actor: AuthenticatedUser): Prisma.DocumentWhereInput[] {
     const clauses: Prisma.DocumentWhereInput[] = [{ visibility: DocumentVisibility.PUBLIE_DNPEC }];
-    if (this.cascade.hasUnrestrictedDivisionAccess(actor)) {
-      clauses.push({ visibility: DocumentVisibility.PRIVE_DIVISION });
-    } else if (actor.divisionId) {
+    if (actor.divisionId) {
       clauses.push({ visibility: DocumentVisibility.PRIVE_DIVISION, divisionId: actor.divisionId });
     }
     return clauses;
@@ -268,7 +269,7 @@ export class DocumentsService {
 
   private assertVisible(actor: AuthenticatedUser, document: DocumentWithVersion): void {
     if (document.visibility === DocumentVisibility.PUBLIE_DNPEC) return;
-    if (this.cascade.canAccessDivisionWorkspace(actor, document.divisionId)) return;
+    if (this.cascade.isMemberOfDivision(actor, document.divisionId)) return;
     throw new ForbiddenException("Ce document est hors de votre périmètre.");
   }
 

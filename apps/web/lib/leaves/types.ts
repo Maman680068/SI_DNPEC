@@ -9,7 +9,10 @@ export interface LeaveType {
 export interface LeaveRequest {
   id: string;
   userId: string;
-  leaveTypeId: string;
+  // null quand ce type de congé précis a été masqué (exception "besoin d'en
+  // connaître" des congés maladie pour DN/DNA sans autorité directe la plus
+  // proche — voir apps/api LeaveMedicalPrivacyService).
+  leaveTypeId: string | null;
   startDate: string;
   endDate: string;
   daysCount: number;
@@ -20,14 +23,15 @@ export interface LeaveRequest {
   decidedAt: string | null;
   createdAt: string;
   updatedAt: string;
-  leaveType: { code: string; name: string };
+  leaveType: { code: string | null; name: string };
   user: { id: string; firstName: string; lastName: string; divisionId: string | null; sectionId: string | null; celluleId: string | null };
 }
 
 export interface LeaveBalanceView {
   id: string;
-  leaveTypeId: string;
-  leaveTypeCode: string;
+  // null/generic quand masqué — voir LeaveRequest.leaveTypeId.
+  leaveTypeId: string | null;
+  leaveTypeCode: string | null;
   leaveTypeName: string;
   year: number;
   totalDays: number;
