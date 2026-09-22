@@ -1,4 +1,4 @@
-import { ArrayUnique, IsArray, IsDateString, IsOptional, IsString, Length } from 'class-validator';
+import { ArrayUnique, IsArray, IsBoolean, IsDateString, IsOptional, IsString, Length } from 'class-validator';
 
 export class CreateMeetingDto {
   @IsString()
@@ -26,4 +26,9 @@ export class CreateMeetingDto {
   @IsString({ each: true })
   @ArrayUnique()
   participantIds!: string[];
+
+  // "Réunion déclarée ouverte" (§4.6, exception D2) — voir schema.prisma, Meeting.isOpen.
+  @IsOptional()
+  @IsBoolean()
+  isOpen?: boolean;
 }

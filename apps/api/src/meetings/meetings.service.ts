@@ -9,6 +9,7 @@ import { AuthenticatedUser } from '../common/types/auth-user.type';
 import { CreateMeetingDto } from './dto/create-meeting.dto';
 import { RespondMeetingDto } from './dto/respond-meeting.dto';
 import { CancelMeetingDto } from './dto/cancel-meeting.dto';
+import { UpdateMeetingDto } from './dto/update-meeting.dto';
 
 // Délai avant le début d'une réunion auquel le rappel planifié se déclenche
 // (voir sendDueReminders) — constante simple, pas de variable d'environnement
@@ -25,6 +26,8 @@ const MEETING_SELECT = {
   status: true,
   cancelledAt: true,
   cancellationReason: true,
+  minutesText: true,
+  isOpen: true,
   createdById: true,
   createdAt: true,
   updatedAt: true,
@@ -59,14 +62,20 @@ export class MeetingsService {
    * jamais dupliqué ici. Aucune méthode de cascade dédiée aux réunions :
    * cette visibilité élargie ne donne aucune autorité d'action (voir
    * assertCanCancel plus bas, qui ignore délibérément ce périmètre).
+   *
+   * `isOpen` (D2) : exception explicite — une réunion déclarée ouverte est
+   * visible à tout utilisateur authentifié. Non `private` : réutilisée telle
+   * quelle par DecisionsService (même module), une décision héritant
+   * entièrement de la visibilité de sa réunion (voir schema.prisma, Decision).
    */
-  private getMeetingVisibilityWhere(actor: AuthenticatedUser): Prisma.MeetingWhereInput {
+  getMeetingVisibilityWhere(actor: AuthenticatedUser): Prisma.MeetingWhereInput {
     const hierarchyScope = this.cascade.getVisibleUserWhereForLeadershipScope(actor);
     return {
       OR: [
         { createdById: actor.id },
         { participants: { some: { userId: actor.id } } },
         { participants: { some: { user: hierarchyScope } } },
+        { isOpen: true },
       ],
     };
   }
@@ -88,6 +97,7 @@ export class MeetingsService {
         location: dto.location,
         startAt,
         endAt,
+        isOpen: dto.isOpen ?? false,
         createdById: actor.id,
         participants: {
           create: [
@@ -138,6 +148,33 @@ export class MeetingsService {
     });
     if (!meeting) throw new NotFoundException('Réunion introuvable');
     return meeting;
+  }
+
+  /** Compte-rendu (D2) : texte narratif libre et déclaration "réunion ouverte" —
+   * réservé à l'organisateur, comme cancel() (une réunion est un artefact
+   * personnel d'agenda, pas du contenu métier délégué en cascade). */
+  async update(actor: AuthenticatedUser, meetingId: string, dto: UpdateMeetingDto): Promise<MeetingWithParticipants> {
+    const meeting = await this.prisma.meeting.findUnique({ where: { id: meetingId } });
+    if (!meeting) throw new NotFoundException('Réunion introuvable');
+    if (meeting.createdById !== actor.id) {
+      throw new ForbiddenException("Seul l'organisateur peut modifier cette réunion.");
+    }
+
+    const updated = await this.prisma.meeting.update({
+      where: { id: meetingId },
+      data: { minutesText: dto.minutesText, isOpen: dto.isOpen },
+      select: MEETING_SELECT,
+    });
+
+    await this.audit.log({
+      actorId: actor.id,
+      action: AuditAction.MODIFICATION,
+      entityType: 'Meeting',
+      entityId: meetingId,
+      metadata: { event: 'meeting_updated', fields: Object.keys(dto) },
+    });
+
+    return updated;
   }
 
   /** Accepter/décliner sa propre invitation — action en libre-service sur sa

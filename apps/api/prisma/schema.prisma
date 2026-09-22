@@ -233,6 +233,7 @@ enum NotificationType {
   SUGGESTION_RECUE
   SUGGESTION_STATUT_MAJ
   DOSSIER_ERREUR_SIGNALEE
+  DECISION_RELANCE
 
   @@map("notification_type")
 }
@@ -458,6 +459,10 @@ model User {
   organizedMeetings     Meeting[]            @relation("MeetingOrganizer")
   meetingParticipations MeetingParticipant[]
 
+  // Décisions de réunion (D2)
+  createdDecisions Decision[] @relation("DecisionCreatedBy")
+  closedDecisions  Decision[] @relation("DecisionClosedBy")
+
   notifications Notification[]
   auditLogs     AuditLog[]
 
@@ -581,6 +586,12 @@ model Task {
 
   createdById String
   createdBy   User   @relation("TaskCreatedBy", fields: [createdById], references: [id])
+
+  // D2 — action générée depuis une décision de réunion (voir Decision.action) :
+  // TasksService.validate clôture automatiquement la décision liée dès que
+  // cette tâche passe à TERMINEE.
+  sourceDecisionId String?   @unique
+  sourceDecision   Decision? @relation("DecisionAction", fields: [sourceDecisionId], references: [id])
 
   // Workflow de validation (§4.1)
   submittedById     String?
@@ -1015,7 +1026,11 @@ model Suggestion {
 // tel quel, aucune méthode de cascade dédiée aux réunions. Aucune autorité
 // d'action dérivée de cette visibilité élargie : seul l'organisateur peut
 // annuler sa réunion (une réunion est un artefact personnel d'agenda, pas du
-// contenu métier délégué en cascade comme une tâche).
+// contenu métier délégué en cascade comme une tâche) — et, de la même façon,
+// seul l'organisateur (le "président de séance", aucun champ dédié : c'est la
+// même personne, décision de conception D2) peut créer/modifier/convertir/
+// clôturer les Decision de sa réunion, même pour DN/DNA qui la voient par
+// cascade : voir n'est pas gérer, comme partout ailleurs dans l'application.
 model Meeting {
   id                 String        @id @default(cuid())
   title              String
@@ -1030,12 +1045,24 @@ model Meeting {
   // posé une fois pour toutes à l'envoi, jamais réinitialisé.
   reminderSentAt     DateTime?
 
+  // D2 — Décisions et actions de réunion :
+  // - minutesText : partie narrative libre du compte-rendu, optionnelle — le
+  //   relevé structuré, lui, ce sont les Decision liées (ci-dessous).
+  // - isOpen : exception explicite à la visibilité "participants + hiérarchie"
+  //   (RF-CPL-03/§4.6) — une réunion déclarée ouverte est visible à tout
+  //   utilisateur authentifié, ainsi que ses décisions (qui héritent
+  //   entièrement de la visibilité de leur réunion, aucun axe de
+  //   confidentialité propre à Decision).
+  minutesText String?
+  isOpen      Boolean @default(false)
+
   createdById String
   createdBy   User     @relation("MeetingOrganizer", fields: [createdById], references: [id])
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   participants MeetingParticipant[]
+  decisions    Decision[]
 
   @@map("meetings")
 }
@@ -1069,6 +1096,46 @@ enum MeetingResponseStatus {
   DECLINE
 
   @@map("meeting_response_status")
+}
+
+// Relevé de décisions d'une réunion (D2). Visibilité entièrement héritée de
+// sa Meeting (voir commentaire du modèle Meeting) — jamais interrogée seule
+// sans passer par le `where: { meeting: ... }` de DecisionsService. Création/
+// modification/conversion/clôture réservées à l'organisateur de la réunion
+// (le "président de séance") ; DN/DNA et la hiérarchie des participants qui
+// la voient par cascade ne peuvent que consulter et relancer (notification),
+// jamais agir directement — décision de conception D2.
+model Decision {
+  id        String         @id @default(cuid())
+  meetingId String
+  meeting   Meeting        @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  content   String
+  status    DecisionStatus @default(EN_ATTENTE)
+
+  // Clôture manuelle (par l'organisateur) OU automatique dès que l'action
+  // liée (Task.sourceDecisionId) passe à TERMINEE — voir TasksService.validate.
+  closedAt   DateTime?
+  closedById String?
+  closedBy   User?     @relation("DecisionClosedBy", fields: [closedById], references: [id])
+
+  createdById String
+  createdBy   User     @relation("DecisionCreatedBy", fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Action générée (optionnelle) — la FK vit sur Task (voir Task.sourceDecisionId),
+  // même sens que Document.sourceTaskId/Task.documents : le champ est porté par
+  // l'artefact généré, pas par son origine.
+  action Task? @relation("DecisionAction")
+
+  @@map("decisions")
+}
+
+enum DecisionStatus {
+  EN_ATTENTE // non exécutée — visible au tableau de bord du président/DN
+  CLOTUREE
+
+  @@map("decision_status")
 }
 
 // ----------------------------------------------------------------------------

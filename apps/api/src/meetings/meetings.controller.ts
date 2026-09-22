@@ -5,6 +5,7 @@ import { MeetingsService } from './meetings.service';
 import { CreateMeetingDto } from './dto/create-meeting.dto';
 import { RespondMeetingDto } from './dto/respond-meeting.dto';
 import { CancelMeetingDto } from './dto/cancel-meeting.dto';
+import { UpdateMeetingDto } from './dto/update-meeting.dto';
 
 @Controller('meetings')
 export class MeetingsController {
@@ -23,6 +24,11 @@ export class MeetingsController {
   @Get(':id')
   findOne(@Param('id') id: string, @CurrentUser() actor: AuthenticatedUser) {
     return this.meetingsService.findOneVisibleTo(actor, id);
+  }
+
+  @Patch(':id')
+  update(@Param('id') id: string, @Body() dto: UpdateMeetingDto, @CurrentUser() actor: AuthenticatedUser) {
+    return this.meetingsService.update(actor, id, dto);
   }
 
   @Patch(':id/respond')

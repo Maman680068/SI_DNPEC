@@ -1,6 +1,7 @@
 import { ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import {
   AuditAction,
+  DecisionStatus,
   NotificationType,
   Prisma,
   RecurrenceFrequency,
@@ -47,6 +48,7 @@ const TASK_SELECT = {
   recurrenceEndDate: true,
   recurrenceSourceId: true,
   createdById: true,
+  sourceDecisionId: true,
   submittedById: true,
   submittedAt: true,
   validatedById: true,
@@ -550,6 +552,20 @@ export class TasksService {
       `/tasks/${id}`,
       task.title,
     );
+
+    // D2 — clôture automatique de la décision de réunion à l'origine de cette
+    // tâche (voir schema.prisma, Task.sourceDecisionId). Accès direct à la
+    // table Decision plutôt qu'une dépendance vers MeetingsModule/
+    // DecisionsService : évite un cycle (DecisionsService.convertToAction
+    // crée des Task directement pour la même raison, voir sa docstring).
+    // `updateMany` + condition de statut plutôt que `update` : idempotent si
+    // rejoué, et sans effet si la décision a déjà été clôturée manuellement.
+    if (updated.sourceDecisionId) {
+      await this.prisma.decision.updateMany({
+        where: { id: updated.sourceDecisionId, status: DecisionStatus.EN_ATTENTE },
+        data: { status: DecisionStatus.CLOTUREE, closedAt: new Date(), closedById: actor.id },
+      });
+    }
 
     return updated;
   }

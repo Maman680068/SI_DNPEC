@@ -3,10 +3,12 @@ import { OrgModule } from '../org/org.module';
 import { CommunicationModule } from '../communication/communication.module';
 import { MeetingsController } from './meetings.controller';
 import { MeetingsService } from './meetings.service';
+import { DecisionsController } from './decisions.controller';
+import { DecisionsService } from './decisions.service';
 
 @Module({
   imports: [OrgModule, CommunicationModule],
-  controllers: [MeetingsController],
-  providers: [MeetingsService],
+  controllers: [MeetingsController, DecisionsController],
+  providers: [MeetingsService, DecisionsService],
 })
 export class MeetingsModule {}
