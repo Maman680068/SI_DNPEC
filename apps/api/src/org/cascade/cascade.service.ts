@@ -29,8 +29,15 @@ type TaskScope =
   | { kind: 'cellule'; celluleId: string }
   | { kind: 'none' };
 
-/** Rôles à visibilité totale sur la DNPEC pour la gestion des utilisateurs (§2.3). */
-const TOP_LEVEL_ROLES: SystemRole[] = [SystemRole.DN, SystemRole.DNA, SystemRole.ADMIN_SYSTEME];
+/** Rôles à visibilité totale sur la DNPEC pour la gestion des utilisateurs (§2.3).
+ * DRH y figure au même titre qu'ADMIN_SYSTEME (fonction transversale, module
+ * Dossier du personnel) : ni l'un ni l'autre n'a d'autorité de cascade sur le
+ * contenu métier (voir LEADERSHIP_ROLES ci-dessous), mais les deux voient la
+ * liste complète des comptes (GET /users) et héritent de canManageUser —
+ * déjà le cas d'ADMIN_SYSTEME. Effet de bord accepté (comme pour
+ * ADMIN_SYSTEME) : cible aussi le périmètre autorisé pour diffuser une
+ * annonce/un sondage (assertCanManageUser, announcements/polls). */
+const TOP_LEVEL_ROLES: SystemRole[] = [SystemRole.DN, SystemRole.DNA, SystemRole.ADMIN_SYSTEME, SystemRole.DRH];
 
 /**
  * Rôles de direction, sans ADMIN_SYSTEME : utilisé pour tout ce qui touche

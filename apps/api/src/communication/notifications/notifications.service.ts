@@ -27,6 +27,7 @@ const NOTIFICATION_BUTTON_LABELS: Record<NotificationType, string> = {
   SONDAGE_CREE: 'Voir le sondage',
   SUGGESTION_RECUE: 'Voir la suggestion',
   SUGGESTION_STATUT_MAJ: 'Voir ma suggestion',
+  DOSSIER_ERREUR_SIGNALEE: 'Voir le dossier',
 };
 
 /**

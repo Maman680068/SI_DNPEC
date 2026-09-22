@@ -92,6 +92,15 @@ enum SystemRole {
   // Division). Voit ce que voit son superviseur (CascadeService) mais son
   // niveau de confidentialité et son autorité d'action restent les siens.
   ASSISTANT_DIRECTION
+  // Directeur des Ressources Humaines — module Dossier du personnel
+  // uniquement (lecture/écriture sur tous les dossiers, import Excel).
+  // Fonction transversale exactement comme ADMIN_SYSTEME (voir
+  // CascadeService, TOP_LEVEL_ROLES) : aucune autorité de cascade sur
+  // tâches/documents/congés (jamais dans LEADERSHIP_ROLES). Distinct du
+  // CHEF_CELLULE de la cellule RH — les deux rôles peuvent coexister sur
+  // des comptes différents, ou non, décision organisationnelle hors du
+  // périmètre applicatif.
+  DRH
 
   @@map("system_role")
 }
@@ -211,6 +220,7 @@ enum NotificationType {
   SONDAGE_CREE
   SUGGESTION_RECUE
   SUGGESTION_STATUT_MAJ
+  DOSSIER_ERREUR_SIGNALEE
 
   @@map("notification_type")
 }
@@ -438,6 +448,17 @@ model User {
 
   notifications Notification[]
   auditLogs     AuditLog[]
+
+  // Dossier du personnel (module personnel/) — voir en-tête de
+  // PersonnelFileBasic/Sensitive pour la séparation des deux niveaux de
+  // sensibilité.
+  personnelFileBasic     PersonnelFileBasic?
+  personnelFileSensitive PersonnelFileSensitive?
+  personnelDiplomas      PersonnelDiploma[]      @relation("PersonnelDiplomaOwner")
+  personnelDocuments     PersonnelDocument[]     @relation("PersonnelDocumentOwner")
+  uploadedPersonnelDocs  PersonnelDocument[]     @relation("PersonnelDocumentUploadedBy")
+  personnelCareerEvents  PersonnelCareerEvent[]  @relation("PersonnelCareerEventSubject")
+  recordedCareerEvents   PersonnelCareerEvent[]  @relation("PersonnelCareerEventRecordedBy")
 
   @@map("users")
 }
@@ -1077,4 +1098,138 @@ model AuditLog {
   @@index([entityType, entityId])
   @@index([actorId])
   @@map("audit_logs")
+}
+
+// ----------------------------------------------------------------------------
+// Module Dossier du personnel — séparation stricte en deux niveaux de
+// sensibilité ("besoin d'en connaître", même principe que pour les congés
+// maladie — voir CascadeService/LeaveMedicalPrivacyService) :
+//
+// Niveau 1 (PersonnelFileBasic) : lecture DN/DNA (toute la DNPEC) et Chef de
+// Division/Section/Cellule (son périmètre) — même cascade que
+// hasDirectAuthorityOver ailleurs dans l'application. Lecture/écriture DRH
+// et la personne elle-même.
+//
+// Niveau 2 (PersonnelFileSensitive, PersonnelDiploma, PersonnelDocument,
+// PersonnelCareerEvent) : réservé à la personne elle-même et au DRH.
+// PERSONNE d'autre, y compris DN/DNA/Chef de Division — séparation physique
+// en tables distinctes plutôt qu'un simple filtre applicatif, pour qu'une
+// requête mal écrite sur le niveau 1 ne puisse structurellement pas ramener
+// une donnée de niveau 2.
+//
+// `verifiedFields` (Json, ex. {"grade": true, "echelon": false}) : statut
+// "à vérifier" par champ scalaire, quelle que soit la source qui l'a
+// renseigné (import Excel, saisie DRH, auto-déclaration) — repassé à false
+// dès que le champ est réécrit, remis à true uniquement par l'action
+// explicite de l'agent "Confirmer mes informations"
+// (PersonnelFilesService.confirmMyInformation). PersonnelDiploma/
+// PersonnelDocument portent directement leur propre colonne `verified`
+// (déjà une ligne par élément). PersonnelCareerEvent n'a AUCUN statut de
+// vérification : journal généré automatiquement (comme AuditLog), jamais
+// saisi à la main, rien à confirmer.
+// ----------------------------------------------------------------------------
+
+enum EmploymentStatus {
+  FONCTIONNAIRE
+  CONTRACTUEL
+  STAGIAIRE
+  MISE_A_DISPOSITION
+
+  @@map("employment_status")
+}
+
+enum CareerEventType {
+  AFFECTATION // changement de Division/Section/Cellule (voir UsersService.updateAssignment)
+  PROMOTION // changement de grade/échelon
+  CHANGEMENT_FONCTION // changement de rôle/poste
+
+  @@map("career_event_type")
+}
+
+model PersonnelFileBasic {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  employmentStatus       EmploymentStatus?
+  grade                  String?
+  echelon                String?
+  serviceStartDate       DateTime?
+  // Fiche de poste déposée (fichier) — StorageService, même mécanique que la GED.
+  jobDescriptionFileKey  String?
+  jobDescriptionFileName String?
+
+  verifiedFields Json   @default("{}")
+  source         String // 'IMPORT' | 'DRH' | 'SELF' — dernière source d'écriture, informatif
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("personnel_files_basic")
+}
+
+model PersonnelFileSensitive {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  personalAddress          String?
+  personalPhone            String?
+  personalEmail            String?
+  emergencyContactName     String?
+  emergencyContactRelation String?
+  emergencyContactPhone    String?
+
+  verifiedFields Json   @default("{}")
+  source         String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("personnel_files_sensitive")
+}
+
+model PersonnelDiploma {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation("PersonnelDiplomaOwner", fields: [userId], references: [id], onDelete: Cascade)
+  title        String
+  institution  String?
+  obtainedYear Int?
+  fileKey      String?
+  fileName     String?
+  verified     Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  @@map("personnel_diplomas")
+}
+
+model PersonnelDocument {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation("PersonnelDocumentOwner", fields: [userId], references: [id], onDelete: Cascade)
+  label        String // libre : "CNI", "Acte de naissance", "Casier judiciaire"...
+  fileKey      String
+  fileName     String
+  uploadedById String
+  uploadedBy   User     @relation("PersonnelDocumentUploadedBy", fields: [uploadedById], references: [id])
+  verified     Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  @@map("personnel_documents")
+}
+
+model PersonnelCareerEvent {
+  id            String          @id @default(cuid())
+  userId        String
+  user          User            @relation("PersonnelCareerEventSubject", fields: [userId], references: [id], onDelete: Cascade)
+  eventType     CareerEventType
+  fromValue     String?
+  toValue       String?
+  effectiveDate DateTime        @default(now())
+  recordedById  String
+  recordedBy    User            @relation("PersonnelCareerEventRecordedBy", fields: [recordedById], references: [id])
+  createdAt     DateTime        @default(now())
+
+  @@map("personnel_career_events")
 }

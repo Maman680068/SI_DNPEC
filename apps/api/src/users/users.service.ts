@@ -4,6 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../common/audit/audit.service';
 import { PasswordService } from '../common/security/password.service';
 import { CascadeService } from '../org/cascade/cascade.service';
+import { PersonnelHistoryService } from '../personnel/personnel-history.service';
 import { AuthenticatedUser } from '../common/types/auth-user.type';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -102,6 +103,7 @@ export class UsersService {
     private readonly audit: AuditService,
     private readonly passwordService: PasswordService,
     private readonly cascade: CascadeService,
+    private readonly personnelHistory: PersonnelHistoryService,
   ) {}
 
   findAllVisibleTo(actor: AuthenticatedUser) {
@@ -329,6 +331,15 @@ export class UsersService {
         next: nextAttachment,
       },
     });
+
+    // Historique de carrière (Dossier du personnel, niveau 2) — AFFECTATION.
+    // No-op si rien n'a réellement changé (voir PersonnelHistoryService).
+    await this.personnelHistory.recordAffectationChange(
+      target.id,
+      actor.id,
+      { divisionId: target.divisionId, sectionId: target.sectionId, celluleId: target.celluleId },
+      { divisionId: nextAttachment.divisionId, sectionId: nextAttachment.sectionId, celluleId: nextAttachment.celluleId },
+    );
 
     return updated;
   }
