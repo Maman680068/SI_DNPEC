@@ -28,14 +28,6 @@ import { LoginTwoFaDto } from './dto/login-2fa.dto';
 import { EnableTwoFaDto } from './dto/enable-2fa.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 
-/** Rôles pour lesquels la 2FA est obligatoire (§3.3 du cahier des charges). */
-const MANDATORY_2FA_ROLES: SystemRole[] = [
-  SystemRole.DN,
-  SystemRole.DNA,
-  SystemRole.CHEF_DIVISION,
-  SystemRole.CHEF_CELLULE,
-];
-
 /** Cellules transversales dont la structure interne (chef, effectif) est
  * définie (§11 — CTSCM/CNC restent à définir) — seules celles-ci peuvent
  * être déclarées à l'auto-inscription, voir schema.prisma (Cellule §3). */
@@ -212,14 +204,10 @@ export class AuthService {
 
     this.loginAttempts.recordSuccess(dto.email, ip);
 
-    if (!user.twoFactorEnabled && MANDATORY_2FA_ROLES.includes(user.role)) {
-      const setupToken = await this.jwtService.signAsync(
-        { sub: user.id, purpose: 'two_fa_setup_required' } satisfies TwoFaSetupRequiredPayload,
-        { expiresIn: '10m' },
-      );
-      return { status: 'two_fa_setup_required' as const, setupToken };
-    }
-
+    // La 2FA n'est plus imposée à aucun rôle — un mot de passe correct
+    // suffit désormais pour tout le monde ; elle reste une option que
+    // chacun peut activer/désactiver librement (setupTwoFa/enableTwoFa/
+    // disableTwoFa), auquel cas le challenge ci-dessous s'applique.
     if (user.twoFactorEnabled) {
       const challengeToken = await this.jwtService.signAsync(
         { sub: user.id, purpose: 'two_fa_login_challenge' } satisfies TwoFaLoginChallengePayload,
@@ -257,7 +245,7 @@ export class AuthService {
     return this.issueSession(user, ip);
   }
 
-  /** Génère un secret TOTP + QR code. Utilisable avec un access token normal (opt-in) ou un jeton "2FA requise" (première connexion d'un rôle soumis à 2FA). */
+  /** Génère un secret TOTP + QR code — activation volontaire uniquement, la 2FA n'étant imposée à aucun rôle. Utilisable avec un access token normal ; le jeton "2FA requise" reste accepté par resolveSetupOrAccessSubject pour compatibilité mais n'est plus jamais émis par login(). */
   async setupTwoFa(authorizationHeader: string | undefined) {
     const userId = await this.resolveSetupOrAccessSubject(authorizationHeader);
     const user = await this.getUserOrThrow(userId);
@@ -298,9 +286,6 @@ export class AuthService {
 
   async disableTwoFa(userId: string): Promise<void> {
     const user = await this.getUserOrThrow(userId);
-    if (MANDATORY_2FA_ROLES.includes(user.role)) {
-      throw new ForbiddenException('La 2FA est obligatoire pour votre rôle et ne peut pas être désactivée.');
-    }
 
     await this.prisma.user.update({
       where: { id: user.id },
@@ -340,7 +325,7 @@ export class AuthService {
     return this.jwtService.signAsync({ sub: userId, purpose: 'access' } satisfies AccessTokenPayload);
   }
 
-  /** Accepte un access token normal (opt-in volontaire) OU un jeton "2FA requise" émis au login (première configuration obligatoire). */
+  /** Accepte un access token normal (opt-in volontaire) OU un jeton "2FA requise" — ce dernier type n'est plus jamais émis par login() mais reste accepté ici sans risque. */
   private async resolveSetupOrAccessSubject(authorizationHeader: string | undefined): Promise<string> {
     const token = this.extractBearer(authorizationHeader);
     if (!token) throw new UnauthorizedException('Jeton manquant');
