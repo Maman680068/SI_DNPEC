@@ -1,6 +1,8 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
 import { SystemRole } from '@prisma/client';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { AuthenticatedUser } from '../../common/types/auth-user.type';
 import { DivisionsService } from './divisions.service';
 import { CreateDivisionDto } from './dto/create-division.dto';
 import { UpdateDivisionDto } from './dto/update-division.dto';
@@ -35,5 +37,17 @@ export class DivisionsController {
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.divisionsService.remove(id);
+  }
+
+  @Roles(SystemRole.ADMIN_SYSTEME)
+  @Post(':id/suspend')
+  suspend(@Param('id') id: string, @CurrentUser() actor: AuthenticatedUser) {
+    return this.divisionsService.suspend(id, actor);
+  }
+
+  @Roles(SystemRole.ADMIN_SYSTEME)
+  @Post(':id/reactivate')
+  reactivate(@Param('id') id: string, @CurrentUser() actor: AuthenticatedUser) {
+    return this.divisionsService.reactivate(id, actor);
   }
 }

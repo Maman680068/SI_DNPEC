@@ -2,6 +2,7 @@ export interface Division {
   id: string;
   code: string;
   name: string;
+  isActive: boolean;
 }
 
 export interface Section {
@@ -9,6 +10,7 @@ export interface Section {
   code: string;
   name: string;
   divisionId: string;
+  isActive: boolean;
 }
 
 export interface Cellule {
@@ -16,6 +18,7 @@ export interface Cellule {
   code: string;
   name: string;
   chefId: string | null;
+  isActive: boolean;
 }
 
 export interface OrgUser {

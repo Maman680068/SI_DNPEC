@@ -1,11 +1,17 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { AuditAction } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { AuditService } from '../../common/audit/audit.service';
+import { AuthenticatedUser } from '../../common/types/auth-user.type';
 import { CreateDivisionDto } from './dto/create-division.dto';
 import { UpdateDivisionDto } from './dto/update-division.dto';
 
 @Injectable()
 export class DivisionsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly audit: AuditService,
+  ) {}
 
   findAll() {
     return this.prisma.division.findMany({ orderBy: { code: 'asc' } });
@@ -62,5 +68,42 @@ export class DivisionsService {
     }
 
     await this.prisma.division.delete({ where: { id } });
+  }
+
+  /**
+   * Suspend une Division (§2.6 bis) : n'affecte jamais les personnes déjà
+   * rattachées (elles gardent connexion, tâches, congés, documents intacts),
+   * bloque seulement la croissance de l'unité — voir les points d'application
+   * de isActive dans AuthService.getRegistrationOrgOptions,
+   * UsersService.create/approveRegistration et TasksService.broadcastToDivision.
+   */
+  async suspend(id: string, actor: AuthenticatedUser) {
+    await this.findOneOrThrow(id);
+    const updated = await this.prisma.division.update({ where: { id }, data: { isActive: false } });
+
+    await this.audit.log({
+      actorId: actor.id,
+      action: AuditAction.MODIFICATION,
+      entityType: 'Division',
+      entityId: id,
+      metadata: { event: 'suspended' },
+    });
+
+    return updated;
+  }
+
+  async reactivate(id: string, actor: AuthenticatedUser) {
+    await this.findOneOrThrow(id);
+    const updated = await this.prisma.division.update({ where: { id }, data: { isActive: true } });
+
+    await this.audit.log({
+      actorId: actor.id,
+      action: AuditAction.MODIFICATION,
+      entityType: 'Division',
+      entityId: id,
+      metadata: { event: 'reactivated' },
+    });
+
+    return updated;
   }
 }

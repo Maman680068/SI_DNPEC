@@ -58,14 +58,26 @@ export class AuthService {
   /** Options d'organisation utilisables à l'inscription (page publique, avant authentification) :
    * les 5 Divisions avec leurs Sections, et seulement les Cellules transversales dont la
    * structure est définie (voir DECLARABLE_CELLULE_CODES). */
+  /**
+   * Unités suspendues (Division.isActive/Section.isActive/Cellule.isActive,
+   * §2.6 bis) exclues ici : une inscription est un nouveau rattachement, donc
+   * la croissance précisément bloquée par une suspension. N'affecte jamais le
+   * personnel déjà rattaché à l'unité, qui garde son accès intact.
+   */
   async getRegistrationOrgOptions() {
     const [divisions, cellules] = await Promise.all([
       this.prisma.division.findMany({
-        select: { id: true, code: true, name: true, sections: { select: { id: true, code: true, name: true } } },
+        where: { isActive: true },
+        select: {
+          id: true,
+          code: true,
+          name: true,
+          sections: { where: { isActive: true }, select: { id: true, code: true, name: true } },
+        },
         orderBy: { name: 'asc' },
       }),
       this.prisma.cellule.findMany({
-        where: { code: { in: DECLARABLE_CELLULE_CODES } },
+        where: { isActive: true, code: { in: DECLARABLE_CELLULE_CODES } },
         select: { id: true, code: true, name: true },
         orderBy: { name: 'asc' },
       }),

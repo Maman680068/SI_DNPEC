@@ -183,6 +183,7 @@ export class UsersService {
   /** Création manuelle par l'Administrateur système (RF-SEC-01, modalité 1). */
   async create(dto: CreateUserDto, actor: AuthenticatedUser) {
     await this.assertOrgAttachmentValid(dto);
+    await this.assertUnitsActiveForNewAttachment(dto);
     await this.assertNoActiveChiefConflict(dto.role, dto);
 
     const existing = await this.prisma.user.findUnique({ where: { email: dto.email } });
@@ -366,6 +367,7 @@ export class UsersService {
       supervisorId: dto.supervisorId ?? null,
     };
     await this.assertOrgAttachmentValid(attachment);
+    await this.assertUnitsActiveForNewAttachment(attachment);
     await this.assertNoActiveChiefConflict(dto.role, attachment);
 
     const updated = await this.prisma.user.update({
@@ -445,6 +447,44 @@ export class UsersService {
       const supervisor = await this.prisma.user.findUnique({ where: { id: input.supervisorId } });
       if (!supervisor || !SUPERVISOR_ROLES.includes(supervisor.role)) {
         throw new ConflictException('Le superviseur doit être un DN, une DNA ou un Chef de Cellule.');
+      }
+    }
+  }
+
+  /**
+   * Bloque un NOUVEAU rattachement (création manuelle, approbation d'une
+   * inscription) sur une Division/Section/Cellule suspendue (§2.6 bis,
+   * Division.isActive/Section.isActive/Cellule.isActive) — la suspension
+   * empêche uniquement la croissance de l'unité, jamais le travail des
+   * personnes déjà rattachées. Volontairement PAS appelé par
+   * updateAssignment() : déplacer un agent déjà actif entre Sections d'une
+   * même Division n'ajoute personne de nouveau à l'unité suspendue.
+   */
+  private async assertUnitsActiveForNewAttachment(input: OrgAttachment): Promise<void> {
+    if (input.divisionId) {
+      const division = await this.prisma.division.findUnique({ where: { id: input.divisionId } });
+      if (division && !division.isActive) {
+        throw new ConflictException(
+          `La division "${division.name}" est suspendue — aucun nouveau rattachement n'y est possible tant qu'elle n'est pas réactivée.`,
+        );
+      }
+    }
+
+    if (input.sectionId) {
+      const section = await this.prisma.section.findUnique({ where: { id: input.sectionId } });
+      if (section && !section.isActive) {
+        throw new ConflictException(
+          `La section "${section.name}" est suspendue — aucun nouveau rattachement n'y est possible tant qu'elle n'est pas réactivée.`,
+        );
+      }
+    }
+
+    if (input.celluleId) {
+      const cellule = await this.prisma.cellule.findUnique({ where: { id: input.celluleId } });
+      if (cellule && !cellule.isActive) {
+        throw new ConflictException(
+          `La cellule "${cellule.name}" est suspendue — aucun nouveau rattachement n'y est possible tant qu'elle n'est pas réactivée.`,
+        );
       }
     }
   }

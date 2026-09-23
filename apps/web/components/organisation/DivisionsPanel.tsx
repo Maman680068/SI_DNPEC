@@ -2,7 +2,18 @@
 
 import { useState } from 'react';
 import { useOrg } from '../../lib/org/OrgProvider';
-import { createDivision, createSection, deleteDivision, deleteSection, updateDivision, updateSection } from '../../lib/api/org';
+import {
+  createDivision,
+  createSection,
+  deleteDivision,
+  deleteSection,
+  reactivateDivision,
+  reactivateSection,
+  suspendDivision,
+  suspendSection,
+  updateDivision,
+  updateSection,
+} from '../../lib/api/org';
 import type { Division, Section } from '../../lib/org/types';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
@@ -46,6 +57,34 @@ export function DivisionsPanel() {
     }
   }
 
+  async function handleToggleDivisionActive(division: Division) {
+    setPendingDeleteId(division.id);
+    setError(null);
+    try {
+      if (division.isActive) await suspendDivision(division.id);
+      else await reactivateDivision(division.id);
+      await refreshOrg();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Impossible de modifier le statut de cette division');
+    } finally {
+      setPendingDeleteId(null);
+    }
+  }
+
+  async function handleToggleSectionActive(section: Section) {
+    setPendingDeleteId(section.id);
+    setError(null);
+    try {
+      if (section.isActive) await suspendSection(section.id);
+      else await reactivateSection(section.id);
+      await refreshOrg();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Impossible de modifier le statut de cette section');
+    } finally {
+      setPendingDeleteId(null);
+    }
+  }
+
   return (
     <div>
       <div className="mb-3.5 flex items-center justify-between">
@@ -74,7 +113,14 @@ export function DivisionsPanel() {
                   >
                     <span className="text-text-faint">{isExpanded ? '▾' : '▸'}</span>
                     <div>
-                      <div className="text-[14px] font-bold">{division.name}</div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[14px] font-bold">{division.name}</span>
+                        {!division.isActive && (
+                          <span className="rounded-full bg-clay-soft px-2 py-0.5 text-[10.5px] font-bold uppercase tracking-wide text-clay">
+                            Suspendue
+                          </span>
+                        )}
+                      </div>
                       <div className="text-[12px] text-text-muted">
                         {division.code} · {divisionSections.length} section{divisionSections.length > 1 ? 's' : ''}
                       </div>
@@ -83,6 +129,13 @@ export function DivisionsPanel() {
                   <div className="flex flex-shrink-0 gap-2">
                     <Button variant="outline" onClick={() => setEditingDivision(division)}>
                       Modifier
+                    </Button>
+                    <Button
+                      variant="outline"
+                      disabled={pendingDeleteId === division.id}
+                      onClick={() => handleToggleDivisionActive(division)}
+                    >
+                      {division.isActive ? 'Suspendre' : 'Réactiver'}
                     </Button>
                     <Button
                       variant="outline"
@@ -113,12 +166,26 @@ export function DivisionsPanel() {
                             className="flex flex-col gap-2 rounded-md bg-bg px-3.5 py-2.5 sm:flex-row sm:items-center sm:justify-between"
                           >
                             <div>
-                              <div className="text-[13px] font-semibold">{section.name}</div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-[13px] font-semibold">{section.name}</span>
+                                {!section.isActive && (
+                                  <span className="rounded-full bg-clay-soft px-2 py-0.5 text-[10.5px] font-bold uppercase tracking-wide text-clay">
+                                    Suspendue
+                                  </span>
+                                )}
+                              </div>
                               <div className="text-[11.5px] text-text-faint">{section.code}</div>
                             </div>
                             <div className="flex gap-1.5">
                               <Button variant="outline" onClick={() => setEditingSection(section)}>
                                 Modifier
+                              </Button>
+                              <Button
+                                variant="outline"
+                                disabled={pendingDeleteId === section.id}
+                                onClick={() => handleToggleSectionActive(section)}
+                              >
+                                {section.isActive ? 'Suspendre' : 'Réactiver'}
                               </Button>
                               <Button
                                 variant="outline"

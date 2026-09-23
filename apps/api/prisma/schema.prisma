@@ -260,6 +260,12 @@ model Division {
   id        String   @id @default(cuid())
   code      String   @unique // DPE, DEE, DSPS, DAC, DIPE
   name      String
+  // Suspension (§2.6 bis) : n'affecte JAMAIS les personnes déjà rattachées
+  // (elles gardent connexion, tâches, congés, documents intacts) — bloque
+  // uniquement la croissance de l'unité pendant qu'elle est fausse : nouveau
+  // rattachement (inscription, création manuelle, approbation) et nomination
+  // d'un nouveau chef. Voir DivisionsService.suspend/reactivate.
+  isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -281,6 +287,10 @@ model Section {
   name       String
   divisionId String
   division   Division @relation(fields: [divisionId], references: [id], onDelete: Cascade)
+  // Voir Division.isActive — même principe de suspension, appliqué indépendamment
+  // au niveau de la Section (une Section peut être suspendue sans que sa Division
+  // le soit, et inversement).
+  isActive   Boolean  @default(true)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
@@ -308,6 +318,11 @@ model Cellule {
   // dirige qu'une seule cellule.
   chefId String? @unique
   chef   User?   @relation("CelluleChef", fields: [chefId], references: [id])
+
+  // Voir Division.isActive — même principe de suspension. Une Cellule suspendue
+  // garde son chef actuel (aucun effet sur lui) mais ne peut pas en recevoir un
+  // nouveau tant qu'elle est suspendue (CellulesService.assignChef).
+  isActive Boolean @default(true)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

@@ -61,7 +61,14 @@ export function OrgAttachmentFields({
   value: OrgAttachment;
   onChange: (next: OrgAttachment) => void;
 }) {
-  const { divisions, sections, cellules } = useOrg();
+  const { divisions: allDivisions, sections: allSections, cellules: allCellules } = useOrg();
+  // Une unité suspendue (§2.6 bis) est exclue des listes de sélection pour tout
+  // nouveau rattachement — bloqué côté API de toute façon (UsersService.
+  // assertUnitsActiveForNewAttachment), filtré ici pour ne pas proposer un choix
+  // que le serveur refusera.
+  const divisions = allDivisions.filter((d) => d.isActive);
+  const sections = allSections.filter((s) => s.isActive);
+  const cellules = allCellules.filter((c) => c.isActive);
   const kind = attachmentKind(role);
   const [agentMode, setAgentMode] = useState<AgentMode>(value.celluleId ? 'cellule' : 'division');
   const [supervisorOptions, setSupervisorOptions] = useState<RegistrationSupervisorOption[]>([]);

@@ -69,6 +69,11 @@ export class CellulesService {
    */
   async assignChef(celluleId: string, userId: string, actor: AuthenticatedUser) {
     const cellule = await this.findOneOrThrow(celluleId);
+    if (!cellule.isActive) {
+      throw new ConflictException(
+        'Cette Cellule est suspendue — réactivez-la avant de lui nommer un nouveau chef.',
+      );
+    }
 
     const targetUser = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!targetUser) throw new NotFoundException('Utilisateur introuvable');
@@ -122,5 +127,37 @@ export class CellulesService {
     });
 
     return updatedCellule;
+  }
+
+  /** Voir DivisionsService.suspend — même principe. Le chef en poste, s'il y en a un,
+   * n'est jamais touché : seule la nomination d'un NOUVEAU chef est bloquée (assignChef). */
+  async suspend(id: string, actor: AuthenticatedUser) {
+    await this.findOneOrThrow(id);
+    const updated = await this.prisma.cellule.update({ where: { id }, data: { isActive: false } });
+
+    await this.audit.log({
+      actorId: actor.id,
+      action: AuditAction.MODIFICATION,
+      entityType: 'Cellule',
+      entityId: id,
+      metadata: { event: 'suspended' },
+    });
+
+    return updated;
+  }
+
+  async reactivate(id: string, actor: AuthenticatedUser) {
+    await this.findOneOrThrow(id);
+    const updated = await this.prisma.cellule.update({ where: { id }, data: { isActive: true } });
+
+    await this.audit.log({
+      actorId: actor.id,
+      action: AuditAction.MODIFICATION,
+      entityType: 'Cellule',
+      entityId: id,
+      metadata: { event: 'reactivated' },
+    });
+
+    return updated;
   }
 }

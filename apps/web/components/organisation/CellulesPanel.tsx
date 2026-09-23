@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useOrg } from '../../lib/org/OrgProvider';
-import { createCellule, deleteCellule, updateCellule } from '../../lib/api/org';
+import { createCellule, deleteCellule, reactivateCellule, suspendCellule, updateCellule } from '../../lib/api/org';
 import type { Cellule } from '../../lib/org/types';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
@@ -29,6 +29,20 @@ export function CellulesPanel() {
     }
   }
 
+  async function handleToggleActive(cellule: Cellule) {
+    setPendingDeleteId(cellule.id);
+    setError(null);
+    try {
+      if (cellule.isActive) await suspendCellule(cellule.id);
+      else await reactivateCellule(cellule.id);
+      await refreshOrg();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Impossible de modifier le statut de cette cellule');
+    } finally {
+      setPendingDeleteId(null);
+    }
+  }
+
   return (
     <div>
       <div className="mb-3.5 flex items-center justify-between">
@@ -47,7 +61,14 @@ export function CellulesPanel() {
           {cellules.map((cellule) => (
             <Card key={cellule.id} className="flex flex-col gap-3 p-[18px] sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <div className="text-[14px] font-bold">{cellule.name}</div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[14px] font-bold">{cellule.name}</span>
+                  {!cellule.isActive && (
+                    <span className="rounded-full bg-clay-soft px-2 py-0.5 text-[10.5px] font-bold uppercase tracking-wide text-clay">
+                      Suspendue
+                    </span>
+                  )}
+                </div>
                 <div className="text-[12px] text-text-muted">
                   {cellule.code} · {cellule.chefId ? 'a un chef' : 'sans chef'}
                 </div>
@@ -55,6 +76,13 @@ export function CellulesPanel() {
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => setEditing(cellule)}>
                   Modifier
+                </Button>
+                <Button
+                  variant="outline"
+                  disabled={pendingDeleteId === cellule.id}
+                  onClick={() => handleToggleActive(cellule)}
+                >
+                  {cellule.isActive ? 'Suspendre' : 'Réactiver'}
                 </Button>
                 <Button
                   variant="outline"

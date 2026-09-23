@@ -1,11 +1,17 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { AuditAction } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { AuditService } from '../../common/audit/audit.service';
+import { AuthenticatedUser } from '../../common/types/auth-user.type';
 import { CreateSectionDto } from './dto/create-section.dto';
 import { UpdateSectionDto } from './dto/update-section.dto';
 
 @Injectable()
 export class SectionsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly audit: AuditService,
+  ) {}
 
   async findAllForDivision(divisionId: string) {
     await this.assertDivisionExists(divisionId);
@@ -56,6 +62,37 @@ export class SectionsService {
     }
 
     await this.prisma.section.delete({ where: { id } });
+  }
+
+  /** Voir DivisionsService.suspend — même principe, indépendant du statut de la Division. */
+  async suspend(id: string, actor: AuthenticatedUser) {
+    await this.findOneOrThrow(id);
+    const updated = await this.prisma.section.update({ where: { id }, data: { isActive: false } });
+
+    await this.audit.log({
+      actorId: actor.id,
+      action: AuditAction.MODIFICATION,
+      entityType: 'Section',
+      entityId: id,
+      metadata: { event: 'suspended' },
+    });
+
+    return updated;
+  }
+
+  async reactivate(id: string, actor: AuthenticatedUser) {
+    await this.findOneOrThrow(id);
+    const updated = await this.prisma.section.update({ where: { id }, data: { isActive: true } });
+
+    await this.audit.log({
+      actorId: actor.id,
+      action: AuditAction.MODIFICATION,
+      entityType: 'Section',
+      entityId: id,
+      metadata: { event: 'reactivated' },
+    });
+
+    return updated;
   }
 
   private async assertDivisionExists(divisionId: string): Promise<void> {

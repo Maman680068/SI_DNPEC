@@ -162,6 +162,11 @@ export class TasksService {
 
     const division = await this.prisma.division.findUnique({ where: { id: dto.divisionId } });
     if (!division) throw new NotFoundException('Division introuvable');
+    if (!division.isActive) {
+      throw new ConflictException(
+        `La division "${division.name}" est suspendue — aucune nouvelle diffusion de tâche n'y est possible tant qu'elle n'est pas réactivée.`,
+      );
+    }
 
     const members = await this.prisma.user.findMany({
       where: { divisionId: dto.divisionId, status: UserStatus.ACTIF, id: { not: actor.id } },

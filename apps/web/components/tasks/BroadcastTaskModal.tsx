@@ -20,8 +20,13 @@ export function BroadcastTaskModal({
 
   // Un Chef de Division n'a de toute façon autorité que sur la sienne
   // (TasksService.broadcastToDivision) — pas la peine de lui montrer les autres.
+  // Une division suspendue (§2.6 bis) est également exclue : diffuser une tâche y
+  // ferait croître l'activité d'une unité gelée, bloqué côté API de toute façon.
+  const activeDivisions = divisions.filter((d) => d.isActive);
   const selectableDivisions =
-    currentUser?.role === 'CHEF_DIVISION' ? divisions.filter((d) => d.id === currentUser.divisionId) : divisions;
+    currentUser?.role === 'CHEF_DIVISION'
+      ? activeDivisions.filter((d) => d.id === currentUser.divisionId)
+      : activeDivisions;
 
   const [divisionId, setDivisionId] = useState(selectableDivisions[0]?.id ?? '');
   const [mode, setMode] = useState<BroadcastMode>('INDIVIDUAL');

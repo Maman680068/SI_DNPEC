@@ -55,4 +55,16 @@ export class CellulesController {
   removeChef(@Param('id') id: string, @CurrentUser() actor: AuthenticatedUser) {
     return this.cellulesService.removeChef(id, actor);
   }
+
+  @Roles(SystemRole.ADMIN_SYSTEME)
+  @Post(':id/suspend')
+  suspend(@Param('id') id: string, @CurrentUser() actor: AuthenticatedUser) {
+    return this.cellulesService.suspend(id, actor);
+  }
+
+  @Roles(SystemRole.ADMIN_SYSTEME)
+  @Post(':id/reactivate')
+  reactivate(@Param('id') id: string, @CurrentUser() actor: AuthenticatedUser) {
+    return this.cellulesService.reactivate(id, actor);
+  }
 }

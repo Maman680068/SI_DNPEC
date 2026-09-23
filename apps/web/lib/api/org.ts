@@ -46,6 +46,17 @@ export function deleteSection(id: string): Promise<void> {
   return apiFetch<void>(`/org/sections/${id}`, { method: 'DELETE' });
 }
 
+/** Suspension (§2.6 bis) : n'affecte jamais les personnes déjà rattachées à la Section
+ * (accès intact), bloque seulement un nouveau rattachement ou une nouvelle nomination
+ * de chef — voir SectionsService.suspend côté API. */
+export function suspendSection(id: string): Promise<Section> {
+  return apiFetch<Section>(`/org/sections/${id}/suspend`, { method: 'POST' });
+}
+
+export function reactivateSection(id: string): Promise<Section> {
+  return apiFetch<Section>(`/org/sections/${id}/reactivate`, { method: 'POST' });
+}
+
 export function createCellule(input: OrgEntityInput): Promise<Cellule> {
   return apiFetch<Cellule>('/org/cellules', { method: 'POST', body: JSON.stringify(input) });
 }
@@ -57,6 +68,25 @@ export function updateCellule(id: string, input: Partial<OrgEntityInput>): Promi
 /** Même garde que deleteDivision, côté CellulesService.remove. */
 export function deleteCellule(id: string): Promise<void> {
   return apiFetch<void>(`/org/cellules/${id}`, { method: 'DELETE' });
+}
+
+/** Voir suspendSection — même principe pour une Division. */
+export function suspendDivision(id: string): Promise<Division> {
+  return apiFetch<Division>(`/org/divisions/${id}/suspend`, { method: 'POST' });
+}
+
+export function reactivateDivision(id: string): Promise<Division> {
+  return apiFetch<Division>(`/org/divisions/${id}/reactivate`, { method: 'POST' });
+}
+
+/** Voir suspendSection — même principe pour une Cellule. Le chef en poste, s'il y en
+ * a un, garde son rôle : seule une NOUVELLE nomination de chef est bloquée. */
+export function suspendCellule(id: string): Promise<Cellule> {
+  return apiFetch<Cellule>(`/org/cellules/${id}/suspend`, { method: 'POST' });
+}
+
+export function reactivateCellule(id: string): Promise<Cellule> {
+  return apiFetch<Cellule>(`/org/cellules/${id}/reactivate`, { method: 'POST' });
 }
 
 /** Nomme le chef d'une cellule — transactionnel côté API (CellulesService.assignChef) :
