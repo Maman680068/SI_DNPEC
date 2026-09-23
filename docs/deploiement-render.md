@@ -150,3 +150,34 @@ Plusieurs origines séparées par des virgules sont acceptées si besoin
 (ex. un environnement de préproduction en plus). Sans cette variable, le
 comportement actuel (permissif) continue — ce n'est pas bloquant pour le
 premier déploiement du frontend, seulement moins strict.
+
+## 7. Vulnérabilité connue et acceptée dans les dépendances
+
+**Constaté le 23/09/2026** : sur les 9 alertes Dependabot ouvertes sur le
+dépôt à cette date, 4 (`multer`, DoS/fuite de descripteur de fichier) ont
+été corrigées en mettant à jour `@nestjs/platform-express` vers `12.1.0`
+(dans le range `^12.0.1` déjà déclaré dans `apps/api/package.json` — aucune
+modification de `package.json` n'a été nécessaire, seul le lockfile
+`pnpm-lock.yaml` a changé de résolution).
+
+Une alerte reste **sciemment non corrigée** :
+
+- **`uuid@8.3.2` — vérification de limites de buffer manquante
+  (v3/v5/v6 avec `buf` fourni)**, sévérité modérée. Cette dépendance
+  n'est pas directe : elle vient d'`exceljs@4.4.0` (utilisé pour l'import
+  Excel du personnel et l'export `.xlsx` des tâches), qui exige
+  `uuid@^8.3.0`. Le correctif amont nécessite `uuid >= 11.1.1`, une
+  montée majeure (v8 → v11, passage à un package ESM-only) — vérifié le
+  23/09/2026 : ni `exceljs@4.4.0` (dernière version stable), ni la
+  préversion `4.4.1-prerelease.0` ne mettent à jour cette dépendance.
+  Forcer un override pnpm sur `uuid` casserait potentiellement la
+  génération de fichiers `.xlsx` (usage interne d'exceljs non vérifié
+  avec uuid v11+) sans bénéfice de sécurité vérifié en pratique (uuid
+  n'est utilisé par exceljs que pour générer des identifiants internes,
+  jamais à partir d'un `buf` fourni par un utilisateur externe).
+
+**Action de suivi** : revérifier la page npm d'`exceljs` (ou son dépôt
+GitHub) lors d'une prochaine intervention sur les dépendances, pour voir
+si une version publiée après le 23/09/2026 met à jour sa dépendance `uuid`
+vers une version corrigée — et dans ce cas, mettre à jour `exceljs` plutôt
+que de forcer un override.
