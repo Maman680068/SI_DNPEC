@@ -234,6 +234,7 @@ enum NotificationType {
   SUGGESTION_STATUT_MAJ
   DOSSIER_ERREUR_SIGNALEE
   DECISION_RELANCE
+  SUPPLEANCE_DESIGNEE
 
   @@map("notification_type")
 }
@@ -476,6 +477,13 @@ model User {
   uploadedPersonnelDocs  PersonnelDocument[]     @relation("PersonnelDocumentUploadedBy")
   personnelCareerEvents  PersonnelCareerEvent[]  @relation("PersonnelCareerEventSubject")
   recordedCareerEvents   PersonnelCareerEvent[]  @relation("PersonnelCareerEventRecordedBy")
+
+  // Suppléance/intérim (§2.6)
+  suppleancesAsTitulaire Suppleance[] @relation("SuppleanceTitulaire")
+  suppleancesAsSuppleant Suppleance[] @relation("SuppleanceSuppleant")
+  suppleancesDesignated  Suppleance[] @relation("SuppleanceCreatedBy")
+  suppleancesRevoked     Suppleance[] @relation("SuppleanceRevokedBy")
+  auditLogsOnBehalfOf    AuditLog[]   @relation("AuditOnBehalfOf")
 
   @@map("users")
 }
@@ -1172,10 +1180,22 @@ model AuditLog {
   entityId   String
   // Détail de l'action (champs modifiés, valeurs avant/après...)
   metadata   Json?
-  createdAt  DateTime    @default(now())
+
+  // Suppléance/intérim (§2.6) : renseigné automatiquement par AuditService
+  // (via RequestContext/AsyncLocalStorage, jamais passé explicitement par
+  // les appelants) quand `actorId` a agi sous couvert d'une Suppleance
+  // active au moment de la requête — "par intérim, au nom de". `actorId`
+  // reste toujours la personne réelle qui a agi ; `onBehalfOfId` porte le
+  // titulaire au nom de qui. null dans l'immense majorité des lignes
+  // (action normale, jamais en intérim).
+  onBehalfOfId String?
+  onBehalfOf   User?   @relation("AuditOnBehalfOf", fields: [onBehalfOfId], references: [id])
+
+  createdAt DateTime @default(now())
 
   @@index([entityType, entityId])
   @@index([actorId])
+  @@index([onBehalfOfId])
   @@map("audit_logs")
 }
 
@@ -1311,4 +1331,48 @@ model PersonnelCareerEvent {
   createdAt     DateTime        @default(now())
 
   @@map("personnel_career_events")
+}
+
+// ----------------------------------------------------------------------------
+// Suppléance / intérim (§2.6) — tout responsable (Chef de Section/Division/
+// Cellule, DN/DNA) peut désigner, ou voir désigner par son supérieur direct,
+// un suppléant pour une période datée. Pendant cette période, le suppléant
+// EMPRUNTE le rôle/rattachement du titulaire (JwtAuthGuard, sur en-tête
+// explicite X-Interim-For — jamais ambiant/permanent), ce qui fait
+// fonctionner CascadeService sans aucune duplication : autorité
+// (hasHierarchicalAuthorityOver) ET visibilité en cascade s'appliquent comme
+// si le suppléant était momentanément le titulaire. `id` reste toujours
+// celui du suppléant réel — voir AuthenticatedUser.interimForId et
+// AuditLog.onBehalfOfId pour la traçabilité "par intérim, au nom de".
+//
+// Restrictions (décisions de conception validées) : titulaire ET suppléant
+// doivent tous deux avoir un rôle "chef" (CHEF_SECTION, CHEF_CELLULE,
+// CHEF_DIVISION, DN, DNA) — jamais un AGENT ni un ASSISTANT_DIRECTION, qui
+// n'exercent aucune autorité de cascade à emprunter. Une seule suppléance
+// active (ou future, non révoquée) à la fois par titulaire — pas de
+// chevauchement, jamais deux personnes habilitées à agir en son nom
+// simultanément.
+model Suppleance {
+  id          String   @id @default(cuid())
+  titulaireId String
+  titulaire   User     @relation("SuppleanceTitulaire", fields: [titulaireId], references: [id])
+  suppleantId String
+  suppleant   User     @relation("SuppleanceSuppleant", fields: [suppleantId], references: [id])
+  startDate   DateTime
+  endDate     DateTime
+
+  createdById String // qui a désigné — le titulaire lui-même OU son supérieur direct
+  createdBy   User   @relation("SuppleanceCreatedBy", fields: [createdById], references: [id])
+
+  // Fin anticipée (le titulaire revient plus tôt que prévu, erreur de
+  // saisie...) — distinct de endDate pour garder l'historique de ce qui
+  // était prévu vs. ce qui s'est réellement passé.
+  revokedAt   DateTime?
+  revokedById String?
+  revokedBy   User?     @relation("SuppleanceRevokedBy", fields: [revokedById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("suppleances")
 }

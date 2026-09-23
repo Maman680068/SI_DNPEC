@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { AuditAction, Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { getOnBehalfOfId } from '../request-context/request-context';
 
 export interface AuditLogInput {
   /** null pour une action système sans acteur humain (ex. tâche planifiée future). */
@@ -32,6 +33,11 @@ export class AuditService {
         entityType: input.entityType,
         entityId: input.entityId,
         metadata: input.metadata,
+        // Suppléance/intérim (§2.6) : jamais passé explicitement par
+        // l'appelant — lu depuis le contexte de la requête en cours
+        // (AsyncLocalStorage, posé par JwtAuthGuard). Sans acteur humain
+        // (job planifié), il n'y a par définition personne "au nom de qui".
+        onBehalfOfId: input.actorId ? getOnBehalfOfId() : null,
       },
     });
   }

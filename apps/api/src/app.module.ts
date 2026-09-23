@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { APP_GUARD } from '@nestjs/core';
@@ -6,6 +6,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { CommonModule } from './common/common.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
+import { RequestContextMiddleware } from './common/request-context/request-context.middleware';
 import { OrgModule } from './org/org.module';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
@@ -17,6 +18,7 @@ import { MeetingsModule } from './meetings/meetings.module';
 import { ExportModule } from './export/export.module';
 import { SuggestionsModule } from './suggestions/suggestions.module';
 import { PersonnelModule } from './personnel/personnel.module';
+import { SuppleancesModule } from './suppleances/suppleances.module';
 import { AppController } from './app.controller';
 
 @Module({
@@ -39,6 +41,7 @@ import { AppController } from './app.controller';
     ExportModule,
     SuggestionsModule,
     PersonnelModule,
+    SuppleancesModule,
   ],
   providers: [
     // Guards globaux, exécutés dans cet ordre : JwtAuthGuard peuple
@@ -48,4 +51,11 @@ import { AppController } from './app.controller';
     { provide: APP_GUARD, useClass: RolesGuard },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  // RequestContextMiddleware avant tout (middleware s'exécute avant les
+  // Guards) : établit le store AsyncLocalStorage que JwtAuthGuard remplit
+  // ensuite (suppléance/intérim, §2.6) et qu'AuditService lit à la volée.
+  configure(consumer: MiddlewareConsumer): void {
+    consumer.apply(RequestContextMiddleware).forRoutes('*');
+  }
+}

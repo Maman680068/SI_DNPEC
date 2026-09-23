@@ -202,7 +202,7 @@ export class DecisionsService {
     await this.meetings.findOneVisibleTo(actor, decision.meetingId); // 404 si hors périmètre
     this.assertNotClosed(decision);
 
-    if (decision.meeting.createdById !== actor.id) {
+    if (!this.cascade.isActingFor(actor, decision.meeting.createdById)) {
       await this.notifications.notify(
         decision.meeting.createdById,
         NotificationType.DECISION_RELANCE,
@@ -262,8 +262,10 @@ export class DecisionsService {
     return decision;
   }
 
+  /** Suppléance/intérim (§2.6) : isActingFor accepte aussi bien l'organisateur
+   * réel que son suppléant en fonction (interimForId). */
   private assertIsOrganizer(actor: AuthenticatedUser, meeting: { createdById: string }): void {
-    if (meeting.createdById !== actor.id) {
+    if (!this.cascade.isActingFor(actor, meeting.createdById)) {
       throw new ForbiddenException('Seul l’organisateur de la réunion peut gérer ses décisions.');
     }
   }

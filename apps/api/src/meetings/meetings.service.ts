@@ -156,7 +156,7 @@ export class MeetingsService {
   async update(actor: AuthenticatedUser, meetingId: string, dto: UpdateMeetingDto): Promise<MeetingWithParticipants> {
     const meeting = await this.prisma.meeting.findUnique({ where: { id: meetingId } });
     if (!meeting) throw new NotFoundException('Réunion introuvable');
-    if (meeting.createdById !== actor.id) {
+    if (!this.cascade.isActingFor(actor, meeting.createdById)) {
       throw new ForbiddenException("Seul l'organisateur peut modifier cette réunion.");
     }
 
@@ -207,14 +207,17 @@ export class MeetingsService {
   /** Seul l'organisateur peut annuler — une réunion est un artefact personnel
    * d'agenda, pas du contenu métier délégué en cascade comme une tâche :
    * délibérément aucune autorité hiérarchique de substitution ici (voir
-   * CascadeService.hasDirectAuthorityOver, non utilisé). */
+   * CascadeService.hasDirectAuthorityOver, non utilisé) — seule exception,
+   * la suppléance/intérim (§2.6, CascadeService.isActingFor), une identité
+   * explicitement empruntée pour la durée de la requête, pas une autorité
+   * cascade implicite. */
   async cancel(actor: AuthenticatedUser, meetingId: string, dto: CancelMeetingDto): Promise<MeetingWithParticipants> {
     const meeting = await this.prisma.meeting.findUnique({
       where: { id: meetingId },
       include: { participants: true },
     });
     if (!meeting) throw new NotFoundException('Réunion introuvable');
-    if (meeting.createdById !== actor.id) {
+    if (!this.cascade.isActingFor(actor, meeting.createdById)) {
       throw new ForbiddenException("Seul l'organisateur peut annuler cette réunion.");
     }
     if (meeting.status === MeetingStatus.ANNULEE) {

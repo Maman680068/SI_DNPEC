@@ -14,4 +14,20 @@ export interface AuthenticatedUser {
   // superviseur sans requête supplémentaire. null pour tous les autres rôles.
   supervisorRole: SystemRole | null;
   supervisorCelluleId: string | null;
+
+  // Suppléance/intérim (§2.6) — renseigné par JwtAuthGuard uniquement quand
+  // la requête porte l'en-tête X-Interim-For ET qu'une Suppleance active le
+  // justifie (sinon 403, jamais un remplissage silencieux). Quand non-null,
+  // role/divisionId/sectionId/celluleId ci-dessus sont ceux du TITULAIRE
+  // (pas du suppléant) — autorité ET visibilité empruntées d'un coup, par
+  // requête, jamais en permanence. `id` reste toujours celui du suppléant
+  // réel : c'est lui qui doit apparaître comme auteur de l'action dans les
+  // enregistrements métier (approverId, validatedById...) — seul le journal
+  // d'audit porte la mention "par intérim" (AuditLog.onBehalfOfId, posé par
+  // AuditService via RequestContext, jamais ici). CascadeService s'appuie
+  // sur ce champ à deux endroits : hasHierarchicalAuthorityOver (empêche le
+  // suppléant d'agir sur le titulaire lui-même en empruntant son propre
+  // rôle) et isActingFor (contrôles par identité littérale, ex. organisateur
+  // de réunion).
+  interimForId: string | null;
 }

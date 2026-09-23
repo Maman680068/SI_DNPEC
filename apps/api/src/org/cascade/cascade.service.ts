@@ -146,13 +146,22 @@ export class CascadeService {
    * légitimement besoin d'une action sur soi-même (s'assigner une tâche à
    * soi-même, consulter son propre profil...) doit faire ce contrôle
    * explicitement AVANT d'appeler cette méthode, jamais s'appuyer dessus.
+   *
+   * Suppléance/intérim (§2.6) : même garde étendue à `interimForId` — un
+   * suppléant qui emprunte le rôle du titulaire (JwtAuthGuard) ne doit
+   * jamais pouvoir agir sur le titulaire LUI-MÊME sous couvert de ce rôle
+   * emprunté (ex. valider le propre congé du titulaire). `interimForId` est
+   * optionnel sur le type : les objets "candidats" passés en `actor` par
+   * d'autres méthodes (ex. hasCloserAuthorityOver, chefs candidats) n'ont
+   * jamais cette propriété et ne sont donc jamais concernés.
    */
   private hasHierarchicalAuthorityOver(
-    actor: OrgTarget & { role: SystemRole },
+    actor: OrgTarget & { role: SystemRole; interimForId?: string | null },
     target: OrgTarget,
     topRoles: SystemRole[],
   ): boolean {
     if (actor.id === target.id) return false;
+    if (actor.interimForId && actor.interimForId === target.id) return false;
     if (topRoles.includes(actor.role)) return true;
 
     switch (actor.role) {
@@ -197,6 +206,19 @@ export class CascadeService {
    */
   hasDirectAuthorityOver(actor: AuthenticatedUser, target: OrgTarget): boolean {
     return this.hasHierarchicalAuthorityOver(actor, target, LEADERSHIP_ROLES);
+  }
+
+  /**
+   * Suppléance/intérim (§2.6) : `actor` est-il `userId`, ou agit-il
+   * actuellement en son nom ? Remplace les contrôles par identité littérale
+   * (`x.someUserId === actor.id`, ex. "seul l'organisateur de la réunion
+   * peut...") là où l'emprunt de rôle de JwtAuthGuard ne s'applique pas
+   * (ces contrôles ne passent jamais par hasHierarchicalAuthorityOver).
+   * Pour tout ce qui repose déjà sur hasDirectAuthorityOver/canManageUser/
+   * etc., l'emprunt de rôle suffit — pas besoin de cette méthode là.
+   */
+  isActingFor(actor: AuthenticatedUser, userId: string): boolean {
+    return actor.id === userId || actor.interimForId === userId;
   }
 
   /** Vrai si `role` fait partie de LEADERSHIP_ROLES (DN/DNA) — exposé en lecture

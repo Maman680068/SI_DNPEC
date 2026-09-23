@@ -1,0 +1,18 @@
+import { Injectable, NestMiddleware } from '@nestjs/common';
+import { NextFunction, Request, Response } from 'express';
+import { requestContextStorage } from './request-context';
+
+/**
+ * Établit le contexte de requête (AsyncLocalStorage) le plus tôt possible
+ * dans le pipeline — avant les Guards, donc avant que JwtAuthGuard ne
+ * détermine `onBehalfOfId`. Le store est un objet MUTABLE : ce middleware
+ * pose juste la valeur par défaut (null), JwtAuthGuard la modifie ensuite en
+ * place (jamais un nouvel appel à `.run()`, qui écraserait le contexte pour
+ * le reste de la requête) — voir request-context.ts.
+ */
+@Injectable()
+export class RequestContextMiddleware implements NestMiddleware {
+  use(req: Request, res: Response, next: NextFunction): void {
+    requestContextStorage.run({ onBehalfOfId: null }, next);
+  }
+}
