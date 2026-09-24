@@ -21,6 +21,8 @@ import { LigneActe, LigneArrivee, Vide } from '../../../components/courrier/Lign
 import { Erreur, messageErreur } from '../../../components/courrier/ui';
 import { TiroirArrivee } from '../../../components/courrier/TiroirArrivee';
 import { FenetreEnregistrer } from '../../../components/courrier/FenetresArrivee';
+import { TiroirActe } from '../../../components/courrier/TiroirActe';
+import { FenetreRediger } from '../../../components/courrier/FenetresActe';
 import { Button } from '../../../components/ui/Button';
 
 type Onglet = 'a-faire' | 'arrivees' | 'actes';
@@ -48,6 +50,8 @@ export default function CourrierPage() {
   const [actes, setActes] = useState<Acte[] | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
   const [enregistrer, setEnregistrer] = useState(false);
+  /** Fenêtre de rédaction : null = fermée ; repondA = réponse à un courrier arrivée. */
+  const [rediger, setRediger] = useState<{ repondA?: { id: string; numero: string } } | null>(null);
 
   // Ouverture profonde (liens des emails : ?arrivee=, ?acte= ; carte du tableau
   // de bord : ?rubrique=) — lue une fois au montage, comme /communication.
@@ -244,6 +248,9 @@ export default function CourrierPage() {
         <>
           <div className="mb-3 flex flex-wrap items-center justify-end gap-2">
             <Button onClick={exporter}>Exporter (Excel)</Button>
+            <Button variant="gold" onClick={() => setRediger({})}>
+              + Rédiger
+            </Button>
           </div>
           <Filtres valeur={filtresActes} onChange={setFiltresActes} registres={registresActes} statuts={ACTE_STATUT_LABEL} />
           {actes === null ? (
@@ -261,7 +268,28 @@ export default function CourrierPage() {
       )}
 
       {arriveeId && (
-        <TiroirArrivee key={arriveeId} id={arriveeId} unites={unites} onClose={fermer} onChange={recharger} onOuvrirActe={ouvrirActe} />
+        <TiroirArrivee
+          key={arriveeId}
+          id={arriveeId}
+          unites={unites}
+          onClose={fermer}
+          onChange={recharger}
+          onOuvrirActe={ouvrirActe}
+          onRepondre={(a) => setRediger({ repondA: { id: a.id, numero: a.numero } })}
+        />
+      )}
+      {acteId && <TiroirActe key={acteId} id={acteId} registres={registres} onClose={fermer} onChange={recharger} onOuvrirArrivee={ouvrirArrivee} />}
+      {rediger && (
+        <FenetreRediger
+          registres={registres}
+          repondA={rediger.repondA}
+          onClose={() => setRediger(null)}
+          onEnregistre={(acte) => {
+            setRediger(null);
+            recharger();
+            ouvrirActe(acte.id);
+          }}
+        />
       )}
       {enregistrer && (
         <FenetreEnregistrer
