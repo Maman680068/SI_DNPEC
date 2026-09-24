@@ -55,6 +55,7 @@ function navGroupsFor(role: string | undefined): NavGroup[] {
   }
   if (role === 'ADMIN_SYSTEME') {
     adminItems.push({ icon: '🏛', label: 'Organisation', href: '/organisation' });
+    adminItems.push({ icon: '📨', label: 'Courrier', href: '/courrier/administration' });
   }
   if (adminItems.length === 0) return groups;
   return [...groups, { label: 'Administration', items: adminItems }];
