@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { exporterActes, exporterArrivees, getActes, getArrivees, getMesHabilitations, getRegistres, getTableauDeBord, getUnites } from '../../../lib/api/courrier';
 import {
@@ -99,17 +99,23 @@ export default function CourrierPage() {
       .catch((e) => setErreur(messageErreur(e, 'Impossible de charger les registres')));
   }, [chargerAFaire]);
 
+  // Numéro de la dernière requête de chaque liste : une réponse arrivée après
+  // un changement de filtre est ignorée (elle afficherait l'ancien filtre).
+  const requeteArr = useRef(0);
+  const requeteActes = useRef(0);
   const chargerArrivees = useCallback(() => {
+    const n = ++requeteArr.current;
     setArrivees(null);
     getArrivees({ ...filtresArr, statut: filtresArr.statut as ArriveeStatut | undefined })
-      .then(setArrivees)
-      .catch((e) => setErreur(messageErreur(e, 'Impossible de charger le registre des arrivées')));
+      .then((r) => n === requeteArr.current && setArrivees(r))
+      .catch((e) => n === requeteArr.current && setErreur(messageErreur(e, 'Impossible de charger le registre des arrivées')));
   }, [filtresArr]);
   const chargerActes = useCallback(() => {
+    const n = ++requeteActes.current;
     setActes(null);
     getActes({ ...filtresActes, statut: filtresActes.statut as ActeStatut | undefined })
-      .then(setActes)
-      .catch((e) => setErreur(messageErreur(e, 'Impossible de charger les départs et actes')));
+      .then((r) => n === requeteActes.current && setActes(r))
+      .catch((e) => n === requeteActes.current && setErreur(messageErreur(e, 'Impossible de charger les départs et actes')));
   }, [filtresActes]);
 
   useEffect(() => {
