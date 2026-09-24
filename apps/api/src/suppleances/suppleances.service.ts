@@ -6,6 +6,7 @@ import { CascadeService } from '../org/cascade/cascade.service';
 import { NotificationsService } from '../communication/notifications/notifications.service';
 import { AuthenticatedUser } from '../common/types/auth-user.type';
 import { CreateSuppleanceDto } from './dto/create-suppleance.dto';
+import { COMPARABLE_RANK_DESIGNATION_MESSAGE, isComparableRank } from './comparable-rank';
 
 /** Rôles "chef" — seuls éligibles comme titulaire OU suppléant (§2.6,
  * décision de conception validée) : ils exercent déjà une forme d'autorité
@@ -47,7 +48,7 @@ export class SuppleancesService {
       }),
       this.prisma.user.findUnique({
         where: { id: dto.suppleantId },
-        select: { id: true, role: true, status: true, firstName: true, lastName: true },
+        select: { id: true, role: true, status: true, divisionId: true, firstName: true, lastName: true },
       }),
     ]);
     if (!titulaire) throw new NotFoundException('Titulaire introuvable');
@@ -65,6 +66,9 @@ export class SuppleancesService {
     }
     if (suppleant.status !== UserStatus.ACTIF) {
       throw new ForbiddenException("Le suppléant désigné n'a pas de compte actif.");
+    }
+    if (!isComparableRank(titulaire, suppleant)) {
+      throw new ForbiddenException(COMPARABLE_RANK_DESIGNATION_MESSAGE);
     }
 
     // Qui peut désigner : le titulaire lui-même, ou son supérieur direct
