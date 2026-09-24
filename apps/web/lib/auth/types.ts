@@ -6,7 +6,9 @@ export type SystemRole =
   | 'CHEF_CELLULE'
   | 'AGENT'
   | 'ADMIN_SYSTEME'
-  | 'ASSISTANT_DIRECTION';
+  | 'ASSISTANT_DIRECTION'
+  // Ressources Humaines — module Dossier du personnel (voir schema.prisma, API).
+  | 'DRH';
 
 export interface AuthUser {
   id: string;

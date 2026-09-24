@@ -69,6 +69,7 @@ export const ROLE_LABEL: Record<SystemRole, string> = {
   AGENT: 'Agent / Chargé d’Études',
   ADMIN_SYSTEME: 'Administrateur Système',
   ASSISTANT_DIRECTION: 'Assistant(e) de Direction',
+  DRH: 'Directeur des Ressources Humaines',
 };
 
 /**

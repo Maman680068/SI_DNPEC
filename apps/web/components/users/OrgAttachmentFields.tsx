@@ -41,6 +41,9 @@ function attachmentKind(role: SystemRole): Kind {
     case 'CHEF_CELLULE':
       return 'cellule';
     case 'ADMIN_SYSTEME':
+    // DRH : fonction transversale comme ADMIN_SYSTEME (aucune contrainte de
+    // rattachement côté API) — typiquement la cellule RH, facultative.
+    case 'DRH':
       return 'cellule_optional';
     case 'AGENT':
       return 'agent';
