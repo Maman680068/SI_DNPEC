@@ -523,8 +523,7 @@ export class TasksService {
   async validate(actor: AuthenticatedUser, id: string, dto: ValidateTaskDto): Promise<TaskWithAssignees> {
     const task = await this.getTaskOrThrow(id);
     this.assertIsRootTask(task);
-    const creator = await this.getCreatorOrgFields(task.createdById);
-    this.cascade.assertHasDirectAuthorityOver(actor, creator);
+    await this.assertCanDecideValidation(actor, task);
     if (task.status !== TaskStatus.SOUMISE_VALIDATION) {
       throw new ConflictException('Seule une tâche "Soumise pour validation" peut être validée.');
     }
@@ -579,8 +578,7 @@ export class TasksService {
   async reject(actor: AuthenticatedUser, id: string, dto: RejectTaskDto): Promise<TaskWithAssignees> {
     const task = await this.getTaskOrThrow(id);
     this.assertIsRootTask(task);
-    const creator = await this.getCreatorOrgFields(task.createdById);
-    this.cascade.assertHasDirectAuthorityOver(actor, creator);
+    await this.assertCanDecideValidation(actor, task);
     if (task.status !== TaskStatus.SOUMISE_VALIDATION) {
       throw new ConflictException('Seule une tâche "Soumise pour validation" peut être rejetée.');
     }
@@ -940,6 +938,45 @@ export class TasksService {
     if (this.cascade.hasDirectAuthorityOver(actor, creator)) return;
     throw new ForbiddenException(
       'Seuls le créateur, un supérieur hiérarchique, ou une personne assignée peuvent déposer une pièce jointe.',
+    );
+  }
+
+  /**
+   * Qui peut valider/rejeter une tâche soumise (§4.1) :
+   * - jamais une personne assignée (sa propre tâche), y compris un suppléant
+   *   agissant en intérim pour un titulaire assigné ;
+   * - le créateur (celui qui a confié le travail), ou son suppléant en intérim ;
+   * - un chef ayant autorité hiérarchique sur TOUS les assignés — pas un seul :
+   *   un Chef de Section ne valide pas le travail d'agents d'une autre unité
+   *   dans une tâche partagée. DN/DNA l'ont sur tout le monde (sauf eux-mêmes).
+   * Tâche sans assigné : le créateur est aussi celui qui a fait le travail —
+   * règle historique conservée, seul son supérieur hiérarchique peut valider.
+   * (Remplace l'ancienne règle « autorité sur le créateur » seule, qui depuis
+   * le correctif d'auto-approbation a35e1a5 empêchait le créateur de valider
+   * le travail qu'il avait confié : seul son propre supérieur le pouvait.)
+   */
+  private async assertCanDecideValidation(actor: AuthenticatedUser, task: TaskWithAssignees): Promise<void> {
+    const assigneeIds = task.assignees.map((a) => a.userId);
+    if (assigneeIds.includes(actor.id) || (actor.interimForId && assigneeIds.includes(actor.interimForId))) {
+      throw new ForbiddenException('Une personne assignée ne peut pas valider ou rejeter sa propre tâche.');
+    }
+
+    if (assigneeIds.length === 0) {
+      const creator = await this.getCreatorOrgFields(task.createdById);
+      this.cascade.assertHasDirectAuthorityOver(actor, creator);
+      return;
+    }
+
+    if (this.cascade.isActingFor(actor, task.createdById)) return;
+
+    const assignees = await this.prisma.user.findMany({
+      where: { id: { in: assigneeIds } },
+      select: { id: true, divisionId: true, sectionId: true, celluleId: true },
+    });
+    if (assignees.length > 0 && assignees.every((u) => this.cascade.hasDirectAuthorityOver(actor, u))) return;
+
+    throw new ForbiddenException(
+      'Seuls le créateur de la tâche ou un supérieur hiérarchique de toutes les personnes assignées peuvent la valider ou la rejeter.',
     );
   }
 
