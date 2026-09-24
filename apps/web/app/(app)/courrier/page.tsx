@@ -19,6 +19,8 @@ import { CompteursCourrier, RUBRIQUES, type Rubrique } from '../../../components
 import { Filtres, type FiltresValeur } from '../../../components/courrier/Filtres';
 import { LigneActe, LigneArrivee, Vide } from '../../../components/courrier/Lignes';
 import { Erreur, messageErreur } from '../../../components/courrier/ui';
+import { TiroirArrivee } from '../../../components/courrier/TiroirArrivee';
+import { FenetreEnregistrer } from '../../../components/courrier/FenetresArrivee';
 import { Button } from '../../../components/ui/Button';
 
 type Onglet = 'a-faire' | 'arrivees' | 'actes';
@@ -45,6 +47,7 @@ export default function CourrierPage() {
   const [arrivees, setArrivees] = useState<Arrivee[] | null>(null);
   const [actes, setActes] = useState<Acte[] | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
+  const [enregistrer, setEnregistrer] = useState(false);
 
   // Ouverture profonde (liens des emails : ?arrivee=, ?acte= ; carte du tableau
   // de bord : ?rubrique=) — lue une fois au montage, comme /communication.
@@ -162,6 +165,7 @@ export default function CourrierPage() {
 
   const registresArrivee = registres.filter((r) => r.nature === 'ARRIVEE');
   const registresActes = registres.filter((r) => r.nature !== 'ARRIVEE');
+  const peutEnregistrer = habilitations.some((h) => h.registre.nature === 'ARRIVEE');
 
   return (
     <div>
@@ -215,6 +219,11 @@ export default function CourrierPage() {
         <>
           <div className="mb-3 flex flex-wrap items-center justify-end gap-2">
             <Button onClick={exporter}>Exporter (Excel)</Button>
+            {peutEnregistrer && (
+              <Button variant="gold" onClick={() => setEnregistrer(true)}>
+                + Enregistrer un courrier
+              </Button>
+            )}
           </div>
           <Filtres valeur={filtresArr} onChange={setFiltresArr} registres={registresArrivee} statuts={ARRIVEE_STATUT_LABEL} />
           {arrivees === null ? (
@@ -249,6 +258,21 @@ export default function CourrierPage() {
             </div>
           )}
         </>
+      )}
+
+      {arriveeId && (
+        <TiroirArrivee key={arriveeId} id={arriveeId} unites={unites} onClose={fermer} onChange={recharger} onOuvrirActe={ouvrirActe} />
+      )}
+      {enregistrer && (
+        <FenetreEnregistrer
+          unites={unites}
+          onClose={() => setEnregistrer(false)}
+          onEnregistre={(a) => {
+            setEnregistrer(false);
+            recharger();
+            ouvrirArrivee(a.id);
+          }}
+        />
       )}
     </div>
   );
