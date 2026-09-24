@@ -257,6 +257,9 @@ export class UsersService {
   /** Active/suspend un compte — ADMIN_SYSTEME uniquement (cf. controller). */
   async updateStatus(actor: AuthenticatedUser, id: string, dto: UpdateStatusDto) {
     const target = await this.findOneOrThrow(id);
+    if (dto.status === UserStatus.ACTIF && target.status !== UserStatus.ACTIF) {
+      await this.assertNoActiveChiefConflict(target.role, target, target.id);
+    }
 
     const updated = await this.prisma.user.update({
       where: { id: target.id },
@@ -310,6 +313,7 @@ export class UsersService {
       supervisorId: target.supervisorId,
     };
     await this.assertOrgAttachmentValid(nextAttachment);
+    await this.assertNoActiveChiefConflict(target.role, nextAttachment, target.id);
 
     const updated = await this.prisma.user.update({
       where: { id: target.id },
@@ -496,13 +500,23 @@ export class UsersService {
    * même unité — possible par création manuelle ou approbation d'inscription
    * avant ce garde-fou. Bloque explicitement plutôt que de laisser un état
    * incohérent silencieux (deux comptes avec la même autorité de cascade sur
-   * le même périmètre). Appelé par create() et approveRegistration()
-   * uniquement : ce sont les deux seuls endroits qui attribuent `role`.
+   * le même périmètre). Appelé par create() et approveRegistration() (qui
+   * attribuent `role`), mais aussi par updateAssignment() (un chef déplacé
+   * vers une unité qui a déjà le sien) et updateStatus() vers ACTIF (un chef
+   * suspendu réactivé alors qu'un successeur a été nommé entre-temps).
+   * `excludeUserId` : la personne concernée elle-même — un chef qui change
+   * de section dans sa division, ou qui est réactivé sans successeur, n'est
+   * jamais en conflit avec lui-même.
    */
-  private async assertNoActiveChiefConflict(role: SystemRole, attachment: OrgAttachment): Promise<void> {
+  private async assertNoActiveChiefConflict(
+    role: SystemRole,
+    attachment: OrgAttachment,
+    excludeUserId?: string,
+  ): Promise<void> {
+    const notSelf = excludeUserId ? { id: { not: excludeUserId } } : {};
     if (role === SystemRole.CHEF_DIVISION && attachment.divisionId) {
       const existing = await this.prisma.user.findFirst({
-        where: { role: SystemRole.CHEF_DIVISION, divisionId: attachment.divisionId, status: UserStatus.ACTIF },
+        where: { role: SystemRole.CHEF_DIVISION, divisionId: attachment.divisionId, status: UserStatus.ACTIF, ...notSelf },
       });
       if (existing) {
         throw new ConflictException(
@@ -518,6 +532,7 @@ export class UsersService {
           divisionId: attachment.divisionId,
           sectionId: attachment.sectionId,
           status: UserStatus.ACTIF,
+          ...notSelf,
         },
       });
       if (existing) {
