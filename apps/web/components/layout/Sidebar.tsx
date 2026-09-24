@@ -37,11 +37,18 @@ const SUPPLEANCE_NAV_ROLES = ['DN', 'DNA', 'CHEF_DIVISION', 'CHEF_SECTION', 'CHE
  * (lecture seule — voir app/(app)/users/page.tsx). "Organisation" est réservée à
  * ADMIN_SYSTEME uniquement (voir app/(app)/organisation/page.tsx). */
 function navGroupsFor(role: string | undefined): NavGroup[] {
-  const groups = SUPPLEANCE_NAV_ROLES.includes(role ?? '')
+  let groups = SUPPLEANCE_NAV_ROLES.includes(role ?? '')
     ? NAV_GROUPS.map((g) =>
         g.label === 'Personnel' ? { ...g, items: [...g.items, { icon: '⇄', label: 'Suppléances', href: '/suppleances' }] } : g,
       )
     : NAV_GROUPS;
+  // Courrier et actes (D7) : tout profil sauf l'administrateur système, qui
+  // n'en voit que le paramétrage (Administration → Courrier).
+  if (role !== 'ADMIN_SYSTEME') {
+    groups = groups.map((g) =>
+      g.label === 'Général' ? { ...g, items: [...g.items, { icon: '📨', label: 'Courrier', href: '/courrier' }] } : g,
+    );
+  }
   const adminItems: NavGroup['items'] = [];
   if (USERS_PAGE_VISIBLE_ROLES.includes(role ?? '')) {
     adminItems.push({ icon: '👤', label: 'Utilisateurs', href: '/users' });
