@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { AuthenticatedUser } from '../common/types/auth-user.type';
 import { SuppleancesService } from './suppleances.service';
@@ -16,6 +16,16 @@ export class SuppleancesController {
   @Get('mine')
   findMine(@CurrentUser() actor: AuthenticatedUser) {
     return this.suppleancesService.findMine(actor);
+  }
+
+  @Get('titulaires')
+  findManageableTitulaires(@CurrentUser() actor: AuthenticatedUser) {
+    return this.suppleancesService.findManageableTitulaires(actor);
+  }
+
+  @Get('candidats')
+  findCandidates(@Query('titulaireId') titulaireId: string, @CurrentUser() actor: AuthenticatedUser) {
+    return this.suppleancesService.findCandidates(actor, titulaireId ?? '');
   }
 
   @Post(':id/revoke')
