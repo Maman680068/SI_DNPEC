@@ -2,6 +2,7 @@ import { ConflictException, ForbiddenException, Injectable, NotFoundException } 
 import {
   AuditAction,
   DecisionStatus,
+  ImputationStatut,
   NotificationType,
   Prisma,
   RecurrenceFrequency,
@@ -11,6 +12,7 @@ import {
   TaskStatus,
   UserStatus,
 } from '@prisma/client';
+import { recalculerStatutArrivee } from '../courrier/statut-arrivee';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../common/audit/audit.service';
 import { StorageService } from '../common/storage/storage.service';
@@ -49,6 +51,7 @@ const TASK_SELECT = {
   recurrenceSourceId: true,
   createdById: true,
   sourceDecisionId: true,
+  sourceImputationId: true,
   submittedById: true,
   submittedAt: true,
   validatedById: true,
@@ -568,6 +571,28 @@ export class TasksService {
       await this.prisma.decision.updateMany({
         where: { id: updated.sourceDecisionId, status: DecisionStatus.EN_ATTENTE },
         data: { status: DecisionStatus.CLOTUREE, closedAt: new Date(), closedById: actor.id },
+      });
+    }
+
+    // D7 — même principe pour une imputation de courrier convertie en tâche :
+    // l'imputation passe à TRAITEE (idempotent, sans effet si déjà traitée à
+    // la main), puis le statut dérivé du courrier est recalculé. Accès direct
+    // aux tables (fonction simple recalculerStatutArrivee), sans dépendance
+    // vers CourrierModule.
+    if (updated.sourceImputationId) {
+      const imputationId = updated.sourceImputationId;
+      await this.prisma.$transaction(async (tx) => {
+        const done = await tx.imputationCourrier.updateMany({
+          where: { id: imputationId, statut: ImputationStatut.EN_COURS },
+          data: { statut: ImputationStatut.TRAITEE, traiteeAt: new Date(), traiteeParId: actor.id, compteRendu: 'Tâche liée terminée.' },
+        });
+        if (done.count === 0) return;
+        const imputation = await tx.imputationCourrier.findUnique({ where: { id: imputationId }, select: { courrierId: true } });
+        if (imputation) await recalculerStatutArrivee(tx, imputation.courrierId);
+        await this.audit.log(
+          { actorId: actor.id, action: AuditAction.VALIDATION, entityType: 'ImputationCourrier', entityId: imputationId, metadata: { event: 'cloture_automatique', taskId: id } },
+          tx,
+        );
       });
     }
 
