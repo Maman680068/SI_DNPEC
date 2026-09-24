@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NotificationChannel, NotificationType } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -46,6 +46,8 @@ const NOTIFICATION_BUTTON_LABELS: Record<NotificationType, string> = {
  */
 @Injectable()
 export class NotificationsService {
+  private readonly logger = new Logger(NotificationsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly email: EmailService,
@@ -88,7 +90,20 @@ export class NotificationsService {
         buttonLabel: link ? NOTIFICATION_BUTTON_LABELS[type] : undefined,
         buttonUrl: link ? `${webAppUrl}${link}` : undefined,
       });
-      await this.email.send(user.email, subject, text, html);
+      // Un échec d'envoi (Brevo indisponible, quota, adresse refusée...) ne
+      // doit jamais faire échouer la requête métier : notify() est appelé
+      // APRÈS le commit de l'action (tâche validée, congé approuvé...), un 500
+      // ferait croire à tort qu'elle n'a pas eu lieu. La notification in-app
+      // est déjà enregistrée ; l'erreur est journalisée pour diagnostic.
+      try {
+        await this.email.send(user.email, subject, text, html);
+      } catch (error) {
+        this.logger.error(
+          `Échec d'envoi de l'email de notification ${type} à l'utilisateur ${userId} : ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+      }
     }
   }
 
