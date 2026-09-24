@@ -61,7 +61,7 @@ export class AnnouncementsService {
       NotificationType.ANNONCE,
       dto.title,
       dto.body,
-      `/announcements/${announcement.id}`,
+      `/communication?announcementId=${announcement.id}`,
     );
 
     return announcement;

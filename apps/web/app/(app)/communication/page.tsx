@@ -71,6 +71,12 @@ export default function CommunicationPage() {
       setTab('polls');
       setSelectedPollId(pollId);
     }
+    // Lien de l'email de notification d'annonce (« /communication?announcementId=<id> »).
+    const announcementId = params.get('announcementId');
+    if (announcementId) {
+      setTab('announcements');
+      setSelectedAnnouncementId(announcementId);
+    }
   }, []);
 
   const selectedAnnouncement = useMemo(

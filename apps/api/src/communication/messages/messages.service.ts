@@ -35,7 +35,7 @@ export class MessagesService {
       NotificationType.MESSAGE_DIRECT,
       'Nouveau message',
       dto.body.length > 200 ? `${dto.body.slice(0, 200)}…` : dto.body,
-      `/messages/with/${actor.id}`,
+      `/communication?with=${actor.id}`,
     );
 
     return message;
