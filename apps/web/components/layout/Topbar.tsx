@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useAuth } from '../../lib/auth/AuthProvider';
+import { InterimSwitcher } from '../interim/InterimSwitcher';
 
 function initials(firstName: string, lastName: string): string {
   return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
@@ -28,7 +29,8 @@ export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
           className="w-full rounded-md border border-line bg-bg py-2.5 pl-[34px] pr-3.5 text-[13.5px]"
         />
       </div>
-      <div className="flex items-center gap-[18px]">
+      <div className="flex items-center gap-2.5 md:gap-[18px]">
+        <InterimSwitcher />
         <Link href="/communication" className="relative flex h-9 w-9 items-center justify-center rounded-md border border-line text-text-muted">
           ✉<span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full border border-surface bg-clay" />
         </Link>
