@@ -58,6 +58,9 @@ export const SYSTEM_ROLES: SystemRole[] = [
   'AGENT',
   'ADMIN_SYSTEME',
   'ASSISTANT_DIRECTION',
+  // Attribuable par l'administrateur à la création et à l'approbation — jamais
+  // déclarable à l'auto-inscription (absent de DECLARABLE_ROLES, lib/auth/types).
+  'DRH',
 ];
 
 export const ROLE_LABEL: Record<SystemRole, string> = {
