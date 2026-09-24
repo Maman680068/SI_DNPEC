@@ -74,3 +74,17 @@ pnpm --filter @dnpec/api exec prisma migrate dev --name <nom>   # base LOCALE un
 pnpm --filter @dnpec/api typecheck && pnpm --filter @dnpec/web typecheck
 pnpm --filter @dnpec/api start:dev
 ```
+
+## Reste à faire
+
+- **Cloche de notifications in-app** : l'icône de la barre du haut n'est reliée à rien ;
+  l'API expose déjà `GET /notifications`, le comptage des non-lues et le marquage lu.
+- **Retour à la page visée après reconnexion** : un lien d'email ouvert avec une session
+  expirée mène à l'accueil, puis au tableau de bord après connexion — la page visée est perdue.
+- **Erreurs de chargement non affichées** sur certaines pages (ex. Réunions : `getMeetings()`
+  sans `catch`) — l'erreur ne remonte qu'en console.
+- **Lot D** : écrans web de D2 (décisions de réunion) et de D3 (dossier du personnel),
+  dont la route `/personnel/:id` utilisée par les emails de notification.
+- **Changement de rôle d'un compte existant** (dont l'attribution de DRH à un compte déjà
+  actif) : aucun endpoint aujourd'hui ; à concevoir (rattachement propre à chaque rôle,
+  unicité des chefs, `Cellule.chefId`, historique de carrière, suppléances en cours).
