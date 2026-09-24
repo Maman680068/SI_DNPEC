@@ -1,10 +1,11 @@
 import 'reflect-metadata';
-import { NestFactory } from '@nestjs/core';
+import { HttpAdapterHost, NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { ValidationPipe } from '@nestjs/common';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
+import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
@@ -32,7 +33,12 @@ async function bootstrap() {
       transform: true,
     }),
   );
-  app.useGlobalFilters(new HttpExceptionFilter());
+  app.useGlobalFilters(
+    new HttpExceptionFilter(),
+    // P2002 (unicité) → 409 ; toute autre erreur Prisma reste au comportement
+    // par défaut de Nest (voir PrismaExceptionFilter).
+    new PrismaExceptionFilter(app.get(HttpAdapterHost).httpAdapter),
+  );
 
   const port = process.env.PORT ? Number(process.env.PORT) : 3000;
   await app.listen(port);
