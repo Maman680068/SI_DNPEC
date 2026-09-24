@@ -1,5 +1,5 @@
-import { ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { AccesDelegueType, AuditAction, CourrierConfidentialite, NotificationType, SystemRole } from '@prisma/client';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { AccesDelegueType, AuditAction, CourrierConfidentialite, NotificationType, SystemRole, UserStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../common/audit/audit.service';
 import { NotificationsService } from '../communication/notifications/notifications.service';
@@ -30,41 +30,22 @@ export class AccesDeleguesService {
   ) {}
 
   async ouvrir(actor: AuthenticatedUser, cible: Cible, beneficiaireId: string) {
-    if (actor.interimForId) {
-      throw new ForbiddenException('Un accès délégué s’ouvre en votre nom propre, jamais en intérim.');
-    }
-    const { confidentialite, numero, lien } = await this.assertAccesPropre(actor, cible);
-    if (confidentialite === CourrierConfidentialite.PERSONNEL) {
-      throw new ForbiddenException('Un pli personnel n’est jamais délégable.');
-    }
-    if (confidentialite !== CourrierConfidentialite.CONFIDENTIEL) {
-      throw new ConflictException('Un accès délégué ne concerne que les courriers confidentiels.');
-    }
+    const { numero, lien } = await this.preparer(actor, cible);
 
     const beneficiaire = await this.prisma.user.findUnique({
       where: { id: beneficiaireId },
-      select: { id: true, role: true, supervisorId: true, divisionId: true },
+      select: { id: true, role: true, status: true, supervisorId: true, divisionId: true },
     });
     if (!beneficiaire) throw new NotFoundException('Bénéficiaire introuvable');
+    if (beneficiaire.status !== UserStatus.ACTIF) throw new BadRequestException('Le bénéficiaire n’a pas de compte actif.');
 
-    let type: AccesDelegueType;
-    let suppleanceId: string | null = null;
-    if (beneficiaire.role === SystemRole.ASSISTANT_DIRECTION && beneficiaire.supervisorId === actor.id) {
-      type = AccesDelegueType.ASSISTANT;
-    } else {
-      const now = new Date();
-      const suppleance = await this.prisma.suppleance.findFirst({
-        where: { titulaireId: actor.id, suppleantId: beneficiaire.id, revokedAt: null, startDate: { lte: now }, endDate: { gte: now } },
-        select: { id: true, titulaire: { select: { role: true, divisionId: true } } },
-      });
-      if (!suppleance || !isComparableRank(suppleance.titulaire, beneficiaire)) {
-        throw new ForbiddenException(
-          'L’accès ne peut être ouvert qu’à votre assistant ou à votre suppléant (suppléance en cours et conforme).',
-        );
-      }
-      type = AccesDelegueType.SUPPLEANT;
-      suppleanceId = suppleance.id;
+    const delegation = await this.lienDelegation(actor, beneficiaire);
+    if (!delegation) {
+      throw new ForbiddenException(
+        'L’accès ne peut être ouvert qu’à votre assistant ou à votre suppléant (suppléance en cours et conforme).',
+      );
     }
+    const { type, suppleanceId } = delegation;
 
     const where = { ...cible, beneficiaireId: beneficiaire.id, revoqueAt: null };
     if (await this.prisma.accesDelegueCourrier.findFirst({ where })) {
@@ -107,6 +88,74 @@ export class AccesDeleguesService {
       metadata: { event: 'acces_revoque' },
     });
     return updated;
+  }
+
+  /**
+   * Personnes à qui l'acteur pourrait ouvrir l'accès à ce courrier
+   * (GET /courrier/delegataires-possibles) : mêmes préconditions et même
+   * critère que ouvrir() — la liste ne peut pas diverger de l'action. Les
+   * personnes qui ont déjà un accès ouvert sont exclues (ouvrir() → 409).
+   * Champs d'affichage seulement (jamais de supervisorId ni d'email).
+   */
+  async delegatairesPossibles(actor: AuthenticatedUser, cible: { arriveeId?: string; acteId?: string }) {
+    let c: Cible;
+    if (cible.arriveeId && !cible.acteId) c = { arriveeId: cible.arriveeId };
+    else if (cible.acteId && !cible.arriveeId) c = { acteId: cible.acteId };
+    else throw new BadRequestException('Précisez arriveeId ou acteId (un seul).');
+    await this.preparer(actor, c);
+
+    const now = new Date();
+    const candidats = await this.prisma.user.findMany({
+      where: {
+        status: UserStatus.ACTIF,
+        OR: [
+          { role: SystemRole.ASSISTANT_DIRECTION, supervisorId: actor.id },
+          { suppleancesAsSuppleant: { some: { titulaireId: actor.id, revokedAt: null, startDate: { lte: now }, endDate: { gte: now } } } },
+        ],
+        NOT: { accesDelegueRecus: { some: { ...c, revoqueAt: null } } },
+      },
+      select: { id: true, firstName: true, lastName: true, role: true, jobTitle: true, supervisorId: true, divisionId: true },
+      orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
+    });
+    const possibles = [];
+    for (const u of candidats) {
+      const lien = await this.lienDelegation(actor, u, now);
+      if (lien) possibles.push({ id: u.id, firstName: u.firstName, lastName: u.lastName, role: u.role, jobTitle: u.jobTitle, type: lien.type });
+    }
+    return possibles;
+  }
+
+  /** Préconditions communes à ouvrir() et delegatairesPossibles(). */
+  private async preparer(actor: AuthenticatedUser, cible: Cible) {
+    if (actor.interimForId) {
+      throw new ForbiddenException('Un accès délégué s’ouvre en votre nom propre, jamais en intérim.');
+    }
+    const propre = await this.assertAccesPropre(actor, cible);
+    if (propre.confidentialite === CourrierConfidentialite.PERSONNEL) {
+      throw new ForbiddenException('Un pli personnel n’est jamais délégable.');
+    }
+    if (propre.confidentialite !== CourrierConfidentialite.CONFIDENTIEL) {
+      throw new ConflictException('Un accès délégué ne concerne que les courriers confidentiels.');
+    }
+    return propre;
+  }
+
+  /** Lien qui autorise la délégation : assistant de l'acteur, ou suppléant
+   * d'une suppléance en cours et conforme où l'acteur est titulaire. */
+  private async lienDelegation(
+    actor: AuthenticatedUser,
+    u: { id: string; role: SystemRole; supervisorId: string | null; divisionId: string | null },
+    now: Date = new Date(),
+  ): Promise<{ type: AccesDelegueType; suppleanceId: string | null } | null> {
+    if (u.role === SystemRole.ASSISTANT_DIRECTION && u.supervisorId === actor.id) {
+      return { type: AccesDelegueType.ASSISTANT, suppleanceId: null };
+    }
+    const suppleance = await this.prisma.suppleance.findFirst({
+      where: { titulaireId: actor.id, suppleantId: u.id, revokedAt: null, startDate: { lte: now }, endDate: { gte: now } },
+      select: { id: true, titulaire: { select: { role: true, divisionId: true } } },
+    });
+    if (!suppleance || !isComparableRank(suppleance.titulaire, u)) return null;
+    return { type: AccesDelegueType.SUPPLEANT, suppleanceId: suppleance.id };
   }
 
   /** Accès que la personne a ouverts sur ce courrier (pour les gérer). */

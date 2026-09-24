@@ -21,6 +21,8 @@ import { recalculerStatutArrivee } from './statut-arrivee';
 import { estMembreUnite } from './unites';
 import { ConvertirImputationDto, ImputerDto, TraiterImputationDto } from './dto/arrivee.dto';
 
+type CandidatImpute = { id: string; divisionId: string | null; sectionId: string | null; celluleId: string | null };
+
 const NATURE_LABEL: Record<ImputationNature, string> = {
   ATTRIBUTION: 'pour attribution',
   INFORMATION: 'pour information',
@@ -53,6 +55,55 @@ export class ImputationsService {
   ) {}
 
   async imputer(actor: AuthenticatedUser, arriveeId: string, dto: ImputerDto) {
+    const a = await this.preparerImputation(actor, arriveeId);
+    const impute = await this.chargerImputeActif(dto.imputeAId);
+    const refus = this.refusImpute(a, impute);
+    if (refus) throw refus;
+    const echeance = this.echeanceFuture(dto.echeance);
+    return this.creer(actor, a, { ...dto, echeance, parentId: null }, impute.id);
+  }
+
+  async sousImputer(actor: AuthenticatedUser, imputationId: string, dto: ImputerDto) {
+    const { parent, a } = await this.preparerSousImputation(actor, imputationId);
+    const cible = await this.chargerImputeActif(dto.imputeAId);
+    const refus = this.refusSousImpute(actor, a, cible);
+    if (refus) throw refus;
+    const echeance = this.echeanceFuture(dto.echeance);
+    if (parent.echeance && (!echeance || echeance > parent.echeance)) {
+      throw new BadRequestException('L’échéance d’une sous-imputation ne peut pas dépasser celle de l’imputation reçue.');
+    }
+    return this.creer(actor, a, { ...dto, echeance: echeance ?? parent.echeance, parentId: parent.id }, cible.id);
+  }
+
+  /**
+   * Personnes que le serveur accepterait comme imputé (GET /courrier/imputables) :
+   * mêmes préconditions et même critère que imputer()/sousImputer() — une seule
+   * implémentation, la liste proposée ne peut pas diverger de l'action. Champs
+   * d'affichage seulement (jamais d'email, de supervisorId ni de champ sensible).
+   */
+  async imputables(actor: AuthenticatedUser, cible: { arriveeId?: string; imputationId?: string }) {
+    let accepte: (u: CandidatImpute) => boolean;
+    if (cible.arriveeId && cible.imputationId) {
+      throw new BadRequestException('Précisez arriveeId (imputation) ou imputationId (sous-imputation), pas les deux.');
+    } else if (cible.imputationId) {
+      const { a } = await this.preparerSousImputation(actor, cible.imputationId);
+      accepte = (u) => this.refusSousImpute(actor, a, u) === null;
+    } else if (cible.arriveeId) {
+      const a = await this.preparerImputation(actor, cible.arriveeId);
+      accepte = (u) => this.refusImpute(a, u) === null;
+    } else {
+      throw new BadRequestException('Précisez arriveeId (imputation) ou imputationId (sous-imputation).');
+    }
+    const actifs = await this.prisma.user.findMany({
+      where: { status: UserStatus.ACTIF },
+      select: { id: true, firstName: true, lastName: true, role: true, jobTitle: true, divisionId: true, sectionId: true, celluleId: true },
+      orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
+    });
+    return actifs.filter(accepte).map(({ id, firstName, lastName, role, jobTitle }) => ({ id, firstName, lastName, role, jobTitle }));
+  }
+
+  /** Préconditions d'une imputation initiale (courrier, autorité, accès au contenu). */
+  private async preparerImputation(actor: AuthenticatedUser, arriveeId: string): Promise<ArriveeChargee> {
     const a = await this.arrivees.charger(arriveeId);
     this.arrivees.assertOuvert(a);
     if (a.confidentialite === CourrierConfidentialite.PERSONNEL) {
@@ -66,16 +117,11 @@ export class ImputationsService {
       );
     }
     this.acces.assertArrivee(await this.acces.contexte(actor), a, 'CONTENU');
-    const impute = await this.chargerImputeActif(dto.imputeAId);
-    this.assertDansUnite(a, impute);
-    const echeance = this.echeanceFuture(dto.echeance);
-    const doublon = a.imputations.some((i) => i.imputeAId === impute.id && !i.parentId && i.statut === ImputationStatut.EN_COURS);
-    if (doublon) throw new ConflictException('Ce courrier est déjà imputé à cette personne.');
-
-    return this.creer(actor, a, { ...dto, echeance, parentId: null }, impute.id);
+    return a;
   }
 
-  async sousImputer(actor: AuthenticatedUser, imputationId: string, dto: ImputerDto) {
+  /** Préconditions d'une sous-imputation (imputation reçue, accès au contenu). */
+  private async preparerSousImputation(actor: AuthenticatedUser, imputationId: string) {
     const parent = await this.chargerImputation(imputationId);
     const a = await this.arrivees.charger(parent.courrierId);
     this.arrivees.assertOuvert(a);
@@ -84,16 +130,28 @@ export class ImputationsService {
       throw new ForbiddenException('Seule la personne imputée peut sous-imputer ce courrier.');
     }
     this.acces.assertArrivee(await this.acces.contexte(actor), a, 'CONTENU');
-    const cible = await this.chargerImputeActif(dto.imputeAId);
-    if (!this.cascade.hasDirectAuthorityOver(actor, cible)) {
-      throw new ForbiddenException('Vous ne pouvez sous-imputer qu’à une personne de votre périmètre.');
+    return { parent, a };
+  }
+
+  /** Critère sur la personne imputée (compte actif vérifié à part) — null si acceptée. */
+  private refusImpute(a: ArriveeChargee, u: CandidatImpute): Error | null {
+    if (a.registre.portee === RegistrePortee.UNITE && !estMembreUnite(u, a.uniteKey)) {
+      return new ForbiddenException('Le courrier d’un registre d’unité ne s’impute qu’aux membres de cette unité.');
     }
-    this.assertDansUnite(a, cible);
-    const echeance = this.echeanceFuture(dto.echeance);
-    if (parent.echeance && (!echeance || echeance > parent.echeance)) {
-      throw new BadRequestException('L’échéance d’une sous-imputation ne peut pas dépasser celle de l’imputation reçue.');
+    if (a.imputations.some((i) => i.imputeAId === u.id && !i.parentId && i.statut === ImputationStatut.EN_COURS)) {
+      return new ConflictException('Ce courrier est déjà imputé à cette personne.');
     }
-    return this.creer(actor, a, { ...dto, echeance: echeance ?? parent.echeance, parentId: parent.id }, cible.id);
+    return null;
+  }
+
+  private refusSousImpute(actor: AuthenticatedUser, a: ArriveeChargee, u: CandidatImpute): Error | null {
+    if (!this.cascade.hasDirectAuthorityOver(actor, u)) {
+      return new ForbiddenException('Vous ne pouvez sous-imputer qu’à une personne de votre périmètre.');
+    }
+    if (a.registre.portee === RegistrePortee.UNITE && !estMembreUnite(u, a.uniteKey)) {
+      return new ForbiddenException('Le courrier d’un registre d’unité ne s’impute qu’aux membres de cette unité.');
+    }
+    return null;
   }
 
   private async creer(
@@ -263,12 +321,6 @@ export class ImputationsService {
     if (!u) throw new NotFoundException('Personne imputée introuvable');
     if (u.status !== UserStatus.ACTIF) throw new BadRequestException('La personne imputée n’a pas de compte actif.');
     return u;
-  }
-
-  private assertDansUnite(a: ArriveeChargee, u: { divisionId: string | null; celluleId: string | null }): void {
-    if (a.registre.portee === RegistrePortee.UNITE && !estMembreUnite(u, a.uniteKey)) {
-      throw new ForbiddenException('Le courrier d’un registre d’unité ne s’impute qu’aux membres de cette unité.');
-    }
   }
 
   private echeanceFuture(iso?: string): Date | null {

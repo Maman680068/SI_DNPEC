@@ -112,6 +112,26 @@ export class ArriveesController {
     return this.imputations.convertirEnTache(actor, id, dto);
   }
 
+  /** Personnes que le serveur accepterait comme imputé (imputation ou sous-imputation). */
+  @Get('imputables')
+  imputables(
+    @Query('arriveeId') arriveeId: string | undefined,
+    @Query('imputationId') imputationId: string | undefined,
+    @CurrentUser() actor: AuthenticatedUser,
+  ) {
+    return this.imputations.imputables(actor, { arriveeId, imputationId });
+  }
+
+  /** Personnes à qui l'acteur pourrait ouvrir l'accès à un courrier confidentiel. */
+  @Get('delegataires-possibles')
+  delegatairesPossibles(
+    @Query('arriveeId') arriveeId: string | undefined,
+    @Query('acteId') acteId: string | undefined,
+    @CurrentUser() actor: AuthenticatedUser,
+  ) {
+    return this.delegues.delegatairesPossibles(actor, { arriveeId, acteId });
+  }
+
   @Get('arrivees/:id/acces-delegues')
   listerAcces(@Param('id') id: string, @CurrentUser() actor: AuthenticatedUser) {
     return this.delegues.lister(actor, { arriveeId: id });
