@@ -53,6 +53,22 @@ export class StorageService {
     }
   }
 
+  /** Variante de saveThen pour plusieurs fichiers déposés ensemble (ex. scans
+   * d'un courrier) : tous sont supprimés si l'écriture en base échoue. */
+  async saveAllThen<T>(
+    files: { buffer: Buffer; originalName: string }[],
+    persist: (saved: { fileKey: string; sizeBytes: number }[]) => Promise<T>,
+  ): Promise<T> {
+    const saved: { fileKey: string; sizeBytes: number }[] = [];
+    try {
+      for (const f of files) saved.push(await this.save(f.buffer, f.originalName));
+      return await persist(saved);
+    } catch (error) {
+      await Promise.all(saved.map((s) => this.delete(s.fileKey).catch(() => undefined)));
+      throw error;
+    }
+  }
+
   async readBuffer(fileKey: string): Promise<Buffer> {
     const filePath = this.resolvePath(fileKey);
     if (!existsSync(filePath)) throw new NotFoundException('Fichier introuvable sur le stockage');
