@@ -225,12 +225,22 @@ export class ArriveesService {
 
   async lister(actor: AuthenticatedUser, filtres: ArriveeFiltresDto) {
     const ctx = await this.acces.contexte(actor);
+    // Année explicite (filtre) : exactement cette année, archives comprises.
+    // Vue par défaut : l'année en cours ET, quelle que soit leur année, tout ce
+    // qui est encore en cours (arrivée ni classée ni annulée, ou imputation non
+    // traitée) — un changement d'année ne fait rien disparaître.
+    const periode: Prisma.CourrierArriveeWhereInput =
+      filtres.annee !== undefined
+        ? { annee: filtres.annee }
+        : {
+            OR: [
+              { annee: new Date().getFullYear() },
+              { statut: { notIn: [ArriveeStatut.CLASSE, ArriveeStatut.ANNULE] } },
+              { imputations: { some: { statut: ImputationStatut.EN_COURS } } },
+            ],
+          };
     const rows = await this.prisma.courrierArrivee.findMany({
-      where: {
-        annee: filtres.annee ?? new Date().getFullYear(),
-        registreId: filtres.registreId,
-        statut: filtres.statut,
-      },
+      where: { ...periode, registreId: filtres.registreId, statut: filtres.statut },
       select: ARRIVEE_SELECT,
       orderBy: [{ dateReception: 'desc' }, { sequence: 'desc' }],
     });

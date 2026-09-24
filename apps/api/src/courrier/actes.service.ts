@@ -550,14 +550,20 @@ export class ActesService {
 
   async lister(actor: AuthenticatedUser, filtres: ActeFiltresDto) {
     const ctx = await this.acces.contexte(actor);
+    // Année = année de numérotation, ou de création tant que l'acte n'est pas
+    // numéroté. Année explicite (filtre) : exactement cette année. Vue par
+    // défaut : l'année en cours ET, quelle que soit leur année, tous les actes
+    // encore en cours (ni expédiés ni annulés).
     const annee = filtres.annee ?? new Date().getFullYear();
+    const deLAnnee: Prisma.ActeCourrierWhereInput[] = [
+      { annee },
+      { annee: null, createdAt: { gte: new Date(annee, 0, 1), lt: new Date(annee + 1, 0, 1) } },
+    ];
+    const periode: Prisma.ActeCourrierWhereInput = {
+      OR: filtres.annee !== undefined ? deLAnnee : [...deLAnnee, { statut: { notIn: [ActeStatut.EXPEDIE, ActeStatut.ANNULE] } }],
+    };
     const rows = await this.prisma.acteCourrier.findMany({
-      where: {
-        registreId: filtres.registreId,
-        statut: filtres.statut,
-        // Année de numérotation, ou de création tant que l'acte n'est pas numéroté.
-        OR: [{ annee }, { annee: null, createdAt: { gte: new Date(annee, 0, 1), lt: new Date(annee + 1, 0, 1) } }],
-      },
+      where: { ...periode, registreId: filtres.registreId, statut: filtres.statut },
       select: ACTE_SELECT,
       orderBy: { updatedAt: 'desc' },
     });
