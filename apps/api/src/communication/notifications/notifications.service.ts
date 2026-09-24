@@ -30,6 +30,7 @@ const NOTIFICATION_BUTTON_LABELS: Record<NotificationType, string> = {
   DOSSIER_ERREUR_SIGNALEE: 'Voir le dossier',
   DECISION_RELANCE: 'Voir la réunion',
   SUPPLEANCE_DESIGNEE: 'Voir la suppléance',
+  COURRIER_A_IMPUTER: 'Voir le courrier',
   COURRIER_IMPUTE: 'Voir le courrier',
   PLI_PERSONNEL_RECU: 'Voir le pli',
   COURRIER_ACCES_OUVERT: 'Voir le courrier',

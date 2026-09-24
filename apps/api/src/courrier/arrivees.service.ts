@@ -26,6 +26,7 @@ import {
 } from './courrier-acces.service';
 import { NumerotationService, TRANSACTION_NUMEROTATION } from './numerotation.service';
 import { UNITE_DIRECTION, assertUnitePourPortee } from './unites';
+import { responsablesDeUnite } from './responsables';
 import {
   ArriveeFiltresDto,
   CompleterPliDto,
@@ -189,13 +190,29 @@ export class ArriveesService {
         }, TRANSACTION_NUMEROTATION),
     );
 
-    // Notifications APRÈS le commit seulement.
-    if (cree.confidentialite === CourrierConfidentialite.PERSONNEL && cree.destinataireId) {
-      await this.notifications.notify(
-        cree.destinataireId,
-        NotificationType.PLI_PERSONNEL_RECU,
-        'Un pli personnel vous attend',
-        `Pli n° ${cree.numero}, enregistré au courrier.`,
+    // Notifications APRÈS le commit seulement (un échec d'email n'annule rien, A7).
+    if (cree.confidentialite === CourrierConfidentialite.PERSONNEL) {
+      // Pli fermé : seul son destinataire est prévenu, jamais « à imputer ».
+      if (cree.destinataireId) {
+        await this.notifications.notify(
+          cree.destinataireId,
+          NotificationType.PLI_PERSONNEL_RECU,
+          'Un pli personnel vous attend',
+          `Pli n° ${cree.numero}, enregistré au courrier.`,
+          `/courrier?arrivee=${cree.id}`,
+        );
+      }
+    } else {
+      // « Nouveau courrier à imputer » : DN et DNA (registre DIRECTION), le chef
+      // de l'unité (registre UNITE, ou DN/DNA si l'unité n'a pas de chef),
+      // jamais la personne qui vient de l'enregistrer. Sans objet si CONFIDENTIEL.
+      const destinataires = (await responsablesDeUnite(this.prisma, uniteKey)).filter((id) => id !== actor.id);
+      const confidentiel = cree.confidentialite === CourrierConfidentialite.CONFIDENTIEL;
+      await this.notifications.notifyMany(
+        destinataires,
+        NotificationType.COURRIER_A_IMPUTER,
+        confidentiel ? 'Nouveau courrier confidentiel à imputer' : 'Nouveau courrier à imputer',
+        confidentiel ? `Nouveau courrier confidentiel à imputer, n° ${cree.numero}.` : `Courrier n° ${cree.numero} — ${cree.objet ?? ''}.`,
         `/courrier?arrivee=${cree.id}`,
       );
     }

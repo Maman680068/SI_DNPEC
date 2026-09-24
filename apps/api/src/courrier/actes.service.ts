@@ -20,7 +20,8 @@ import { NotificationsService } from '../communication/notifications/notificatio
 import { AuthenticatedUser } from '../common/types/auth-user.type';
 import { ACTE_ACCES_SELECT, ARRIVEE_ACCES_SELECT, ContexteAcces, CourrierAccesService } from './courrier-acces.service';
 import { NumerotationService, TRANSACTION_NUMEROTATION } from './numerotation.service';
-import { UNITE_DIRECTION, parseUniteKey, uniteDe } from './unites';
+import { UNITE_DIRECTION, uniteDe } from './unites';
+import { responsablesDeUnite } from './responsables';
 import { ActeFiltresDto, CreateActeDto, ExpedierDto, UpdateActeDto, ViserDto } from './dto/acte.dto';
 import { MotifDto } from './dto/arrivee.dto';
 
@@ -725,18 +726,7 @@ export class ActesService {
   }
 
   private async notifierSignataires(acte: ActeCharge): Promise<void> {
-    const ref = parseUniteKey(acte.uniteKey);
-    const where: Prisma.UserWhereInput =
-      ref.kind === 'DIVISION'
-        ? { role: SystemRole.CHEF_DIVISION, divisionId: ref.divisionId }
-        : ref.kind === 'CELLULE'
-          ? { role: SystemRole.CHEF_CELLULE, celluleId: ref.celluleId }
-          : { role: { in: [SystemRole.DN, SystemRole.DNA] } };
-    let ids = (await this.prisma.user.findMany({ where: { ...where, status: UserStatus.ACTIF }, select: { id: true } })).map((u) => u.id);
-    // Unité sans chef (CTSCM, CNC) : DN/DNA.
-    if (ids.length === 0) {
-      ids = (await this.prisma.user.findMany({ where: { role: { in: [SystemRole.DN, SystemRole.DNA] }, status: UserStatus.ACTIF }, select: { id: true } })).map((u) => u.id);
-    }
+    const ids = await responsablesDeUnite(this.prisma, acte.uniteKey);
     await this.notifier(ids.filter((id) => id !== acte.beneficiaireId), NotificationType.ACTE_A_SIGNER, 'Acte à signer', acte);
   }
 
