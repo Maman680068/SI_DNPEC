@@ -740,17 +740,18 @@ export class TasksService {
 
     const attachments = [];
     for (const file of files) {
-      const { fileKey, sizeBytes } = await this.storage.save(file.buffer, file.originalname);
-      const attachment = await this.prisma.taskAttachment.create({
-        data: {
-          taskId,
-          fileName: file.originalname,
-          fileKey,
-          mimeType: file.mimetype,
-          sizeBytes,
-          uploadedById: actor.id,
-        },
-      });
+      const attachment = await this.storage.saveThen(file.buffer, file.originalname, ({ fileKey, sizeBytes }) =>
+        this.prisma.taskAttachment.create({
+          data: {
+            taskId,
+            fileName: file.originalname,
+            fileKey,
+            mimeType: file.mimetype,
+            sizeBytes,
+            uploadedById: actor.id,
+          },
+        }),
+      );
       attachments.push(attachment);
 
       await this.audit.log({

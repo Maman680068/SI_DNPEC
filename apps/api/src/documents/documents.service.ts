@@ -61,33 +61,33 @@ export class DocumentsService {
     if (dto.folderId) await this.assertFolderInDivision(dto.folderId, dto.divisionId);
     if (dto.sourceTaskId) await this.assertTaskExists(dto.sourceTaskId);
 
-    const { fileKey, sizeBytes } = await this.storage.save(file.buffer, file.originalname);
-
-    const document = await this.prisma.$transaction(async (tx) => {
-      const created = await tx.document.create({
-        data: {
-          title: dto.title,
-          description: dto.description,
-          category: dto.category,
-          divisionId: dto.divisionId,
-          folderId: dto.folderId,
-          sourceTaskId: dto.sourceTaskId,
-          createdById: actor.id,
-        },
-      });
-      const version = await tx.documentVersion.create({
-        data: {
-          documentId: created.id,
-          versionNumber: 1,
-          fileName: file.originalname,
-          fileKey,
-          mimeType: file.mimetype,
-          sizeBytes,
-          uploadedById: actor.id,
-        },
-      });
-      return tx.document.update({ where: { id: created.id }, data: { currentVersionId: version.id }, select: DOCUMENT_SELECT });
-    });
+    const document = await this.storage.saveThen(file.buffer, file.originalname, ({ fileKey, sizeBytes }) =>
+      this.prisma.$transaction(async (tx) => {
+        const created = await tx.document.create({
+          data: {
+            title: dto.title,
+            description: dto.description,
+            category: dto.category,
+            divisionId: dto.divisionId,
+            folderId: dto.folderId,
+            sourceTaskId: dto.sourceTaskId,
+            createdById: actor.id,
+          },
+        });
+        const version = await tx.documentVersion.create({
+          data: {
+            documentId: created.id,
+            versionNumber: 1,
+            fileName: file.originalname,
+            fileKey,
+            mimeType: file.mimetype,
+            sizeBytes,
+            uploadedById: actor.id,
+          },
+        });
+        return tx.document.update({ where: { id: created.id }, data: { currentVersionId: version.id }, select: DOCUMENT_SELECT });
+      }),
+    );
 
     await this.audit.log({
       actorId: actor.id,
@@ -145,22 +145,22 @@ export class DocumentsService {
       where: { documentId: id },
       orderBy: { versionNumber: 'desc' },
     });
-    const { fileKey, sizeBytes } = await this.storage.save(file.buffer, file.originalname);
-
-    const updated = await this.prisma.$transaction(async (tx) => {
-      const version = await tx.documentVersion.create({
-        data: {
-          documentId: id,
-          versionNumber: (lastVersion?.versionNumber ?? 0) + 1,
-          fileName: file.originalname,
-          fileKey,
-          mimeType: file.mimetype,
-          sizeBytes,
-          uploadedById: actor.id,
-        },
-      });
-      return tx.document.update({ where: { id }, data: { currentVersionId: version.id }, select: DOCUMENT_SELECT });
-    });
+    const updated = await this.storage.saveThen(file.buffer, file.originalname, ({ fileKey, sizeBytes }) =>
+      this.prisma.$transaction(async (tx) => {
+        const version = await tx.documentVersion.create({
+          data: {
+            documentId: id,
+            versionNumber: (lastVersion?.versionNumber ?? 0) + 1,
+            fileName: file.originalname,
+            fileKey,
+            mimeType: file.mimetype,
+            sizeBytes,
+            uploadedById: actor.id,
+          },
+        });
+        return tx.document.update({ where: { id }, data: { currentVersionId: version.id }, select: DOCUMENT_SELECT });
+      }),
+    );
 
     await this.audit.log({
       actorId: actor.id,
