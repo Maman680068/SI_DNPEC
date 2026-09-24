@@ -13,7 +13,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: 'Général',
     items: [
       { icon: '▦', label: 'Tableau de bord', href: '/dashboard' },
-      { icon: '✎', label: 'Mes tâches' },
+      { icon: '✎', label: 'Mes tâches', href: '/tasks' },
       { icon: '✉', label: 'Communication', href: '/communication' },
       { icon: '🗂', label: 'Archives & documents', href: '/documents' },
       { icon: '🗓', label: 'Réunions', href: '/reunions' },

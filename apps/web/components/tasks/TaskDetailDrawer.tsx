@@ -51,6 +51,7 @@ export function TaskDetailDrawer({
   const [comments, setComments] = useState<TaskComment[]>([]);
   const [attachments, setAttachments] = useState<TaskAttachment[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionBusy, setActionBusy] = useState(false);
   const [showRejectForm, setShowRejectForm] = useState(false);
@@ -64,6 +65,8 @@ export function TaskDetailDrawer({
   useEffect(() => {
     if (!taskId) return;
     setLoading(true);
+    setLoadError(null);
+    setTask(null);
     setActionError(null);
     setShowRejectForm(false);
     setAttachmentError(null);
@@ -76,6 +79,9 @@ export function TaskDetailDrawer({
         setAttachments(attachmentsResult);
         setProgressDraft(taskResult.progressPercent ?? 0);
       })
+      // Tâche hors périmètre ou introuvable (ex. lien direct /tasks/:id reçu par
+      // email) : message de l'API plutôt qu'un « Chargement… » sans fin.
+      .catch((err) => setLoadError(err instanceof Error ? err.message : 'Impossible de charger cette tâche'))
       .finally(() => setLoading(false));
   }, [taskId]);
 
@@ -189,7 +195,9 @@ export function TaskDetailDrawer({
           </button>
         </div>
 
-        {loading || !task ? (
+        {loadError ? (
+          <div className="rounded-md bg-clay-soft px-3.5 py-3 text-[13px] text-clay">{loadError}</div>
+        ) : loading || !task ? (
           <p className="text-sm text-text-muted">Chargement…</p>
         ) : (
           <>
