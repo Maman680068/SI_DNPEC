@@ -30,6 +30,16 @@ const NOTIFICATION_BUTTON_LABELS: Record<NotificationType, string> = {
   DOSSIER_ERREUR_SIGNALEE: 'Voir le dossier',
   DECISION_RELANCE: 'Voir la réunion',
   SUPPLEANCE_DESIGNEE: 'Voir la suppléance',
+  COURRIER_IMPUTE: 'Voir le courrier',
+  PLI_PERSONNEL_RECU: 'Voir le pli',
+  COURRIER_ACCES_OUVERT: 'Voir le courrier',
+  IMPUTATION_ECHEANCE_PROCHE: 'Voir le courrier',
+  IMPUTATION_EN_RETARD: 'Voir le courrier',
+  ACTE_A_VISER: 'Voir l’acte',
+  ACTE_RENVOYE: 'Voir l’acte',
+  ACTE_A_SIGNER: 'Voir l’acte',
+  ACTE_SIGNE: 'Voir l’acte',
+  ACTE_PRISE_CONNAISSANCE: 'Voir l’acte',
 };
 
 /**
