@@ -27,6 +27,8 @@ import {
 import { NumerotationService, TRANSACTION_NUMEROTATION } from './numerotation.service';
 import { UNITE_DIRECTION, assertUnitePourPortee } from './unites';
 import { responsablesDeUnite } from './responsables';
+import { CascadeService } from '../org/cascade/cascade.service';
+import { chargerPersonnes, personnesCitees } from './personnes';
 import {
   ArriveeFiltresDto,
   CompleterPliDto,
@@ -111,6 +113,7 @@ export class ArriveesService {
     private readonly notifications: NotificationsService,
     private readonly acces: CourrierAccesService,
     private readonly numerotation: NumerotationService,
+    private readonly cascade: CascadeService,
   ) {}
 
   // ------------------------------------------------------------------
@@ -245,18 +248,32 @@ export class ArriveesService {
       orderBy: [{ dateReception: 'desc' }, { sequence: 'desc' }],
     });
     const q = filtres.q?.trim().toLowerCase();
-    return rows
+    const projetes = rows
       .map((a) => ({ a, niveau: this.acces.niveauArrivee(ctx, a) }))
       .filter(({ niveau }) => niveau !== 'AUCUN')
       .map(({ a, niveau }) => this.projeter(ctx, a, niveau))
       .filter((p) => !q || [p.numero, p.expediteur, p.objet ?? ''].some((v) => v.toLowerCase().includes(q)));
+    return this.avecPersonnes(projetes);
   }
 
   async findOne(actor: AuthenticatedUser, id: string) {
     const ctx = await this.acces.contexte(actor);
     const a = await this.charger(id);
     const niveau = this.acces.assertArrivee(ctx, a, 'EXISTENCE');
-    return this.projeter(ctx, a, niveau);
+    const [projete] = await this.avecPersonnes([this.projeter(ctx, a, niveau)]);
+    return projete!;
+  }
+
+  /** Noms des personnes citées par chaque courrier projeté (et par elles
+   * seules) — champs d'affichage, résolus en une requête. */
+  private async avecPersonnes<T extends ReturnType<ArriveesService['projeter']>>(projetes: T[]) {
+    const cites = (p: T) => [
+      p.destinataireId,
+      ...p.imputations.flatMap((i) => [i.imputeParId, i.auNomDeId, i.imputeAId, i.traiteeParId]),
+      ...p.pieces.map((f) => f.deposeParId),
+    ];
+    const annuaire = await chargerPersonnes(this.prisma, projetes.flatMap(cites));
+    return projetes.map((p) => ({ ...p, personnes: personnesCitees(annuaire, cites(p)) }));
   }
 
   /** Projection selon le niveau d'accès — jamais plus que la matrice. */
@@ -285,7 +302,7 @@ export class ArriveesService {
     if (niveau === 'METADONNEES') return { ...meta, imputations: [], pieces: [] };
     return {
       ...meta,
-      imputations: a.imputations.map(({ imputeA: _i, ...imp }) => imp),
+      imputations: a.imputations.map(({ imputeA: _i, ...imp }) => ({ ...imp, droits: this.droitsImputation(ctx, a, imp) })),
       pieces: a.pieces,
     };
   }
@@ -307,11 +324,29 @@ export class ArriveesService {
       annuler: ouvert && gestion,
       classer: ouvert && (personnel ? destinataire : gestion) && this.classable(a),
       ajouterPiece: ouvert && (personnel ? destinataire : gestion && auMoins(niveau, 'CONTENU')),
+      // « Rédiger une réponse » : ActesService.validerChamps exige l'accès au contenu.
+      repondre: ouvert && niveau === 'CONTENU',
       deleguer:
         ouvert &&
         a.confidentialite === CourrierConfidentialite.CONFIDENTIEL &&
         !actor.interimForId &&
         this.acces.niveauArrivee(ctx, a, { sansDelegation: true }) === 'CONTENU',
+    };
+  }
+
+  /** Actions sur une imputation (niveau CONTENU acquis) — mêmes règles que
+   * ImputationsService.traiter / sousImputer / convertirEnTache, qui revérifient. */
+  private droitsImputation(
+    ctx: ContexteAcces,
+    a: ArriveeChargee,
+    imp: { statut: ImputationStatut; imputeAId: string; imputeParId: string; tache: { id: string } | null },
+  ) {
+    const enCours = a.statut !== ArriveeStatut.ANNULE && a.statut !== ArriveeStatut.CLASSE && imp.statut === ImputationStatut.EN_COURS;
+    const impute = enCours && this.cascade.isActingFor(ctx.actor, imp.imputeAId);
+    return {
+      traiter: impute,
+      sousImputer: impute,
+      convertir: enCours && !imp.tache && this.cascade.isActingFor(ctx.actor, imp.imputeParId),
     };
   }
 

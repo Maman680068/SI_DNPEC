@@ -22,6 +22,7 @@ import { ACTE_ACCES_SELECT, ARRIVEE_ACCES_SELECT, ContexteAcces, CourrierAccesSe
 import { NumerotationService, TRANSACTION_NUMEROTATION } from './numerotation.service';
 import { UNITE_DIRECTION, uniteDe } from './unites';
 import { responsablesDeUnite } from './responsables';
+import { chargerPersonnes, personnesCitees } from './personnes';
 import { ActeFiltresDto, CreateActeDto, ExpedierDto, UpdateActeDto, ViserDto } from './dto/acte.dto';
 import { MotifDto } from './dto/arrivee.dto';
 
@@ -572,18 +573,38 @@ export class ActesService {
       orderBy: { updatedAt: 'desc' },
     });
     const q = filtres.q?.trim().toLowerCase();
-    return rows
+    const projetes = rows
       .filter((a) => this.acces.niveauActe(ctx, a) === 'CONTENU')
       .map((a) => this.projeter(ctx, a))
       .filter((p) => !q || [p.numero ?? '', p.objet, p.destinataires ?? ''].some((v) => v.toLowerCase().includes(q)));
+    return this.avecPersonnes(projetes);
   }
 
   async findOne(actor: AuthenticatedUser, id: string) {
     const ctx = await this.acces.contexte(actor);
     const acte = await this.charger(id);
     this.acces.assertActe(ctx, acte);
-    const projete = this.projeter(ctx, acte);
-    return { ...projete, circuitObsolete: acte.statut === ActeStatut.EN_VISA ? await this.circuitObsolete(acte) : false };
+    const [projete] = await this.avecPersonnes([this.projeter(ctx, acte)]);
+    const circuitObsolete = acte.statut === ActeStatut.EN_VISA ? await this.circuitObsolete(acte) : false;
+    // Circuit obsolète : le rédacteur peut resoumettre (ActesService.soumettre).
+    const droits = { ...projete!.droits, soumettre: projete!.droits.soumettre || (circuitObsolete && acte.redacteurId === ctx.actor.id) };
+    return { ...projete!, droits, circuitObsolete };
+  }
+
+  /** Noms des personnes citées par chaque acte projeté (et par lui seul). */
+  private async avecPersonnes<T extends ReturnType<ActesService['projeter']>>(projetes: T[]) {
+    const cites = (p: T) => [
+      p.redacteurId,
+      p.beneficiaireId,
+      p.signataireId,
+      p.signeAuNomDeId,
+      p.expedieParId,
+      p.annuleParId,
+      ...p.visas.flatMap((v) => [v.viseurAttenduId, v.viseParId, v.viseAuNomDeId]),
+      ...p.pieces.map((f) => f.deposeParId),
+    ];
+    const annuaire = await chargerPersonnes(this.prisma, projetes.flatMap(cites));
+    return projetes.map((p) => ({ ...p, personnes: personnesCitees(annuaire, cites(p)) }));
   }
 
   projeter(ctx: ContexteAcces, a: ActeCharge) {
@@ -591,6 +612,16 @@ export class ActesService {
     const { redacteur: _r, registre, ...reste } = a;
     const visa = this.visaCourant(a);
     const signable = a.statut === ActeStatut.A_SIGNER && this.peutSigner(actor, a);
+    const viseur =
+      a.statut === ActeStatut.EN_VISA && actor.id !== a.redacteurId && !!visa?.viseurAttenduId && this.cascade.isActingFor(actor, visa.viseurAttenduId);
+    const responsable = this.acces.estResponsableAction(actor, a.registre.portee, a.uniteKey);
+    // Annuler — mêmes règles que ActesService.annuler.
+    const annulable =
+      a.statut !== ActeStatut.ANNULE &&
+      !(a.statut === ActeStatut.BROUILLON && a.cycle === 0) &&
+      (a.sequence !== null
+        ? (!!a.signataireId && this.cascade.isActingFor(actor, a.signataireId)) || responsable
+        : actor.id === a.redacteurId || responsable);
     return {
       ...reste,
       registre: { id: registre.id, code: registre.code, libelle: registre.libelle, nature: registre.nature, portee: registre.portee },
@@ -600,9 +631,13 @@ export class ActesService {
         modifier: a.redacteurId === actor.id && (a.statut === ActeStatut.BROUILLON || a.statut === ActeStatut.RENVOYE),
         supprimer: a.redacteurId === actor.id && a.statut === ActeStatut.BROUILLON && a.cycle === 0,
         soumettre: a.redacteurId === actor.id && (a.statut === ActeStatut.BROUILLON || a.statut === ActeStatut.RENVOYE),
-        viser: a.statut === ActeStatut.EN_VISA && actor.id !== a.redacteurId && !!visa?.viseurAttenduId && this.cascade.isActingFor(actor, visa.viseurAttenduId),
+        viser: viseur,
+        // Renvoyer : le viseur attendu (EN_VISA) ou le signataire (A_SIGNER) — ActesService.renvoyer.
+        renvoyer: viseur || signable,
         signer: signable,
         expedier: a.statut === ActeStatut.SIGNE && this.acces.estHabilite(ctx, a.registreId, a.uniteKey),
+        annuler: annulable,
+        ajouterPiece: a.redacteurId === actor.id && (a.statut === ActeStatut.BROUILLON || a.statut === ActeStatut.RENVOYE),
         prendreConnaissance: a.beneficiaireId === actor.id && a.priseConnaissanceRequise && !a.priseConnaissanceAt && a.sequence !== null,
         deleguer:
           a.confidentialite === CourrierConfidentialite.CONFIDENTIEL &&

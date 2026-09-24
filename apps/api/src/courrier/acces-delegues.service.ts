@@ -5,6 +5,7 @@ import { AuditService } from '../common/audit/audit.service';
 import { NotificationsService } from '../communication/notifications/notifications.service';
 import { AuthenticatedUser } from '../common/types/auth-user.type';
 import { isComparableRank } from '../suppleances/comparable-rank';
+import { PERSONNE_SELECT } from './personnes';
 import { ACTE_ACCES_SELECT, ARRIVEE_ACCES_SELECT, CourrierAccesService } from './courrier-acces.service';
 
 type Cible = { arriveeId: string } | { acteId: string };
@@ -163,6 +164,7 @@ export class AccesDeleguesService {
     await this.assertAccesPropre(actor, cible);
     return this.prisma.accesDelegueCourrier.findMany({
       where: { ...cible, ouvertParId: actor.id },
+      include: { beneficiaire: { select: PERSONNE_SELECT } },
       orderBy: { createdAt: 'desc' },
     });
   }
