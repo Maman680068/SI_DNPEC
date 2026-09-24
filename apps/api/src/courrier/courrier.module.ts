@@ -11,6 +11,9 @@ import { ArriveesService } from './arrivees.service';
 import { ImputationsService } from './imputations.service';
 import { AccesDeleguesService } from './acces-delegues.service';
 import { ActesService } from './actes.service';
+import { CourrierRappelsService } from './rappels.service';
+import { CourrierExportService } from './courrier-export.service';
+import { CourrierTableauDeBordService } from './tableau-de-bord.service';
 
 /** Courrier et actes (D7) — voir schema.prisma, section « Module Courrier et actes ». */
 @Module({
@@ -24,6 +27,9 @@ import { ActesService } from './actes.service';
     ImputationsService,
     AccesDeleguesService,
     ActesService,
+    CourrierRappelsService,
+    CourrierExportService,
+    CourrierTableauDeBordService,
   ],
 })
 export class CourrierModule {}

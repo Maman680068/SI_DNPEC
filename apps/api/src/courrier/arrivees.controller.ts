@@ -6,7 +6,8 @@ import { AuthenticatedUser } from '../common/types/auth-user.type';
 import { ArriveesService } from './arrivees.service';
 import { ImputationsService } from './imputations.service';
 import { AccesDeleguesService } from './acces-delegues.service';
-import { MAX_FICHIERS, OPTIONS_FICHIERS, envoyerFichier } from './fichiers';
+import { CourrierExportService } from './courrier-export.service';
+import { MAX_FICHIERS, OPTIONS_FICHIERS, envoyerExcel, envoyerFichier } from './fichiers';
 import {
   ArriveeFiltresDto,
   CompleterPliDto,
@@ -26,6 +27,7 @@ export class ArriveesController {
     private readonly arrivees: ArriveesService,
     private readonly imputations: ImputationsService,
     private readonly delegues: AccesDeleguesService,
+    private readonly exports: CourrierExportService,
   ) {}
 
   @Post('arrivees')
@@ -37,6 +39,11 @@ export class ArriveesController {
   @Get('arrivees')
   lister(@Query() filtres: ArriveeFiltresDto, @CurrentUser() actor: AuthenticatedUser) {
     return this.arrivees.lister(actor, filtres);
+  }
+
+  @Get('arrivees/export.xlsx')
+  async exporter(@Query() filtres: ArriveeFiltresDto, @CurrentUser() actor: AuthenticatedUser, @Res({ passthrough: true }) res: Response) {
+    return envoyerExcel(res, await this.exports.arriveesExcel(actor, filtres), 'courrier_arrivee');
   }
 
   @Get('arrivees/:id')

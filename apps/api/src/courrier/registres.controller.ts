@@ -4,13 +4,22 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { AuthenticatedUser } from '../common/types/auth-user.type';
 import { RegistresService } from './registres.service';
+import { CourrierTableauDeBordService } from './tableau-de-bord.service';
 import { CreateHabilitationDto, CreateRegistreDto, InitialiserCompteurDto, UpdateRegistreDto } from './dto/registre.dto';
 
 /** Paramétrage du courrier (lecture : tout utilisateur — configuration, aucun
- * contenu ; écriture : administrateur système). */
+ * contenu ; écriture : administrateur système) et tableau de bord personnel. */
 @Controller('courrier')
 export class RegistresController {
-  constructor(private readonly registres: RegistresService) {}
+  constructor(
+    private readonly registres: RegistresService,
+    private readonly tableauDeBord: CourrierTableauDeBordService,
+  ) {}
+
+  @Get('tableau-de-bord')
+  tableau(@CurrentUser() actor: AuthenticatedUser) {
+    return this.tableauDeBord.pour(actor);
+  }
 
   @Get('registres')
   findAll() {

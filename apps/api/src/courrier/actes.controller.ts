@@ -5,7 +5,8 @@ import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { AuthenticatedUser } from '../common/types/auth-user.type';
 import { ActesService } from './actes.service';
 import { AccesDeleguesService } from './acces-delegues.service';
-import { MAX_FICHIERS, OPTIONS_FICHIERS, envoyerFichier } from './fichiers';
+import { CourrierExportService } from './courrier-export.service';
+import { MAX_FICHIERS, OPTIONS_FICHIERS, envoyerExcel, envoyerFichier } from './fichiers';
 import { ActeFiltresDto, CreateActeDto, ExpedierDto, UpdateActeDto, ViserDto } from './dto/acte.dto';
 import { MotifDto, OuvrirAccesDto } from './dto/arrivee.dto';
 
@@ -14,6 +15,7 @@ export class ActesController {
   constructor(
     private readonly actes: ActesService,
     private readonly delegues: AccesDeleguesService,
+    private readonly exports: CourrierExportService,
   ) {}
 
   @Post()
@@ -24,6 +26,11 @@ export class ActesController {
   @Get()
   lister(@Query() filtres: ActeFiltresDto, @CurrentUser() actor: AuthenticatedUser) {
     return this.actes.lister(actor, filtres);
+  }
+
+  @Get('export.xlsx')
+  async exporter(@Query() filtres: ActeFiltresDto, @CurrentUser() actor: AuthenticatedUser, @Res({ passthrough: true }) res: Response) {
+    return envoyerExcel(res, await this.exports.actesExcel(actor, filtres), 'departs_actes');
   }
 
   @Get(':id')
