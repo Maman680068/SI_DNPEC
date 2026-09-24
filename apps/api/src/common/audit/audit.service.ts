@@ -25,8 +25,16 @@ export interface AuditLogInput {
 export class AuditService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async log(input: AuditLogInput): Promise<void> {
-    await this.prisma.auditLog.create({
+  /**
+   * `tx` (optionnel) : client d'une transaction interactive Prisma
+   * (`prisma.$transaction(async (tx) => ...)`) — l'entrée d'audit est alors
+   * écrite DANS cette transaction et disparaît avec elle en cas de rollback
+   * (ex. numérotation du registre de courrier : numéro, écriture métier et
+   * audit indissociables). Sans `tx`, comportement historique inchangé :
+   * écriture immédiate via le client global.
+   */
+  async log(input: AuditLogInput, tx?: Prisma.TransactionClient): Promise<void> {
+    await (tx ?? this.prisma).auditLog.create({
       data: {
         actorId: input.actorId,
         action: input.action,
