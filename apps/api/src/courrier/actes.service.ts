@@ -271,17 +271,18 @@ export class ActesService {
     await this.assertViseurToujoursChef(acte, visa);
 
     const suivant = acte.visas.find((v) => v.cycle === acte.cycle && v.statut === VisaStatut.EN_ATTENTE && v.ordre > visa.ordre);
+    const auNomDeId = this.auNomDuViseur(actor, visa.viseurAttenduId);
     await this.prisma.$transaction(async (tx) => {
       const done = await tx.visaActe.updateMany({
         where: { id: visa.id, statut: VisaStatut.EN_ATTENTE },
-        data: { statut: VisaStatut.VISE, viseParId: actor.id, viseAuNomDeId: actor.interimForId, commentaire: dto.commentaire, viseAt: new Date() },
+        data: { statut: VisaStatut.VISE, viseParId: actor.id, viseAuNomDeId: auNomDeId, commentaire: dto.commentaire, viseAt: new Date() },
       });
       if (done.count === 0) throw new ConflictException('Ce visa a déjà été posé.');
       if (!suivant) {
         await tx.acteCourrier.update({ where: { id }, data: { statut: ActeStatut.A_SIGNER } });
       }
       await this.audit.log(
-        { actorId: actor.id, action: AuditAction.VALIDATION, entityType: 'ActeCourrier', entityId: id, metadata: { event: 'visa', niveau: visa.niveau, cycle: acte.cycle, auNomDeId: actor.interimForId } },
+        { actorId: actor.id, action: AuditAction.VALIDATION, entityType: 'ActeCourrier', entityId: id, metadata: { event: 'visa', niveau: visa.niveau, cycle: acte.cycle, auNomDeId } },
         tx,
       );
     });
@@ -297,12 +298,15 @@ export class ActesService {
   /** Renvoi pour correction (viseur courant, ou signataire) : retour au rédacteur. */
   async renvoyer(actor: AuthenticatedUser, id: string, dto: MotifDto) {
     const acte = await this.charger(id);
+    // Signataire (A_SIGNER) : autorité du rôle, empruntée en intérim.
+    let auNomDeId = actor.interimForId;
     if (acte.statut === ActeStatut.EN_VISA) {
       if (actor.id === acte.redacteurId) throw new ForbiddenException('Personne ne vise sa propre lettre.');
       const visa = this.visaCourant(acte);
       if (!visa?.viseurAttenduId || !this.cascade.isActingFor(actor, visa.viseurAttenduId)) {
         throw new ForbiddenException('Seul le viseur attendu peut renvoyer l’acte à ce stade.');
       }
+      auNomDeId = this.auNomDuViseur(actor, visa.viseurAttenduId);
     } else if (acte.statut === ActeStatut.A_SIGNER) {
       this.assertPeutSigner(actor, acte);
     } else {
@@ -318,10 +322,10 @@ export class ActesService {
       if (done.count === 0) throw new ConflictException('L’acte a changé d’état entre-temps.');
       await tx.visaActe.updateMany({
         where: { acteId: id, cycle: acte.cycle, statut: VisaStatut.EN_ATTENTE },
-        data: { statut: VisaStatut.RENVOYE, viseParId: actor.id, viseAuNomDeId: actor.interimForId, commentaire: dto.motif, viseAt: new Date() },
+        data: { statut: VisaStatut.RENVOYE, viseParId: actor.id, viseAuNomDeId: auNomDeId, commentaire: dto.motif, viseAt: new Date() },
       });
       await this.audit.log(
-        { actorId: actor.id, action: AuditAction.REJET, entityType: 'ActeCourrier', entityId: id, metadata: { event: 'renvoi', motif: dto.motif, cycle: acte.cycle, auNomDeId: actor.interimForId } },
+        { actorId: actor.id, action: AuditAction.REJET, entityType: 'ActeCourrier', entityId: id, metadata: { event: 'renvoi', motif: dto.motif, cycle: acte.cycle, auNomDeId } },
         tx,
       );
     });
@@ -629,6 +633,13 @@ export class ActesService {
 
   private assertRedacteur(actor: AuthenticatedUser, acte: ActeCharge): void {
     if (acte.redacteurId !== actor.id) throw new ForbiddenException('Seul le rédacteur peut effectuer cette action.');
+  }
+
+  /** Le visa est nominatif (viseur attendu figé) : le viseur attendu qui vise
+   * alors que son onglet est en intérim d'un autre agit en SON nom propre —
+   * « au nom de » n'est posé que lorsqu'il vise pour le titulaire. */
+  private auNomDuViseur(actor: AuthenticatedUser, viseurAttenduId: string): string | null {
+    return viseurAttenduId === actor.id ? null : (actor.interimForId ?? null);
   }
 
   private visaCourant(acte: ActeCharge): Visa | undefined {
