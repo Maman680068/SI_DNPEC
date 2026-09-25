@@ -1,4 +1,4 @@
-import { EtatBien, NatureCategorieLogistique, StatutDemandeLogistique, TypeDemandeLogistique, TypeMouvementStock } from '@prisma/client';
+import { EtatBien, ModeReservation, NatureCategorieLogistique, StatutDemandeLogistique, TypeDemandeLogistique, TypeMouvementStock, TypeRessource } from '@prisma/client';
 import { Type } from 'class-transformer';
 import { IsBoolean, IsDateString, IsEnum, IsInt, IsOptional, IsString, Length, Matches, Max, Min, ValidateIf } from 'class-validator';
 
@@ -285,4 +285,109 @@ export class FiltresDemandesDto {
   @IsString()
   @Matches(/^(a_valider|a_traiter|miennes)$/)
   vue?: 'a_valider' | 'a_traiter' | 'miennes';
+}
+
+// ---------------------------------------------------------------- Réservations
+
+export class RessourceDto {
+  @IsString()
+  @Length(2, 120)
+  nom!: string;
+
+  @IsEnum(TypeRessource)
+  type!: TypeRessource;
+
+  @IsOptional()
+  @IsString()
+  @Length(1, 500)
+  description?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(2000)
+  capacite?: number;
+
+  @IsEnum(ModeReservation)
+  mode!: ModeReservation;
+}
+
+export class ModifierRessourceDto {
+  @IsOptional()
+  @IsString()
+  @Length(2, 120)
+  nom?: string;
+
+  @IsOptional()
+  @ValidateIf((_o, v) => v !== null)
+  @IsString()
+  @Length(1, 500)
+  description?: string | null;
+
+  @IsOptional()
+  @ValidateIf((_o, v) => v !== null)
+  @IsInt()
+  @Min(1)
+  @Max(2000)
+  capacite?: number | null;
+
+  @IsOptional()
+  @IsEnum(ModeReservation)
+  mode?: ModeReservation;
+
+  @IsOptional()
+  @IsBoolean()
+  actif?: boolean;
+}
+
+export class ReserverDto {
+  @IsString()
+  ressourceId!: string;
+
+  @IsDateString()
+  debut!: string;
+
+  @IsDateString()
+  fin!: string;
+
+  @IsString()
+  @Length(2, 300)
+  objet!: string;
+
+  /** Faire valoir la priorité hiérarchique sur les réservations en conflit. */
+  @IsOptional()
+  @IsBoolean()
+  prioritaire?: boolean;
+}
+
+export class CreneauDto {
+  @IsDateString()
+  debut!: string;
+
+  @IsDateString()
+  fin!: string;
+
+  @IsOptional()
+  @IsEnum(TypeRessource)
+  type?: TypeRessource;
+}
+
+export class FiltresReservationsDto {
+  @IsOptional()
+  @IsString()
+  ressourceId?: string;
+
+  @IsOptional()
+  @IsDateString()
+  du?: string;
+
+  @IsOptional()
+  @IsDateString()
+  au?: string;
+
+  /** « miennes » : toutes mes réservations, y compris annulées ; « a_valider » : file des gestionnaires. */
+  @IsOptional()
+  @IsString()
+  @Matches(/^(miennes|a_valider)$/)
+  vue?: 'miennes' | 'a_valider';
 }

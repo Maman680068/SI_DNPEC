@@ -9,12 +9,18 @@ import { GestionnairesLogistiqueService } from './gestionnaires.service';
 import { ReferentielLogistiqueService } from './referentiel.service';
 import { InventaireService } from './inventaire.service';
 import { DemandesLogistiqueService } from './demandes.service';
+import { ReservationsService } from './reservations.service';
 import {
   AffecterBienDto,
   ArticleDto,
   CreerBienDto,
   CreerCategorieDto,
   CreerDemandeDto,
+  CreneauDto,
+  FiltresReservationsDto,
+  ModifierRessourceDto,
+  RessourceDto,
+  ReserverDto,
   EtatBienDto,
   FiltresBiensDto,
   FiltresDemandesDto,
@@ -36,11 +42,12 @@ export class LogistiqueController {
     private readonly referentiel: ReferentielLogistiqueService,
     private readonly inventaire: InventaireService,
     private readonly demandes: DemandesLogistiqueService,
+    private readonly reservations: ReservationsService,
   ) {}
 
   @Get('tableau-de-bord')
-  tableau(@CurrentUser() actor: AuthenticatedUser) {
-    return this.demandes.tableauDeBord(actor);
+  async tableau(@CurrentUser() actor: AuthenticatedUser) {
+    return { ...(await this.demandes.tableauDeBord(actor)), reservationsAValider: await this.reservations.aValiderCount(actor) };
   }
 
   // ---------------------------------------------------------- Paramétrage
@@ -200,5 +207,57 @@ export class LogistiqueController {
   @Post('demandes/:id/annuler')
   annuler(@Param('id') id: string, @CurrentUser() actor: AuthenticatedUser) {
     return this.demandes.annuler(actor, id);
+  }
+
+  // ---------------------------------------------------------- Réservations
+
+  @Get('ressources')
+  ressources(@CurrentUser() actor: AuthenticatedUser) {
+    return this.reservations.ressources(actor);
+  }
+
+  @Get('ressources/disponibilite')
+  disponibilite(@Query() dto: CreneauDto, @CurrentUser() actor: AuthenticatedUser) {
+    return this.reservations.disponibilite(actor, dto);
+  }
+
+  @Post('ressources')
+  creerRessource(@Body() dto: RessourceDto, @CurrentUser() actor: AuthenticatedUser) {
+    return this.reservations.creerRessource(actor, dto);
+  }
+
+  @Patch('ressources/:id')
+  modifierRessource(@Param('id') id: string, @Body() dto: ModifierRessourceDto, @CurrentUser() actor: AuthenticatedUser) {
+    return this.reservations.modifierRessource(actor, id, dto);
+  }
+
+  @Get('reservations')
+  reservationsListe(@Query() f: FiltresReservationsDto, @CurrentUser() actor: AuthenticatedUser) {
+    return this.reservations.lister(actor, f);
+  }
+
+  @Post('reservations')
+  reserver(@Body() dto: ReserverDto, @CurrentUser() actor: AuthenticatedUser) {
+    return this.reservations.reserver(actor, dto);
+  }
+
+  @Get('reservations/:id')
+  reservation(@Param('id') id: string, @CurrentUser() actor: AuthenticatedUser) {
+    return this.reservations.fiche(actor, id);
+  }
+
+  @Post('reservations/:id/valider')
+  validerReservation(@Param('id') id: string, @CurrentUser() actor: AuthenticatedUser) {
+    return this.reservations.valider(actor, id);
+  }
+
+  @Post('reservations/:id/refuser')
+  refuserReservation(@Param('id') id: string, @Body() dto: MotifObligatoireDto, @CurrentUser() actor: AuthenticatedUser) {
+    return this.reservations.refuser(actor, id, dto);
+  }
+
+  @Post('reservations/:id/annuler')
+  annulerReservation(@Param('id') id: string, @Body() dto: MotifDto, @CurrentUser() actor: AuthenticatedUser) {
+    return this.reservations.annuler(actor, id, dto);
   }
 }

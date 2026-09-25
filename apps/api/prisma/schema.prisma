@@ -273,6 +273,11 @@ enum NotificationType {
   LOGISTIQUE_DEMANDE_REFUSEE // au demandeur
   LOGISTIQUE_STOCK_BAS // aux gestionnaires : article passé sous son seuil
   BIEN_A_RECUPERER // aux gestionnaires : détenteur d'un bien parti (compte inactif)
+  RESERVATION_A_VALIDER // aux gestionnaires (ressource en mode validation)
+  RESERVATION_CONFIRMEE // au titulaire, après validation
+  RESERVATION_REFUSEE // au titulaire
+  RESERVATION_ANNULEE // au titulaire, annulation par un gestionnaire
+  RESERVATION_ANNULEE_PRIORITE // au titulaire évincé, avec le nom du prioritaire
 
   @@map("notification_type")
 }
@@ -596,6 +601,11 @@ model User {
   demandesLogistiqueTraitees       DemandeLogistique[]      @relation("DemandeTraiteePar")
   demandesLogistiqueRefusees       DemandeLogistique[]      @relation("DemandeRefuseePar")
   mouvementsStock                  MouvementStock[]         @relation("MouvementStockPar")
+  reservations                     Reservation[]            @relation("ReservationTitulaire")
+  reservationsCreees               Reservation[]            @relation("ReservationCreeePar")
+  reservationsDecidees             Reservation[]            @relation("ReservationDecideePar")
+  reservationsAnnulees             Reservation[]            @relation("ReservationAnnuleePar")
+  reservationsPrioritaires         Reservation[]            @relation("ReservationPrioritaire")
 
   @@map("users")
 }
@@ -1189,6 +1199,9 @@ model Meeting {
 
   participants MeetingParticipant[]
   decisions    Decision[]
+
+  // D9 — salle réservée depuis la réunion (au plus une réservation liée).
+  reservation Reservation?
 
   @@map("meetings")
 }
@@ -2305,4 +2318,88 @@ model DemandeLogistique {
   @@index([demandeurId])
   @@index([statut])
   @@map("demandes_logistique")
+}
+
+// ============================================================================
+// D9 — Réservation des salles et du matériel de présentation (cahier §4.13)
+// ============================================================================
+
+enum TypeRessource {
+  SALLE
+  MATERIEL_PRESENTATION
+
+  @@map("type_ressource")
+}
+
+enum ModeReservation {
+  IMMEDIATE // confirmée d'emblée si le créneau est libre
+  VALIDATION // en attente de la validation d'un gestionnaire
+
+  @@map("mode_reservation")
+}
+
+model RessourceReservable {
+  id          String          @id @default(cuid())
+  nom         String          @unique
+  type        TypeRessource
+  description String?
+  capacite    Int?
+  mode        ModeReservation @default(IMMEDIATE)
+  actif       Boolean         @default(true)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  reservations Reservation[]
+
+  @@map("ressources_reservables")
+}
+
+enum StatutReservation {
+  EN_ATTENTE // occupe le créneau en attendant le gestionnaire
+  CONFIRMEE
+  REFUSEE
+  ANNULEE
+  ANNULEE_PRIORITE // évincée par une personne ayant autorité sur le titulaire
+
+  @@map("statut_reservation")
+}
+
+// Pas de chevauchement entre réservations actives (EN_ATTENTE, CONFIRMEE)
+// d'une même ressource : trigger qui verrouille la ressource (migration).
+model Reservation {
+  id              String              @id @default(cuid())
+  ressourceId     String
+  ressource       RessourceReservable @relation(fields: [ressourceId], references: [id])
+  titulaireId     String
+  titulaire       User                @relation("ReservationTitulaire", fields: [titulaireId], references: [id])
+  // Auteur réel du clic (suppléant en intérim, sinon le titulaire lui-même).
+  creeeParId      String
+  creeePar        User                @relation("ReservationCreeePar", fields: [creeeParId], references: [id])
+  debut           DateTime
+  fin             DateTime
+  objet           String
+  meetingId       String?             @unique
+  meeting         Meeting?            @relation(fields: [meetingId], references: [id])
+  statut          StatutReservation
+  prioritaire     Boolean             @default(false) // prise en faisant valoir la priorité hiérarchique
+  decideeParId    String?
+  decideePar      User?               @relation("ReservationDecideePar", fields: [decideeParId], references: [id])
+  decideeAt       DateTime?
+  motifRefus      String?
+  annuleeParId    String?
+  annuleePar      User?               @relation("ReservationAnnuleePar", fields: [annuleeParId], references: [id])
+  annuleeAt       DateTime?
+  motifAnnulation String?
+  // Éviction : qui a fait valoir sa priorité, et par quelle réservation.
+  evinceeParId    String?
+  evinceePar      User?               @relation("ReservationPrioritaire", fields: [evinceeParId], references: [id])
+  remplaceeParId  String?
+  remplaceePar    Reservation?        @relation("ReservationRemplacement", fields: [remplaceeParId], references: [id])
+  remplace        Reservation[]       @relation("ReservationRemplacement")
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@index([ressourceId, debut])
+  @@index([titulaireId])
+  @@map("reservations")
 }

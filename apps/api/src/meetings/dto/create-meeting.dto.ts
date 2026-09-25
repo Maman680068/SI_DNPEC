@@ -31,4 +31,15 @@ export class CreateMeetingDto {
   @IsOptional()
   @IsBoolean()
   isOpen?: boolean;
+
+  // D9 — salle (ou matériel) réservée avec la réunion : exige une heure de
+  // fin ; le lieu devient le nom de la ressource.
+  @IsOptional()
+  @IsString()
+  ressourceId?: string;
+
+  // Faire valoir la priorité hiérarchique sur la salle (voir ReservationsService).
+  @IsOptional()
+  @IsBoolean()
+  prioritaire?: boolean;
 }
