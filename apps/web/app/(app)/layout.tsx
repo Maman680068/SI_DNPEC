@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../lib/auth/AuthProvider';
+import { memoriserSuite } from '../../lib/auth/suite';
 import { OrgProvider } from '../../lib/org/OrgProvider';
 import { InterimProvider, useInterim } from '../../lib/interim/InterimProvider';
 import { InterimBanner } from '../../components/interim/InterimBanner';
@@ -14,8 +15,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { status } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  // Session absente ou expirée (ex. lien d'email) : la page visée est
+  // mémorisée et rouverte après la connexion (lib/auth/suite).
   useEffect(() => {
-    if (status === 'unauthenticated') router.replace('/');
+    if (status !== 'unauthenticated') return;
+    router.replace(memoriserSuite(window.location.pathname + window.location.search) ? '/login' : '/');
   }, [status, router]);
 
   if (status !== 'authenticated') {
