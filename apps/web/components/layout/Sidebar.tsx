@@ -17,6 +17,9 @@ const NAV_GROUPS: NavGroup[] = [
       { icon: '✉', label: 'Communication', href: '/communication' },
       { icon: '🗂', label: 'Archives & documents', href: '/documents' },
       { icon: '🗓', label: 'Réunions', href: '/reunions' },
+      // Courrier et actes (D7) : tout profil — l'administrateur système n'y voit
+      // que son courrier personnel ; il en a aussi le paramétrage (Administration).
+      { icon: '📨', label: 'Courrier', href: '/courrier' },
     ],
   },
   {
@@ -37,18 +40,11 @@ const SUPPLEANCE_NAV_ROLES = ['DN', 'DNA', 'CHEF_DIVISION', 'CHEF_SECTION', 'CHE
  * (lecture seule — voir app/(app)/users/page.tsx). "Organisation" est réservée à
  * ADMIN_SYSTEME uniquement (voir app/(app)/organisation/page.tsx). */
 function navGroupsFor(role: string | undefined): NavGroup[] {
-  let groups = SUPPLEANCE_NAV_ROLES.includes(role ?? '')
+  const groups = SUPPLEANCE_NAV_ROLES.includes(role ?? '')
     ? NAV_GROUPS.map((g) =>
         g.label === 'Personnel' ? { ...g, items: [...g.items, { icon: '⇄', label: 'Suppléances', href: '/suppleances' }] } : g,
       )
     : NAV_GROUPS;
-  // Courrier et actes (D7) : tout profil sauf l'administrateur système, qui
-  // n'en voit que le paramétrage (Administration → Courrier).
-  if (role !== 'ADMIN_SYSTEME') {
-    groups = groups.map((g) =>
-      g.label === 'Général' ? { ...g, items: [...g.items, { icon: '📨', label: 'Courrier', href: '/courrier' }] } : g,
-    );
-  }
   const adminItems: NavGroup['items'] = [];
   if (USERS_PAGE_VISIBLE_ROLES.includes(role ?? '')) {
     adminItems.push({ icon: '👤', label: 'Utilisateurs', href: '/users' });
@@ -69,6 +65,12 @@ export function Sidebar({ open = false, onClose }: { open?: boolean; onClose?: (
   const { user, logout } = useAuth();
   const pathname = usePathname();
   const navGroups = navGroupsFor(user?.role);
+  // Entrée active : le lien le plus précis qui contient la page (Courrier et
+  // Administration → Courrier ne s'allument jamais ensemble).
+  const activeHref = navGroups
+    .flatMap((g) => g.items.map((i) => i.href ?? ''))
+    .filter((h) => h && (pathname === h || pathname?.startsWith(`${h}/`)))
+    .sort((a, b) => b.length - a.length)[0];
 
   // Referme le tiroir mobile à chaque changement de page — sans ça, naviguer
   // depuis le tiroir le laisserait ouvert par-dessus la page suivante.
@@ -113,7 +115,7 @@ export function Sidebar({ open = false, onClose }: { open?: boolean; onClose?: (
               {group.label}
             </div>
             {group.items.map((item) => {
-              const active = !!item.href && pathname?.startsWith(item.href);
+              const active = !!item.href && item.href === activeHref;
               const className = `mb-0.5 flex items-center gap-3 rounded-md px-2.5 py-2 text-[13.6px] font-medium ${
                 active
                   ? 'bg-accent-soft font-bold text-ink shadow-[inset_3px_0_0_theme(colors.gold.DEFAULT)]'

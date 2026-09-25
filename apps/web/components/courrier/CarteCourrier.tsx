@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useAuth } from '../../lib/auth/AuthProvider';
 import { getTableauDeBord } from '../../lib/api/courrier';
 import type { TableauDeBordCourrier } from '../../lib/courrier/types';
 import { CompteursCourrier, RUBRIQUES } from './CompteursCourrier';
@@ -11,22 +10,20 @@ import { CompteursCourrier, RUBRIQUES } from './CompteursCourrier';
  * Carte « Courrier » du tableau de bord général : compteurs non nuls de
  * GET /courrier/tableau-de-bord (rôle emprunté pendant un intérim : la page
  * est remontée et la requête porte X-Interim-For), chacun ouvrant sa rubrique
- * sur /courrier. Rien si tout est à zéro ; jamais pour l'administrateur.
+ * sur /courrier. Rien si tout est à zéro (pour l'administrateur système, qui
+ * n'a que son courrier personnel, elle n'apparaît donc que s'il a un élément
+ * personnel en attente).
  */
 export function CarteCourrier() {
-  const { user } = useAuth();
   const [tableau, setTableau] = useState<TableauDeBordCourrier | null>(null);
   const [erreur, setErreur] = useState(false);
-  const exclu = user?.role === 'ADMIN_SYSTEME';
 
   useEffect(() => {
-    if (exclu) return;
     getTableauDeBord()
       .then(setTableau)
       .catch(() => setErreur(true));
-  }, [exclu]);
+  }, []);
 
-  if (exclu) return null;
   if (erreur) {
     return <p className="mb-5 text-[12.5px] text-text-faint">Courrier : compteurs momentanément indisponibles.</p>;
   }

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '../../../lib/auth/AuthProvider';
 import { exporterActes, exporterArrivees, getActes, getArrivees, getMesHabilitations, getRegistres, getTableauDeBord, getUnites } from '../../../lib/api/courrier';
 import {
   ACTE_STATUT_LABEL,
@@ -31,9 +32,18 @@ const ONGLETS: { cle: Onglet; libelle: string }[] = [
   { cle: 'arrivees', libelle: 'Arrivées' },
   { cle: 'actes', libelle: 'Départs et actes' },
 ];
+/** Administrateur système : son seul courrier personnel (l'API ne lui renvoie
+ * rien d'autre) — mêmes listes, libellées comme telles. */
+const ONGLETS_PERSONNELS: { cle: Onglet; libelle: string }[] = [
+  { cle: 'a-faire', libelle: 'À faire' },
+  { cle: 'arrivees', libelle: 'Mes plis personnels' },
+  { cle: 'actes', libelle: 'Mes actes' },
+];
 
 export default function CourrierPage() {
   const router = useRouter();
+  const { user } = useAuth();
+  const personnel = user?.role === 'ADMIN_SYSTEME';
   const [onglet, setOnglet] = useState<Onglet>('a-faire');
   const [rubrique, setRubrique] = useState<Rubrique | null>(null);
   const [arriveeId, setArriveeId] = useState<string | null>(null);
@@ -181,9 +191,11 @@ export default function CourrierPage() {
     <div>
       <div className="mb-5">
         <div className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-sage">Général</div>
-        <h1 className="text-[22px] font-extrabold">Courrier et actes</h1>
+        <h1 className="text-[22px] font-extrabold">{personnel ? 'Mon courrier' : 'Courrier et actes'}</h1>
         <p className="mt-1 max-w-[680px] text-[13px] text-text-muted">
-          Registres du courrier arrivée, des départs et des actes : enregistrement, imputation, visa, signature et expédition.
+          {personnel
+            ? 'Votre courrier personnel : plis qui vous sont adressés, lettres et actes que vous rédigez ou qui vous concernent.'
+            : 'Registres du courrier arrivée, des départs et des actes : enregistrement, imputation, visa, signature et expédition.'}
         </p>
       </div>
 
@@ -194,7 +206,7 @@ export default function CourrierPage() {
       )}
 
       <div role="tablist" className="-mx-4 mb-5 flex gap-2 overflow-x-auto px-4 pb-1 md:mx-0 md:px-0">
-        {ONGLETS.map((o) => (
+        {(personnel ? ONGLETS_PERSONNELS : ONGLETS).map((o) => (
           <button
             key={o.cle}
             role="tab"

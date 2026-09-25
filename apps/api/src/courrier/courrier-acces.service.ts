@@ -212,7 +212,8 @@ export class CourrierAccesService {
     const { actor } = ctx;
     if (a.destinataireId === actor.id) return 'CONTENU';
     if (actor.role === SystemRole.ADMIN_SYSTEME && !actor.interimForId) {
-      // Comme personne seulement : imputé nommément.
+      // Comme personne seulement : ses plis personnels (ci-dessus). Il n'est plus
+      // jamais imputé ; une imputation antérieure éventuelle reste lisible.
       return a.imputations.some((i) => i.imputeA.id === actor.id) ? 'CONTENU' : 'AUCUN';
     }
     const habilite = this.estHabilite(ctx, a.registreId, a.uniteKey);

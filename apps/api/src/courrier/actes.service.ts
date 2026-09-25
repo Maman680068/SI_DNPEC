@@ -120,9 +120,6 @@ export class ActesService {
 
   async creer(actor: AuthenticatedUser, dto: CreateActeDto) {
     const redacteur = await this.chargerPersonne(actor.id);
-    if (redacteur.role === SystemRole.ADMIN_SYSTEME) {
-      throw new ForbiddenException('L’administrateur système n’a pas accès au courrier : il ne rédige pas d’acte.');
-    }
     const { registreId, uniteKey } = await this.resoudreRegistre(dto.registreId, redacteur);
     await this.validerChamps(actor, dto);
     const acte = await this.prisma.acteCourrier.create({
@@ -712,11 +709,8 @@ export class ActesService {
       throw new BadRequestException('La prise de connaissance exige un bénéficiaire.');
     }
     if (d.beneficiaireId) {
-      const b = await this.prisma.user.findUnique({ where: { id: d.beneficiaireId }, select: { status: true, role: true } });
+      const b = await this.prisma.user.findUnique({ where: { id: d.beneficiaireId }, select: { status: true } });
       if (!b) throw new NotFoundException('Bénéficiaire introuvable');
-      if (b.role === SystemRole.ADMIN_SYSTEME) {
-        throw new ForbiddenException('L’administrateur système n’a pas accès au courrier : il ne peut pas être le bénéficiaire d’un acte.');
-      }
       if (b.status !== UserStatus.ACTIF) throw new BadRequestException('Bénéficiaire : compte inactif.');
     }
     if (d.repondAId) {
