@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useAuth } from '../../lib/auth/AuthProvider';
 import { InterimSwitcher } from '../interim/InterimSwitcher';
+import { NotificationBell } from './NotificationBell';
 
 function initials(firstName: string, lastName: string): string {
   return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
@@ -34,9 +35,7 @@ export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
         <Link href="/communication" className="relative flex h-9 w-9 items-center justify-center rounded-md border border-line text-text-muted">
           ✉<span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full border border-surface bg-clay" />
         </Link>
-        <button className="relative flex h-9 w-9 items-center justify-center rounded-md border border-line text-text-muted">
-          🔔<span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full border border-surface bg-clay" />
-        </button>
+        <NotificationBell />
         {user && (
           <div className="flex h-[34px] w-[34px] items-center justify-center rounded-md bg-gold text-[12.5px] font-bold text-ink">
             {initials(user.firstName, user.lastName)}
