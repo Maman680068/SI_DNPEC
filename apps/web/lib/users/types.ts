@@ -101,3 +101,44 @@ export const STATUS_LABEL: Record<UserStatus, string> = {
  * gestion complète, DN/DNA en lecture seule (voir page.tsx : le backend réserve
  * GET /users/pending, POST /users, /approve, /reject et /status à ADMIN_SYSTEME). */
 export const USERS_PAGE_VISIBLE_ROLES = ['ADMIN_SYSTEME', 'DN', 'DNA'];
+
+/** Changement de rôle (POST /users/:id/role et /role/apercu). */
+export interface ChangementRoleInput {
+  role: SystemRole;
+  roleAttendu: SystemRole;
+  divisionId?: string | null;
+  sectionId?: string | null;
+  celluleId?: string | null;
+  supervisorId?: string | null;
+  jobTitle?: string;
+  motif: string;
+}
+
+interface RattachementRole {
+  role: SystemRole;
+  divisionId: string | null;
+  sectionId: string | null;
+  celluleId: string | null;
+  supervisorId: string | null;
+  jobTitle: string | null;
+}
+
+/** Aperçu (= effets appliqués) d'un changement de rôle, calculé par l'API. */
+export interface ChangementRoleApercu {
+  userId: string;
+  avant: RattachementRole;
+  apres: RattachementRole;
+  applique?: boolean;
+  effets: {
+    suppleancesRevoquees: { id: string; titulaire: string; suppleant: string; debut: string; fin: string }[];
+    suppleancesConservees: { id: string; titulaire: string; suppleant: string }[];
+    accesDeleguesRevoques: number;
+    habilitationsConservees: { id: string; registre: string; uniteKey: string }[];
+    imputationsEnCours: { id: string; courrierId: string; numero: string }[];
+    circuitsDeVisaARecalculer: { acteId: string; objet: string }[];
+    taches: { assignees: number; creees: number };
+    celluleQuittee: string | null;
+    celluleNommee: string | null;
+    sessionsRevoquees: number;
+  };
+}

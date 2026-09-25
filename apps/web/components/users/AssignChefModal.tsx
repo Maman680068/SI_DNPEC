@@ -53,6 +53,8 @@ export function AssignChefModal({
       <form
         onSubmit={handleSubmit}
         onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-label="Nommer chef de cellule"
         className="w-full max-w-[440px] rounded-lg bg-surface p-6"
       >
         <h2 className="mb-1.5 text-[19px] font-semibold">Nommer chef de cellule</h2>

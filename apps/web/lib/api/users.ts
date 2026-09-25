@@ -1,5 +1,5 @@
 import { apiFetch } from './client';
-import type { AdminUser, ApproveUserInput, CreateUserInput, UserStatus } from '../users/types';
+import type { AdminUser, ApproveUserInput, ChangementRoleApercu, ChangementRoleInput, CreateUserInput, UserStatus } from '../users/types';
 
 /** Tous les comptes visibles par l'acteur — pour ADMIN_SYSTEME/DN/DNA (périmètre
  * "top-level" côté CascadeService), équivaut à la liste complète. */
@@ -41,4 +41,13 @@ export function setUserPassword(id: string, newPassword: string): Promise<{ mess
     method: 'POST',
     body: JSON.stringify({ newPassword }),
   });
+}
+
+/** Changement de rôle — aperçu (aucune écriture) puis action ; mêmes contrôles côté API. */
+export function apercuChangementRole(id: string, input: ChangementRoleInput): Promise<ChangementRoleApercu> {
+  return apiFetch<ChangementRoleApercu>(`/users/${id}/role/apercu`, { method: 'POST', body: JSON.stringify(input) });
+}
+
+export function changerRole(id: string, input: ChangementRoleInput): Promise<ChangementRoleApercu> {
+  return apiFetch<ChangementRoleApercu>(`/users/${id}/role`, { method: 'POST', body: JSON.stringify(input) });
 }

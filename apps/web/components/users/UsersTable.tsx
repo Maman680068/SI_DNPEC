@@ -8,6 +8,7 @@ import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
 import { AssignChefModal } from './AssignChefModal';
 import { ManageAccountModal } from './ManageAccountModal';
+import { ChangeRoleModal } from './ChangeRoleModal';
 
 const STATUS_BADGE_TONE: Record<UserStatus, 'sage' | 'clay' | 'muted'> = {
   EN_ATTENTE: 'muted',
@@ -23,11 +24,9 @@ const STATUS_BADGE_LABEL: Record<UserStatus, string> = {
   SUPPRIME: 'Supprimé',
 };
 
-/** "Nommer chef de cellule" n'a de sens que pour un Agent (le cas courant : promouvoir
- * quelqu'un qui travaille déjà dans la cellule) ou un Chef de Cellule déjà en poste
- * (réaffectation à une autre cellule). Le masquer pour les autres rôles évite un vrai
- * piège côté API : CellulesService.assignChef écrase le rôle sans condition — nommer
- * par erreur un DN ou l'Administrateur Système chef de cellule le rétrograderait. */
+/** Raccourci « Nommer chef de cellule » pour un Agent ou un Chef de Cellule (réaffectation) ;
+ * l'API refuse de toute façon (409) un DN, une DNA ou un Chef de Division. Tout autre
+ * changement passe par « Changer de rôle » (même mécanisme côté API). */
 const CAN_BECOME_CHEF_ROLES = ['AGENT', 'CHEF_CELLULE'];
 
 function attachmentLabel(
@@ -65,6 +64,7 @@ export function UsersTable({
   const { getDivisionName, getSectionName, getCelluleName, getUserLabel } = useOrg();
   const [assigningChefFor, setAssigningChefFor] = useState<AdminUser | null>(null);
   const [managingAccountFor, setManagingAccountFor] = useState<AdminUser | null>(null);
+  const [changingRoleFor, setChangingRoleFor] = useState<AdminUser | null>(null);
 
   if (users.length === 0) {
     return <p className="py-8 text-center text-[13px] text-text-faint">Aucun compte.</p>;
@@ -95,6 +95,11 @@ export function UsersTable({
                 {CAN_BECOME_CHEF_ROLES.includes(user.role) && (
                   <Button variant="outline" onClick={() => setAssigningChefFor(user)}>
                     Nommer chef de cellule
+                  </Button>
+                )}
+                {user.status === 'ACTIF' && (
+                  <Button variant="outline" onClick={() => setChangingRoleFor(user)}>
+                    Changer de rôle
                   </Button>
                 )}
                 <Button variant="outline" onClick={() => setManagingAccountFor(user)}>
@@ -140,6 +145,11 @@ export function UsersTable({
                           Nommer chef de cellule
                         </Button>
                       )}
+                      {user.status === 'ACTIF' && (
+                        <Button variant="outline" onClick={() => setChangingRoleFor(user)}>
+                          Changer de rôle
+                        </Button>
+                      )}
                       <Button variant="outline" onClick={() => setManagingAccountFor(user)}>
                         Gérer
                       </Button>
@@ -158,6 +168,17 @@ export function UsersTable({
           onClose={() => setAssigningChefFor(null)}
           onAssigned={() => {
             setAssigningChefFor(null);
+            onRefresh();
+          }}
+        />
+      )}
+
+      {changingRoleFor && (
+        <ChangeRoleModal
+          user={changingRoleFor}
+          onClose={() => setChangingRoleFor(null)}
+          onChanged={() => {
+            setChangingRoleFor(null);
             onRefresh();
           }}
         />
