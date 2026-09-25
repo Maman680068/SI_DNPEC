@@ -13,5 +13,7 @@ import { PasswordResetService } from './services/password-reset.service';
   imports: [UsersModule, CommunicationModule],
   controllers: [AuthController, AdminPasswordController],
   providers: [AuthService, TotpService, SessionService, LoginAttemptService, PasswordResetService],
+  // SessionService exporté pour RoleChangeModule (révocation des sessions).
+  exports: [SessionService],
 })
 export class AuthModule {}

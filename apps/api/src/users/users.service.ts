@@ -87,9 +87,9 @@ const SEARCH_MAX_RESULTS = 20;
  * — un Chef de Division en est délibérément exclu (schema.prisma, décision
  * de conception n°2). Même liste que AuthService.SUPERVISOR_ROLES, pour la
  * déclaration à l'inscription. */
-const SUPERVISOR_ROLES: SystemRole[] = [SystemRole.DN, SystemRole.DNA, SystemRole.CHEF_CELLULE];
+export const SUPERVISOR_ROLES: SystemRole[] = [SystemRole.DN, SystemRole.DNA, SystemRole.CHEF_CELLULE];
 
-type OrgAttachment = {
+export type OrgAttachment = {
   divisionId?: string | null;
   sectionId?: string | null;
   celluleId?: string | null;
@@ -420,7 +420,7 @@ export class UsersService {
   }
 
   /** Fait respecter les invariants documentés dans schema.prisma (divisionId/celluleId exclusifs, section ⊂ division). */
-  private async assertOrgAttachmentValid(input: OrgAttachment): Promise<void> {
+  async assertOrgAttachmentValid(input: OrgAttachment): Promise<void> {
     if (input.divisionId && input.celluleId) {
       throw new ConflictException(
         'Un utilisateur ne peut pas être rattaché à la fois à une Division et à une Cellule.',
@@ -464,7 +464,7 @@ export class UsersService {
    * updateAssignment() : déplacer un agent déjà actif entre Sections d'une
    * même Division n'ajoute personne de nouveau à l'unité suspendue.
    */
-  private async assertUnitsActiveForNewAttachment(input: OrgAttachment): Promise<void> {
+  async assertUnitsActiveForNewAttachment(input: OrgAttachment): Promise<void> {
     if (input.divisionId) {
       const division = await this.prisma.division.findUnique({ where: { id: input.divisionId } });
       if (division && !division.isActive) {
@@ -508,12 +508,34 @@ export class UsersService {
    * de section dans sa division, ou qui est réactivé sans successeur, n'est
    * jamais en conflit avec lui-même.
    */
-  private async assertNoActiveChiefConflict(
+  async assertNoActiveChiefConflict(
     role: SystemRole,
     attachment: OrgAttachment,
     excludeUserId?: string,
   ): Promise<void> {
     const notSelf = excludeUserId ? { id: { not: excludeUserId } } : {};
+    // Un seul DN actif et une seule DNA active (décision de la Direction).
+    if (role === SystemRole.DN || role === SystemRole.DNA) {
+      const existing = await this.prisma.user.findFirst({ where: { role, status: UserStatus.ACTIF, ...notSelf } });
+      if (existing) {
+        throw new ConflictException(
+          `Il y a déjà ${role === SystemRole.DN ? 'un DN actif' : 'une DNA active'} : ${existing.firstName} ${existing.lastName}. Changez d'abord son rôle.`,
+        );
+      }
+    }
+    // Chef de Cellule : Cellule.chefId est la source de vérité (un seul chef).
+    if (role === SystemRole.CHEF_CELLULE && attachment.celluleId) {
+      const cellule = await this.prisma.cellule.findUnique({ where: { id: attachment.celluleId }, select: { chefId: true } });
+      const autre = await this.prisma.user.findFirst({
+        where: { role: SystemRole.CHEF_CELLULE, celluleId: attachment.celluleId, status: UserStatus.ACTIF, ...notSelf },
+      });
+      if ((cellule?.chefId && cellule.chefId !== excludeUserId) || autre) {
+        const chef = autre ?? (await this.prisma.user.findUnique({ where: { id: cellule!.chefId! } }));
+        throw new ConflictException(
+          `Cette cellule a déjà un Chef de Cellule${chef ? ` : ${chef.firstName} ${chef.lastName}` : ''}. Changez d'abord son rôle.`,
+        );
+      }
+    }
     if (role === SystemRole.CHEF_DIVISION && attachment.divisionId) {
       const existing = await this.prisma.user.findFirst({
         where: { role: SystemRole.CHEF_DIVISION, divisionId: attachment.divisionId, status: UserStatus.ACTIF, ...notSelf },

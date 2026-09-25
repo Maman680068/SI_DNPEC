@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { CareerEventType } from '@prisma/client';
+import { CareerEventType, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 type OrgAttachment = {
@@ -26,13 +26,29 @@ export class PersonnelHistoryService {
     recordedById: string,
     from: OrgAttachment,
     to: OrgAttachment,
+    db: Prisma.TransactionClient = this.prisma,
   ): Promise<void> {
     if (from.divisionId === to.divisionId && from.sectionId === to.sectionId && from.celluleId === to.celluleId) {
       return;
     }
     const [fromLabel, toLabel] = await Promise.all([this.describeAttachment(from), this.describeAttachment(to)]);
-    await this.prisma.personnelCareerEvent.create({
+    await db.personnelCareerEvent.create({
       data: { userId, eventType: CareerEventType.AFFECTATION, fromValue: fromLabel, toValue: toLabel, recordedById },
+    });
+  }
+
+  /** Changement de fonction (rôle), libellés fournis par l'appelant
+   * (RoleChangeService). No-op si rien n'a changé. */
+  async recordFonctionChange(
+    userId: string,
+    recordedById: string,
+    fromValue: string,
+    toValue: string,
+    db: Prisma.TransactionClient = this.prisma,
+  ): Promise<void> {
+    if (fromValue === toValue) return;
+    await db.personnelCareerEvent.create({
+      data: { userId, eventType: CareerEventType.CHANGEMENT_FONCTION, fromValue, toValue, recordedById },
     });
   }
 
@@ -48,7 +64,7 @@ export class PersonnelHistoryService {
     });
   }
 
-  private async describeAttachment(attachment: OrgAttachment): Promise<string> {
+  async describeAttachment(attachment: OrgAttachment): Promise<string> {
     if (attachment.divisionId) {
       const division = await this.prisma.division.findUnique({
         where: { id: attachment.divisionId },

@@ -247,6 +247,8 @@ enum NotificationType {
   ACTE_A_SIGNER
   ACTE_SIGNE
   ACTE_PRISE_CONNAISSANCE
+  ROLE_MODIFIE // changement de rôle d'un compte (personne concernée et DRH)
+  SUPPLEANCE_REVOQUEE // suppléance révoquée (ex. devenue non conforme après un changement de rôle)
 
   @@map("notification_type")
 }
