@@ -8,7 +8,7 @@ import { AuthenticatedUser } from '../common/types/auth-user.type';
 import { CreateSuppleanceDto } from './dto/create-suppleance.dto';
 import { COMPARABLE_RANK_DESIGNATION_MESSAGE, isComparableRank } from './comparable-rank';
 
-/** Rôles "chef" — seuls éligibles comme titulaire OU suppléant (§2.6,
+/** Rôles "chef" — seuls éligibles comme titulaire OU suppléant (§4.10,
  * décision de conception validée) : ils exercent déjà une forme d'autorité
  * de cascade ailleurs dans l'application, contrairement à AGENT/
  * ASSISTANT_DIRECTION/ADMIN_SYSTEME/DRH, qui n'ont rien de tel à emprunter. */
@@ -24,7 +24,7 @@ const CHEF_TIER_ROLES: SystemRole[] = [
 const PARTY_SELECT = { id: true, firstName: true, lastName: true, role: true, divisionId: true } as const;
 
 /**
- * Suppléance/intérim (§2.6). La désignation ne fait qu'enregistrer la
+ * Suppléance/intérim (§4.10). La désignation ne fait qu'enregistrer la
  * période et les parties — l'emprunt de rôle réel (autorité + visibilité en
  * cascade) se produit à chaque requête, dans JwtAuthGuard, sur en-tête
  * explicite X-Interim-For (voir schema.prisma, en-tête du modèle Suppleance,

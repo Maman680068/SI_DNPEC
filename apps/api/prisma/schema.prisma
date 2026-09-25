@@ -74,7 +74,7 @@ datasource db {
 
 enum SystemRole {
   DN // Directeur National
-  DNA // Directeur National Adjoint — même autorité que le DN (§2.3)
+  DNA // Directeur National Adjoint — même autorité que le DN (§2.1)
   CHEF_DIVISION
   CHEF_SECTION
   // Chef d'une cellule transversale (SAF, RH, CSID pour l'instant — voir
@@ -274,7 +274,7 @@ model Division {
   id        String   @id @default(cuid())
   code      String   @unique // DPE, DEE, DSPS, DAC, DIPE
   name      String
-  // Suspension (§2.6 bis) : n'affecte JAMAIS les personnes déjà rattachées
+  // Suspension (§2.3) : n'affecte JAMAIS les personnes déjà rattachées
   // (elles gardent connexion, tâches, congés, documents intacts) — bloque
   // uniquement la croissance de l'unité pendant qu'elle est fausse : nouveau
   // rattachement (inscription, création manuelle, approbation) et nomination
@@ -317,7 +317,7 @@ model Section {
   @@map("sections")
 }
 
-// Cellules transversales rattachées directement au DN ou à la DNA (§2.1) :
+// Cellules transversales rattachées directement au DN ou à la DNA (§2) :
 // CTSCM, CNC (sous le DN), SAF, RH, CSID (sous la DNA). Contrairement aux
 // Divisions, elles ne comportent pas de Sections. Les 5 cellules officielles
 // sont fournies en données de seed (prisma/seed.ts).
@@ -370,7 +370,7 @@ model User {
   // niveau de permission, porté uniquement par `role`.
   jobTitle     String?
 
-  // Rattachement organisationnel (§2.3, cascade hiérarchique). Un utilisateur
+  // Rattachement organisationnel (§2.1, cascade hiérarchique). Un utilisateur
   // est rattaché à une Division OU à une Cellule, jamais les deux
   // (invariant applicatif — voir en-tête de fichier, décision n°4) :
   // - DN / DNA                  -> divisionId = null, celluleId = null,
@@ -507,7 +507,7 @@ model User {
   personnelCareerEvents  PersonnelCareerEvent[]  @relation("PersonnelCareerEventSubject")
   recordedCareerEvents   PersonnelCareerEvent[]  @relation("PersonnelCareerEventRecordedBy")
 
-  // Suppléance/intérim (§2.6)
+  // Suppléance/intérim (§4.10)
   suppleancesAsTitulaire Suppleance[] @relation("SuppleanceTitulaire")
   suppleancesAsSuppleant Suppleance[] @relation("SuppleanceSuppleant")
   suppleancesDesignated  Suppleance[] @relation("SuppleanceCreatedBy")
@@ -868,7 +868,7 @@ model LeaveRequest {
   reason      String?
   status      LeaveRequestStatus @default(EN_ATTENTE)
 
-  // Validation par le supérieur hiérarchique direct, en cascade (§2.3)
+  // Validation par le supérieur hiérarchique direct, en cascade (§2.1)
   approverId      String?
   approver        User?     @relation("LeaveApprover", fields: [approverId], references: [id])
   decisionComment String?
@@ -1242,7 +1242,7 @@ model AuditLog {
   // Détail de l'action (champs modifiés, valeurs avant/après...)
   metadata   Json?
 
-  // Suppléance/intérim (§2.6) : renseigné automatiquement par AuditService
+  // Suppléance/intérim (§4.10) : renseigné automatiquement par AuditService
   // (via RequestContext/AsyncLocalStorage, jamais passé explicitement par
   // les appelants) quand `actorId` a agi sous couvert d'une Suppleance
   // active au moment de la requête — "par intérim, au nom de". `actorId`
@@ -1395,7 +1395,7 @@ model PersonnelCareerEvent {
 }
 
 // ----------------------------------------------------------------------------
-// Suppléance / intérim (§2.6) — tout responsable (Chef de Section/Division/
+// Suppléance / intérim (§4.10) — tout responsable (Chef de Section/Division/
 // Cellule, DN/DNA) peut désigner, ou voir désigner par son supérieur direct,
 // un suppléant pour une période datée. Pendant cette période, le suppléant
 // EMPRUNTE le rôle/rattachement du titulaire (JwtAuthGuard, sur en-tête

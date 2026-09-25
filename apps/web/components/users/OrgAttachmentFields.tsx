@@ -25,7 +25,7 @@ function supervisorLabel(option: RegistrationSupervisorOption): string {
   return `${option.firstName} ${option.lastName} — ${roleLabel}`;
 }
 
-/** Reflète l'invariant documenté dans schema.prisma (User, §2.3) : quel rattachement
+/** Reflète l'invariant documenté dans schema.prisma (User, §2.1) : quel rattachement
  * organisationnel un rôle accepte, pour construire le bon jeu de champs. */
 function attachmentKind(role: SystemRole): Kind {
   switch (role) {
@@ -65,7 +65,7 @@ export function OrgAttachmentFields({
   onChange: (next: OrgAttachment) => void;
 }) {
   const { divisions: allDivisions, sections: allSections, cellules: allCellules } = useOrg();
-  // Une unité suspendue (§2.6 bis) est exclue des listes de sélection pour tout
+  // Une unité suspendue (§2.3) est exclue des listes de sélection pour tout
   // nouveau rattachement — bloqué côté API de toute façon (UsersService.
   // assertUnitsActiveForNewAttachment), filtré ici pour ne pas proposer un choix
   // que le serveur refusera.

@@ -60,7 +60,7 @@ export class AuthService {
    * structure est définie (voir DECLARABLE_CELLULE_CODES). */
   /**
    * Unités suspendues (Division.isActive/Section.isActive/Cellule.isActive,
-   * §2.6 bis) exclues ici : une inscription est un nouveau rattachement, donc
+   * §2.3) exclues ici : une inscription est un nouveau rattachement, donc
    * la croissance précisément bloquée par une suspension. N'affecte jamais le
    * personnel déjà rattaché à l'unité, qui garde son accès intact.
    */

@@ -22,7 +22,7 @@ export interface RattachementRole {
 }
 
 /**
- * Rattachement exigé par chaque rôle (§2.3) — règle SERVEUR, jusqu'ici portée
+ * Rattachement exigé par chaque rôle (§2) — règle SERVEUR, jusqu'ici portée
  * seulement par l'écran (OrgAttachmentFields). Normalise la saisie : un champ
  * sans objet pour le rôle est effacé, un champ exigé manquant → 400.
  */

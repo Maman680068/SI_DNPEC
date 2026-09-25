@@ -22,7 +22,7 @@ export function AssignChefModal({
   onAssigned: () => void;
 }) {
   const { cellules: allCellules, refreshOrg } = useOrg();
-  // Une cellule suspendue (§2.6 bis) ne peut pas recevoir de NOUVEAU chef tant
+  // Une cellule suspendue (§2.3) ne peut pas recevoir de NOUVEAU chef tant
   // qu'elle n'est pas réactivée (CellulesService.assignChef) — exclue ici aussi.
   const cellules = allCellules.filter((c) => c.isActive);
   const [celluleId, setCelluleId] = useState(cellules[0]?.id ?? '');

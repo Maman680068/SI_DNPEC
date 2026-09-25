@@ -46,7 +46,7 @@ export function deleteSection(id: string): Promise<void> {
   return apiFetch<void>(`/org/sections/${id}`, { method: 'DELETE' });
 }
 
-/** Suspension (§2.6 bis) : n'affecte jamais les personnes déjà rattachées à la Section
+/** Suspension (§2.3) : n'affecte jamais les personnes déjà rattachées à la Section
  * (accès intact), bloque seulement un nouveau rattachement ou une nouvelle nomination
  * de chef — voir SectionsService.suspend côté API. */
 export function suspendSection(id: string): Promise<Section> {

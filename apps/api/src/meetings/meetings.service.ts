@@ -208,7 +208,7 @@ export class MeetingsService {
    * d'agenda, pas du contenu métier délégué en cascade comme une tâche :
    * délibérément aucune autorité hiérarchique de substitution ici (voir
    * CascadeService.hasDirectAuthorityOver, non utilisé) — seule exception,
-   * la suppléance/intérim (§2.6, CascadeService.isActingFor), une identité
+   * la suppléance/intérim (§4.10, CascadeService.isActingFor), une identité
    * explicitement empruntée pour la durée de la requête, pas une autorité
    * cascade implicite. */
   async cancel(actor: AuthenticatedUser, meetingId: string, dto: CancelMeetingDto): Promise<MeetingWithParticipants> {

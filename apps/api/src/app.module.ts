@@ -60,7 +60,7 @@ import { AppController } from './app.controller';
 export class AppModule implements NestModule {
   // RequestContextMiddleware avant tout (middleware s'exécute avant les
   // Guards) : établit le store AsyncLocalStorage que JwtAuthGuard remplit
-  // ensuite (suppléance/intérim, §2.6) et qu'AuditService lit à la volée.
+  // ensuite (suppléance/intérim, §4.10) et qu'AuditService lit à la volée.
   configure(consumer: MiddlewareConsumer): void {
     consumer.apply(RequestContextMiddleware).forRoutes('*');
   }
