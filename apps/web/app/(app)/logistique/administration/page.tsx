@@ -32,6 +32,7 @@ export default function AdministrationLogistiquePage() {
   const [info, setInfo] = useState<string | null>(null);
   const [cat, setCat] = useState({ code: '', libelle: '', nature: 'BIEN' as NatureCategorie, validationChefRequise: true });
   const [candidat, setCandidat] = useState('');
+  const [renommage, setRenommage] = useState<{ id: string; libelle: string } | null>(null);
 
   const charger = useCallback(() => {
     getToutesCategories().then(setCategories).catch((e) => setErreurChargement(messageChargement(e)));
@@ -113,9 +114,29 @@ export default function AdministrationLogistiquePage() {
         <ul className="mb-4 text-[13px]">
           {categories?.map((c) => (
             <li key={c.id} className="flex flex-wrap items-center justify-between gap-2 border-b border-line py-1.5 last:border-b-0" data-testid="categorie">
-              <span>
-                <span className="font-mono">{c.code}</span> — {c.libelle} <span className="text-text-muted">({NATURE[c.nature]})</span> {!c.actif && <Badge tone="muted">Désactivée</Badge>}
-              </span>
+              {renommage?.id === c.id ? (
+                <form
+                  className="flex flex-wrap items-center gap-2"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    void agir(() => modifierCategorie(c.id, { libelle: renommage.libelle.trim() }), 'Catégorie renommée.').then(() => setRenommage(null));
+                  }}
+                >
+                  <span className="font-mono">{c.code}</span>
+                  <input aria-label={`Nouveau libellé de ${c.code}`} className={`${SELECT_CLASS} !w-56 !py-1.5`} value={renommage.libelle} onChange={(e) => setRenommage({ id: c.id, libelle: e.target.value })} minLength={2} required />
+                  <Button type="submit" className="px-3 py-1.5 text-[12.5px]">Enregistrer</Button>
+                  <button type="button" className="text-[12.5px] text-text-muted underline" onClick={() => setRenommage(null)}>
+                    Annuler
+                  </button>
+                </form>
+              ) : (
+                <span>
+                  <span className="font-mono">{c.code}</span> — {c.libelle} <span className="text-text-muted">({NATURE[c.nature]})</span> {!c.actif && <Badge tone="muted">Désactivée</Badge>}{' '}
+                  <button className="text-[12.5px] text-accent underline" onClick={() => setRenommage({ id: c.id, libelle: c.libelle })}>
+                    Renommer
+                  </button>
+                </span>
+              )}
               <span className="flex flex-wrap items-center gap-3">
                 <label className="flex items-center gap-1.5 text-[12.5px]">
                   <input

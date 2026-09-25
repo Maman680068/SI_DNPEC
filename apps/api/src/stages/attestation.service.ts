@@ -18,7 +18,9 @@ import { PDFDocument, StandardFonts, degrees, rgb } from 'pdf-lib';
 import PDFKit from 'pdfkit';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../common/audit/audit.service';
+import * as fs from 'fs';
 import { StorageService } from '../common/storage/storage.service';
+import { PREFIXE_INTEGRE, assertReglagesStages, cheminIntegre } from './reglages-stages';
 import { PersonnelHistoryService } from '../personnel/personnel-history.service';
 import { ActesService } from '../courrier/actes.service';
 import { AuthenticatedUser } from '../common/types/auth-user.type';
@@ -76,16 +78,16 @@ export class AttestationService {
   // ------------------------------------------------------------------ modèle
 
   async modele(actor: AuthenticatedUser) {
-    this.assertDrh(actor);
+    assertReglagesStages(actor);
     const m = await this.modeleActif();
     return {
       champsDisponibles: CHAMPS_ATTESTATION,
-      modele: m && { id: m.id, type: m.type, fileName: m.fileName, champs: m.champs, createdAt: m.createdAt, importePar: m.importePar },
+      modele: m && { id: m.id, type: m.type, fileName: m.fileName, champs: m.champs, createdAt: m.createdAt, importePar: m.importePar, parDefaut: m.fileKey.startsWith(PREFIXE_INTEGRE) },
     };
   }
 
   async importerModele(actor: AuthenticatedUser, fichier: { buffer: Buffer; originalname: string } | undefined) {
-    this.assertDrh(actor);
+    assertReglagesStages(actor);
     if (!fichier) throw new BadRequestException('Aucun fichier reçu.');
     const nom = fichier.originalname.toLowerCase();
     const type = nom.endsWith('.docx') ? ModeleAttestationType.DOCX : nom.endsWith('.pdf') ? ModeleAttestationType.PDF : null;
@@ -123,10 +125,11 @@ export class AttestationService {
   }
 
   async telechargerModele(actor: AuthenticatedUser) {
-    this.assertDrh(actor);
+    assertReglagesStages(actor);
     const m = await this.modeleActif();
     if (!m) throw new NotFoundException('Aucun modèle d’attestation importé');
-    return { fileName: m.fileName, stream: this.storage.createReadStream(m.fileKey) };
+    const stream = m.fileKey.startsWith(PREFIXE_INTEGRE) ? fs.createReadStream(cheminIntegre(m.fileKey)) : this.storage.createReadStream(m.fileKey);
+    return { fileName: m.fileName, stream };
   }
 
   // ------------------------------------------------------------- documents
@@ -324,6 +327,7 @@ export class AttestationService {
   }
 
   private async lire(fileKey: string): Promise<Buffer> {
+    if (fileKey.startsWith(PREFIXE_INTEGRE)) return fs.promises.readFile(cheminIntegre(fileKey));
     const chunks: Buffer[] = [];
     for await (const c of this.storage.createReadStream(fileKey)) chunks.push(Buffer.from(c as Buffer));
     return Buffer.concat(chunks);

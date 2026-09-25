@@ -17,6 +17,7 @@ import { NotificationsService } from '../communication/notifications/notificatio
 import { PersonnelHistoryService } from '../personnel/personnel-history.service';
 import { UsersService } from '../users/users.service';
 import { AttestationService } from './attestation.service';
+import { assertReglagesStages, peutReglerStages } from './reglages-stages';
 import { AuthenticatedUser } from '../common/types/auth-user.type';
 import {
   CapaciteDto,
@@ -179,6 +180,22 @@ export class StagesService {
     return this.candidatsTuteur(stage, periode);
   }
 
+  /**
+   * Capacités d'accueil seules, sans aucun contenu de stage : DRH et
+   * administrateur système (qui les modifient), DN/DNA (lecture). `voitPlanning`
+   * dit à l'écran s'il peut aussi demander le planning (DRH et Direction).
+   */
+  async capacites(actor: AuthenticatedUser) {
+    const lecture = peutReglerStages(actor) || actor.role === SystemRole.DN || actor.role === SystemRole.DNA;
+    if (!lecture) throw new ForbiddenException('Réservé au DRH, à la Direction et à l’administrateur système.');
+    const capacites = await this.prisma.capaciteAccueil.findMany({ orderBy: { uniteKey: 'asc' } });
+    return {
+      peutModifier: peutReglerStages(actor),
+      voitPlanning: actor.role !== SystemRole.ADMIN_SYSTEME,
+      capacites: await Promise.all(capacites.map(async (c) => ({ uniteKey: c.uniteKey, maximum: c.maximum, libelle: await this.libelleCle(c.uniteKey) }))),
+    };
+  }
+
   /** Planning (DRH, DN/DNA) : périodes occupantes dans une fenêtre, capacités. */
   async planning(actor: AuthenticatedUser, debut?: string, fin?: string) {
     this.assertDrhOuDirection(actor);
@@ -193,7 +210,7 @@ export class StagesService {
     return {
       debut: d,
       fin: f,
-      peutFixerCapacites: actor.role === SystemRole.DRH,
+      peutFixerCapacites: peutReglerStages(actor),
       capacites: await Promise.all(capacites.map(async (c) => ({ ...c, libelle: await this.libelleCle(c.uniteKey) }))),
       periodes: await Promise.all(
         periodes.map(async (p) => ({
@@ -349,7 +366,7 @@ export class StagesService {
   }
 
   async fixerCapacite(actor: AuthenticatedUser, dto: CapaciteDto) {
-    this.assertDrh(actor);
+    assertReglagesStages(actor);
     const unite = uniteDeCle(dto.uniteKey);
     if (!unite) throw new BadRequestException('Unité invalide.');
     await this.uniteExistante(unite, dto.uniteKey);

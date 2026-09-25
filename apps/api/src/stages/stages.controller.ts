@@ -46,6 +46,11 @@ export class StagesController {
     return this.stages.planning(actor, debut, fin);
   }
 
+  @Get('capacites')
+  capacites(@CurrentUser() actor: AuthenticatedUser) {
+    return this.stages.capacites(actor);
+  }
+
   @Put('capacites')
   fixerCapacite(@CurrentUser() actor: AuthenticatedUser, @Body() dto: CapaciteDto) {
     return this.stages.fixerCapacite(actor, dto);

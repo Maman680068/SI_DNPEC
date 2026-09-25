@@ -2028,8 +2028,8 @@ model EvaluationStage {
 model CapaciteAccueil {
   uniteKey   String   @id
   maximum    Int
-  fixeeParId String
-  fixeePar   User     @relation("CapaciteFixeePar", fields: [fixeeParId], references: [id])
+  fixeeParId String?
+  fixeePar   User?    @relation("CapaciteFixeePar", fields: [fixeeParId], references: [id])
   updatedAt  DateTime @updatedAt
 
   @@map("capacites_accueil")
@@ -2051,8 +2051,8 @@ model ModeleAttestation {
   fileName     String
   champs       Json // clés utilisées par le modèle
   actif        Boolean               @default(true)
-  importeParId String
-  importePar   User                  @relation("ModeleAttestationImportePar", fields: [importeParId], references: [id])
+  importeParId String?
+  importePar   User?                 @relation("ModeleAttestationImportePar", fields: [importeParId], references: [id])
   createdAt    DateTime              @default(now())
 
   @@map("modeles_attestation")
