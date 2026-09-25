@@ -73,7 +73,7 @@ appels API réels sur serveur local (voir les messages de commit existants).
   date simulée) ; attestation finale = acte du Courrier (`ActesService`).
 - Logistique (`logistique/`, D9) : numérotation d'inventaire et stock protégés en base (triggers,
   CHECK) ; réservations sans chevauchement (trigger qui verrouille la ressource) ; priorité
-  hiérarchique = `ReservationsService.peutEvincer` (cascade, jamais DNA sur DN) ; une réunion
+  hiérarchique = `ReservationsService.peutEvincer` (cascade ; DN et DNA pairs entre eux) ; une réunion
   réserve sa salle dans sa propre transaction (`creerDansTransaction`).
 - Écrans : l'API renvoie les droits (`droits`, `peutAjouter`...) et les listes de choix
   (« responsables possibles »...) ; le web n'en calcule aucun.

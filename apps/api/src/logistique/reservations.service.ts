@@ -60,10 +60,10 @@ const nomDe = (u: { firstName: string; lastName: string }) => `${u.firstName} ${
  * - aucun chevauchement entre réservations actives (verrou de la ressource
  *   dans la transaction, trigger en base en filet de sécurité) ;
  * - PRIORITÉ HIÉRARCHIQUE : une personne ayant autorité hiérarchique sur le
- *   titulaire d'une réservation (cascade ; DN/DNA sur tous) peut prendre le
+ *   titulaire d'une réservation (cascade ; DN/DNA sur tous les autres) peut prendre le
  *   créneau. La réservation évincée passe « annulée pour priorité », son
  *   titulaire est notifié avec le nom du prioritaire, tout est audité.
- *   Jamais entre pairs, jamais vers le haut (le DNA n'évince pas le DN), jamais
+ *   Jamais entre pairs (DN et DNA sont pairs entre eux), jamais vers le haut, jamais
  *   sur soi-même ni sur le titulaire dont on assure l'intérim.
  */
 @Injectable()
@@ -81,8 +81,10 @@ export class ReservationsService {
   /** `actor` peut-il évincer une réservation de `titulaire` ? */
   peutEvincer(actor: AuthenticatedUser, titulaire: Titulaire): boolean {
     if (this.cascade.isActingFor(actor, titulaire.id)) return false;
-    // Jamais vers le haut : le DNA n'a pas autorité sur le DN.
-    if (titulaire.role === SystemRole.DN && actor.role !== SystemRole.DN) return false;
+    // DN et DNA sont des pairs pour la priorité (décision de la Direction) :
+    // aucun des deux ne prend le créneau de l'autre, y compris par intérim.
+    const direction: SystemRole[] = [SystemRole.DN, SystemRole.DNA];
+    if (direction.includes(actor.role) && direction.includes(titulaire.role)) return false;
     return this.cascade.hasDirectAuthorityOver(actor, titulaire);
   }
 
@@ -256,6 +258,10 @@ export class ReservationsService {
         );
       }
       const hors = conflits.filter((c) => !this.peutEvincer(actor, c.titulaire));
+      const direction: SystemRole[] = [SystemRole.DN, SystemRole.DNA];
+      if (direction.includes(actor.role) && hors.some((c) => direction.includes(c.titulaire.role))) {
+        throw new ForbiddenException('Priorité impossible : le DN et la DNA sont pairs pour la priorité, aucun ne prend le créneau de l’autre.');
+      }
       if (hors.length > 0) {
         throw new ForbiddenException(
           `Priorité impossible : ${hors.map((c) => nomDe(c.titulaire)).join(', ')} n’est pas sous votre autorité hiérarchique.`,
