@@ -9,6 +9,7 @@ import { SuggestionInboxList } from '../../../components/suggestions/SuggestionI
 import { SuggestionDecisionDrawer } from '../../../components/suggestions/SuggestionDecisionDrawer';
 import { CreateSuggestionModal } from '../../../components/suggestions/CreateSuggestionModal';
 import { Button } from '../../../components/ui/Button';
+import { Chargement, ErreurChargement, messageChargement } from '../../../components/ui/ErreurChargement';
 
 type Tab = 'mine' | 'inbox';
 
@@ -18,6 +19,7 @@ export default function SuggestionsPage() {
   const { user: currentUser } = useAuth();
   const isLeadership = LEADERSHIP_ROLES.includes(currentUser?.role ?? '');
   const [tab, setTab] = useState<Tab>(isLeadership ? 'inbox' : 'mine');
+  const [erreurChargement, setErreurChargement] = useState<string | null>(null);
 
   const [mine, setMine] = useState<Suggestion[] | null>(null);
   const [inbox, setInbox] = useState<Suggestion[] | null>(null);
@@ -25,11 +27,11 @@ export default function SuggestionsPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
 
   const loadMine = useCallback(() => {
-    getMySuggestions().then(setMine);
+    getMySuggestions().then(setMine).catch((err) => setErreurChargement(messageChargement(err)));
   }, []);
 
   const loadInbox = useCallback(() => {
-    if (isLeadership) getAllSuggestions().then(setInbox);
+    if (isLeadership) getAllSuggestions().then(setInbox).catch((err) => setErreurChargement(messageChargement(err)));
   }, [isLeadership]);
 
   useEffect(() => {
@@ -53,6 +55,7 @@ export default function SuggestionsPage() {
 
   return (
     <div>
+      <ErreurChargement message={erreurChargement} />
       <div className="mb-[22px] flex flex-wrap items-end justify-between gap-3.5">
         <div>
           <div className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-sage">Personnel</div>
@@ -86,12 +89,12 @@ export default function SuggestionsPage() {
 
       {tab === 'mine' || !isLeadership ? (
         mine === null ? (
-          <p className="text-sm text-text-muted">Chargement…</p>
+          <Chargement erreur={erreurChargement} />
         ) : (
           <MySuggestionList suggestions={mine} />
         )
       ) : inbox === null ? (
-        <p className="text-sm text-text-muted">Chargement…</p>
+        <Chargement erreur={erreurChargement} />
       ) : (
         <SuggestionInboxList suggestions={inbox} onSelect={setSelectedId} />
       )}

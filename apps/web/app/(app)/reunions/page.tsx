@@ -7,14 +7,16 @@ import { MeetingCard } from '../../../components/meetings/MeetingCard';
 import { CreateMeetingModal } from '../../../components/meetings/CreateMeetingModal';
 import { MeetingDetailDrawer } from '../../../components/meetings/MeetingDetailDrawer';
 import { Button } from '../../../components/ui/Button';
+import { Chargement, ErreurChargement, messageChargement } from '../../../components/ui/ErreurChargement';
 
 export default function ReunionsPage() {
   const [meetings, setMeetings] = useState<Meeting[] | null>(null);
+  const [erreurChargement, setErreurChargement] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const loadMeetings = useCallback(() => {
-    getMeetings().then(setMeetings);
+    getMeetings().then(setMeetings).catch((err) => setErreurChargement(messageChargement(err)));
   }, []);
 
   useEffect(() => {
@@ -42,6 +44,7 @@ export default function ReunionsPage() {
 
   return (
     <div>
+      <ErreurChargement message={erreurChargement} />
       <div className="mb-[22px] flex flex-wrap items-end justify-between gap-3.5">
         <div>
           <div className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-sage">Général</div>
@@ -53,7 +56,7 @@ export default function ReunionsPage() {
       </div>
 
       {meetings === null ? (
-        <p className="text-sm text-text-muted">Chargement…</p>
+        <Chargement erreur={erreurChargement} />
       ) : meetings.length === 0 ? (
         <p className="py-8 text-center text-[13px] text-text-faint">Aucune réunion pour l’instant.</p>
       ) : (

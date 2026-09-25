@@ -15,7 +15,7 @@ export interface AuthenticatedUser {
   supervisorRole: SystemRole | null;
   supervisorCelluleId: string | null;
 
-  // Suppléance/intérim (§2.6) — renseigné par JwtAuthGuard uniquement quand
+  // Suppléance/intérim (§4.10) — renseigné par JwtAuthGuard uniquement quand
   // la requête porte l'en-tête X-Interim-For ET qu'une Suppleance active le
   // justifie (sinon 403, jamais un remplissage silencieux). Quand non-null,
   // role/divisionId/sectionId/celluleId ci-dessus sont ceux du TITULAIRE

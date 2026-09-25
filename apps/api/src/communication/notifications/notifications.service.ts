@@ -31,6 +31,27 @@ const NOTIFICATION_BUTTON_LABELS: Record<NotificationType, string> = {
   DECISION_RELANCE: 'Voir la réunion',
   SUPPLEANCE_DESIGNEE: 'Voir la suppléance',
   SUPPLEANCE_REVOQUEE: 'Voir mes suppléances',
+  STAGE_PERIODE_A_ACCEPTER: 'Voir le stage',
+  STAGE_PERIODE_REFUSEE: 'Voir le stage',
+  STAGE_PERIODE_A_VENIR: 'Voir le stage',
+  STAGE_PERIODE_DEBUT: 'Voir le stage',
+  STAGE_ALERTE: 'Voir le stage',
+  STAGE_PLAN_MODIFIE: 'Voir le stage',
+  STAGE_EVALUATION_A_FAIRE: "Rédiger l'évaluation",
+  STAGE_EVALUATION_A_VISER: "Voir l'évaluation",
+  STAGE_EVALUATION_RENVOYEE: "Voir l'évaluation",
+  STAGE_EVALUATION_VISEE: "Voir l'évaluation",
+  LOGISTIQUE_DEMANDE_A_VALIDER: 'Voir la demande',
+  LOGISTIQUE_DEMANDE_A_TRAITER: 'Voir la demande',
+  LOGISTIQUE_DEMANDE_TRAITEE: 'Voir la demande',
+  LOGISTIQUE_DEMANDE_REFUSEE: 'Voir la demande',
+  LOGISTIQUE_STOCK_BAS: "Voir l'article",
+  BIEN_A_RECUPERER: 'Voir le bien',
+  RESERVATION_A_VALIDER: 'Voir la réservation',
+  RESERVATION_CONFIRMEE: 'Voir la réservation',
+  RESERVATION_REFUSEE: 'Voir la réservation',
+  RESERVATION_ANNULEE: 'Voir la réservation',
+  RESERVATION_ANNULEE_PRIORITE: 'Voir la réservation',
   ROLE_MODIFIE: 'Ouvrir l’espace de travail',
   COURRIER_A_IMPUTER: 'Voir le courrier',
   COURRIER_IMPUTE: 'Voir le courrier',
@@ -131,12 +152,20 @@ export class NotificationsService {
     await Promise.all(userIds.map((userId) => this.notify(userId, type, title, body, link, subjectDetail)));
   }
 
+  /** Cloche in-app : chaque notification est écrite deux fois (IN_APP et
+   * EMAIL, voir notify) — seule la ligne IN_APP s'affiche et se compte. Les
+   * 50 plus récentes suffisent à la cloche. */
   listForUser(userId: string) {
-    return this.prisma.notification.findMany({ where: { userId }, orderBy: { createdAt: 'desc' } });
+    return this.prisma.notification.findMany({
+      where: { userId, channel: NotificationChannel.IN_APP },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+      select: { id: true, type: true, title: true, body: true, link: true, isRead: true, createdAt: true },
+    });
   }
 
   countUnread(userId: string) {
-    return this.prisma.notification.count({ where: { userId, isRead: false } });
+    return this.prisma.notification.count({ where: { userId, isRead: false, channel: NotificationChannel.IN_APP } });
   }
 
   async markRead(userId: string, id: string): Promise<void> {

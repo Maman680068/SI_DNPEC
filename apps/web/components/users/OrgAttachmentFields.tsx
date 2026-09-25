@@ -6,7 +6,7 @@ import { getRegistrationSupervisorOptionsRequest } from '../../lib/api/auth';
 import type { RegistrationSupervisorOption, SystemRole } from '../../lib/auth/types';
 import type { OrgAttachment } from '../../lib/users/types';
 
-type Kind = 'none' | 'division' | 'division_section' | 'cellule' | 'cellule_optional' | 'agent' | 'supervisor';
+type Kind = 'none' | 'division' | 'division_section' | 'cellule' | 'cellule_optional' | 'agent' | 'stagiaire' | 'supervisor';
 type AgentMode = 'division' | 'cellule';
 
 const EMPTY: OrgAttachment = { divisionId: null, sectionId: null, celluleId: null, supervisorId: null };
@@ -25,7 +25,7 @@ function supervisorLabel(option: RegistrationSupervisorOption): string {
   return `${option.firstName} ${option.lastName} — ${roleLabel}`;
 }
 
-/** Reflète l'invariant documenté dans schema.prisma (User, §2.3) : quel rattachement
+/** Reflète l'invariant documenté dans schema.prisma (User, §2.1) : quel rattachement
  * organisationnel un rôle accepte, pour construire le bon jeu de champs. */
 function attachmentKind(role: SystemRole): Kind {
   switch (role) {
@@ -47,6 +47,10 @@ function attachmentKind(role: SystemRole): Kind {
       return 'cellule_optional';
     case 'AGENT':
       return 'agent';
+    // Stagiaire : mêmes champs qu'un Chargé d'Études, mais facultatifs (la
+    // rotation du stage tient le rattachement à jour).
+    case 'STAGIAIRE':
+      return 'stagiaire';
   }
 }
 
@@ -65,7 +69,7 @@ export function OrgAttachmentFields({
   onChange: (next: OrgAttachment) => void;
 }) {
   const { divisions: allDivisions, sections: allSections, cellules: allCellules } = useOrg();
-  // Une unité suspendue (§2.6 bis) est exclue des listes de sélection pour tout
+  // Une unité suspendue (§2.3) est exclue des listes de sélection pour tout
   // nouveau rattachement — bloqué côté API de toute façon (UsersService.
   // assertUnitsActiveForNewAttachment), filtré ici pour ne pas proposer un choix
   // que le serveur refusera.
@@ -110,9 +114,9 @@ export function OrgAttachmentFields({
     );
   }
 
-  const showDivision = kind === 'division' || kind === 'division_section' || (kind === 'agent' && agentMode === 'division');
-  const showSection = kind === 'division_section' || (kind === 'agent' && agentMode === 'division');
-  const showCellule = kind === 'cellule' || kind === 'cellule_optional' || (kind === 'agent' && agentMode === 'cellule');
+  const showDivision = kind === 'division' || kind === 'division_section' || ((kind === 'agent' || kind === 'stagiaire') && agentMode === 'division');
+  const showSection = kind === 'division_section' || ((kind === 'agent' || kind === 'stagiaire') && agentMode === 'division');
+  const showCellule = kind === 'cellule' || kind === 'cellule_optional' || ((kind === 'agent' || kind === 'stagiaire') && agentMode === 'cellule');
   const showSupervisor = kind === 'supervisor';
   const divisionRequired = kind === 'division' || kind === 'division_section' || (kind === 'agent' && agentMode === 'division');
   const sectionRequired = kind === 'division_section';
@@ -121,7 +125,10 @@ export function OrgAttachmentFields({
 
   return (
     <div className="mb-4">
-      {kind === 'agent' && (
+      {kind === 'stagiaire' && (
+        <p className="mb-2 text-[11.5px] text-text-faint">Facultatif : la rotation du stage met ce rattachement à jour à chaque période.</p>
+      )}
+      {(kind === 'agent' || kind === 'stagiaire') && (
         <div className="mb-2.5 flex gap-0.5 rounded-md border border-line bg-bg p-0.5" style={{ width: 'fit-content' }}>
           {(
             [

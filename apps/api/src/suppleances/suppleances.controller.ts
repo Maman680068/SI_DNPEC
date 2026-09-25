@@ -3,6 +3,7 @@ import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { AuthenticatedUser } from '../common/types/auth-user.type';
 import { SuppleancesService } from './suppleances.service';
 import { CreateSuppleanceDto } from './dto/create-suppleance.dto';
+import { OuvertAuxStagiaires } from '../common/decorators/ouvert-aux-stagiaires.decorator';
 
 @Controller('suppleances')
 export class SuppleancesController {
@@ -13,6 +14,7 @@ export class SuppleancesController {
     return this.suppleancesService.create(actor, dto);
   }
 
+  @OuvertAuxStagiaires()
   @Get('mine')
   findMine(@CurrentUser() actor: AuthenticatedUser) {
     return this.suppleancesService.findMine(actor);

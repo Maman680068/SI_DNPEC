@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '../../lib/auth/AuthProvider';
 import { USERS_PAGE_VISIBLE_ROLES } from '../../lib/users/types';
+import { NAVIGATION_STAGIAIRE, estStagiaire } from '../../lib/auth/stagiaire';
 
 type NavGroup = { label: string; items: { icon: string; label: string; href?: string }[] };
 
@@ -20,17 +21,28 @@ const NAV_GROUPS: NavGroup[] = [
       // Courrier et actes (D7) : tout profil — l'administrateur système n'y voit
       // que son courrier personnel ; il en a aussi le paramétrage (Administration).
       { icon: '📨', label: 'Courrier', href: '/courrier' },
+      // Logistique (D9) : tout profil sauf stagiaire (NAVIGATION_STAGIAIRE).
+      { icon: '🧰', label: 'Logistique', href: '/logistique' },
     ],
   },
   {
     label: 'Personnel',
     items: [
+      // Dossier du personnel (D3) : tout profil — au moins son propre dossier ;
+      // les autres selon GET /personnel-files.
+      { icon: '📁', label: 'Dossier du personnel', href: '/personnel' },
+      // Stages (D6) : DRH, Direction, chefs ; « Mon stage » pour un stagiaire ;
+      // un tuteur y arrive par ses notifications et la carte du tableau de bord.
+      { icon: '🎓', label: 'Stagiaires', href: '/stages' },
       { icon: '🌴', label: 'Congés & absences', href: '/leaves' },
       { icon: '☰', label: 'Annuaire', href: '/annuaire' },
       { icon: '✦', label: 'Boîte à suggestions', href: '/suggestions' },
     ],
   },
 ];
+
+/** Rôles qui voient l'entrée « Stagiaires » (D6). */
+const STAGES_NAV_ROLES = ['DRH', 'DN', 'DNA', 'CHEF_DIVISION', 'CHEF_SECTION', 'CHEF_CELLULE'];
 
 /** Rôles pouvant être titulaire ou suppléant (§4.10, API CHEF_TIER_ROLES) —
  * rôle PROPRE de la personne, jamais le rôle emprunté pendant un intérim. */
@@ -40,11 +52,20 @@ const SUPPLEANCE_NAV_ROLES = ['DN', 'DNA', 'CHEF_DIVISION', 'CHEF_SECTION', 'CHE
  * (lecture seule — voir app/(app)/users/page.tsx). "Organisation" est réservée à
  * ADMIN_SYSTEME uniquement (voir app/(app)/organisation/page.tsx). */
 function navGroupsFor(role: string | undefined): NavGroup[] {
+  if (estStagiaire(role)) {
+    return NAV_GROUPS.map((g) => ({
+      ...g,
+      items: g.items.filter((i) => NAVIGATION_STAGIAIRE.includes(i.href ?? '')).map((i) => (i.href === '/stages' ? { ...i, label: 'Mon stage' } : i)),
+    })).filter((g) => g.items.length > 0);
+  }
+  const base = STAGES_NAV_ROLES.includes(role ?? '')
+    ? NAV_GROUPS
+    : NAV_GROUPS.map((g) => ({ ...g, items: g.items.filter((i) => i.href !== '/stages') }));
   const groups = SUPPLEANCE_NAV_ROLES.includes(role ?? '')
-    ? NAV_GROUPS.map((g) =>
+    ? base.map((g) =>
         g.label === 'Personnel' ? { ...g, items: [...g.items, { icon: '⇄', label: 'Suppléances', href: '/suppleances' }] } : g,
       )
-    : NAV_GROUPS;
+    : base;
   const adminItems: NavGroup['items'] = [];
   if (USERS_PAGE_VISIBLE_ROLES.includes(role ?? '')) {
     adminItems.push({ icon: '👤', label: 'Utilisateurs', href: '/users' });
@@ -52,6 +73,7 @@ function navGroupsFor(role: string | undefined): NavGroup[] {
   if (role === 'ADMIN_SYSTEME') {
     adminItems.push({ icon: '🏛', label: 'Organisation', href: '/organisation' });
     adminItems.push({ icon: '📨', label: 'Courrier', href: '/courrier/administration' });
+    adminItems.push({ icon: '🧰', label: 'Logistique', href: '/logistique/administration' });
   }
   if (adminItems.length === 0) return groups;
   return [...groups, { label: 'Administration', items: adminItems }];

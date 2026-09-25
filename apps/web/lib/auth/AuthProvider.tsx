@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { registerAuthHooks } from '../api/client';
 import { loginRequest, loginTwoFaRequest, enableTwoFaRequest, refreshRequest, logoutRequest } from '../api/auth';
 import type { AuthUser, LoginProxyResult } from './types';
+import { consommerSuite, marquerDeconnexionVolontaire } from './suite';
 
 type PendingChallenge =
   | { type: 'two_fa_challenge_required'; token: string }
@@ -71,7 +72,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const result = await loginRequest(email, password);
     if (result.status === 'authenticated') {
       applySession(result.accessToken, result.user);
-      router.push('/dashboard');
+      router.push(consommerSuite());
     } else {
       setPendingChallenge({ type: result.status, token: result.status === 'two_fa_challenge_required' ? result.challengeToken : result.setupToken });
       router.push('/login/2fa');
@@ -87,10 +88,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         : await enableTwoFaRequest(pendingChallenge.token, code);
     setPendingChallenge(null);
     applySession(result.accessToken, result.user);
-    router.push('/dashboard');
+    router.push(consommerSuite());
   }, [pendingChallenge, applySession, router]);
 
   const logout = useCallback(async (): Promise<void> => {
+    marquerDeconnexionVolontaire();
     await logoutRequest();
     clearSession();
     router.push('/');

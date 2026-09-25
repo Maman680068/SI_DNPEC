@@ -26,6 +26,7 @@ type CandidatImpute = { id: string; role: SystemRole; divisionId: string | null;
 
 /** L'administrateur système n'a pas accès au courrier : il n'est jamais imputé ni sous-imputé. */
 const REFUS_ADMIN = 'L’administrateur système ne reçoit pas de courrier : il ne peut être ni imputé ni sous-imputé.';
+const REFUS_STAGIAIRE = 'Un stagiaire n’a pas accès au courrier : il ne peut être ni imputé ni sous-imputé.';
 
 const NATURE_LABEL: Record<ImputationNature, string> = {
   ATTRIBUTION: 'pour attribution',
@@ -140,6 +141,7 @@ export class ImputationsService {
   /** Critère sur la personne imputée (compte actif vérifié à part) — null si acceptée. */
   private refusImpute(a: ArriveeChargee, u: CandidatImpute): Error | null {
     if (u.role === SystemRole.ADMIN_SYSTEME) return new ForbiddenException(REFUS_ADMIN);
+    if (u.role === SystemRole.STAGIAIRE) return new ForbiddenException(REFUS_STAGIAIRE);
     if (a.registre.portee === RegistrePortee.UNITE && !estMembreUnite(u, a.uniteKey)) {
       return new ForbiddenException('Le courrier d’un registre d’unité ne s’impute qu’aux membres de cette unité.');
     }
@@ -151,6 +153,7 @@ export class ImputationsService {
 
   private refusSousImpute(actor: AuthenticatedUser, a: ArriveeChargee, u: CandidatImpute): Error | null {
     if (u.role === SystemRole.ADMIN_SYSTEME) return new ForbiddenException(REFUS_ADMIN);
+    if (u.role === SystemRole.STAGIAIRE) return new ForbiddenException(REFUS_STAGIAIRE);
     if (!this.cascade.hasDirectAuthorityOver(actor, u)) {
       return new ForbiddenException('Vous ne pouvez sous-imputer qu’à une personne de votre périmètre.');
     }

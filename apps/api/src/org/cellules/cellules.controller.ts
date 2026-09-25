@@ -6,16 +6,19 @@ import { AuthenticatedUser } from '../../common/types/auth-user.type';
 import { CellulesService } from './cellules.service';
 import { CreateCelluleDto } from './dto/create-cellule.dto';
 import { UpdateCelluleDto } from './dto/update-cellule.dto';
+import { OuvertAuxStagiaires } from '../../common/decorators/ouvert-aux-stagiaires.decorator';
 
 @Controller('org/cellules')
 export class CellulesController {
   constructor(private readonly cellulesService: CellulesService) {}
 
+  @OuvertAuxStagiaires()
   @Get()
   findAll() {
     return this.cellulesService.findAll();
   }
 
+  @OuvertAuxStagiaires()
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.cellulesService.findOneOrThrow(id);

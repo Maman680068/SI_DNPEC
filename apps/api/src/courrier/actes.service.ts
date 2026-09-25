@@ -505,6 +505,14 @@ export class ActesService {
 
   /** « J'ai pris connaissance » — le bénéficiaire lui-même (actor.id strict), une seule fois. */
   async prendreConnaissance(actor: AuthenticatedUser, id: string) {
+    await this.attesterPriseDeConnaissance(actor, id);
+    return this.findOne(actor, id);
+  }
+
+  /** Cœur de prendreConnaissance, sans relire l'acte par le module Courrier :
+   * utilisé aussi depuis le stage (D6) par un stagiaire, à qui ce module est
+   * fermé mais qui est bénéficiaire de son attestation. */
+  async attesterPriseDeConnaissance(actor: AuthenticatedUser, id: string): Promise<void> {
     const acte = await this.charger(id);
     if (acte.beneficiaireId !== actor.id) {
       throw new ForbiddenException('Seul le bénéficiaire de l’acte peut en attester la prise de connaissance.');
@@ -524,7 +532,6 @@ export class ActesService {
         tx,
       );
     });
-    return this.findOne(actor, id);
   }
 
   // ------------------------------------------------------------------

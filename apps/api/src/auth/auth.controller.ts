@@ -24,11 +24,13 @@ import { EnableTwoFaDto } from './dto/enable-2fa.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { OuvertAuxStagiaires } from '../common/decorators/ouvert-aux-stagiaires.decorator';
 
 function clientIp(req: Request): string {
   return req.ip ?? 'unknown';
 }
 
+@OuvertAuxStagiaires()
 @Controller('auth')
 export class AuthController {
   constructor(

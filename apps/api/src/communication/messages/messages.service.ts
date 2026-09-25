@@ -76,6 +76,10 @@ export class MessagesService {
     });
   }
 
+  countUnread(actor: AuthenticatedUser): Promise<number> {
+    return this.prisma.directMessage.count({ where: { recipientId: actor.id, readAt: null } });
+  }
+
   async markRead(actor: AuthenticatedUser, id: string): Promise<void> {
     const message = await this.prisma.directMessage.findUnique({ where: { id } });
     if (!message || message.recipientId !== actor.id) {

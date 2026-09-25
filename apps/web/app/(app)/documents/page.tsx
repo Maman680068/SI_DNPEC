@@ -11,6 +11,7 @@ import { DocumentList } from '../../../components/documents/DocumentList';
 import { UploadDocumentModal } from '../../../components/documents/UploadDocumentModal';
 import { DocumentDetailDrawer } from '../../../components/documents/DocumentDetailDrawer';
 import { Button } from '../../../components/ui/Button';
+import { Chargement, ErreurChargement, messageChargement } from '../../../components/ui/ErreurChargement';
 
 type Tab = 'division' | 'published';
 const LEADERSHIP_ROLES = ['DN', 'DNA'];
@@ -19,6 +20,7 @@ export default function DocumentsPage() {
   const { user: currentUser } = useAuth();
   const { divisions } = useOrg();
   const [tab, setTab] = useState<Tab>('division');
+  const [erreurChargement, setErreurChargement] = useState<string | null>(null);
 
   const canPickDivision = LEADERSHIP_ROLES.includes(currentUser?.role ?? '');
   const [selectedDivisionId, setSelectedDivisionId] = useState('');
@@ -49,7 +51,7 @@ export default function DocumentsPage() {
       dateFrom: dateFrom || undefined,
       dateTo: dateTo || undefined,
       q: q || undefined,
-    }).then(setDocuments);
+    }).then(setDocuments).catch((err) => setErreurChargement(messageChargement(err)));
   }, [tab, selectedDivisionId, currentFolderId, category, dateFrom, dateTo, q]);
 
   useEffect(() => {
@@ -75,6 +77,7 @@ export default function DocumentsPage() {
 
   return (
     <div>
+      <ErreurChargement message={erreurChargement} />
       <div className="mb-[22px] flex flex-wrap items-end justify-between gap-3.5">
         <div>
           <div className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-sage">Général</div>
@@ -159,7 +162,7 @@ export default function DocumentsPage() {
       </div>
 
       {documents === null ? (
-        <p className="text-sm text-text-muted">Chargement…</p>
+        <Chargement erreur={erreurChargement} />
       ) : (
         <DocumentList documents={documents} onSelect={setSelectedDoc} />
       )}

@@ -74,7 +74,7 @@ datasource db {
 
 enum SystemRole {
   DN // Directeur National
-  DNA // Directeur National Adjoint — même autorité que le DN (§2.3)
+  DNA // Directeur National Adjoint — même autorité que le DN (§2.1)
   CHEF_DIVISION
   CHEF_SECTION
   // Chef d'une cellule transversale (SAF, RH, CSID pour l'instant — voir
@@ -101,6 +101,12 @@ enum SystemRole {
   // des comptes différents, ou non, décision organisationnelle hors du
   // périmètre applicatif.
   DRH
+  // Stagiaire (D6) — accès restreint par liste blanche (StagiaireGuard) :
+  // ses propres tâches, la messagerie, les annonces, son dossier et son
+  // stage. Aucune visibilité passive (tâches de la section, GED privée,
+  // courrier), aucune autorité. Rattachement optionnel, tenu par la
+  // rotation des stages (StagesService).
+  STAGIAIRE
 
   @@map("system_role")
 }
@@ -249,6 +255,29 @@ enum NotificationType {
   ACTE_PRISE_CONNAISSANCE
   ROLE_MODIFIE // changement de rôle d'un compte (personne concernée et DRH)
   SUPPLEANCE_REVOQUEE // suppléance révoquée (ex. devenue non conforme après un changement de rôle)
+  // Stages (D6)
+  STAGE_PERIODE_A_ACCEPTER // au responsable de l'unité d'accueil
+  STAGE_PERIODE_REFUSEE // au DRH
+  STAGE_PERIODE_A_VENIR // 3 jours avant : stagiaire, tuteur, responsable
+  STAGE_PERIODE_DEBUT // changement d'unité appliqué
+  STAGE_ALERTE // au DRH : période non acceptée à sa date, unité suspendue, compte inactif
+  STAGE_PLAN_MODIFIE // tuteurs et responsables concernés
+  STAGE_EVALUATION_A_FAIRE
+  STAGE_EVALUATION_A_VISER
+  STAGE_EVALUATION_RENVOYEE
+  STAGE_EVALUATION_VISEE
+  // Logistique (D9)
+  LOGISTIQUE_DEMANDE_A_VALIDER // au chef direct du demandeur
+  LOGISTIQUE_DEMANDE_A_TRAITER // aux gestionnaires logistiques
+  LOGISTIQUE_DEMANDE_TRAITEE // au demandeur
+  LOGISTIQUE_DEMANDE_REFUSEE // au demandeur
+  LOGISTIQUE_STOCK_BAS // aux gestionnaires : article passé sous son seuil
+  BIEN_A_RECUPERER // aux gestionnaires : détenteur d'un bien parti (compte inactif)
+  RESERVATION_A_VALIDER // aux gestionnaires (ressource en mode validation)
+  RESERVATION_CONFIRMEE // au titulaire, après validation
+  RESERVATION_REFUSEE // au titulaire
+  RESERVATION_ANNULEE // au titulaire, annulation par un gestionnaire
+  RESERVATION_ANNULEE_PRIORITE // au titulaire évincé, avec le nom du prioritaire
 
   @@map("notification_type")
 }
@@ -274,7 +303,7 @@ model Division {
   id        String   @id @default(cuid())
   code      String   @unique // DPE, DEE, DSPS, DAC, DIPE
   name      String
-  // Suspension (§2.6 bis) : n'affecte JAMAIS les personnes déjà rattachées
+  // Suspension (§2.3) : n'affecte JAMAIS les personnes déjà rattachées
   // (elles gardent connexion, tâches, congés, documents intacts) — bloque
   // uniquement la croissance de l'unité pendant qu'elle est fausse : nouveau
   // rattachement (inscription, création manuelle, approbation) et nomination
@@ -291,6 +320,9 @@ model Division {
   documents     Document[]
   announcements Announcement[]
   Poll          Poll[]
+
+  periodesStage    PeriodeStage[]
+  affectationsBien AffectationBien[] @relation("AffectationBienDivision")
 
   @@map("divisions")
 }
@@ -313,11 +345,14 @@ model Section {
   announcements Announcement[]
   Poll          Poll[]
 
+  periodesStage    PeriodeStage[]
+  affectationsBien AffectationBien[] @relation("AffectationBienSection")
+
   @@unique([divisionId, code])
   @@map("sections")
 }
 
-// Cellules transversales rattachées directement au DN ou à la DNA (§2.1) :
+// Cellules transversales rattachées directement au DN ou à la DNA (§2) :
 // CTSCM, CNC (sous le DN), SAF, RH, CSID (sous la DNA). Contrairement aux
 // Divisions, elles ne comportent pas de Sections. Les 5 cellules officielles
 // sont fournies en données de seed (prisma/seed.ts).
@@ -347,6 +382,9 @@ model Cellule {
   announcements Announcement[]
   Poll          Poll[]
 
+  periodesStage    PeriodeStage[]
+  affectationsBien AffectationBien[] @relation("AffectationBienCellule")
+
   @@map("cellules")
 }
 
@@ -370,7 +408,7 @@ model User {
   // niveau de permission, porté uniquement par `role`.
   jobTitle     String?
 
-  // Rattachement organisationnel (§2.3, cascade hiérarchique). Un utilisateur
+  // Rattachement organisationnel (§2.1, cascade hiérarchique). Un utilisateur
   // est rattaché à une Division OU à une Cellule, jamais les deux
   // (invariant applicatif — voir en-tête de fichier, décision n°4) :
   // - DN / DNA                  -> divisionId = null, celluleId = null,
@@ -507,7 +545,7 @@ model User {
   personnelCareerEvents  PersonnelCareerEvent[]  @relation("PersonnelCareerEventSubject")
   recordedCareerEvents   PersonnelCareerEvent[]  @relation("PersonnelCareerEventRecordedBy")
 
-  // Suppléance/intérim (§2.6)
+  // Suppléance/intérim (§4.10)
   suppleancesAsTitulaire Suppleance[] @relation("SuppleanceTitulaire")
   suppleancesAsSuppleant Suppleance[] @relation("SuppleanceSuppleant")
   suppleancesDesignated  Suppleance[] @relation("SuppleanceCreatedBy")
@@ -539,6 +577,35 @@ model User {
   accesDelegueRecus            AccesDelegueCourrier[] @relation("AccesDelegueBeneficiaire")
   accesDelegueOuverts          AccesDelegueCourrier[] @relation("AccesDelegueOuvertPar")
   accesDelegueRevoques         AccesDelegueCourrier[] @relation("AccesDelegueRevoquePar")
+
+  // Stages (D6)
+  stagesSuivis        Stage[]             @relation("StageStagiaire")
+  stagesCrees         Stage[]             @relation("StageCreePar")
+  periodesTutorees    PeriodeStage[]      @relation("PeriodeTuteur")
+  periodesDecidees    PeriodeStage[]      @relation("PeriodeDecideePar")
+  evaluationsRedigees EvaluationStage[]   @relation("EvaluationRedacteur")
+  evaluationsVisees   EvaluationStage[]   @relation("EvaluationViseePar")
+  capacitesFixees     CapaciteAccueil[]   @relation("CapaciteFixeePar")
+  modelesAttestation  ModeleAttestation[] @relation("ModeleAttestationImportePar")
+
+  // Logistique (D9)
+  habilitationsLogistique          HabilitationLogistique[] @relation("HabLogUser")
+  habilitationsLogistiqueAccordees HabilitationLogistique[] @relation("HabLogAccordeePar")
+  habilitationsLogistiqueRevoquees HabilitationLogistique[] @relation("HabLogRevoqueePar")
+  biensCrees                       Bien[]                   @relation("BienCreePar")
+  affectationsBien                 AffectationBien[]        @relation("AffectationDetenteur")
+  affectationsBienFaites           AffectationBien[]        @relation("AffectationFaitePar")
+  mouvementsBien                   MouvementBien[]          @relation("MouvementBienPar")
+  demandesLogistique               DemandeLogistique[]      @relation("DemandeDemandeur")
+  demandesLogistiqueValidees       DemandeLogistique[]      @relation("DemandeValideur")
+  demandesLogistiqueTraitees       DemandeLogistique[]      @relation("DemandeTraiteePar")
+  demandesLogistiqueRefusees       DemandeLogistique[]      @relation("DemandeRefuseePar")
+  mouvementsStock                  MouvementStock[]         @relation("MouvementStockPar")
+  reservations                     Reservation[]            @relation("ReservationTitulaire")
+  reservationsCreees               Reservation[]            @relation("ReservationCreeePar")
+  reservationsDecidees             Reservation[]            @relation("ReservationDecideePar")
+  reservationsAnnulees             Reservation[]            @relation("ReservationAnnuleePar")
+  reservationsPrioritaires         Reservation[]            @relation("ReservationPrioritaire")
 
   @@map("users")
 }
@@ -868,7 +935,7 @@ model LeaveRequest {
   reason      String?
   status      LeaveRequestStatus @default(EN_ATTENTE)
 
-  // Validation par le supérieur hiérarchique direct, en cascade (§2.3)
+  // Validation par le supérieur hiérarchique direct, en cascade (§2.1)
   approverId      String?
   approver        User?     @relation("LeaveApprover", fields: [approverId], references: [id])
   decisionComment String?
@@ -1133,6 +1200,9 @@ model Meeting {
   participants MeetingParticipant[]
   decisions    Decision[]
 
+  // D9 — salle réservée depuis la réunion (au plus une réservation liée).
+  reservation Reservation?
+
   @@map("meetings")
 }
 
@@ -1242,7 +1312,7 @@ model AuditLog {
   // Détail de l'action (champs modifiés, valeurs avant/après...)
   metadata   Json?
 
-  // Suppléance/intérim (§2.6) : renseigné automatiquement par AuditService
+  // Suppléance/intérim (§4.10) : renseigné automatiquement par AuditService
   // (via RequestContext/AsyncLocalStorage, jamais passé explicitement par
   // les appelants) quand `actorId` a agi sous couvert d'une Suppleance
   // active au moment de la requête — "par intérim, au nom de". `actorId`
@@ -1395,7 +1465,7 @@ model PersonnelCareerEvent {
 }
 
 // ----------------------------------------------------------------------------
-// Suppléance / intérim (§2.6) — tout responsable (Chef de Section/Division/
+// Suppléance / intérim (§4.10) — tout responsable (Chef de Section/Division/
 // Cellule, DN/DNA) peut désigner, ou voir désigner par son supérieur direct,
 // un suppléant pour une période datée. Pendant cette période, le suppléant
 // EMPRUNTE le rôle/rattachement du titulaire (JwtAuthGuard, sur en-tête
@@ -1738,6 +1808,8 @@ model ActeCourrier {
   accesDelegues      AccesDelegueCourrier[]
   imputationsReponse ImputationCourrier[]   @relation("ImputationReponse")
 
+  stageAttestation Stage?
+
   @@unique([registreId, uniteKey, annee, sequence])
   @@index([redacteurId])
   @@map("actes_courrier")
@@ -1813,4 +1885,521 @@ model AccesDelegueCourrier {
 
   @@index([beneficiaireId])
   @@map("acces_delegues_courrier")
+}
+
+// ============================================================================
+// Rotation des stagiaires (D6, cahier des charges §4.12)
+// ============================================================================
+// Un stage = une suite de périodes datées dans des unités (Division, Section ou
+// Cellule), chacune acceptée par le responsable de l'unité qui désigne le
+// tuteur. Le changement d'unité est appliqué par StagesRotationService à la
+// date prévue (historique de carrière). Les données personnelles du stagiaire
+// restent au niveau 2 du dossier du personnel (D3) : rien n'est dupliqué ici.
+
+enum StageStatut {
+  PREVU
+  EN_COURS
+  TERMINE
+  INTERROMPU
+
+  @@map("stage_statut")
+}
+
+enum PeriodeStageStatut {
+  PROPOSEE // créée par le DRH, en attente du responsable de l'unité
+  ACCEPTEE // tuteur désigné
+  REFUSEE // motif obligatoire
+  EN_COURS // rattachement appliqué
+  TERMINEE
+  ANNULEE // retirée du plan (jamais supprimée)
+
+  @@map("periode_stage_statut")
+}
+
+enum EvaluationFormat {
+  GRILLE // 4 critères + appréciation
+  TEXTE // appréciation libre
+  AUCUNE // pas d'évaluation pour cette période
+
+  @@map("evaluation_format")
+}
+
+enum EvaluationStageStatut {
+  BROUILLON
+  SOUMISE
+  RENVOYEE
+  VISEE
+
+  @@map("evaluation_stage_statut")
+}
+
+model Stage {
+  id                  String        @id @default(cuid())
+  stagiaireId         String
+  stagiaire           User          @relation("StageStagiaire", fields: [stagiaireId], references: [id])
+  etablissement       String
+  diplomePrepare      String?
+  encadrantAcademique String?
+  dateDebut           DateTime      @db.Date
+  dateFin             DateTime      @db.Date
+  statut              StageStatut   @default(PREVU)
+  motifInterruption   String?
+  clotureAt           DateTime?
+  // Attestation finale : acte du module Courrier (registre d'attestations),
+  // le stagiaire en est bénéficiaire avec prise de connaissance.
+  attestationActeId   String?       @unique
+  attestationActe     ActeCourrier? @relation(fields: [attestationActeId], references: [id])
+  createdById         String
+  createdBy           User          @relation("StageCreePar", fields: [createdById], references: [id])
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  periodes PeriodeStage[]
+
+  @@index([stagiaireId])
+  @@map("stages")
+}
+
+model PeriodeStage {
+  id                     String             @id @default(cuid())
+  stageId                String
+  stage                  Stage              @relation(fields: [stageId], references: [id])
+  ordre                  Int
+  // Même invariant que User : divisionId (+ sectionId) OU celluleId.
+  divisionId             String?
+  division               Division?          @relation(fields: [divisionId], references: [id])
+  sectionId              String?
+  section                Section?           @relation(fields: [sectionId], references: [id])
+  celluleId              String?
+  cellule                Cellule?           @relation(fields: [celluleId], references: [id])
+  dateDebut              DateTime           @db.Date
+  dateFin                DateTime           @db.Date
+  objectifs              String?
+  formatEvaluation       EvaluationFormat
+  statut                 PeriodeStageStatut @default(PROPOSEE)
+  tuteurId               String?
+  tuteur                 User?              @relation("PeriodeTuteur", fields: [tuteurId], references: [id])
+  motifRefus             String?
+  decideeParId           String?
+  decideePar             User?              @relation("PeriodeDecideePar", fields: [decideeParId], references: [id])
+  decideeAt              DateTime?
+  // Horodatages du job de rotation (chaque action une seule fois).
+  rattachementAppliqueAt DateTime?
+  rappelAVenirAt         DateTime?
+  alerteAt               DateTime?
+  rappelEvaluationAt     DateTime?
+  relanceEvaluationAt    DateTime?
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
+
+  evaluation EvaluationStage?
+
+  @@index([stageId])
+  @@index([divisionId])
+  @@index([sectionId])
+  @@index([celluleId])
+  @@map("periodes_stage")
+}
+
+model EvaluationStage {
+  id           String                @id @default(cuid())
+  periodeId    String                @unique
+  periode      PeriodeStage          @relation(fields: [periodeId], references: [id])
+  redacteurId  String
+  redacteur    User                  @relation("EvaluationRedacteur", fields: [redacteurId], references: [id])
+  // Format GRILLE : { assiduite, qualite, autonomie, integration } → niveau.
+  criteres     Json?
+  appreciation String?
+  statut       EvaluationStageStatut @default(BROUILLON)
+  motifRenvoi  String?
+  soumiseAt    DateTime?
+  viseeParId   String?
+  viseePar     User?                 @relation("EvaluationViseePar", fields: [viseeParId], references: [id])
+  viseeAt      DateTime?
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
+
+  @@map("evaluations_stage")
+}
+
+/// Nombre maximal de stagiaires simultanés d'une unité (« DIV:<id> »,
+/// « SEC:<id> », « CEL:<id> »), fixé par le DRH. Sans ligne : pas de limite.
+/// Une période en section compte aussi pour sa division.
+model CapaciteAccueil {
+  uniteKey   String   @id
+  maximum    Int
+  fixeeParId String
+  fixeePar   User     @relation("CapaciteFixeePar", fields: [fixeeParId], references: [id])
+  updatedAt  DateTime @updatedAt
+
+  @@map("capacites_accueil")
+}
+
+enum ModeleAttestationType {
+  DOCX // champs {{CLE}} dans le texte
+  PDF // formulaire PDF : champs nommés comme les clés
+
+  @@map("modele_attestation_type")
+}
+
+/// Modèle d'attestation de stage importé par le DRH. Un seul actif : un nouvel
+/// import désactive le précédent (conservé, jamais supprimé).
+model ModeleAttestation {
+  id           String                @id @default(cuid())
+  type         ModeleAttestationType
+  fileKey      String
+  fileName     String
+  champs       Json // clés utilisées par le modèle
+  actif        Boolean               @default(true)
+  importeParId String
+  importePar   User                  @relation("ModeleAttestationImportePar", fields: [importeParId], references: [id])
+  createdAt    DateTime              @default(now())
+
+  @@map("modeles_attestation")
+}
+
+// ============================================================================
+// D9 — Logistique : inventaire, demandes, fournitures (cahier §4.13)
+// Aucun montant (décision D9-4). Gestionnaire = habilitation, pas un rôle.
+// ============================================================================
+
+// Habilitation « gestionnaire logistique », donnée et retirée par
+// l'administrateur système, à n'importe quel compte actif (sauf stagiaire).
+model HabilitationLogistique {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation("HabLogUser", fields: [userId], references: [id])
+  accordeeParId String
+  accordeePar   User      @relation("HabLogAccordeePar", fields: [accordeeParId], references: [id])
+  createdAt     DateTime  @default(now())
+  revoqueeAt    DateTime?
+  revoqueeParId String?
+  revoqueePar   User?     @relation("HabLogRevoqueePar", fields: [revoqueeParId], references: [id])
+
+  @@index([userId])
+  @@map("habilitations_logistique")
+}
+
+enum NatureCategorieLogistique {
+  BIEN // matériel inventorié (numéro d'inventaire)
+  FOURNITURE // consommables (articles)
+
+  @@map("nature_categorie_logistique")
+}
+
+// Catégorie : porte le réglage « validation du chef requise » des demandes
+// (décision D9-2) ; code = préfixe du numéro d'inventaire pour les biens.
+model CategorieLogistique {
+  id                    String                    @id @default(cuid())
+  code                  String                    @unique
+  libelle               String
+  nature                NatureCategorieLogistique
+  validationChefRequise Boolean                   @default(true)
+  actif                 Boolean                   @default(true)
+  createdAt             DateTime                  @default(now())
+  updatedAt             DateTime                  @updatedAt
+
+  biens     Bien[]
+  articles  ArticleFourniture[]
+  demandes  DemandeLogistique[]
+  compteurs CompteurInventaire[]
+
+  @@map("categories_logistique")
+}
+
+// Compteur du numéro d'inventaire (catégorie, année) — même mécanisme que
+// CompteurRegistre : upsert atomique dans la transaction de création.
+model CompteurInventaire {
+  categorieId String
+  categorie   CategorieLogistique @relation(fields: [categorieId], references: [id])
+  annee       Int
+  dernier     Int
+  updatedAt   DateTime            @default(now())
+
+  @@id([categorieId, annee])
+  @@map("compteurs_inventaire")
+}
+
+enum EtatBien {
+  EN_SERVICE
+  EN_PANNE
+  EN_REPARATION
+  REFORME
+
+  @@map("etat_bien")
+}
+
+// Bien inventorié : numéro figé et jamais supprimé (trigger), réformé au lieu
+// d'être effacé. Aucune valeur financière.
+model Bien {
+  id               String              @id @default(cuid())
+  numeroInventaire String              @unique
+  categorieId      String
+  categorie        CategorieLogistique @relation(fields: [categorieId], references: [id])
+  annee            Int
+  sequence         Int
+  designation      String
+  marque           String?
+  numeroSerie      String?
+  emplacement      String?
+  dateAcquisition  DateTime?
+  etat             EtatBien            @default(EN_SERVICE)
+  creeParId        String
+  creePar          User                @relation("BienCreePar", fields: [creeParId], references: [id])
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  affectations AffectationBien[]
+  mouvements   MouvementBien[]
+  demandes     DemandeLogistique[]
+
+  @@unique([categorieId, annee, sequence])
+  @@map("biens")
+}
+
+// Affectation d'un bien à une personne OU à une unité ; au plus une ouverte
+// par bien (index unique partiel, migration). Jamais supprimée.
+model AffectationBien {
+  id             String    @id @default(cuid())
+  bienId         String
+  bien           Bien      @relation(fields: [bienId], references: [id])
+  userId         String?
+  user           User?     @relation("AffectationDetenteur", fields: [userId], references: [id])
+  divisionId     String?
+  division       Division? @relation("AffectationBienDivision", fields: [divisionId], references: [id])
+  sectionId      String?
+  section        Section?  @relation("AffectationBienSection", fields: [sectionId], references: [id])
+  celluleId      String?
+  cellule        Cellule?  @relation("AffectationBienCellule", fields: [celluleId], references: [id])
+  debut          DateTime  @default(now())
+  fin            DateTime?
+  faiteParId     String
+  faitePar       User      @relation("AffectationFaitePar", fields: [faiteParId], references: [id])
+  // Alerte « bien à récupérer » envoyée (détenteur devenu inactif) — une fois.
+  alerteDepartAt DateTime?
+
+  @@index([bienId])
+  @@index([userId])
+  @@map("affectations_bien")
+}
+
+enum TypeMouvementBien {
+  ACQUISITION
+  AFFECTATION
+  RETOUR
+  CHANGEMENT_ETAT
+  MODIFICATION
+  INTERVENTION // demande d'intervention rattachée au bien
+
+  @@map("type_mouvement_bien")
+}
+
+// Historique d'un bien : ajout seul (trigger : ni modification ni suppression).
+model MouvementBien {
+  id        String            @id @default(cuid())
+  bienId    String
+  bien      Bien              @relation(fields: [bienId], references: [id])
+  type      TypeMouvementBien
+  detail    Json
+  parId     String
+  par       User              @relation("MouvementBienPar", fields: [parId], references: [id])
+  createdAt DateTime          @default(now())
+
+  @@index([bienId, createdAt])
+  @@map("mouvements_bien")
+}
+
+// Article de fourniture. suiviStock (décision D9-5) : entrées et sorties
+// tenues par le gestionnaire, stock jamais négatif (CHECK en base), alerte
+// sous le seuil. Sans suivi : demandes traitées au cas par cas.
+model ArticleFourniture {
+  id            String              @id @default(cuid())
+  categorieId   String
+  categorie     CategorieLogistique @relation(fields: [categorieId], references: [id])
+  libelle       String
+  unite         String              @default("unité")
+  suiviStock    Boolean             @default(false)
+  stock         Int                 @default(0)
+  seuilAlerte   Int?
+  // Anti-doublon de l'alerte de stock bas : posé à l'alerte, remis à null
+  // quand le stock repasse au niveau du seuil ou au-dessus.
+  alerteStockAt DateTime?
+  actif         Boolean             @default(true)
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  mouvements MouvementStock[]
+  demandes   DemandeLogistique[]
+
+  @@map("articles_fourniture")
+}
+
+enum TypeMouvementStock {
+  ENTREE
+  SORTIE
+
+  @@map("type_mouvement_stock")
+}
+
+// Journal du stock : ajout seul (trigger).
+model MouvementStock {
+  id         String             @id @default(cuid())
+  articleId  String
+  article    ArticleFourniture  @relation(fields: [articleId], references: [id])
+  type       TypeMouvementStock
+  quantite   Int
+  stockApres Int
+  motif      String?
+  demandeId  String?
+  demande    DemandeLogistique? @relation(fields: [demandeId], references: [id])
+  parId      String
+  par        User               @relation("MouvementStockPar", fields: [parId], references: [id])
+  createdAt  DateTime           @default(now())
+
+  @@index([articleId, createdAt])
+  @@map("mouvements_stock")
+}
+
+enum TypeDemandeLogistique {
+  FOURNITURE // article de fourniture + quantité
+  MATERIEL // catégorie de biens
+  INTERVENTION // panne ou réparation d'un bien
+
+  @@map("type_demande_logistique")
+}
+
+enum StatutDemandeLogistique {
+  A_VALIDER // attend le chef direct (catégorie avec validation requise)
+  A_TRAITER // transmise aux gestionnaires
+  EN_TRAITEMENT // prise en charge par un gestionnaire
+  TRAITEE
+  REFUSEE
+  ANNULEE // par le demandeur, avant prise en charge
+
+  @@map("statut_demande_logistique")
+}
+
+model DemandeLogistique {
+  id              String                  @id @default(cuid())
+  demandeurId     String
+  demandeur       User                    @relation("DemandeDemandeur", fields: [demandeurId], references: [id])
+  type            TypeDemandeLogistique
+  categorieId     String
+  categorie       CategorieLogistique     @relation(fields: [categorieId], references: [id])
+  articleId       String?
+  article         ArticleFourniture?      @relation(fields: [articleId], references: [id])
+  bienId          String?
+  bien            Bien?                   @relation(fields: [bienId], references: [id])
+  quantite        Int?
+  objet           String
+  justification   String?
+  // Réglage de la catégorie figé à la soumission (un changement ultérieur ne
+  // réécrit pas le circuit d'une demande en cours).
+  validationChef  Boolean
+  statut          StatutDemandeLogistique
+  valideeParId    String?
+  valideePar      User?                   @relation("DemandeValideur", fields: [valideeParId], references: [id])
+  valideeAt       DateTime?
+  traiteeParId    String?
+  traiteePar      User?                   @relation("DemandeTraiteePar", fields: [traiteeParId], references: [id])
+  priseEnChargeAt DateTime?
+  traiteeAt       DateTime?
+  quantiteLivree  Int?
+  compteRendu     String?
+  refuseeParId    String?
+  refuseePar      User?                   @relation("DemandeRefuseePar", fields: [refuseeParId], references: [id])
+  refuseeAt       DateTime?
+  motifRefus      String?
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+
+  mouvementsStock MouvementStock[]
+
+  @@index([demandeurId])
+  @@index([statut])
+  @@map("demandes_logistique")
+}
+
+// ============================================================================
+// D9 — Réservation des salles et du matériel de présentation (cahier §4.13)
+// ============================================================================
+
+enum TypeRessource {
+  SALLE
+  MATERIEL_PRESENTATION
+
+  @@map("type_ressource")
+}
+
+enum ModeReservation {
+  IMMEDIATE // confirmée d'emblée si le créneau est libre
+  VALIDATION // en attente de la validation d'un gestionnaire
+
+  @@map("mode_reservation")
+}
+
+model RessourceReservable {
+  id          String          @id @default(cuid())
+  nom         String          @unique
+  type        TypeRessource
+  description String?
+  capacite    Int?
+  mode        ModeReservation @default(IMMEDIATE)
+  actif       Boolean         @default(true)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  reservations Reservation[]
+
+  @@map("ressources_reservables")
+}
+
+enum StatutReservation {
+  EN_ATTENTE // occupe le créneau en attendant le gestionnaire
+  CONFIRMEE
+  REFUSEE
+  ANNULEE
+  ANNULEE_PRIORITE // évincée par une personne ayant autorité sur le titulaire
+
+  @@map("statut_reservation")
+}
+
+// Pas de chevauchement entre réservations actives (EN_ATTENTE, CONFIRMEE)
+// d'une même ressource : trigger qui verrouille la ressource (migration).
+model Reservation {
+  id              String              @id @default(cuid())
+  ressourceId     String
+  ressource       RessourceReservable @relation(fields: [ressourceId], references: [id])
+  titulaireId     String
+  titulaire       User                @relation("ReservationTitulaire", fields: [titulaireId], references: [id])
+  // Auteur réel du clic (suppléant en intérim, sinon le titulaire lui-même).
+  creeeParId      String
+  creeePar        User                @relation("ReservationCreeePar", fields: [creeeParId], references: [id])
+  debut           DateTime
+  fin             DateTime
+  objet           String
+  meetingId       String?             @unique
+  meeting         Meeting?            @relation(fields: [meetingId], references: [id])
+  statut          StatutReservation
+  prioritaire     Boolean             @default(false) // prise en faisant valoir la priorité hiérarchique
+  decideeParId    String?
+  decideePar      User?               @relation("ReservationDecideePar", fields: [decideeParId], references: [id])
+  decideeAt       DateTime?
+  motifRefus      String?
+  annuleeParId    String?
+  annuleePar      User?               @relation("ReservationAnnuleePar", fields: [annuleeParId], references: [id])
+  annuleeAt       DateTime?
+  motifAnnulation String?
+  // Éviction : qui a fait valoir sa priorité, et par quelle réservation.
+  evinceeParId    String?
+  evinceePar      User?               @relation("ReservationPrioritaire", fields: [evinceeParId], references: [id])
+  remplaceeParId  String?
+  remplaceePar    Reservation?        @relation("ReservationRemplacement", fields: [remplaceeParId], references: [id])
+  remplace        Reservation[]       @relation("ReservationRemplacement")
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@index([ressourceId, debut])
+  @@index([titulaireId])
+  @@map("reservations")
 }

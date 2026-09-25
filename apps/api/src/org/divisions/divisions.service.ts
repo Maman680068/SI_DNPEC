@@ -71,7 +71,7 @@ export class DivisionsService {
   }
 
   /**
-   * Suspend une Division (§2.6 bis) : n'affecte jamais les personnes déjà
+   * Suspend une Division (§2.3) : n'affecte jamais les personnes déjà
    * rattachées (elles gardent connexion, tâches, congés, documents intacts),
    * bloque seulement la croissance de l'unité — voir les points d'application
    * de isActive dans AuthService.getRegistrationOrgOptions,

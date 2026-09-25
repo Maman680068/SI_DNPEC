@@ -2,7 +2,9 @@ import { Controller, Get, Param, Patch } from '@nestjs/common';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AuthenticatedUser } from '../../common/types/auth-user.type';
 import { NotificationsService } from './notifications.service';
+import { OuvertAuxStagiaires } from '../../common/decorators/ouvert-aux-stagiaires.decorator';
 
+@OuvertAuxStagiaires()
 @Controller('notifications')
 export class NotificationsController {
   constructor(private readonly notificationsService: NotificationsService) {}

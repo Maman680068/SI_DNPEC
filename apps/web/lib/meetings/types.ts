@@ -1,3 +1,6 @@
+import type { SystemRole } from '../auth/types';
+import type { TaskStatus } from '../tasks/types';
+
 export type MeetingStatus = 'PLANIFIEE' | 'ANNULEE';
 export type MeetingResponseStatus = 'EN_ATTENTE' | 'CONFIRME' | 'DECLINE';
 
@@ -22,6 +25,8 @@ export interface Meeting {
   createdAt: string;
   updatedAt: string;
   participants: MeetingParticipant[];
+  // D9 — salle réservée avec la réunion (statut : éviction pour priorité, refus...).
+  reservation: { id: string; statut: 'EN_ATTENTE' | 'CONFIRMEE' | 'REFUSEE' | 'ANNULEE' | 'ANNULEE_PRIORITE'; ressource: { id: string; nom: string } } | null;
 }
 
 export interface CreateMeetingInput {
@@ -31,6 +36,8 @@ export interface CreateMeetingInput {
   startAt: string;
   endAt?: string;
   participantIds: string[];
+  ressourceId?: string;
+  prioritaire?: boolean;
 }
 
 export const RESPONSE_STATUS_LABEL: Record<MeetingResponseStatus, string> = {
@@ -38,3 +45,48 @@ export const RESPONSE_STATUS_LABEL: Record<MeetingResponseStatus, string> = {
   CONFIRME: 'Confirmé',
   DECLINE: 'Décliné',
 };
+
+// ---- Décisions de réunion (D2) -------------------------------------------
+
+export type DecisionStatus = 'EN_ATTENTE' | 'CLOTUREE';
+
+/** Actions permises à l'utilisateur, calculées par l'API (l'écran n'en déduit aucune). */
+export interface DecisionDroits {
+  modifier: boolean;
+  convertir: boolean;
+  cloturer: boolean;
+  relancer: boolean;
+}
+
+export interface Decision {
+  id: string;
+  meetingId: string;
+  content: string;
+  status: DecisionStatus;
+  closedAt: string | null;
+  closedById: string | null;
+  createdById: string;
+  createdAt: string;
+  updatedAt: string;
+  action: { id: string; title: string; status: TaskStatus; dueDate: string | null } | null;
+  droits: DecisionDroits;
+}
+
+export interface DecisionsReleve {
+  peutAjouter: boolean;
+  decisions: Decision[];
+}
+
+export interface ResponsablePossible {
+  id: string;
+  firstName: string;
+  lastName: string;
+  role: SystemRole;
+  jobTitle: string | null;
+}
+
+export interface ConvertDecisionInput {
+  title?: string;
+  assigneeId: string;
+  dueDate: string;
+}

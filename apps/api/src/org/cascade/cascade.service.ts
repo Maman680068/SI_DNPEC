@@ -29,7 +29,7 @@ type TaskScope =
   | { kind: 'cellule'; celluleId: string }
   | { kind: 'none' };
 
-/** Rôles à visibilité totale sur la DNPEC pour la gestion des utilisateurs (§2.3).
+/** Rôles à visibilité totale sur la DNPEC pour la gestion des utilisateurs (§2.1).
  * DRH y figure au même titre qu'ADMIN_SYSTEME (fonction transversale, module
  * Dossier du personnel) : ni l'un ni l'autre n'a d'autorité de cascade sur le
  * contenu métier (voir LEADERSHIP_ROLES ci-dessous), mais les deux voient la
@@ -56,7 +56,7 @@ const LEADERSHIP_ROLES: SystemRole[] = [SystemRole.DN, SystemRole.DNA];
 const TASK_UPPER_TIER_ROLES: SystemRole[] = [SystemRole.CHEF_DIVISION, SystemRole.CHEF_CELLULE];
 
 /**
- * Logique de délégation en cascade (§2.3) : qui voit / peut agir sur qui,
+ * Logique de délégation en cascade (§2.1) : qui voit / peut agir sur qui,
  * en fonction du rattachement Division/Section/Cellule. Volontairement un
  * service injectable et non un Guard — les décisions dépendent de données
  * de la ressource ciblée (son divisionId/sectionId/celluleId), qu'un Guard
@@ -184,7 +184,7 @@ export class CascadeService {
    * soi-même, consulter son propre profil...) doit faire ce contrôle
    * explicitement AVANT d'appeler cette méthode, jamais s'appuyer dessus.
    *
-   * Suppléance/intérim (§2.6) : même garde étendue à `interimForId` — un
+   * Suppléance/intérim (§4.10) : même garde étendue à `interimForId` — un
    * suppléant qui emprunte le rôle du titulaire (JwtAuthGuard) ne doit
    * jamais pouvoir agir sur le titulaire LUI-MÊME sous couvert de ce rôle
    * emprunté (ex. valider le propre congé du titulaire). `interimForId` est
@@ -246,7 +246,7 @@ export class CascadeService {
   }
 
   /**
-   * Suppléance/intérim (§2.6) : `actor` est-il `userId`, ou agit-il
+   * Suppléance/intérim (§4.10) : `actor` est-il `userId`, ou agit-il
    * actuellement en son nom ? Remplace les contrôles par identité littérale
    * (`x.someUserId === actor.id`, ex. "seul l'organisateur de la réunion
    * peut...") là où l'emprunt de rôle de JwtAuthGuard ne s'applique pas
@@ -370,6 +370,9 @@ export class CascadeService {
    * division dont ils ne sont pas membres.
    */
   isMemberOfDivision(actor: AuthenticatedUser, divisionId: string): boolean {
+    // Stagiaire (D6) : rattaché à une division le temps d'une période, jamais
+    // lecteur de son espace privé (le module est de plus fermé par StagiaireGuard).
+    if (actor.role === SystemRole.STAGIAIRE) return false;
     return actor.divisionId === divisionId;
   }
 

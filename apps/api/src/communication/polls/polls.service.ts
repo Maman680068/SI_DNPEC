@@ -264,7 +264,7 @@ export class PollsService {
         if (actor.role !== SystemRole.DN && actor.role !== SystemRole.DNA) {
           throw new ForbiddenException('Seuls le DN ou la DNA peuvent lancer un sondage pour toute la DNPEC.');
         }
-        const users = await this.prisma.user.findMany({ where: { status: UserStatus.ACTIF }, select: { id: true } });
+        const users = await this.prisma.user.findMany({ where: { status: UserStatus.ACTIF, role: { not: SystemRole.STAGIAIRE } }, select: { id: true } });
         return users.map((u) => u.id);
       }
 
@@ -273,7 +273,7 @@ export class PollsService {
         await this.assertDivisionExists(dto.divisionId);
         this.cascade.assertCanManageUser(actor, { id: '__scope__', divisionId: dto.divisionId, sectionId: null, celluleId: null });
         const users = await this.prisma.user.findMany({
-          where: { divisionId: dto.divisionId, status: UserStatus.ACTIF },
+          where: { divisionId: dto.divisionId, status: UserStatus.ACTIF, role: { not: SystemRole.STAGIAIRE } },
           select: { id: true },
         });
         return users.map((u) => u.id);
@@ -291,7 +291,7 @@ export class PollsService {
           celluleId: null,
         });
         const users = await this.prisma.user.findMany({
-          where: { divisionId: dto.divisionId, sectionId: dto.sectionId, status: UserStatus.ACTIF },
+          where: { divisionId: dto.divisionId, sectionId: dto.sectionId, status: UserStatus.ACTIF, role: { not: SystemRole.STAGIAIRE } },
           select: { id: true },
         });
         return users.map((u) => u.id);
@@ -302,7 +302,7 @@ export class PollsService {
         await this.assertCelluleExists(dto.celluleId);
         this.cascade.assertCanManageUser(actor, { id: '__scope__', divisionId: null, sectionId: null, celluleId: dto.celluleId });
         const users = await this.prisma.user.findMany({
-          where: { celluleId: dto.celluleId, status: UserStatus.ACTIF },
+          where: { celluleId: dto.celluleId, status: UserStatus.ACTIF, role: { not: SystemRole.STAGIAIRE } },
           select: { id: true },
         });
         return users.map((u) => u.id);
@@ -314,10 +314,13 @@ export class PollsService {
         }
         const users = await this.prisma.user.findMany({
           where: { id: { in: dto.recipientUserIds } },
-          select: { id: true, divisionId: true, sectionId: true, celluleId: true },
+          select: { id: true, divisionId: true, sectionId: true, celluleId: true, role: true },
         });
         if (users.length !== dto.recipientUserIds.length) {
           throw new NotFoundException('Un ou plusieurs destinataires sont introuvables.');
+        }
+        if (users.some((u) => u.role === SystemRole.STAGIAIRE)) {
+          throw new ForbiddenException('Les sondages ne sont pas ouverts aux stagiaires.');
         }
         for (const user of users) {
           this.cascade.assertCanManageUser(actor, user);

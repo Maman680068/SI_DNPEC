@@ -7,6 +7,7 @@ import { getAnnouncementReads, markAnnouncementRead } from '../../lib/api/commun
 import type { Announcement, AnnouncementReadReceipt } from '../../lib/communication/types';
 import { SCOPE_LABEL } from '../../lib/communication/types';
 import { Badge } from '../ui/Badge';
+import { Chargement, ErreurChargement, messageChargement } from '../ui/ErreurChargement';
 
 const LEADERSHIP_ROLES = ['DN', 'DNA', 'ADMIN_SYSTEME'];
 
@@ -24,6 +25,7 @@ export function AnnouncementDetailDrawer({
   const { user: currentUser } = useAuth();
   const { getUserLabel } = useOrg();
   const [reads, setReads] = useState<AnnouncementReadReceipt[] | null>(null);
+  const [erreurChargement, setErreurChargement] = useState<string | null>(null);
 
   const canSeeReads = announcement.authorId === currentUser?.id || LEADERSHIP_ROLES.includes(currentUser?.role ?? '');
 
@@ -34,7 +36,9 @@ export function AnnouncementDetailDrawer({
       markAnnouncementRead(announcement.id).catch(() => undefined);
     }
     if (canSeeReads) {
-      getAnnouncementReads(announcement.id).then(setReads);
+      getAnnouncementReads(announcement.id)
+        .then(setReads)
+        .catch((err) => setErreurChargement(messageChargement(err)));
     }
   }, [announcement.id]);
 
@@ -66,8 +70,9 @@ export function AnnouncementDetailDrawer({
             <div className="mb-2.5 text-xs font-bold uppercase tracking-wide text-text-muted">
               Lue par {reads?.length ?? '…'} personne{reads && reads.length > 1 ? 's' : ''}
             </div>
+            <ErreurChargement message={erreurChargement} />
             {reads === null ? (
-              <p className="text-[13px] text-text-muted">Chargement…</p>
+              <Chargement erreur={erreurChargement} className="text-[13px] text-text-muted" />
             ) : reads.length === 0 ? (
               <p className="text-[13px] text-text-faint">Personne n&apos;a encore lu cette annonce.</p>
             ) : (

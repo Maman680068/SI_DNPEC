@@ -8,7 +8,9 @@ export type SystemRole =
   | 'ADMIN_SYSTEME'
   | 'ASSISTANT_DIRECTION'
   // Ressources Humaines — module Dossier du personnel (voir schema.prisma, API).
-  | 'DRH';
+  | 'DRH'
+  // Stagiaire (D6) — accès restreint côté API par liste blanche (StagiaireGuard).
+  | 'STAGIAIRE';
 
 export interface AuthUser {
   id: string;

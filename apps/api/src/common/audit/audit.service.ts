@@ -41,7 +41,7 @@ export class AuditService {
         entityType: input.entityType,
         entityId: input.entityId,
         metadata: input.metadata,
-        // Suppléance/intérim (§2.6) : jamais passé explicitement par
+        // Suppléance/intérim (§4.10) : jamais passé explicitement par
         // l'appelant — lu depuis le contexte de la requête en cours
         // (AsyncLocalStorage, posé par JwtAuthGuard). Sans acteur humain
         // (job planifié), il n'y a par définition personne "au nom de qui".

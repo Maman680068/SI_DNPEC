@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useInterim } from '../../../lib/interim/InterimProvider';
+import { estStagiaire } from '../../../lib/auth/stagiaire';
 import { getTasks, getDashboard } from '../../../lib/api/tasks';
 import { exportDashboardPdf, exportTasksExcel } from '../../../lib/api/export';
 import type { Task, TaskDashboard } from '../../../lib/tasks/types';
@@ -14,6 +15,8 @@ import { CreateTaskModal } from '../../../components/tasks/CreateTaskModal';
 import { BroadcastTaskModal } from '../../../components/tasks/BroadcastTaskModal';
 import { Button } from '../../../components/ui/Button';
 import { CarteCourrier } from '../../../components/courrier/CarteCourrier';
+import { CarteStages } from '../../../components/stages/CarteStages';
+import { CarteLogistique } from '../../../components/logistique/CarteLogistique';
 
 /** Rôles pouvant plausiblement diffuser une tâche à une division (voir
  * CascadeService.canBroadcastToDivision) — DN/DNA n'importe laquelle, Chef de
@@ -33,6 +36,8 @@ export default function DashboardPage() {
   const [showBroadcastModal, setShowBroadcastModal] = useState(false);
   const [exporting, setExporting] = useState<'excel' | 'pdf' | null>(null);
   const canBroadcast = CAN_BROADCAST_ROLES.includes(effectiveRole ?? '');
+  // Stagiaire : ses tâches seulement (ni création, ni export, ni courrier).
+  const stagiaire = estStagiaire(effectiveRole);
 
   async function handleExport(kind: 'excel' | 'pdf') {
     setExporting(kind);
@@ -61,20 +66,26 @@ export default function DashboardPage() {
 
   function handleTaskChanged(updated: Task) {
     setTasks((prev) => prev?.map((t) => (t.id === updated.id ? updated : t)) ?? prev);
-    getDashboard().then(setDashboard);
+    getDashboard()
+      .then(setDashboard)
+      .catch((err) => setError(err instanceof Error ? err.message : 'Impossible de mettre à jour les indicateurs'));
   }
 
   function handleCreated(task: Task) {
     setTasks((prev) => (prev ? [task, ...prev] : [task]));
     setShowCreateModal(false);
-    getDashboard().then(setDashboard);
+    getDashboard()
+      .then(setDashboard)
+      .catch((err) => setError(err instanceof Error ? err.message : 'Impossible de mettre à jour les indicateurs'));
     setSelectedTaskId(task.id);
   }
 
   function handleBroadcastCreated(created: Task[]) {
     setTasks((prev) => (prev ? [...created, ...prev] : created));
     setShowBroadcastModal(false);
-    getDashboard().then(setDashboard);
+    getDashboard()
+      .then(setDashboard)
+      .catch((err) => setError(err instanceof Error ? err.message : 'Impossible de mettre à jour les indicateurs'));
   }
 
   return (
@@ -84,6 +95,7 @@ export default function DashboardPage() {
           <div className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-sage">Mon périmètre</div>
           <h1 className="text-[22px] font-extrabold">Tableau de bord</h1>
         </div>
+        {!stagiaire && (
         <div className="flex flex-wrap gap-2.5">
           <Button variant="outline" disabled={exporting !== null} onClick={() => handleExport('excel')}>
             {exporting === 'excel' ? 'Export…' : 'Exporter (Excel)'}
@@ -100,13 +112,16 @@ export default function DashboardPage() {
             + Nouvelle tâche
           </Button>
         </div>
+        )}
       </div>
 
       {error && <div className="mb-5 rounded-md bg-clay-soft px-4 py-3 text-sm text-clay">{error}</div>}
 
       {dashboard && <KpiRow dashboard={dashboard} />}
 
-      <CarteCourrier />
+      {!stagiaire && <CarteCourrier />}
+      {!stagiaire && <CarteStages />}
+      {!stagiaire && <CarteLogistique />}
 
       <div className="mb-3.5 flex items-center justify-between">
         <h2 className="text-[16px] font-extrabold">Suivi des tâches</h2>
@@ -114,7 +129,7 @@ export default function DashboardPage() {
       </div>
 
       {!tasks ? (
-        <div className="text-sm text-text-muted">Chargement des tâches…</div>
+        !error && <div className="text-sm text-text-muted">Chargement des tâches…</div>
       ) : view === 'kanban' ? (
         <KanbanBoard tasks={tasks} onSelect={setSelectedTaskId} />
       ) : (

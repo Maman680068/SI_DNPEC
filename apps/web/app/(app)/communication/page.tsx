@@ -16,6 +16,8 @@ import { PollList } from '../../../components/communication/PollList';
 import { PollDetailDrawer } from '../../../components/communication/PollDetailDrawer';
 import { CreatePollModal } from '../../../components/communication/CreatePollModal';
 import { Button } from '../../../components/ui/Button';
+import { Chargement, ErreurChargement, messageChargement } from '../../../components/ui/ErreurChargement';
+import { estStagiaire } from '../../../lib/auth/stagiaire';
 
 type Tab = 'messages' | 'announcements' | 'polls';
 
@@ -25,7 +27,10 @@ const CAN_ANNOUNCE_ROLES = ['DN', 'DNA', 'ADMIN_SYSTEME', 'CHEF_DIVISION', 'CHEF
 
 export default function CommunicationPage() {
   const { user: currentUser } = useAuth();
+  // Stagiaire : messagerie et annonces seulement (les sondages lui sont fermés).
+  const stagiaire = estStagiaire(currentUser?.role);
   const [tab, setTab] = useState<Tab>('messages');
+  const [erreurChargement, setErreurChargement] = useState<string | null>(null);
 
   const [conversations, setConversations] = useState<Conversation[] | null>(null);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
@@ -39,22 +44,22 @@ export default function CommunicationPage() {
   const [showCreatePoll, setShowCreatePoll] = useState(false);
 
   const loadConversations = useCallback(() => {
-    getConversations().then(setConversations);
+    getConversations().then(setConversations).catch((err) => setErreurChargement(messageChargement(err)));
   }, []);
 
   const loadAnnouncements = useCallback(() => {
-    getAnnouncements().then(setAnnouncements);
+    getAnnouncements().then(setAnnouncements).catch((err) => setErreurChargement(messageChargement(err)));
   }, []);
 
   const loadPolls = useCallback(() => {
-    getPolls().then(setPolls);
+    getPolls().then(setPolls).catch((err) => setErreurChargement(messageChargement(err)));
   }, []);
 
   useEffect(() => {
     loadConversations();
     loadAnnouncements();
-    loadPolls();
-  }, [loadConversations, loadAnnouncements, loadPolls]);
+    if (!stagiaire) loadPolls();
+  }, [loadConversations, loadAnnouncements, loadPolls, stagiaire]);
 
   // Ouvre directement une conversation depuis un lien externe (ex. la fiche d'une
   // personne dans l'Annuaire, "/communication?with=<id>") — lu une seule fois au
@@ -90,6 +95,7 @@ export default function CommunicationPage() {
 
   return (
     <div>
+      <ErreurChargement message={erreurChargement} />
       <div className="mb-[22px] flex flex-wrap items-end justify-between gap-3.5">
         <div>
           <div className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-sage">Communication</div>
@@ -114,7 +120,7 @@ export default function CommunicationPage() {
             { key: 'announcements', label: 'Annonces' },
             { key: 'polls', label: 'Sondages' },
           ] as const
-        ).map((option) => (
+        ).filter((option) => !stagiaire || option.key !== 'polls').map((option) => (
           <button
             key={option.key}
             onClick={() => setTab(option.key)}
@@ -139,7 +145,7 @@ export default function CommunicationPage() {
           >
             <NewConversationSearch onPick={setSelectedUserId} />
             {conversations === null ? (
-              <p className="px-4 py-6 text-center text-[13px] text-text-muted">Chargement…</p>
+              <Chargement erreur={erreurChargement} className="px-4 py-6 text-center text-[13px] text-text-muted" />
             ) : (
               <ConversationList conversations={conversations} selectedUserId={selectedUserId} onSelect={setSelectedUserId} />
             )}
@@ -160,12 +166,12 @@ export default function CommunicationPage() {
         </div>
       ) : tab === 'announcements' ? (
         announcements === null ? (
-          <p className="text-sm text-text-muted">Chargement…</p>
+          <Chargement erreur={erreurChargement} />
         ) : (
           <AnnouncementList announcements={announcements} onSelect={setSelectedAnnouncementId} />
         )
       ) : polls === null ? (
-        <p className="text-sm text-text-muted">Chargement…</p>
+        <Chargement erreur={erreurChargement} />
       ) : (
         <PollList polls={polls} onSelect={setSelectedPollId} />
       )}

@@ -1,6 +1,6 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { AuditAction, MeetingResponseStatus, MeetingStatus, NotificationType, Prisma, UserStatus } from '@prisma/client';
+import { AuditAction, MeetingResponseStatus, MeetingStatus, NotificationType, Prisma, SystemRole, UserStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../common/audit/audit.service';
 import { CascadeService } from '../org/cascade/cascade.service';
@@ -10,6 +10,7 @@ import { CreateMeetingDto } from './dto/create-meeting.dto';
 import { RespondMeetingDto } from './dto/respond-meeting.dto';
 import { CancelMeetingDto } from './dto/cancel-meeting.dto';
 import { UpdateMeetingDto } from './dto/update-meeting.dto';
+import { ReservationCreee, ReservationsService } from '../logistique/reservations.service';
 
 // Délai avant le début d'une réunion auquel le rappel planifié se déclenche
 // (voir sendDueReminders) — constante simple, pas de variable d'environnement
@@ -34,6 +35,9 @@ const MEETING_SELECT = {
   participants: {
     select: { id: true, userId: true, responseStatus: true, respondedAt: true },
   },
+  // D9 — salle réservée avec la réunion (statut visible : une éviction pour
+  // priorité ou un refus laisse la réunion sans salle).
+  reservation: { select: { id: true, statut: true, ressource: { select: { id: true, nom: true } } } },
 } satisfies Prisma.MeetingSelect;
 
 type MeetingWithParticipants = Prisma.MeetingGetPayload<{ select: typeof MEETING_SELECT }>;
@@ -52,6 +56,7 @@ export class MeetingsService {
     private readonly audit: AuditService,
     private readonly cascade: CascadeService,
     private readonly notifications: NotificationsService,
+    private readonly reservations: ReservationsService,
   ) {}
 
   /**
@@ -90,26 +95,52 @@ export class MeetingsService {
     const invitedIds = dto.participantIds.filter((id) => id !== actor.id);
     await this.assertParticipantsExist(invitedIds);
 
-    const meeting = await this.prisma.meeting.create({
-      data: {
-        title: dto.title,
-        agenda: dto.agenda,
-        location: dto.location,
-        startAt,
-        endAt,
-        isOpen: dto.isOpen ?? false,
-        createdById: actor.id,
-        participants: {
-          create: [
-            // L'organisateur est toujours confirmé — il n'a pas à répondre à
-            // sa propre invitation (voir schema.prisma, commentaire du modèle).
-            { userId: actor.id, responseStatus: MeetingResponseStatus.CONFIRME, respondedAt: new Date() },
-            ...invitedIds.map((userId) => ({ userId })),
-          ],
-        },
+    if (dto.ressourceId && !endAt) {
+      throw new BadRequestException('Indiquez l’heure de fin pour réserver une salle.');
+    }
+
+    // Réunion et réservation dans la même transaction : pas de réunion
+    // créée si la salle est refusée (409/403), et inversement.
+    const { meeting, reservation } = await this.prisma.$transaction(
+      async (tx) => {
+        const created = await tx.meeting.create({
+          data: {
+            title: dto.title,
+            agenda: dto.agenda,
+            location: dto.location,
+            startAt,
+            endAt,
+            isOpen: dto.isOpen ?? false,
+            createdById: actor.id,
+            participants: {
+              create: [
+                // L'organisateur est toujours confirmé — il n'a pas à répondre à
+                // sa propre invitation (voir schema.prisma, commentaire du modèle).
+                { userId: actor.id, responseStatus: MeetingResponseStatus.CONFIRME, respondedAt: new Date() },
+                ...invitedIds.map((userId) => ({ userId })),
+              ],
+            },
+          },
+          select: { id: true },
+        });
+        let res: ReservationCreee | null = null;
+        if (dto.ressourceId) {
+          res = await this.reservations.creerDansTransaction(tx, actor, {
+            ressourceId: dto.ressourceId,
+            debut: startAt.toISOString(),
+            fin: endAt!.toISOString(),
+            objet: `Réunion : ${dto.title}`,
+            prioritaire: dto.prioritaire,
+            meetingId: created.id,
+          });
+          await tx.meeting.update({ where: { id: created.id }, data: { location: res.ressource.nom } });
+        }
+        const full = await tx.meeting.findUniqueOrThrow({ where: { id: created.id }, select: MEETING_SELECT });
+        return { meeting: full, reservation: res };
       },
-      select: MEETING_SELECT,
-    });
+      { maxWait: 10_000, timeout: 20_000 },
+    );
+    if (reservation) await this.reservations.apresCreation(actor, reservation, `Réunion : ${dto.title}`);
 
     await this.audit.log({
       actorId: actor.id,
@@ -208,7 +239,7 @@ export class MeetingsService {
    * d'agenda, pas du contenu métier délégué en cascade comme une tâche :
    * délibérément aucune autorité hiérarchique de substitution ici (voir
    * CascadeService.hasDirectAuthorityOver, non utilisé) — seule exception,
-   * la suppléance/intérim (§2.6, CascadeService.isActingFor), une identité
+   * la suppléance/intérim (§4.10, CascadeService.isActingFor), une identité
    * explicitement empruntée pour la durée de la requête, pas une autorité
    * cascade implicite. */
   async cancel(actor: AuthenticatedUser, meetingId: string, dto: CancelMeetingDto): Promise<MeetingWithParticipants> {
@@ -228,6 +259,8 @@ export class MeetingsService {
       where: { id: meetingId },
       data: { status: MeetingStatus.ANNULEE, cancelledAt: new Date(), cancellationReason: dto.reason },
     });
+    // D9 — la salle réservée avec la réunion est libérée.
+    await this.reservations.libererPourReunion(actor, meetingId);
 
     await this.audit.log({
       actorId: actor.id,
@@ -300,13 +333,17 @@ export class MeetingsService {
     if (userIds.length === 0) return;
     const users = await this.prisma.user.findMany({
       where: { id: { in: userIds } },
-      select: { id: true, status: true },
+      select: { id: true, status: true, role: true },
     });
     if (users.length !== userIds.length) {
       throw new NotFoundException('Un ou plusieurs participants sont introuvables.');
     }
     if (users.some((u) => u.status !== UserStatus.ACTIF)) {
       throw new ForbiddenException('Un ou plusieurs participants n’ont pas de compte actif.');
+    }
+    // Stagiaire (D6) : le module Réunions ne lui est pas ouvert.
+    if (users.some((u) => u.role === SystemRole.STAGIAIRE)) {
+      throw new ForbiddenException('Un stagiaire n’a pas accès aux réunions : il ne peut pas y être invité.');
     }
   }
 }

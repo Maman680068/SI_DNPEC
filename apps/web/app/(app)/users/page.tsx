@@ -10,6 +10,7 @@ import { PendingRegistrationsList } from '../../../components/users/PendingRegis
 import { CreateUserModal } from '../../../components/users/CreateUserModal';
 import { ApproveRegistrationModal } from '../../../components/users/ApproveRegistrationModal';
 import { Button } from '../../../components/ui/Button';
+import { Chargement, ErreurChargement, messageChargement } from '../../../components/ui/ErreurChargement';
 
 type Tab = 'all' | 'pending';
 
@@ -19,20 +20,21 @@ export default function UsersPage() {
   const hasAccess = USERS_PAGE_VISIBLE_ROLES.includes(currentUser?.role ?? '');
 
   const [tab, setTab] = useState<Tab>('all');
+  const [erreurChargement, setErreurChargement] = useState<string | null>(null);
   const [allUsers, setAllUsers] = useState<AdminUser[] | null>(null);
   const [pendingUsers, setPendingUsers] = useState<AdminUser[] | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [approving, setApproving] = useState<AdminUser | null>(null);
 
   const loadAll = useCallback(() => {
-    listAllUsers().then(setAllUsers);
+    listAllUsers().then(setAllUsers).catch((err) => setErreurChargement(messageChargement(err)));
   }, []);
 
   useEffect(() => {
     if (!hasAccess) return;
     loadAll();
     // GET /users/pending est réservé à ADMIN_SYSTEME côté API — DN/DNA n'y ont pas accès.
-    if (isAdmin) listPendingUsers().then(setPendingUsers);
+    if (isAdmin) listPendingUsers().then(setPendingUsers).catch((err) => setErreurChargement(messageChargement(err)));
   }, [hasAccess, isAdmin, loadAll]);
 
   if (!hasAccess) {
@@ -65,6 +67,7 @@ export default function UsersPage() {
 
   return (
     <div>
+      <ErreurChargement message={erreurChargement} />
       <div className="mb-[22px] flex flex-wrap items-end justify-between gap-3.5">
         <div>
           <div className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-sage">Administration</div>
@@ -105,12 +108,12 @@ export default function UsersPage() {
 
       {tab === 'all' || !isAdmin ? (
         allUsers === null ? (
-          <p className="text-sm text-text-muted">Chargement…</p>
+          <Chargement erreur={erreurChargement} />
         ) : (
           <UsersTable users={activeAndSuspended} canManage={isAdmin} onRefresh={loadAll} />
         )
       ) : pendingUsers === null ? (
-        <p className="text-sm text-text-muted">Chargement…</p>
+        <Chargement erreur={erreurChargement} />
       ) : (
         <PendingRegistrationsList users={pendingUsers} onApprove={setApproving} onRejected={handleRejected} />
       )}

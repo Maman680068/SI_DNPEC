@@ -24,6 +24,44 @@ import { BASIC_FIELD_KEYS, SENSITIVE_FIELD_KEYS, markAllFieldsVerified, markFiel
 
 type OrgTarget = { id: string; divisionId: string | null; sectionId: string | null; celluleId: string | null };
 
+/** Statut d'un champ pour l'écran (calculé ici, jamais par l'écran). */
+type StatutChamp = 'NON_RENSEIGNE' | 'A_VERIFIER' | 'CONFIRME';
+
+const IDENTITE_SELECT = {
+  id: true,
+  firstName: true,
+  lastName: true,
+  role: true,
+  jobTitle: true,
+  status: true,
+  divisionId: true,
+  sectionId: true,
+  celluleId: true,
+} satisfies Prisma.UserSelect;
+
+const NOM_SELECT = { select: { firstName: true, lastName: true } } as const;
+
+// Vues renvoyées à l'écran : les clés de stockage restent internes (les
+// fichiers se téléchargent par les routes dédiées).
+const DIPLOMA_VIEW_SELECT = {
+  id: true,
+  title: true,
+  institution: true,
+  obtainedYear: true,
+  fileName: true,
+  verified: true,
+  createdAt: true,
+} satisfies Prisma.PersonnelDiplomaSelect;
+
+const DOCUMENT_VIEW_SELECT = {
+  id: true,
+  label: true,
+  fileName: true,
+  verified: true,
+  createdAt: true,
+  uploadedBy: NOM_SELECT,
+} satisfies Prisma.PersonnelDocumentSelect;
+
 const BASIC_DEFAULTS = {
   employmentStatus: null,
   grade: null,
@@ -71,31 +109,107 @@ export class PersonnelFilesService {
     private readonly history: PersonnelHistoryService,
   ) {}
 
+  /** Personnes dont l'acteur peut lire le niveau 1 : exactement celles que
+   * getFile accepte (même critère, peutLireNiveau1). Comptes en attente
+   * d'inscription exclus (pas encore membres du personnel). */
+  async list(actor: AuthenticatedUser) {
+    const personnes = await this.prisma.user.findMany({
+      where: { status: { not: UserStatus.EN_ATTENTE } },
+      select: IDENTITE_SELECT,
+      orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
+    });
+    return {
+      peutImporter: actor.role === SystemRole.DRH,
+      personnes: personnes.filter((p) => this.peutLireNiveau1(actor, p)),
+    };
+  }
+
   async getFile(actor: AuthenticatedUser, userId: string) {
     const target = await this.getTargetOrThrow(userId);
     const isSelf = actor.id === userId;
     const isDrh = actor.role === SystemRole.DRH;
 
-    if (!isSelf && !isDrh && !this.cascade.hasDirectAuthorityOver(actor, target)) {
+    if (!this.peutLireNiveau1(actor, target)) {
       throw new ForbiddenException('Ce dossier est hors de votre périmètre.');
     }
 
-    const basicRow = await this.prisma.personnelFileBasic.findUnique({ where: { userId } });
+    const [identite, basicRow] = await Promise.all([
+      this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: IDENTITE_SELECT }),
+      this.prisma.personnelFileBasic.findUnique({ where: { userId } }),
+    ]);
     const basic = this.toBasicView(basicRow);
+    const statutsNiveau1 = this.statutsBasic(basic);
 
     if (!isSelf && !isDrh) {
       // Niveau 1 seul : le niveau 2 n'est même pas interrogé, pas juste masqué.
-      return { userId, basic, sensitive: null, diplomas: [], documents: [], careerHistory: [] };
+      return {
+        userId,
+        identite,
+        basic,
+        statuts: statutsNiveau1,
+        sensitive: null,
+        diplomas: [],
+        documents: [],
+        careerHistory: [],
+        droits: { modifier: false, niveau2: false, confirmer: false, signaler: false },
+      };
     }
 
     const [sensitiveRow, diplomas, documents, careerHistory] = await Promise.all([
       this.prisma.personnelFileSensitive.findUnique({ where: { userId } }),
-      this.prisma.personnelDiploma.findMany({ where: { userId }, orderBy: { createdAt: 'desc' } }),
-      this.prisma.personnelDocument.findMany({ where: { userId }, orderBy: { createdAt: 'desc' } }),
-      this.prisma.personnelCareerEvent.findMany({ where: { userId }, orderBy: { effectiveDate: 'desc' } }),
+      this.prisma.personnelDiploma.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+        select: DIPLOMA_VIEW_SELECT,
+      }),
+      this.prisma.personnelDocument.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+        select: DOCUMENT_VIEW_SELECT,
+      }),
+      this.prisma.personnelCareerEvent.findMany({
+        where: { userId },
+        orderBy: { effectiveDate: 'desc' },
+        select: { id: true, eventType: true, fromValue: true, toValue: true, effectiveDate: true, recordedBy: NOM_SELECT },
+      }),
     ]);
+    const sensitive = this.toSensitiveView(sensitiveRow);
+    const statuts = { ...statutsNiveau1, ...this.statutsSensitive(sensitive) };
+    const aConfirmer =
+      Object.values(statuts).includes('A_VERIFIER') || diplomas.some((d) => !d.verified) || documents.some((d) => !d.verified);
 
-    return { userId, basic, sensitive: this.toSensitiveView(sensitiveRow), diplomas, documents, careerHistory };
+    return {
+      userId,
+      identite,
+      basic,
+      statuts,
+      sensitive,
+      diplomas,
+      documents,
+      careerHistory,
+      droits: { modifier: true, niveau2: true, confirmer: isSelf && aConfirmer, signaler: isSelf },
+    };
+  }
+
+  /** Fiche de poste (niveau 1) : mêmes lecteurs que le niveau 1. */
+  async downloadJobDescription(actor: AuthenticatedUser, userId: string) {
+    const target = await this.getTargetOrThrow(userId);
+    if (!this.peutLireNiveau1(actor, target)) {
+      throw new ForbiddenException('Ce dossier est hors de votre périmètre.');
+    }
+    const basic = await this.prisma.personnelFileBasic.findUnique({ where: { userId } });
+    if (!basic?.jobDescriptionFileKey || !basic.jobDescriptionFileName) throw new NotFoundException('Aucune fiche de poste');
+    return { fileName: basic.jobDescriptionFileName, stream: this.storage.createReadStream(basic.jobDescriptionFileKey) };
+  }
+
+  async downloadDiploma(actor: AuthenticatedUser, userId: string, diplomaId: string) {
+    await this.getTargetOrThrow(userId);
+    this.assertCanAccessSensitive(actor, userId);
+    const diploma = await this.prisma.personnelDiploma.findUnique({ where: { id: diplomaId } });
+    if (!diploma || diploma.userId !== userId || !diploma.fileKey || !diploma.fileName) {
+      throw new NotFoundException('Justificatif de diplôme introuvable');
+    }
+    return { fileName: diploma.fileName, stream: this.storage.createReadStream(diploma.fileKey) };
   }
 
   async updateBasic(actor: AuthenticatedUser, userId: string, dto: UpdatePersonnelBasicDto) {
@@ -180,7 +294,10 @@ export class PersonnelFilesService {
 
     const current = await this.prisma.personnelFileSensitive.findUnique({ where: { userId } });
     const changedKeys = Object.keys(dto).filter((key) => (dto as Record<string, unknown>)[key] !== undefined);
-    const verifiedFields = markFieldsUnverified(current?.verifiedFields, changedKeys);
+    // Les trois colonnes du contact d'urgence n'ont qu'un statut commun,
+    // « emergencyContact » (SENSITIVE_FIELD_KEYS) — comme le fait l'import.
+    const statusKeys = [...new Set(changedKeys.map((key) => (key.startsWith('emergencyContact') ? 'emergencyContact' : key)))];
+    const verifiedFields = markFieldsUnverified(current?.verifiedFields, statusKeys);
     const source = actor.id === userId ? 'SELF' : 'DRH';
 
     const data = { ...dto, verifiedFields, source };
@@ -216,6 +333,7 @@ export class PersonnelFilesService {
           fileKey,
           fileName: file?.originalname,
         },
+        select: DIPLOMA_VIEW_SELECT,
       });
     const diploma = file
       ? await this.storage.saveThen(file.buffer, file.originalname, ({ fileKey }) => createDiploma(fileKey))
@@ -258,6 +376,7 @@ export class PersonnelFilesService {
     const document = await this.storage.saveThen(file.buffer, file.originalname, ({ fileKey }) =>
       this.prisma.personnelDocument.create({
         data: { userId, label: dto.label, fileKey, fileName: file.originalname, uploadedById: actor.id },
+        select: DOCUMENT_VIEW_SELECT,
       }),
     );
 
@@ -383,6 +502,38 @@ export class PersonnelFilesService {
 
   // --------------------------------------------------------------------
 
+  /** Niveau 1 (lecture) : soi-même, DRH, ou autorité hiérarchique directe. */
+  private peutLireNiveau1(actor: AuthenticatedUser, target: OrgTarget): boolean {
+    return actor.id === target.id || actor.role === SystemRole.DRH || this.cascade.hasDirectAuthorityOver(actor, target);
+  }
+
+  private statut(renseigne: boolean, verifiedFields: Prisma.JsonValue, key: string): StatutChamp {
+    if (!renseigne) return 'NON_RENSEIGNE';
+    const v = verifiedFields && typeof verifiedFields === 'object' && !Array.isArray(verifiedFields) ? verifiedFields[key] : undefined;
+    return v === true ? 'CONFIRME' : 'A_VERIFIER';
+  }
+
+  private statutsBasic(b: ReturnType<PersonnelFilesService['toBasicView']>): Record<string, StatutChamp> {
+    const valeurs: Record<(typeof BASIC_FIELD_KEYS)[number], unknown> = {
+      employmentStatus: b.employmentStatus,
+      grade: b.grade,
+      echelon: b.echelon,
+      serviceStartDate: b.serviceStartDate,
+      jobDescription: b.jobDescriptionFileName,
+    };
+    return Object.fromEntries(BASIC_FIELD_KEYS.map((k) => [k, this.statut(valeurs[k] != null, b.verifiedFields, k)]));
+  }
+
+  private statutsSensitive(x: ReturnType<PersonnelFilesService['toSensitiveView']>): Record<string, StatutChamp> {
+    const valeurs: Record<(typeof SENSITIVE_FIELD_KEYS)[number], unknown> = {
+      personalAddress: x.personalAddress,
+      personalPhone: x.personalPhone,
+      personalEmail: x.personalEmail,
+      emergencyContact: x.emergencyContactName ?? x.emergencyContactRelation ?? x.emergencyContactPhone,
+    };
+    return Object.fromEntries(SENSITIVE_FIELD_KEYS.map((k) => [k, this.statut(valeurs[k] != null, x.verifiedFields, k)]));
+  }
+
   private assertCanWrite(actor: AuthenticatedUser, userId: string): void {
     if (actor.id === userId) return;
     if (actor.role === SystemRole.DRH) return;
@@ -408,8 +559,20 @@ export class PersonnelFilesService {
     return target;
   }
 
+  /** La clé de stockage de la fiche de poste reste interne (téléchargement
+   * par GET :userId/job-description). */
   private toBasicView(row: PersonnelFileBasic | null) {
-    return row ?? { ...BASIC_DEFAULTS };
+    const r = row ?? { ...BASIC_DEFAULTS, id: null, userId: null, source: null, createdAt: null, updatedAt: null };
+    return {
+      employmentStatus: r.employmentStatus,
+      grade: r.grade,
+      echelon: r.echelon,
+      serviceStartDate: r.serviceStartDate,
+      jobDescriptionFileName: r.jobDescriptionFileName,
+      verifiedFields: r.verifiedFields,
+      source: r.source,
+      updatedAt: r.updatedAt,
+    };
   }
 
   private toSensitiveView(row: PersonnelFileSensitive | null) {

@@ -25,6 +25,8 @@ async function bootstrap() {
   const corsOrigin = process.env.CORS_ORIGIN;
   app.enableCors({
     origin: corsOrigin ? corsOrigin.split(',').map((o) => o.trim()) : true,
+    // Nom des fichiers générés (attestation Word ou PDF selon le modèle) lisible par le frontend.
+    exposedHeaders: ['Content-Disposition'],
   });
   app.useGlobalPipes(
     new ValidationPipe({

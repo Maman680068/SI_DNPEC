@@ -1,5 +1,5 @@
 import { ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { AuditAction, RegistrePortee, UserStatus } from '@prisma/client';
+import { AuditAction, RegistrePortee, SystemRole, UserStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../common/audit/audit.service';
 import { AuthenticatedUser } from '../common/types/auth-user.type';
@@ -104,9 +104,10 @@ export class RegistresService {
     const uniteKey = registre.portee === RegistrePortee.DIRECTION ? UNITE_DIRECTION : dto.uniteKey ?? '';
     assertUnitePourPortee(registre.portee, uniteKey);
     await this.numerotation.codeUnite(uniteKey); // 404 si l'unité n'existe pas
-    const user = await this.prisma.user.findUnique({ where: { id: dto.userId }, select: { status: true } });
+    const user = await this.prisma.user.findUnique({ where: { id: dto.userId }, select: { status: true, role: true } });
     if (!user) throw new NotFoundException('Utilisateur introuvable');
     if (user.status !== UserStatus.ACTIF) throw new ForbiddenException('Seul un compte actif peut être habilité.');
+    if (user.role === SystemRole.STAGIAIRE) throw new ForbiddenException('Un stagiaire n’a pas accès au courrier : il ne peut pas être habilité.');
     const active = await this.prisma.habilitationCourrier.findFirst({
       where: { userId: dto.userId, registreId: registre.id, uniteKey, revoqueeAt: null },
     });

@@ -38,3 +38,11 @@ export function markAnnouncementRead(id: string): Promise<void> {
 export function getAnnouncementReads(id: string): Promise<AnnouncementReadReceipt[]> {
   return apiFetch<AnnouncementReadReceipt[]>(`/announcements/${id}/reads`);
 }
+
+export function getNombreMessagesNonLus(): Promise<number> {
+  return apiFetch<number>('/messages/unread-count');
+}
+
+/** Signalé par le fil de messages après marquage « lu », pour que la pastille
+ * de la barre du haut se mette à jour sans attendre son rafraîchissement. */
+export const EVENEMENT_MESSAGES_LUS = 'dnpec:messages-lus';

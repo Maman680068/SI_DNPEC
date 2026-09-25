@@ -11,6 +11,7 @@ import { isComparableRank } from '../suppleances/comparable-rank';
 import { viseurOccupeLePoste } from '../courrier/actes.service';
 import { ChangerRoleDto } from './dto/changer-role.dto';
 import { ROLE_LIBELLE, RattachementRole, rattachementPourRole } from './roles';
+import { StagesService } from '../stages/stages.service';
 
 type Cible = Prisma.UserGetPayload<{
   select: typeof CIBLE_SELECT;
@@ -67,6 +68,7 @@ export class RoleChangeService {
     private readonly history: PersonnelHistoryService,
     private readonly sessions: SessionService,
     private readonly users: UsersService,
+    private readonly stages: StagesService,
   ) {}
 
   /** Aperçu : mêmes contrôles et mêmes effets que changer(), sans rien écrire. */
@@ -188,6 +190,11 @@ export class RoleChangeService {
       r.divisionId === cible.divisionId && r.sectionId === cible.sectionId && r.celluleId === cible.celluleId && r.supervisorId === cible.supervisorId;
     if (dto.role === cible.role && memeRattachement) {
       throw new ConflictException('Aucun changement : ce compte a déjà ce rôle et ce rattachement.');
+    }
+    // Stagiaire (D6) : son rôle ne change pas tant qu'un stage est prévu ou en
+    // cours (la rotation tient son rattachement).
+    if (cible.role === SystemRole.STAGIAIRE && dto.role !== SystemRole.STAGIAIRE && (await this.stages.aUnStageOuvert(cible.id))) {
+      throw new ConflictException('Ce stagiaire a un stage prévu ou en cours : clôturez-le ou interrompez-le d’abord.');
     }
 
     await this.users.assertOrgAttachmentValid(r);

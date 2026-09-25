@@ -2,8 +2,8 @@
 
 Système d'information interne de la DNPEC (Guinée), **en production** sur Render
 (PostgreSQL, API NestJS et frontend Next.js en services distincts, emails réels via Brevo).
-Référence fonctionnelle : cahier des charges v2.0 (§2.2 « besoin d'en connaître », §4.10
-suppléance, Annexe B = journal des décisions) : `docs/Cahier_des_charges_DNPEC_SI.docx`.
+Référence fonctionnelle : cahier des charges v2.1 (§2.2 « besoin d'en connaître », §3.2 changement
+de rôle, §4.10 suppléance, §4.11 courrier et actes, Annexe B = journal des décisions) : `docs/Cahier_des_charges_DNPEC_SI.docx`.
 
 ## Règles de travail (strictes, non négociables)
 
@@ -36,14 +36,17 @@ appels API réels sur serveur local (voir les messages de commit existants).
   `*.service.ts` (toute la logique d'autorisation), `dto/*.dto.ts` (class-validator ;
   `ValidationPipe` global avec `whitelist` + `forbidNonWhitelisted`).
 - Guards globaux : `JwtAuthGuard` (tout est authentifié sauf `@Public()`), puis `RolesGuard`
-  (`@Roles(...)`, contrôle grossier). L'autorisation fine est dans les services via `CascadeService`.
+  (`@Roles(...)`, contrôle grossier), puis `StagiaireGuard` : un STAGIAIRE est refusé (403) partout
+  sauf routes ou contrôleurs marqués `@OuvertAuxStagiaires()` — toute nouvelle route lui est fermée
+  par défaut. L'autorisation fine est dans les services via `CascadeService`.
 - Erreurs : exceptions Nest (`ForbiddenException` 403, `ConflictException` 409 pour une transition
   d'état invalide, `NotFoundException` 404), messages en français. `HttpExceptionFilter` ne capte
   que les `HttpException` : une erreur Prisma non traduite (ex. P2002) sort en 500.
 - Sélections Prisma explicites via constantes `XXX_SELECT` + `satisfies Prisma.XxxSelect`.
 - Rôles (`SystemRole`) : DN, DNA, CHEF_DIVISION, CHEF_SECTION, CHEF_CELLULE, AGENT
   (= Chargé d'Études), ASSISTANT_DIRECTION (rattaché via `supervisorId` à DN/DNA/CHEF_CELLULE),
-  ADMIN_SYSTEME, DRH. Rattachement : `divisionId`/`sectionId` OU `celluleId`.
+  ADMIN_SYSTEME, DRH, STAGIAIRE (rattachement facultatif, aucun droit par défaut, jamais habilitable).
+  Rattachement : `divisionId`/`sectionId` OU `celluleId`.
   Seule `Cellule` a un `chefId` ; le chef d'une Division/Section se retrouve par
   `role + divisionId (+ sectionId) + status ACTIF`.
 - `CascadeService` : `hasDirectAuthorityOver` (DN/DNA + chef direct ; **jamais sur soi-même**,
@@ -53,19 +56,35 @@ appels API réels sur serveur local (voir les messages de commit existants).
 - Suppléance : en-tête `X-Interim-For: <titulaireId>` validé par `JwtAuthGuard` → `role`/rattachement
   du titulaire empruntés pour la requête, `id` reste celui du suppléant, `interimForId` renseigné,
   `AuditLog.onBehalfOfId` posé automatiquement (AsyncLocalStorage).
-- `AuditService.log({ actorId, action, entityType, entityId, metadata })` écrit via le client
-  global — **pas de paramètre de transaction** ; convention actuelle : audit après le commit.
+- `AuditService.log({ actorId, action, entityType, entityId, metadata }, tx?)` : client global
+  par défaut (audit après le commit), ou `tx` pour un audit annulé avec la transaction.
   Détail des événements dans `metadata.event`.
 - `NotificationsService.notify(userId, type, title, body, link?, subjectDetail?)` : in-app + email
   synchrones. Tout nouveau `NotificationType` exige une entrée dans `NOTIFICATION_BUTTON_LABELS`.
 - `StorageService.save(buffer, name) → { fileKey, sizeBytes }`, `createReadStream`, `delete`.
   Uploads via `FileInterceptor` + `memoryStorage()`, limite 25 Mo.
+- Changement de rôle (`role-change/`) : une seule préparation pour l'aperçu et l'action ;
+  toute attribution de rôle à un compte existant (dont chef de cellule) passe par là.
+  Rattachement exigé par rôle : `rattachementPourRole` (`role-change/roles.ts`).
+- Habilitations (pas des rôles) : courrier (`HabilitationCourrier`, par registre et unité) et
+  gestionnaire logistique (`GestionnairesLogistiqueService`), personnelles : jugées sur `actor.id`,
+  jamais empruntées en intérim.
+- Stages (`stages/`, D6) : job quotidien `StagesRotationService.executer(now)` (appelable avec une
+  date simulée) ; attestation finale = acte du Courrier (`ActesService`).
+- Logistique (`logistique/`, D9) : numérotation d'inventaire et stock protégés en base (triggers,
+  CHECK) ; réservations sans chevauchement (trigger qui verrouille la ressource) ; priorité
+  hiérarchique = `ReservationsService.peutEvincer` (cascade ; DN et DNA pairs entre eux) ; une réunion
+  réserve sa salle dans sa propre transaction (`creerDansTransaction`).
+- Écrans : l'API renvoie les droits (`droits`, `peutAjouter`...) et les listes de choix
+  (« responsables possibles »...) ; le web n'en calcule aucun.
 
 ### Web (`apps/web`)
 - `app/(app)/<route>/page.tsx` (client components), `components/<module>/*` (Modal, Drawer,
   List, Card), `lib/api/<module>.ts` (`apiFetch`), `lib/<module>/types.ts`.
 - Tokens Tailwind (`ink`, `gold`, `sage`, `clay`, `line`, `text-muted`...) issus de la maquette ;
   navigation dans `components/layout/Sidebar.tsx` ; ouverture profonde via `?id=`.
+- Chargement d'une page : `.catch` obligatoire, message affiché par `ErreurChargement`
+  (`components/ui/ErreurChargement.tsx`). Page visée avant connexion : `lib/auth/suite.ts`.
 
 ## Commandes utiles
 ```bash
@@ -77,14 +96,4 @@ pnpm --filter @dnpec/api start:dev
 
 ## Reste à faire
 
-- **Cloche de notifications in-app** : l'icône de la barre du haut n'est reliée à rien ;
-  l'API expose déjà `GET /notifications`, le comptage des non-lues et le marquage lu.
-- **Retour à la page visée après reconnexion** : un lien d'email ouvert avec une session
-  expirée mène à l'accueil, puis au tableau de bord après connexion — la page visée est perdue.
-- **Erreurs de chargement non affichées** sur certaines pages (ex. Réunions : `getMeetings()`
-  sans `catch`) — l'erreur ne remonte qu'en console.
-- **Lot D** : écrans web de D2 (décisions de réunion) et de D3 (dossier du personnel),
-  dont la route `/personnel/:id` utilisée par les emails de notification.
-- **Changement de rôle d'un compte existant** (dont l'attribution de DRH à un compte déjà
-  actif) : aucun endpoint aujourd'hui ; à concevoir (rattachement propre à chaque rôle,
-  unicité des chefs, `Cellule.chefId`, historique de carrière, suppléances en cours).
+- **Module non construit** : D5 (rémunération), hors périmètre (§5 du cahier des charges).

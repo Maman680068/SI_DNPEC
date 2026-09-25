@@ -2,7 +2,7 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-// Cellules officielles de la DNPEC (§2.1 du cahier des charges) :
+// Cellules officielles de la DNPEC (§2 du cahier des charges) :
 // CTSCM et CNC rattachées au DN, SAF/RH/CSID rattachées à la DNA.
 const CELLULES = [
   {

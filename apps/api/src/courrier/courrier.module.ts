@@ -31,5 +31,7 @@ import { CourrierTableauDeBordService } from './tableau-de-bord.service';
     CourrierExportService,
     CourrierTableauDeBordService,
   ],
+  // ActesService : l'attestation de stage (D6) est un acte de ce module.
+  exports: [ActesService],
 })
 export class CourrierModule {}

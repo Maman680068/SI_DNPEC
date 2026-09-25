@@ -91,7 +91,7 @@ export class JwtAuthGuard implements CanActivate {
   }
 
   /**
-   * Suppléance/intérim (§2.6) : en-tête X-Interim-For explicite, jamais
+   * Suppléance/intérim (§4.10) : en-tête X-Interim-For explicite, jamais
    * ambiant. Absent -> aucun changement. Présent sans Suppleance active
    * correspondante -> 403 explicite (jamais un échec silencieux qui
    * laisserait croire à l'appelant qu'il agit en son nom propre). Valide ->

@@ -11,6 +11,7 @@ import { CreateLeaveRequestModal } from '../../../components/leaves/CreateLeaveR
 import { ValidationQueue } from '../../../components/leaves/ValidationQueue';
 import { LeaveDecisionDrawer } from '../../../components/leaves/LeaveDecisionDrawer';
 import { Button } from '../../../components/ui/Button';
+import { Chargement, ErreurChargement, messageChargement } from '../../../components/ui/ErreurChargement';
 
 type Tab = 'mine' | 'validation';
 
@@ -18,6 +19,7 @@ export default function LeavesPage() {
   const { user: currentUser } = useAuth();
   const canValidate = LEADERSHIP_ROLES_FOR_LEAVES.includes(currentUser?.role ?? '');
   const [tab, setTab] = useState<Tab>('mine');
+  const [erreurChargement, setErreurChargement] = useState<string | null>(null);
 
   const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>([]);
   const [balances, setBalances] = useState<LeaveBalanceView[] | null>(null);
@@ -30,12 +32,12 @@ export default function LeavesPage() {
   const [linkHandled, setLinkHandled] = useState(false);
 
   const loadRequests = useCallback(() => {
-    getLeaveRequests().then(setRequests);
+    getLeaveRequests().then(setRequests).catch((err) => setErreurChargement(messageChargement(err)));
   }, []);
 
   useEffect(() => {
-    getLeaveTypes().then(setLeaveTypes);
-    getMyBalances().then(setBalances);
+    getLeaveTypes().then(setLeaveTypes).catch((err) => setErreurChargement(messageChargement(err)));
+    getMyBalances().then(setBalances).catch((err) => setErreurChargement(messageChargement(err)));
     loadRequests();
   }, [loadRequests]);
 
@@ -83,14 +85,14 @@ export default function LeavesPage() {
     // Une annulation (recrédit si déjà approuvée) ou une décision de validation change
     // le solde réel côté API — jamais reflété par la seule mise à jour de la demande.
     if (updated.userId === currentUser?.id) {
-      getMyBalances().then(setBalances);
+      getMyBalances().then(setBalances).catch((err) => setErreurChargement(messageChargement(err)));
     }
   }
 
   function handleCreated(request: LeaveRequest) {
     setRequests((prev) => (prev ? [request, ...prev] : [request]));
     setShowCreateModal(false);
-    getMyBalances().then(setBalances);
+    getMyBalances().then(setBalances).catch((err) => setErreurChargement(messageChargement(err)));
   }
 
   function handleDecided(updated: LeaveRequest) {
@@ -100,6 +102,7 @@ export default function LeavesPage() {
 
   return (
     <div>
+      <ErreurChargement message={erreurChargement} />
       <div className="mb-[22px] flex flex-wrap items-end justify-between gap-3.5">
         <div>
           <div className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-sage">Personnel</div>
@@ -157,20 +160,20 @@ export default function LeavesPage() {
             </select>
           </div>
           {balances === null ? (
-            <p className="text-sm text-text-muted">Chargement…</p>
+            <Chargement erreur={erreurChargement} />
           ) : (
             <BalanceCards balances={balancesForYear} />
           )}
 
           <h2 className="mb-3.5 mt-[26px] text-[16px] font-extrabold">Mes demandes</h2>
           {requests === null ? (
-            <p className="text-sm text-text-muted">Chargement…</p>
+            <Chargement erreur={erreurChargement} />
           ) : (
             <LeaveRequestList requests={myRequests} onChange={handleRequestUpdated} highlightId={highlightId} />
           )}
         </div>
       ) : requests === null ? (
-        <p className="text-sm text-text-muted">Chargement…</p>
+        <Chargement erreur={erreurChargement} />
       ) : (
         <ValidationQueue requests={pendingForValidation} onSelect={setSelectedValidation} />
       )}

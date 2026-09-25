@@ -28,6 +28,7 @@ import { ValidateTaskDto } from './dto/validate-task.dto';
 import { TaskFiltersDto } from './dto/task-filters.dto';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { CreateSavedFilterDto } from './dto/create-saved-filter.dto';
+import { OuvertAuxStagiaires } from '../common/decorators/ouvert-aux-stagiaires.decorator';
 
 // Même plafond que la GED (documents.controller.ts) — voir StorageService.
 const MAX_FILE_SIZE_BYTES = 25 * 1024 * 1024;
@@ -48,31 +49,37 @@ export class TasksController {
     return this.tasksService.broadcastToDivision(actor, dto);
   }
 
+  @OuvertAuxStagiaires()
   @Get()
   findAll(@Query() filters: TaskFiltersDto, @CurrentUser() actor: AuthenticatedUser) {
     return this.tasksService.findAllVisibleTo(actor, filters);
   }
 
+  @OuvertAuxStagiaires()
   @Get('dashboard')
   dashboard(@CurrentUser() actor: AuthenticatedUser) {
     return this.tasksService.dashboard(actor);
   }
 
+  @OuvertAuxStagiaires()
   @Get('saved-filters')
   listSavedFilters(@CurrentUser() actor: AuthenticatedUser) {
     return this.tasksService.listSavedFilters(actor);
   }
 
+  @OuvertAuxStagiaires()
   @Post('saved-filters')
   createSavedFilter(@Body() dto: CreateSavedFilterDto, @CurrentUser() actor: AuthenticatedUser) {
     return this.tasksService.createSavedFilter(actor, dto);
   }
 
+  @OuvertAuxStagiaires()
   @Delete('saved-filters/:id')
   removeSavedFilter(@Param('id') id: string, @CurrentUser() actor: AuthenticatedUser) {
     return this.tasksService.removeSavedFilter(actor, id);
   }
 
+  @OuvertAuxStagiaires()
   @Get(':id')
   findOne(@Param('id') id: string, @CurrentUser() actor: AuthenticatedUser) {
     return this.tasksService.findOneVisibleTo(actor, id);
@@ -88,6 +95,7 @@ export class TasksController {
     return this.tasksService.remove(actor, id);
   }
 
+  @OuvertAuxStagiaires()
   @Patch(':id/progress')
   updateProgress(
     @Param('id') id: string,
@@ -106,21 +114,25 @@ export class TasksController {
     return this.tasksService.createSubtask(actor, id, dto);
   }
 
+  @OuvertAuxStagiaires()
   @Get(':id/subtasks')
   listSubtasks(@Param('id') id: string, @CurrentUser() actor: AuthenticatedUser) {
     return this.tasksService.listSubtasks(actor, id);
   }
 
+  @OuvertAuxStagiaires()
   @Post(':id/toggle')
   toggleSubtaskCompletion(@Param('id') id: string, @CurrentUser() actor: AuthenticatedUser) {
     return this.tasksService.toggleSubtaskCompletion(actor, id);
   }
 
+  @OuvertAuxStagiaires()
   @Post(':id/start')
   start(@Param('id') id: string, @CurrentUser() actor: AuthenticatedUser) {
     return this.tasksService.start(actor, id);
   }
 
+  @OuvertAuxStagiaires()
   @Post(':id/submit')
   submit(@Param('id') id: string, @CurrentUser() actor: AuthenticatedUser) {
     return this.tasksService.submit(actor, id);
@@ -158,6 +170,7 @@ export class TasksController {
     return this.tasksService.removeAssignee(actor, id, userId);
   }
 
+  @OuvertAuxStagiaires()
   @Post(':id/comments')
   addComment(
     @Param('id') id: string,
@@ -167,11 +180,13 @@ export class TasksController {
     return this.tasksService.addComment(actor, id, dto);
   }
 
+  @OuvertAuxStagiaires()
   @Get(':id/comments')
   listComments(@Param('id') id: string, @CurrentUser() actor: AuthenticatedUser) {
     return this.tasksService.listComments(actor, id);
   }
 
+  @OuvertAuxStagiaires()
   @Post(':id/attachments')
   @UseInterceptors(FilesInterceptor('files', MAX_FILES_PER_UPLOAD, filesInterceptorOptions))
   addAttachments(
@@ -182,11 +197,13 @@ export class TasksController {
     return this.tasksService.addAttachments(actor, id, files ?? []);
   }
 
+  @OuvertAuxStagiaires()
   @Get(':id/attachments')
   listAttachments(@Param('id') id: string, @CurrentUser() actor: AuthenticatedUser) {
     return this.tasksService.listAttachments(actor, id);
   }
 
+  @OuvertAuxStagiaires()
   @Get(':id/attachments/:attachmentId/download')
   async downloadAttachment(
     @Param('id') id: string,
@@ -202,6 +219,7 @@ export class TasksController {
     return new StreamableFile(stream);
   }
 
+  @OuvertAuxStagiaires()
   @Delete(':id/attachments/:attachmentId')
   removeAttachment(
     @Param('id') id: string,

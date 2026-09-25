@@ -329,7 +329,7 @@ export class DecisionsService {
     return decision;
   }
 
-  /** Suppléance/intérim (§2.6) : isActingFor accepte aussi bien l'organisateur
+  /** Suppléance/intérim (§4.10) : isActingFor accepte aussi bien l'organisateur
    * réel que son suppléant en fonction (interimForId). */
   private assertIsOrganizer(actor: AuthenticatedUser, meeting: { createdById: string }): void {
     if (!this.cascade.isActingFor(actor, meeting.createdById)) {

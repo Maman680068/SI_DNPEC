@@ -457,7 +457,7 @@ export class UsersService {
 
   /**
    * Bloque un NOUVEAU rattachement (création manuelle, approbation d'une
-   * inscription) sur une Division/Section/Cellule suspendue (§2.6 bis,
+   * inscription) sur une Division/Section/Cellule suspendue (§2.3,
    * Division.isActive/Section.isActive/Cellule.isActive) — la suspension
    * empêche uniquement la croissance de l'unité, jamais le travail des
    * personnes déjà rattachées. Volontairement PAS appelé par
