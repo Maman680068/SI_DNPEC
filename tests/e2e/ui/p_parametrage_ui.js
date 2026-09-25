@@ -20,7 +20,9 @@ const S = Date.now().toString(36).slice(-5);
   await adm.getByLabel('Nouveau libellé de MOB').fill(`Mobilier et rangement ${S}`);
   await adm.getByTestId('categorie').filter({ has: adm.getByLabel('Nouveau libellé de MOB') }).getByRole('button', { name: 'Enregistrer' }).click();
   await adm.getByText('Catégorie renommée.').waitFor();
-  check('catégorie renommée à l’écran', (await adm.getByText(`Mobilier et rangement ${S}`).count()) === 1);
+  // Le message peut précéder le rechargement de la liste : attendre le nouveau libellé.
+  const renommee = await adm.getByText(`Mobilier et rangement ${S}`).waitFor({ timeout: 10000 }).then(() => true, () => false);
+  check('catégorie renommée à l’écran', renommee && (await adm.getByText(`Mobilier et rangement ${S}`).count()) === 1);
   const drh = await loginPage(b, 'drh');
   await drh.goto(`${WEB}/stages/parametres`);
   await drh.getByTestId('planning').waitFor();
