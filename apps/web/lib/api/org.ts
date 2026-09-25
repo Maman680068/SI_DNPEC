@@ -89,11 +89,17 @@ export function reactivateCellule(id: string): Promise<Cellule> {
   return apiFetch<Cellule>(`/org/cellules/${id}/reactivate`, { method: 'POST' });
 }
 
-/** Nomme le chef d'une cellule — transactionnel côté API (CellulesService.assignChef) :
- * démet l'ancien chef, promeut userId en CHEF_CELLULE et pose Cellule.chefId. C'est le
- * SEUL chemin qui maintienne cet invariant — jamais via POST /users avec role=CHEF_CELLULE. */
-export function assignCelluleChef(celluleId: string, userId: string): Promise<Cellule> {
-  return apiFetch<Cellule>(`/org/cellules/${celluleId}/chef`, { method: 'POST', body: JSON.stringify({ userId }) });
+/** Nomme le chef d'une cellule — même mécanisme que tout changement de rôle
+ * (POST /org/cellules/:id/chef, RoleChangeService) : motif obligatoire, refus 409
+ * si la cellule a déjà un chef (jamais de rétrogradation automatique), historique
+ * de carrière, audit, sessions de la personne fermées. */
+export function assignCelluleChef(celluleId: string, userId: string, motif: string): Promise<unknown> {
+  return apiFetch<unknown>(`/org/cellules/${celluleId}/chef`, { method: 'POST', body: JSON.stringify({ userId, motif }) });
+}
+
+/** Retire le chef d'une cellule : il y reste avec le rôle cible (Chargé d'Études par défaut). */
+export function retirerCelluleChef(celluleId: string, motif: string, role?: string): Promise<unknown> {
+  return apiFetch<unknown>(`/org/cellules/${celluleId}/chef/retrait`, { method: 'POST', body: JSON.stringify({ motif, role }) });
 }
 
 /** Scopé par le périmètre cascade de l'acteur (ex. un Agent ne voit que lui-même) —

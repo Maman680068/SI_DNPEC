@@ -79,6 +79,22 @@ type Fichier = Express.Multer.File;
 
 type NiveauCircuit = { niveau: SystemRole; chefs: { id: string }[] };
 
+type Rattachement = { divisionId: string | null; sectionId: string | null; celluleId: string | null };
+
+/** Le viseur attendu occupe-t-il toujours le poste de ce niveau du circuit,
+ * pour ce rédacteur ? Fonction pure : partagée avec l'aperçu d'un changement
+ * de rôle (RoleChangeService), qui l'évalue sur le rôle À VENIR. */
+export function viseurOccupeLePoste(
+  niveau: SystemRole,
+  v: Rattachement & { role: SystemRole; status: UserStatus },
+  redacteur: Rattachement,
+): boolean {
+  if (v.status !== UserStatus.ACTIF || v.role !== niveau) return false;
+  if (niveau === SystemRole.CHEF_SECTION) return v.divisionId === redacteur.divisionId && v.sectionId === redacteur.sectionId;
+  if (niveau === SystemRole.CHEF_DIVISION) return v.divisionId === redacteur.divisionId;
+  return v.celluleId === redacteur.celluleId;
+}
+
 /** Libellé d'un acte dans une notification/email : jamais l'objet d'un CONFIDENTIEL. */
 function libelleActe(a: { numero: string | null; objet: string; confidentialite: CourrierConfidentialite }): string {
   const ref = a.numero ? `n° ${a.numero}` : '(non numéroté)';
@@ -750,11 +766,7 @@ export class ActesService {
       where: { id: visa.viseurAttenduId },
       select: { role: true, status: true, divisionId: true, sectionId: true, celluleId: true },
     });
-    if (!v || v.status !== UserStatus.ACTIF || v.role !== visa.niveau) return false;
-    const r = acte.redacteur;
-    if (visa.niveau === SystemRole.CHEF_SECTION) return v.divisionId === r.divisionId && v.sectionId === r.sectionId;
-    if (visa.niveau === SystemRole.CHEF_DIVISION) return v.divisionId === r.divisionId;
-    return v.celluleId === r.celluleId;
+    return !!v && viseurOccupeLePoste(visa.niveau, v, acte.redacteur);
   }
 
   private async circuitObsolete(acte: ActeCharge): Promise<boolean> {

@@ -6,7 +6,6 @@ import { AuthenticatedUser } from '../../common/types/auth-user.type';
 import { CellulesService } from './cellules.service';
 import { CreateCelluleDto } from './dto/create-cellule.dto';
 import { UpdateCelluleDto } from './dto/update-cellule.dto';
-import { AssignChefDto } from './dto/assign-chef.dto';
 
 @Controller('org/cellules')
 export class CellulesController {
@@ -40,21 +39,8 @@ export class CellulesController {
     return this.cellulesService.remove(id);
   }
 
-  @Roles(SystemRole.ADMIN_SYSTEME)
-  @Post(':id/chef')
-  assignChef(
-    @Param('id') id: string,
-    @Body() dto: AssignChefDto,
-    @CurrentUser() actor: AuthenticatedUser,
-  ) {
-    return this.cellulesService.assignChef(id, dto.userId, actor);
-  }
-
-  @Roles(SystemRole.ADMIN_SYSTEME)
-  @Delete(':id/chef')
-  removeChef(@Param('id') id: string, @CurrentUser() actor: AuthenticatedUser) {
-    return this.cellulesService.removeChef(id, actor);
-  }
+  // Nommer / retirer le chef : voir RoleChangeController (POST :id/chef,
+  // POST :id/chef/retrait) — même mécanisme que tout changement de rôle.
 
   @Roles(SystemRole.ADMIN_SYSTEME)
   @Post(':id/suspend')

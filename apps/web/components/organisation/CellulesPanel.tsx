@@ -7,9 +7,11 @@ import type { Cellule } from '../../lib/org/types';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { OrgEntityFormModal } from './OrgEntityFormModal';
+import { RetirerChefModal } from './RetirerChefModal';
 
 export function CellulesPanel() {
-  const { cellules, refreshOrg } = useOrg();
+  const { cellules, refreshOrg, getUserLabel } = useOrg();
+  const [retrait, setRetrait] = useState<Cellule | null>(null);
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<Cellule | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -70,10 +72,15 @@ export function CellulesPanel() {
                   )}
                 </div>
                 <div className="text-[12px] text-text-muted">
-                  {cellule.code} · {cellule.chefId ? 'a un chef' : 'sans chef'}
+                  {cellule.code} · {cellule.chefId ? `chef : ${getUserLabel(cellule.chefId)}` : 'sans chef'}
                 </div>
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
+                {cellule.chefId && (
+                  <Button variant="outline" onClick={() => setRetrait(cellule)}>
+                    Retirer le chef
+                  </Button>
+                )}
                 <Button variant="outline" onClick={() => setEditing(cellule)}>
                   Modifier
                 </Button>
@@ -96,6 +103,18 @@ export function CellulesPanel() {
             </Card>
           ))}
         </div>
+      )}
+
+      {retrait && retrait.chefId && (
+        <RetirerChefModal
+          cellule={retrait}
+          chef={getUserLabel(retrait.chefId)}
+          onClose={() => setRetrait(null)}
+          onDone={async () => {
+            setRetrait(null);
+            await refreshOrg();
+          }}
+        />
       )}
 
       {creating && (

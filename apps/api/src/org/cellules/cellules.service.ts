@@ -1,5 +1,5 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { AuditAction, Cellule, SystemRole } from '@prisma/client';
+import { AuditAction, Cellule } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../../common/audit/audit.service';
 import { AuthenticatedUser } from '../../common/types/auth-user.type';
@@ -67,68 +67,6 @@ export class CellulesService {
    * documenté dans le schéma (CHEF_CELLULE.celluleId == Cellule dont il est
    * chefId).
    */
-  async assignChef(celluleId: string, userId: string, actor: AuthenticatedUser) {
-    const cellule = await this.findOneOrThrow(celluleId);
-    if (!cellule.isActive) {
-      throw new ConflictException(
-        'Cette Cellule est suspendue — réactivez-la avant de lui nommer un nouveau chef.',
-      );
-    }
-
-    const targetUser = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (!targetUser) throw new NotFoundException('Utilisateur introuvable');
-    if (targetUser.divisionId) {
-      throw new ConflictException(
-        'Un utilisateur rattaché à une Division ne peut pas devenir chef de cellule sans changer de rattachement au préalable.',
-      );
-    }
-
-    const previousChefId = cellule.chefId;
-
-    const updatedCellule = await this.prisma.$transaction(async (tx) => {
-      if (previousChefId && previousChefId !== userId) {
-        await tx.user.update({ where: { id: previousChefId }, data: { role: SystemRole.AGENT } });
-      }
-      await tx.user.update({
-        where: { id: userId },
-        data: { role: SystemRole.CHEF_CELLULE, celluleId },
-      });
-      return tx.cellule.update({ where: { id: celluleId }, data: { chefId: userId } });
-    });
-
-    await this.audit.log({
-      actorId: actor.id,
-      action: AuditAction.MODIFICATION,
-      entityType: 'Cellule',
-      entityId: celluleId,
-      metadata: { event: 'chef_assigned', previousChefId, newChefId: userId },
-    });
-
-    return updatedCellule;
-  }
-
-  async removeChef(celluleId: string, actor: AuthenticatedUser) {
-    const cellule = await this.findOneOrThrow(celluleId);
-    if (!cellule.chefId) return cellule;
-
-    const previousChefId = cellule.chefId;
-
-    const updatedCellule = await this.prisma.$transaction(async (tx) => {
-      await tx.user.update({ where: { id: previousChefId }, data: { role: SystemRole.AGENT } });
-      return tx.cellule.update({ where: { id: celluleId }, data: { chefId: null } });
-    });
-
-    await this.audit.log({
-      actorId: actor.id,
-      action: AuditAction.MODIFICATION,
-      entityType: 'Cellule',
-      entityId: celluleId,
-      metadata: { event: 'chef_removed', previousChefId },
-    });
-
-    return updatedCellule;
-  }
-
   /** Voir DivisionsService.suspend — même principe. Le chef en poste, s'il y en a un,
    * n'est jamais touché : seule la nomination d'un NOUVEAU chef est bloquée (assignChef). */
   async suspend(id: string, actor: AuthenticatedUser) {

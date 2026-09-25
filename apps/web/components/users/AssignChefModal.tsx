@@ -7,10 +7,10 @@ import type { AdminUser } from '../../lib/users/types';
 import { Button } from '../ui/Button';
 
 /**
- * Nomme `user` chef d'une cellule via la transaction dédiée (POST /org/cellules/:id/chef) —
- * jamais un simple changement de rôle, qui laisserait Cellule.chefId incohérent (voir
- * lib/users/types.ts, ASSIGNABLE_ROLES). Un rafraîchissement complet de la liste après succès
- * est nécessaire côté appelant : l'ancien chef de la cellule choisie est démis en même temps.
+ * Nomme `user` chef d'une cellule (POST /org/cellules/:id/chef) — même mécanisme
+ * que tout changement de rôle : motif obligatoire, Cellule.chefId posé dans la même
+ * transaction, historique et audit. Une cellule qui a déjà un chef est refusée
+ * (409) : il faut d'abord changer le rôle de ce chef.
  */
 export function AssignChefModal({
   user,
@@ -26,6 +26,7 @@ export function AssignChefModal({
   // qu'elle n'est pas réactivée (CellulesService.assignChef) — exclue ici aussi.
   const cellules = allCellules.filter((c) => c.isActive);
   const [celluleId, setCelluleId] = useState(cellules[0]?.id ?? '');
+  const [motif, setMotif] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -37,7 +38,7 @@ export function AssignChefModal({
     setSubmitting(true);
     setError(null);
     try {
-      await assignCelluleChef(celluleId, user.id);
+      await assignCelluleChef(celluleId, user.id, motif.trim());
       await refreshOrg();
       onAssigned();
     } catch (err) {
@@ -52,6 +53,8 @@ export function AssignChefModal({
       <form
         onSubmit={handleSubmit}
         onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-label="Nommer chef de cellule"
         className="w-full max-w-[440px] rounded-lg bg-surface p-6"
       >
         <h2 className="mb-1.5 text-[19px] font-semibold">Nommer chef de cellule</h2>
@@ -76,16 +79,26 @@ export function AssignChefModal({
         </div>
 
         {alreadyHasChef && (
-          <p className="mb-4 rounded-md bg-gold-soft px-3.5 py-2.5 text-[12.5px] text-ink">
-            Cette cellule a déjà un chef — il sera automatiquement remis au rôle Agent.
-          </p>
-        )}
-        {user.divisionId && (
           <p className="mb-4 rounded-md bg-clay-soft px-3.5 py-2.5 text-[12.5px] text-clay">
-            Cet utilisateur est rattaché à une Division : l’API refusera cette nomination tant
-            qu’il n’en est pas détaché.
+            Cette cellule a déjà un chef : changez d’abord son rôle (il n’est jamais rétrogradé automatiquement).
           </p>
         )}
+
+        <div className="mb-4">
+          <label htmlFor="motif-chef" className="mb-1.5 block text-[12.5px] font-semibold text-text">
+            Motif (obligatoire)
+          </label>
+          <textarea
+            id="motif-chef"
+            value={motif}
+            onChange={(e) => setMotif(e.target.value)}
+            required
+            minLength={5}
+            maxLength={1000}
+            className="min-h-[70px] w-full rounded-md border border-line bg-surface px-3 py-2.5 text-sm"
+          />
+          <p className="mt-1 text-[11.5px] text-text-faint">Tracé dans l’historique ; la personne devra se reconnecter.</p>
+        </div>
 
         {error && <div className="mb-4 rounded-md bg-clay-soft px-3 py-2.5 text-[13px] text-clay">{error}</div>}
 

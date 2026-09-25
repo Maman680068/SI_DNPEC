@@ -20,6 +20,7 @@ import { SuggestionsModule } from './suggestions/suggestions.module';
 import { PersonnelModule } from './personnel/personnel.module';
 import { SuppleancesModule } from './suppleances/suppleances.module';
 import { CourrierModule } from './courrier/courrier.module';
+import { RoleChangeModule } from './role-change/role-change.module';
 import { AppController } from './app.controller';
 
 @Module({
@@ -44,6 +45,7 @@ import { AppController } from './app.controller';
     PersonnelModule,
     SuppleancesModule,
     CourrierModule,
+    RoleChangeModule,
   ],
   providers: [
     // Guards globaux, exécutés dans cet ordre : JwtAuthGuard peuple

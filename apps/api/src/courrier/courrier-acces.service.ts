@@ -5,6 +5,7 @@ import {
   CourrierConfidentialite,
   RegistrePortee,
   SystemRole,
+  UserStatus,
 } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CascadeService } from '../org/cascade/cascade.service';
@@ -144,7 +145,7 @@ export class CourrierAccesService {
       }),
     ]);
     const now = new Date();
-    const valides = delegations.filter((d) => {
+    const liees = delegations.filter((d) => {
       if (d.type === AccesDelegueType.ASSISTANT) return d.beneficiaire.supervisorId === d.ouvertParId;
       const s = d.suppleance;
       return (
@@ -155,12 +156,62 @@ export class CourrierAccesService {
         isComparableRank(s.titulaire, s.suppleant)
       );
     });
+    const valides = await this.ouvreurAToujoursLeDroit(liees);
     return {
       actor,
       habilitations: new Set(habilitations.map((h) => `${h.registreId}|${h.uniteKey}`)),
       delegationsArrivees: new Set(valides.filter((d) => d.arriveeId).map((d) => d.arriveeId!)),
       delegationsActes: new Set(valides.filter((d) => d.acteId).map((d) => d.acteId!)),
     };
+  }
+
+  /**
+   * Un accès délégué n'est valide que si celui qui l'a ouvert a ENCORE, de son
+   * propre droit (hors délégation, identité réelle, compte actif), l'accès au
+   * contenu du courrier — réévalué à chaque chargement : un ouvreur qui change
+   * de rôle, d'unité ou perd son imputation fait tomber l'accès aussitôt.
+   */
+  private async ouvreurAToujoursLeDroit<T extends { arriveeId: string | null; acteId: string | null; ouvertParId: string }>(
+    delegations: T[],
+  ): Promise<T[]> {
+    if (delegations.length === 0) return delegations;
+    const ouvreurIds = [...new Set(delegations.map((d) => d.ouvertParId))];
+    const arriveeIds = delegations.flatMap((d) => (d.arriveeId ? [d.arriveeId] : []));
+    const acteIds = delegations.flatMap((d) => (d.acteId ? [d.acteId] : []));
+    const [ouvreurs, habs, arrivees, actes] = await Promise.all([
+      this.prisma.user.findMany({
+        where: { id: { in: ouvreurIds } },
+        select: { id: true, role: true, status: true, divisionId: true, sectionId: true, celluleId: true, supervisor: { select: { role: true, celluleId: true } } },
+      }),
+      this.prisma.habilitationCourrier.findMany({
+        where: { userId: { in: ouvreurIds }, revoqueeAt: null },
+        select: { userId: true, registreId: true, uniteKey: true },
+      }),
+      arriveeIds.length ? this.prisma.courrierArrivee.findMany({ where: { id: { in: arriveeIds } }, select: ARRIVEE_ACCES_SELECT }) : [],
+      acteIds.length ? this.prisma.acteCourrier.findMany({ where: { id: { in: acteIds } }, select: ACTE_ACCES_SELECT }) : [],
+    ]);
+    const contextes = new Map<string, ContexteAcces>();
+    for (const { supervisor, ...o } of ouvreurs) {
+      if (o.status !== UserStatus.ACTIF) continue;
+      contextes.set(o.id, {
+        actor: { ...o, supervisorRole: supervisor?.role ?? null, supervisorCelluleId: supervisor?.celluleId ?? null, interimForId: null },
+        habilitations: new Set(habs.filter((h) => h.userId === o.id).map((h) => `${h.registreId}|${h.uniteKey}`)),
+        delegationsArrivees: new Set(),
+        delegationsActes: new Set(),
+      });
+    }
+    const arr = new Map(arrivees.map((a) => [a.id, a]));
+    const act = new Map(actes.map((a) => [a.id, a]));
+    return delegations.filter((d) => {
+      const ctx = contextes.get(d.ouvertParId);
+      if (!ctx) return false;
+      if (d.arriveeId) {
+        const a = arr.get(d.arriveeId);
+        return !!a && this.niveauArrivee(ctx, a, { sansDelegation: true }) === 'CONTENU';
+      }
+      const a = d.acteId ? act.get(d.acteId) : undefined;
+      return !!a && this.niveauActe(ctx, a, { sansDelegation: true }) === 'CONTENU';
+    });
   }
 
   // ------------------------------------------------------------------
