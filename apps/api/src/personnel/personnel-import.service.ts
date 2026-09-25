@@ -3,6 +3,8 @@ import { ConfigService } from '@nestjs/config';
 import ExcelJS from 'exceljs';
 import { createHash, randomBytes } from 'crypto';
 import { AuditAction, SystemRole, UserStatus } from '@prisma/client';
+import { UsersService } from '../users/users.service';
+import { rattachementPourRole } from '../role-change/roles';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../common/audit/audit.service';
 import { PasswordService } from '../common/security/password.service';
@@ -76,6 +78,7 @@ export class PersonnelImportService {
     private readonly passwordService: PasswordService,
     private readonly email: EmailService,
     private readonly config: ConfigService,
+    private readonly users: UsersService,
   ) {}
 
   async importFromWorkbook(actor: AuthenticatedUser, buffer: Buffer): Promise<ImportReport> {
@@ -167,22 +170,27 @@ export class PersonnelImportService {
   ) {
     const firstName = this.cellString(row, columns.firstName);
     const lastName = this.cellString(row, columns.lastName);
-    const roleRaw = this.cellString(row, columns.role)?.toUpperCase();
-    if (!firstName || !lastName || !roleRaw) {
-      throw new Error('Prénom, nom et rôle sont requis pour créer un nouveau compte.');
+    if (!firstName || !lastName) {
+      throw new Error('Prénom et nom sont requis pour créer un nouveau compte.');
     }
-    if (!(Object.values(SystemRole) as string[]).includes(roleRaw)) {
-      throw new Error(`Rôle invalide : "${roleRaw}".`);
+    // L'import ne crée que des comptes de Chargé d'Études : tout autre rôle
+    // (chefs, DN/DNA, DRH, administrateur, assistant) s'attribue ensuite par
+    // l'administrateur système via le changement de rôle — motif obligatoire,
+    // unicité des chefs, audit et notifications (Lot E). Colonne « Rôle »
+    // vide : Chargé d'Études.
+    const roleRaw = this.cellString(row, columns.role);
+    const roleNormalise = roleRaw ? normalizeHeader(roleRaw) : 'AGENT';
+    if (roleNormalise !== 'AGENT' && roleNormalise !== 'CHARGE D ETUDES') {
+      throw new Error(
+        `Rôle « ${roleRaw} » : l'import ne crée que des comptes de Chargé d'Études. ` +
+          "Créez la ligne en Chargé d'Études, puis demandez à l'administrateur système le changement de rôle.",
+      );
     }
-    const role = roleRaw as SystemRole;
+    const role = SystemRole.AGENT;
 
     const divisionCode = this.cellString(row, columns.divisionCode)?.toUpperCase();
     const sectionCode = this.cellString(row, columns.sectionCode)?.toUpperCase();
     const celluleCode = this.cellString(row, columns.celluleCode)?.toUpperCase();
-
-    if (divisionCode && celluleCode) {
-      throw new Error('Division et Cellule sont mutuellement exclusives.');
-    }
 
     let divisionId: string | null = null;
     let sectionId: string | null = null;
@@ -192,11 +200,12 @@ export class PersonnelImportService {
       const division = await this.prisma.division.findUnique({ where: { code: divisionCode } });
       if (!division) throw new Error(`Division introuvable : "${divisionCode}".`);
       divisionId = division.id;
-      if (sectionCode) {
-        const section = await this.prisma.section.findFirst({ where: { code: sectionCode, divisionId } });
-        if (!section) throw new Error(`Section introuvable dans cette division : "${sectionCode}".`);
-        sectionId = section.id;
-      }
+    }
+    if (sectionCode) {
+      if (!divisionId) throw new Error('Une Section ne peut être renseignée sans Division.');
+      const section = await this.prisma.section.findFirst({ where: { code: sectionCode, divisionId } });
+      if (!section) throw new Error(`Section introuvable dans cette division : "${sectionCode}".`);
+      sectionId = section.id;
     }
     if (celluleCode) {
       const cellule = await this.prisma.cellule.findUnique({ where: { code: celluleCode } });
@@ -204,9 +213,15 @@ export class PersonnelImportService {
       celluleId = cellule.id;
     }
 
+    // Mêmes contrôles que la création manuelle d'un compte (UsersService.create).
+    const attachment = rattachementPourRole(role, { divisionId, sectionId, celluleId });
+    await this.users.assertOrgAttachmentValid(attachment);
+    await this.users.assertUnitsActiveForNewAttachment(attachment);
+    await this.users.assertNoActiveChiefConflict(role, attachment);
+
     const passwordHash = await this.passwordService.hash(randomBytes(24).toString('base64url'));
     const user = await this.prisma.user.create({
-      data: { email, passwordHash, firstName, lastName, role, status: UserStatus.ACTIF, divisionId, sectionId, celluleId },
+      data: { email, passwordHash, firstName, lastName, role, status: UserStatus.ACTIF, ...attachment },
     });
 
     await this.audit.log({

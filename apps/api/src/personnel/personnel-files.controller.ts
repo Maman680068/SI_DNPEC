@@ -14,12 +14,9 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import type { Response } from 'express';
-import { SystemRole } from '@prisma/client';
-import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { AuthenticatedUser } from '../common/types/auth-user.type';
 import { PersonnelFilesService } from './personnel-files.service';
-import { PersonnelImportService } from './personnel-import.service';
 import { UpdatePersonnelBasicDto } from './dto/update-personnel-basic.dto';
 import { UpdatePersonnelSensitiveDto } from './dto/update-personnel-sensitive.dto';
 import { CreateDiplomaDto } from './dto/create-diploma.dto';
@@ -31,23 +28,13 @@ const fileInterceptorOptions = { storage: memoryStorage(), limits: { fileSize: M
 
 @Controller('personnel-files')
 export class PersonnelFilesController {
-  constructor(
-    private readonly filesService: PersonnelFilesService,
-    private readonly importService: PersonnelImportService,
-  ) {}
+  constructor(private readonly filesService: PersonnelFilesService) {}
 
   // Route statique déclarée avant ":userId" pour ne pas être capturée par lui
   // (même précaution que UsersController pour /pending, /resolve, /search...).
   @Get('me')
   getMine(@CurrentUser() actor: AuthenticatedUser) {
     return this.filesService.getFile(actor, actor.id);
-  }
-
-  @Roles(SystemRole.DRH)
-  @Post('import')
-  @UseInterceptors(FileInterceptor('file', fileInterceptorOptions))
-  importExcel(@UploadedFile() file: Express.Multer.File, @CurrentUser() actor: AuthenticatedUser) {
-    return this.importService.importFromWorkbook(actor, file.buffer);
   }
 
   @Get(':userId')
