@@ -1,0 +1,384 @@
+{
+  "version": "1",
+  "guides": [
+    {
+      "cle": "premiers-pas",
+      "titre": "Premiers pas",
+      "pour": "Tout le monde",
+      "profils": ["TOUS"],
+      "sections": [
+        {
+          "titre": "Se connecter",
+          "etapes": [
+            "Ouvrez l’adresse du SI DNPEC dans votre navigateur (ordinateur ou téléphone).",
+            "Saisissez votre adresse e-mail et votre mot de passe, puis cliquez sur « Se connecter ».",
+            "Si vous avez activé la double authentification, saisissez le code à 6 chiffres affiché par l’application de votre téléphone.",
+            "Mot de passe oublié : cliquez sur « Mot de passe oublié ? » sur la page de connexion ; un lien vous est envoyé par e-mail (valable 1 heure)."
+          ],
+          "capture": "connexion.png"
+        },
+        {
+          "titre": "Se repérer",
+          "etapes": [
+            "Le menu de gauche liste les modules auxquels vous avez accès : vous ne voyez que ceux qui vous concernent.",
+            "Sur téléphone, le menu s’ouvre avec le bouton ☰ en haut à gauche.",
+            "La cloche 🔔 (en haut) affiche vos notifications non lues : cliquez sur l’une d’elles pour ouvrir directement l’élément concerné.",
+            "L’enveloppe ✉ ouvre la messagerie ; une pastille rouge indique des messages non lus.",
+            "Un lien reçu par e-mail ouvre directement la bonne page, même s’il faut d’abord se reconnecter."
+          ],
+          "capture": "tableau-de-bord.png"
+        },
+        {
+          "titre": "Sécuriser son compte",
+          "etapes": [
+            "Cliquez sur le cadenas 🔒 en bas du menu, à côté de votre nom : page « Sécurité du compte ».",
+            "Cliquez sur « Activer la double authentification », scannez le QR code avec une application (Google Authenticator, Microsoft Authenticator, FreeOTP…), saisissez le code affiché et cliquez sur « Confirmer l’activation ».",
+            "Pour la désactiver, saisissez un code actuel de l’application et cliquez sur « Désactiver ».",
+            "Téléphone perdu ou changé : demandez à l’administrateur système de réinitialiser votre double authentification.",
+            "Pour vous déconnecter, cliquez sur ⏻ en bas du menu."
+          ],
+          "capture": "securite.png"
+        },
+        {
+          "titre": "Où trouver de l’aide",
+          "etapes": [
+            "Cette page (« Aide », dans le menu) ne montre que les guides de votre profil.",
+            "Une idée d’amélioration ? Menu Personnel → « Boîte à suggestions ».",
+            "Un problème technique ? Contactez l’administrateur système (CSID)."
+          ]
+        }
+      ]
+    },
+    {
+      "cle": "charge-etudes",
+      "titre": "Chargé d’Études",
+      "pour": "Personnel des Divisions et des Cellules",
+      "profils": ["AGENT"],
+      "sections": [
+        {
+          "titre": "Mes tâches",
+          "etapes": [
+            "Menu « Mes tâches » : la liste de vos tâches ; cliquez sur une tâche pour l’ouvrir.",
+            "Mettez à jour l’avancement, ajoutez un commentaire ou une pièce jointe dans la fiche de la tâche.",
+            "Quand le travail est fini, cliquez sur « Soumettre pour validation » : la personne qui vous l’a confiée la valide ou vous la renvoie avec un commentaire.",
+            "Vous voyez aussi, en lecture seule, les tâches de votre section."
+          ],
+          "capture": "taches.png"
+        },
+        {
+          "titre": "Congés et absences",
+          "etapes": [
+            "Menu Personnel → « Congés & absences » → « Nouvelle demande de congé ».",
+            "Choisissez le type, les dates et, si besoin, un motif, puis envoyez : votre chef est prévenu.",
+            "Vous recevez une notification quand la demande est approuvée ou rejetée ; « Mon solde » indique les jours restants."
+          ],
+          "capture": "conges.png"
+        },
+        {
+          "titre": "Communication, réunions, documents",
+          "etapes": [
+            "« Communication » : messagerie directe avec n’importe quel collègue, annonces et sondages qui vous sont adressés.",
+            "« Réunions » : vos invitations ; répondez « Confirmer ma présence » ou « Décliner ». Vous pouvez aussi créer une réunion et réserver une salle.",
+            "« Archives & documents » : les documents de votre division et les documents publiés."
+          ],
+          "capture": "reunions.png"
+        },
+        {
+          "titre": "Logistique",
+          "etapes": [
+            "Menu « Logistique » → « + Nouvelle demande » : fournitures, matériel ou intervention sur un bien.",
+            "Le circuit s’affiche avant l’envoi : validation par votre chef puis traitement par un gestionnaire, ou directement le gestionnaire.",
+            "Onglet « Mes biens » : le matériel qui vous est affecté ; « Signaler une panne » crée une demande d’intervention.",
+            "Onglet « Réservations » : choisissez un jour et des heures, « Voir les disponibilités », puis « Réserver »."
+          ],
+          "capture": "logistique.png"
+        },
+        {
+          "titre": "Mon dossier du personnel",
+          "etapes": [
+            "Menu Personnel → « Dossier du personnel » : vos informations administratives et personnelles.",
+            "Vérifiez-les puis cliquez sur « Confirmer mes informations » ; si quelque chose est faux, « Signaler une erreur » prévient le DRH.",
+            "Vos informations personnelles ne sont visibles que de vous et du DRH — jamais de votre chef ni de la Direction."
+          ],
+          "capture": "dossier.png"
+        }
+      ]
+    },
+    {
+      "cle": "chef-section",
+      "titre": "Chef de Section",
+      "pour": "Chefs de Section",
+      "profils": ["CHEF_SECTION"],
+      "sections": [
+        {
+          "titre": "Piloter les tâches de la section",
+          "etapes": [
+            "« Mes tâches » → « + Nouvelle tâche » : titre, échéance, priorité, confidentialité, puis « Assigner à » un ou plusieurs agents de votre section.",
+            "Le tableau de bord montre l’avancement, les retards et les tâches à valider.",
+            "Ouvrez une tâche soumise pour la valider ou la rejeter avec un commentaire."
+          ],
+          "capture": "taches.png"
+        },
+        {
+          "titre": "Congés de la section",
+          "etapes": [
+            "Congés & absences : les demandes de vos agents en attente de votre décision s’affichent dans la page.",
+            "Approuvez ou rejetez (motif obligatoire pour un rejet). Pour un congé maladie, le motif médical reste confidentiel."
+          ],
+          "capture": "conges.png"
+        },
+        {
+          "titre": "Courrier, demandes logistiques, stagiaires",
+          "etapes": [
+            "Courrier : traitez les courriers qui vous sont imputés et visez les actes de vos agents (onglet « À faire »).",
+            "Logistique → « À valider » : les demandes de vos agents qui exigent votre accord ; « Valider » ou « Refuser » avec un motif.",
+            "Stagiaires : acceptez ou refusez une période de stage dans votre section et désignez le tuteur ; visez les évaluations des tuteurs."
+          ],
+          "capture": "courrier.png"
+        },
+        {
+          "titre": "Absence : désigner un suppléant",
+          "etapes": [
+            "Menu Personnel → « Suppléances » → « Désigner un suppléant » : un chef de rang comparable, pour une période.",
+            "Pendant la période, votre suppléant choisit « Agir en intérim pour… » en haut de l’écran ; tout ce qu’il fait est tracé « au nom de » vous."
+          ],
+          "capture": "suppleances.png"
+        }
+      ]
+    },
+    {
+      "cle": "chef-division-cellule",
+      "titre": "Chef de Division ou de Cellule",
+      "pour": "Chefs de Division et Chefs de Cellule",
+      "profils": ["CHEF_DIVISION", "CHEF_CELLULE"],
+      "sections": [
+        {
+          "titre": "Votre périmètre",
+          "etapes": [
+            "Vous voyez les tâches, congés et demandes de toute votre division (ou cellule), sections comprises.",
+            "Le tableau de bord résume la charge, les retards et ce qui attend votre décision."
+          ],
+          "capture": "tableau-de-bord.png"
+        },
+        {
+          "titre": "Diffuser et valider",
+          "etapes": [
+            "« Mes tâches » → « Diffuser une tâche à une division » : une tâche collective ou une tâche par agent.",
+            "Validez les tâches soumises, les congés et les demandes logistiques de votre périmètre, comme un chef de section."
+          ],
+          "capture": "taches.png"
+        },
+        {
+          "titre": "Courrier de l’unité",
+          "etapes": [
+            "Courrier → « À faire » : imputez le courrier arrivée de votre unité (attribution, information, avis ; échéance), visez puis signez les actes des registres de votre unité.",
+            "Un courrier « Confidentiel » ou un « Pli personnel » n’est visible que des personnes autorisées."
+          ],
+          "capture": "courrier.png"
+        },
+        {
+          "titre": "Réservations prioritaires",
+          "etapes": [
+            "Si une salle est déjà réservée par une personne de votre périmètre, « Faire valoir la priorité » vous permet de prendre le créneau.",
+            "La personne est prévenue avec votre nom ; ce n’est jamais possible entre pairs ni vers un supérieur."
+          ],
+          "capture": "reservations.png"
+        }
+      ]
+    },
+    {
+      "cle": "direction",
+      "titre": "Directeur National (DN) et Directrice Nationale Adjointe (DNA)",
+      "pour": "DN et DNA",
+      "profils": ["DN", "DNA"],
+      "sections": [
+        {
+          "titre": "Vue d’ensemble",
+          "etapes": [
+            "Le tableau de bord couvre toute la DNPEC : tâches, retards, congés, courrier à imputer, stagiaires, logistique.",
+            "La visibilité s’arrête où commence le contenu protégé (congés maladie, plis personnels, informations personnelles du dossier) : c’est le principe du « besoin d’en connaître »."
+          ],
+          "capture": "tableau-de-bord.png"
+        },
+        {
+          "titre": "Courrier et actes",
+          "etapes": [
+            "Courrier → « À faire » : imputez le courrier arrivée de la Direction, signez les notes de service, décisions, ordres de mission et attestations.",
+            "La signature attribue le numéro définitif de l’acte ; il ne peut plus être modifié."
+          ],
+          "capture": "courrier.png"
+        },
+        {
+          "titre": "Suppléance et priorité",
+          "etapes": [
+            "Personnel → « Suppléances » : désignez qui agit en votre nom pendant une absence.",
+            "Réservations : vous avez la priorité sur toute la DNPEC, sauf entre le DN et la DNA, qui sont pairs."
+          ],
+          "capture": "suppleances.png"
+        }
+      ]
+    },
+    {
+      "cle": "assistant",
+      "titre": "Assistant(e) de Direction",
+      "pour": "Assistants du DN, de la DNA ou d’un Chef de Cellule",
+      "profils": ["ASSISTANT_DIRECTION"],
+      "sections": [
+        {
+          "titre": "Ce que vous voyez",
+          "etapes": [
+            "Vous voyez ce que voit la personne que vous assistez (tâches, réunions, congés de son périmètre), pour l’aider à suivre.",
+            "Vous n’avez pas son autorité : vous ne validez rien à sa place. Pour agir en son nom, il faut une suppléance."
+          ],
+          "capture": "tableau-de-bord.png"
+        },
+        {
+          "titre": "Organiser",
+          "etapes": [
+            "Réunions → « Nouvelle réunion » : invitez les participants et réservez une salle en indiquant le début et la fin.",
+            "Communication : messagerie avec tous les agents."
+          ],
+          "capture": "reunions.png"
+        }
+      ]
+    },
+    {
+      "cle": "secretariat-courrier",
+      "titre": "Secrétariat courrier",
+      "pour": "Personnes habilitées sur un registre du courrier",
+      "profils": ["SECRETARIAT_COURRIER"],
+      "sections": [
+        {
+          "titre": "Enregistrer le courrier arrivée",
+          "etapes": [
+            "Courrier → onglet « Arrivées » → « + Enregistrer un courrier » : choisissez le registre (seuls les vôtres sont proposés), l’expéditeur, l’objet, les dates, la confidentialité.",
+            "Joignez le scan (« Ajouter un scan ») ; le numéro est attribué automatiquement, sans trou.",
+            "Une date de réception dans le futur, ou un courrier daté après sa réception, demande une dérogation motivée.",
+            "Un courrier enregistré ne se supprime pas : en cas d’erreur, il s’annule avec un motif (le numéro reste consommé)."
+          ],
+          "capture": "courrier.png"
+        },
+        {
+          "titre": "Expédier",
+          "etapes": [
+            "Quand un départ ou un acte est signé, il apparaît dans « À faire » : « Expédier » en précisant le mode d’envoi.",
+            "Un courrier « Confidentiel » : vous ne voyez que son enregistrement, pas son contenu."
+          ]
+        }
+      ]
+    },
+    {
+      "cle": "drh",
+      "titre": "DRH",
+      "pour": "Direction des Ressources Humaines",
+      "profils": ["DRH"],
+      "sections": [
+        {
+          "titre": "Dossier du personnel",
+          "etapes": [
+            "Personnel → « Dossier du personnel » : tous les dossiers ; ouvrez-en un pour le compléter.",
+            "« Importer (Excel) » : création ou mise à jour en masse ; le rapport liste ce qui a été créé et les erreurs.",
+            "Les signalements d’erreur des agents vous arrivent par notification."
+          ],
+          "capture": "dossier.png"
+        },
+        {
+          "titre": "Stages",
+          "etapes": [
+            "Personnel → « Stagiaires » → « + Nouveau stage » : stagiaire, établissement, dates ; puis ajoutez les périodes (unité, dates, format d’évaluation).",
+            "Chaque responsable d’unité accepte la période et désigne le tuteur ; le changement d’unité se fait tout seul à la date prévue.",
+            "« Planning, capacités, modèle » : capacités d’accueil par unité et modèle d’attestation (Word avec des champs {{NOM_COMPLET}}, {{DATE_DEBUT}}…).",
+            "En fin de stage : « Clôturer », puis « Préparer l’attestation finale » (registre ATT) : l’acte part à la signature du DN ou de la DNA."
+          ],
+          "capture": "stages.png"
+        }
+      ]
+    },
+    {
+      "cle": "gestionnaire-logistique",
+      "titre": "Gestionnaire logistique",
+      "pour": "Personnes habilitées « gestionnaire logistique »",
+      "profils": ["GESTIONNAIRE_LOGISTIQUE"],
+      "sections": [
+        {
+          "titre": "Traiter les demandes",
+          "etapes": [
+            "Logistique → « Demandes » → « À traiter » : ouvrez une demande, « Prendre en charge », puis « Traiter » (quantité remise, compte rendu).",
+            "Pour un article dont le stock est suivi, la quantité remise sort du stock ; un stock insuffisant est refusé.",
+            "Vous ne traitez jamais votre propre demande : un autre gestionnaire s’en charge."
+          ],
+          "capture": "logistique.png"
+        },
+        {
+          "titre": "Inventaire et fournitures",
+          "etapes": [
+            "« Inventaire » → « + Nouveau bien » : le numéro d’inventaire est attribué automatiquement ; « Affecter » à une personne ou une unité.",
+            "Un bien hors d’usage se réforme (« Changer l’état » → Réformé, avec un motif) : il garde son numéro et son historique.",
+            "« Fournitures » : articles, « Entrée » pour réapprovisionner, « Sortie » (avec motif) ; une alerte arrive sous le seuil."
+          ],
+          "capture": "inventaire.png"
+        },
+        {
+          "titre": "Salles et matériel",
+          "etapes": [
+            "« Réservations » → « Ressources » : créez, renommez ou désactivez les salles et le matériel ; choisissez « confirmation immédiate » ou « validation du gestionnaire ».",
+            "« À valider » : acceptez ou refusez (motif) les réservations en attente."
+          ],
+          "capture": "reservations.png"
+        }
+      ]
+    },
+    {
+      "cle": "stagiaire",
+      "titre": "Stagiaire",
+      "pour": "Stagiaires accueillis à la DNPEC",
+      "profils": ["STAGIAIRE"],
+      "sections": [
+        {
+          "titre": "Mon stage",
+          "etapes": [
+            "Menu « Mon stage » : votre plan (unités, dates, tuteurs) et les évaluations une fois visées par le chef.",
+            "À la fin, l’attestation signée est téléchargeable ici ; cliquez sur « J’ai pris connaissance de mon attestation »."
+          ],
+          "capture": "mon-stage.png"
+        },
+        {
+          "titre": "Au quotidien",
+          "etapes": [
+            "« Mes tâches » : les tâches que votre tuteur ou votre chef vous confie.",
+            "« Communication » : messagerie et annonces.",
+            "Les autres modules (courrier, documents internes, logistique) ne sont pas ouverts aux stagiaires."
+          ],
+          "capture": "taches.png"
+        }
+      ]
+    },
+    {
+      "cle": "administrateur",
+      "titre": "Administrateur système",
+      "pour": "Cellule CSID",
+      "profils": ["ADMIN_SYSTEME"],
+      "sections": [
+        {
+          "titre": "Comptes",
+          "etapes": [
+            "Administration → « Utilisateurs » : « + Nouveau compte », approbation des inscriptions, suspension.",
+            "Sur un compte : « Changer de rôle » (aperçu des effets, puis confirmation avec un motif), mot de passe temporaire, lien de réinitialisation, « Réinitialiser la double authentification ».",
+            "Vous n’avez pas accès au contenu métier des agents (tâches, stages, courrier des autres)."
+          ],
+          "capture": "utilisateurs.png"
+        },
+        {
+          "titre": "Paramétrage",
+          "etapes": [
+            "« Organisation » : divisions, sections, cellules et leurs chefs.",
+            "« Courrier » : registres, habilitations des secrétariats, reprise des numéros papier.",
+            "« Logistique » : catégories (validation du chef oui/non) et gestionnaires.",
+            "« Stages (réglages) » : capacités d’accueil et modèle d’attestation, que vous tenez avec le DRH (jamais le contenu des stages)."
+          ],
+          "capture": "administration.png"
+        }
+      ]
+    }
+  ]
+}

@@ -23,6 +23,8 @@ const NAV_GROUPS: NavGroup[] = [
       { icon: '📨', label: 'Courrier', href: '/courrier' },
       // Logistique (D9) : tout profil sauf stagiaire (NAVIGATION_STAGIAIRE).
       { icon: '🧰', label: 'Logistique', href: '/logistique' },
+      // Aide (G4) : tout profil, stagiaire compris ; guides filtrés par GET /aide/profils.
+      { icon: '?', label: 'Aide', href: '/aide' },
     ],
   },
   {

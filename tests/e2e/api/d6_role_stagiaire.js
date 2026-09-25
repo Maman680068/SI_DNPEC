@@ -19,7 +19,7 @@ const OUVERTES = new Set([
   'GET /org/divisions', 'GET /org/divisions/:id', 'GET /org/cellules', 'GET /org/cellules/:id',
   'GET /org/divisions/:divisionId/sections', 'GET /org/sections/:id', 'GET /suppleances/mine',
 ]);
-const CLASSES_OUVERTES = ['/auth', '/messages', '/notifications', '/personnel-files', '/stages'];
+const CLASSES_OUVERTES = ['/auth', '/messages', '/notifications', '/personnel-files', '/stages', '/aide'];
 
 function routes() {
   const out = [];
