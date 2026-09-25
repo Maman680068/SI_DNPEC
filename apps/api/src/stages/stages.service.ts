@@ -16,6 +16,7 @@ import { CascadeService } from '../org/cascade/cascade.service';
 import { NotificationsService } from '../communication/notifications/notifications.service';
 import { PersonnelHistoryService } from '../personnel/personnel-history.service';
 import { UsersService } from '../users/users.service';
+import { AttestationService } from './attestation.service';
 import { AuthenticatedUser } from '../common/types/auth-user.type';
 import {
   CapaciteDto,
@@ -125,6 +126,7 @@ export class StagesService {
     private readonly notifications: NotificationsService,
     private readonly history: PersonnelHistoryService,
     private readonly users: UsersService,
+    private readonly attestation: AttestationService,
   ) {}
 
   // --------------------------------------------------------------------
@@ -743,6 +745,7 @@ export class StagesService {
       motifInterruption: s.motifInterruption,
       clotureAt: s.clotureAt,
       periodes,
+      attestation: await this.attestation.etat(actor, s.id, vue),
       droits: {
         modifier: drh && ouvert,
         ajouterPeriode: drh && ouvert,

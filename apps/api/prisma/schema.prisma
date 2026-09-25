@@ -564,13 +564,14 @@ model User {
   accesDelegueRevoques         AccesDelegueCourrier[] @relation("AccesDelegueRevoquePar")
 
   // Stages (D6)
-  stagesSuivis        Stage[]           @relation("StageStagiaire")
-  stagesCrees         Stage[]           @relation("StageCreePar")
-  periodesTutorees    PeriodeStage[]    @relation("PeriodeTuteur")
-  periodesDecidees    PeriodeStage[]    @relation("PeriodeDecideePar")
-  evaluationsRedigees EvaluationStage[] @relation("EvaluationRedacteur")
-  evaluationsVisees   EvaluationStage[] @relation("EvaluationViseePar")
-  capacitesFixees     CapaciteAccueil[] @relation("CapaciteFixeePar")
+  stagesSuivis        Stage[]             @relation("StageStagiaire")
+  stagesCrees         Stage[]             @relation("StageCreePar")
+  periodesTutorees    PeriodeStage[]      @relation("PeriodeTuteur")
+  periodesDecidees    PeriodeStage[]      @relation("PeriodeDecideePar")
+  evaluationsRedigees EvaluationStage[]   @relation("EvaluationRedacteur")
+  evaluationsVisees   EvaluationStage[]   @relation("EvaluationViseePar")
+  capacitesFixees     CapaciteAccueil[]   @relation("CapaciteFixeePar")
+  modelesAttestation  ModeleAttestation[] @relation("ModeleAttestationImportePar")
 
   @@map("users")
 }
@@ -1770,6 +1771,8 @@ model ActeCourrier {
   accesDelegues      AccesDelegueCourrier[]
   imputationsReponse ImputationCourrier[]   @relation("ImputationReponse")
 
+  stageAttestation Stage?
+
   @@unique([registreId, uniteKey, annee, sequence])
   @@index([redacteurId])
   @@map("actes_courrier")
@@ -1894,21 +1897,25 @@ enum EvaluationStageStatut {
 }
 
 model Stage {
-  id                  String      @id @default(cuid())
+  id                  String        @id @default(cuid())
   stagiaireId         String
-  stagiaire           User        @relation("StageStagiaire", fields: [stagiaireId], references: [id])
+  stagiaire           User          @relation("StageStagiaire", fields: [stagiaireId], references: [id])
   etablissement       String
   diplomePrepare      String?
   encadrantAcademique String?
-  dateDebut           DateTime    @db.Date
-  dateFin             DateTime    @db.Date
-  statut              StageStatut @default(PREVU)
+  dateDebut           DateTime      @db.Date
+  dateFin             DateTime      @db.Date
+  statut              StageStatut   @default(PREVU)
   motifInterruption   String?
   clotureAt           DateTime?
+  // Attestation finale : acte du module Courrier (registre d'attestations),
+  // le stagiaire en est bénéficiaire avec prise de connaissance.
+  attestationActeId   String?       @unique
+  attestationActe     ActeCourrier? @relation(fields: [attestationActeId], references: [id])
   createdById         String
-  createdBy           User        @relation("StageCreePar", fields: [createdById], references: [id])
-  createdAt           DateTime    @default(now())
-  updatedAt           DateTime    @updatedAt
+  createdBy           User          @relation("StageCreePar", fields: [createdById], references: [id])
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
 
   periodes PeriodeStage[]
 
@@ -1989,4 +1996,27 @@ model CapaciteAccueil {
   updatedAt  DateTime @updatedAt
 
   @@map("capacites_accueil")
+}
+
+enum ModeleAttestationType {
+  DOCX // champs {{CLE}} dans le texte
+  PDF // formulaire PDF : champs nommés comme les clés
+
+  @@map("modele_attestation_type")
+}
+
+/// Modèle d'attestation de stage importé par le DRH. Un seul actif : un nouvel
+/// import désactive le précédent (conservé, jamais supprimé).
+model ModeleAttestation {
+  id           String                @id @default(cuid())
+  type         ModeleAttestationType
+  fileKey      String
+  fileName     String
+  champs       Json // clés utilisées par le modèle
+  actif        Boolean               @default(true)
+  importeParId String
+  importePar   User                  @relation("ModeleAttestationImportePar", fields: [importeParId], references: [id])
+  createdAt    DateTime              @default(now())
+
+  @@map("modeles_attestation")
 }
