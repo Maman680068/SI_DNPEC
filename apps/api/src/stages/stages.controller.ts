@@ -53,6 +53,16 @@ export class StagesController {
 
   // --- Attestation : modèle (DRH) — routes statiques avant « :id » ---
 
+  @Get('stagiaires-disponibles')
+  stagiairesDisponibles(@CurrentUser() actor: AuthenticatedUser) {
+    return this.stages.stagiairesDisponibles(actor);
+  }
+
+  @Get('registres-attestation')
+  registresAttestation(@CurrentUser() actor: AuthenticatedUser) {
+    return this.attestation.registres(actor);
+  }
+
   @Get('modele-attestation')
   modele(@CurrentUser() actor: AuthenticatedUser) {
     return this.attestation.modele(actor);

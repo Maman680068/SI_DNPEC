@@ -162,6 +162,16 @@ export class StagesService {
     return this.presenter(actor, stage, vue, niveaux);
   }
 
+  /** Comptes que creer() accepte : stagiaires actifs sans stage prévu ou en cours. */
+  async stagiairesDisponibles(actor: AuthenticatedUser) {
+    this.assertDrh(actor);
+    return this.prisma.user.findMany({
+      where: { role: SystemRole.STAGIAIRE, status: UserStatus.ACTIF, stagesSuivis: { none: { statut: { in: STAGE_OUVERT } } } },
+      select: { id: true, firstName: true, lastName: true, email: true },
+      orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
+    });
+  }
+
   /** Personnes que accepter/changerTuteur accepteraient comme tuteur. */
   async tuteursPossibles(actor: AuthenticatedUser, stageId: string, periodeId: string) {
     const { stage, periode } = await this.chargerPeriode(stageId, periodeId);

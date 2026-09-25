@@ -7,6 +7,7 @@ import {
   PeriodeStageStatut,
   PieceCourrierNature,
   RegistreNature,
+  RegistrePortee,
   StageStatut,
   SystemRole,
   UserStatus,
@@ -111,6 +112,16 @@ export class AttestationService {
     return this.modele(actor);
   }
 
+  /** Registres que creerActe accepte : registres d'actes actifs. */
+  async registres(actor: AuthenticatedUser) {
+    this.assertDrh(actor);
+    return this.prisma.registreCourrier.findMany({
+      where: { nature: RegistreNature.ACTE, portee: RegistrePortee.DIRECTION, isActive: true },
+      select: { id: true, code: true, libelle: true, portee: true },
+      orderBy: { code: 'asc' },
+    });
+  }
+
   async telechargerModele(actor: AuthenticatedUser) {
     this.assertDrh(actor);
     const m = await this.modeleActif();
@@ -153,7 +164,9 @@ export class AttestationService {
     }
     const registre = await this.prisma.registreCourrier.findUnique({ where: { id: registreId } });
     if (!registre) throw new NotFoundException('Registre introuvable');
-    if (registre.nature !== RegistreNature.ACTE) throw new BadRequestException('Choisissez un registre d’actes (registre d’attestations).');
+    if (registre.nature !== RegistreNature.ACTE || registre.portee !== RegistrePortee.DIRECTION || !registre.isActive) {
+      throw new BadRequestException('Choisissez un registre d’actes actif de la Direction (signature par le DN ou la DNA).');
+    }
     if (stage.stagiaire.status !== UserStatus.ACTIF) throw new ConflictException('Le compte du stagiaire n’est plus actif : il ne peut pas être bénéficiaire de l’acte.');
     const doc = await this.produireDocument(stage);
     const acte = await this.actes.creer(actor, {
