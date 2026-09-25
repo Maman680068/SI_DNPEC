@@ -15,6 +15,7 @@ import { CreateTaskModal } from '../../../components/tasks/CreateTaskModal';
 import { BroadcastTaskModal } from '../../../components/tasks/BroadcastTaskModal';
 import { Button } from '../../../components/ui/Button';
 import { CarteCourrier } from '../../../components/courrier/CarteCourrier';
+import { CarteStages } from '../../../components/stages/CarteStages';
 
 /** Rôles pouvant plausiblement diffuser une tâche à une division (voir
  * CascadeService.canBroadcastToDivision) — DN/DNA n'importe laquelle, Chef de
@@ -118,6 +119,7 @@ export default function DashboardPage() {
       {dashboard && <KpiRow dashboard={dashboard} />}
 
       {!stagiaire && <CarteCourrier />}
+      {!stagiaire && <CarteStages />}
 
       <div className="mb-3.5 flex items-center justify-between">
         <h2 className="text-[16px] font-extrabold">Suivi des tâches</h2>

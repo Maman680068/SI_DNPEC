@@ -112,7 +112,7 @@ export async function apiFetch<T>(path: string, init: ApiInit = {}, isRetry = fa
 /** Télécharge un flux binaire (hors apiFetch : pas du JSON) avec la même
  * identité que l'écran, via une URL d'objet temporaire ; un refus de l'API
  * remonte avec SON message (ex. 403 d'un contenu réservé). */
-export async function telechargerFichier(path: string, fileName: string): Promise<void> {
+export async function telechargerFichier(path: string, fileName: string | null): Promise<void> {
   const res = await fetch(`${API_BASE_URL}${path}`, { headers: authHeaders() });
   if (!res.ok) {
     let message = 'Téléchargement impossible';
@@ -128,7 +128,9 @@ export async function telechargerFichier(path: string, fileName: string): Promis
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.download = fileName;
+  // Sans nom imposé par l'écran : celui que le serveur annonce.
+  const annonce = /filename="([^"]+)"/.exec(res.headers.get('content-disposition') ?? '')?.[1];
+  link.download = fileName ?? (annonce ? decodeURIComponent(annonce) : 'document');
   link.click();
   URL.revokeObjectURL(url);
 }

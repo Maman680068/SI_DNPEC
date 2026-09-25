@@ -29,12 +29,18 @@ const NAV_GROUPS: NavGroup[] = [
       // Dossier du personnel (D3) : tout profil — au moins son propre dossier ;
       // les autres selon GET /personnel-files.
       { icon: '📁', label: 'Dossier du personnel', href: '/personnel' },
+      // Stages (D6) : DRH, Direction, chefs ; « Mon stage » pour un stagiaire ;
+      // un tuteur y arrive par ses notifications et la carte du tableau de bord.
+      { icon: '🎓', label: 'Stagiaires', href: '/stages' },
       { icon: '🌴', label: 'Congés & absences', href: '/leaves' },
       { icon: '☰', label: 'Annuaire', href: '/annuaire' },
       { icon: '✦', label: 'Boîte à suggestions', href: '/suggestions' },
     ],
   },
 ];
+
+/** Rôles qui voient l'entrée « Stagiaires » (D6). */
+const STAGES_NAV_ROLES = ['DRH', 'DN', 'DNA', 'CHEF_DIVISION', 'CHEF_SECTION', 'CHEF_CELLULE'];
 
 /** Rôles pouvant être titulaire ou suppléant (§4.10, API CHEF_TIER_ROLES) —
  * rôle PROPRE de la personne, jamais le rôle emprunté pendant un intérim. */
@@ -45,13 +51,19 @@ const SUPPLEANCE_NAV_ROLES = ['DN', 'DNA', 'CHEF_DIVISION', 'CHEF_SECTION', 'CHE
  * ADMIN_SYSTEME uniquement (voir app/(app)/organisation/page.tsx). */
 function navGroupsFor(role: string | undefined): NavGroup[] {
   if (estStagiaire(role)) {
-    return NAV_GROUPS.map((g) => ({ ...g, items: g.items.filter((i) => NAVIGATION_STAGIAIRE.includes(i.href ?? '')) })).filter((g) => g.items.length > 0);
+    return NAV_GROUPS.map((g) => ({
+      ...g,
+      items: g.items.filter((i) => NAVIGATION_STAGIAIRE.includes(i.href ?? '')).map((i) => (i.href === '/stages' ? { ...i, label: 'Mon stage' } : i)),
+    })).filter((g) => g.items.length > 0);
   }
+  const base = STAGES_NAV_ROLES.includes(role ?? '')
+    ? NAV_GROUPS
+    : NAV_GROUPS.map((g) => ({ ...g, items: g.items.filter((i) => i.href !== '/stages') }));
   const groups = SUPPLEANCE_NAV_ROLES.includes(role ?? '')
-    ? NAV_GROUPS.map((g) =>
+    ? base.map((g) =>
         g.label === 'Personnel' ? { ...g, items: [...g.items, { icon: '⇄', label: 'Suppléances', href: '/suppleances' }] } : g,
       )
-    : NAV_GROUPS;
+    : base;
   const adminItems: NavGroup['items'] = [];
   if (USERS_PAGE_VISIBLE_ROLES.includes(role ?? '')) {
     adminItems.push({ icon: '👤', label: 'Utilisateurs', href: '/users' });
