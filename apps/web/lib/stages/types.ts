@@ -109,9 +109,15 @@ export interface Planning {
   periodes: (Pick<Periode, 'id' | 'dateDebut' | 'dateFin' | 'statut' | 'formatEvaluation'> & { uniteKey: string; unite: string; stageId: string; stagiaire: Personne; tuteur: Personne | null })[];
 }
 
+export interface Capacites {
+  peutModifier: boolean;
+  voitPlanning: boolean;
+  capacites: { uniteKey: string; maximum: number; libelle: string }[];
+}
+
 export interface ModeleAttestation {
   champsDisponibles: { cle: string; description: string }[];
-  modele: { id: string; type: 'DOCX' | 'PDF'; fileName: string; champs: string[]; createdAt: string; importePar: Personne } | null;
+  modele: { id: string; type: 'DOCX' | 'PDF'; fileName: string; champs: string[]; createdAt: string; importePar: Personne | null; parDefaut: boolean } | null;
 }
 
 export interface PeriodeInput {

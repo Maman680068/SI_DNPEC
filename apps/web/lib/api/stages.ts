@@ -1,5 +1,5 @@
 import { apiFetch, telechargerFichier } from './client';
-import type { Candidat, FormatEvaluation, ListeStages, ModeleAttestation, PeriodeInput, Planning, Stage } from '../stages/types';
+import type { Capacites, Candidat, FormatEvaluation, ListeStages, ModeleAttestation, PeriodeInput, Planning, Stage } from '../stages/types';
 
 const j = (body: unknown) => ({ body: JSON.stringify(body) });
 
@@ -8,6 +8,7 @@ export const getStage = (id: string) => apiFetch<Stage>(`/stages/${id}`);
 export const getStagiairesDisponibles = () => apiFetch<Candidat[]>('/stages/stagiaires-disponibles');
 export const getPlanning = (debut?: string, fin?: string) =>
   apiFetch<Planning>(`/stages/planning${debut ? `?debut=${debut}${fin ? `&fin=${fin}` : ''}` : ''}`);
+export const getCapacites = () => apiFetch<Capacites>('/stages/capacites');
 export const fixerCapacite = (uniteKey: string, maximum: number | null) => apiFetch('/stages/capacites', { method: 'PUT', ...j({ uniteKey, maximum }) });
 
 export const creerStage = (input: { stagiaireId: string; etablissement: string; diplomePrepare?: string; encadrantAcademique?: string; dateDebut: string; dateFin: string }) =>

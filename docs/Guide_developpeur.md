@@ -71,6 +71,14 @@ appels API réels sur serveur local (voir les messages de commit existants).
   jamais empruntées en intérim.
 - Stages (`stages/`, D6) : job quotidien `StagesRotationService.executer(now)` (appelable avec une
   date simulée) ; attestation finale = acte du Courrier (`ActesService`).
+  Réglages (capacités, modèle d'attestation) : DRH **et** administrateur système
+  (`stages/reglages-stages.ts`) ; le contenu des stages reste au DRH. Modèle livré avec
+  l'application : clé de fichier `integre:<nom>` → `apps/api/assets/`.
+- Paramétrage initial : `apps/api/prisma/parametrage.ts` (workflow manuel
+  `db-parametrage.yml`, mot « parametrer »). Création seulement, identité stable, trace
+  d'audit « Système » (`entityType: 'Parametrage'`) : un élément supprimé à l'écran n'est
+  jamais recréé. Tout nouvel élément de paramétrage doit suivre ce modèle et rester
+  modifiable à l'écran ; aucun élément ne dépend du compte qui l'a créé.
 - Logistique (`logistique/`, D9) : numérotation d'inventaire et stock protégés en base (triggers,
   CHECK) ; réservations sans chevauchement (trigger qui verrouille la ressource) ; priorité
   hiérarchique = `ReservationsService.peutEvincer` (cascade ; DN et DNA pairs entre eux) ; une réunion

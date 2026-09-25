@@ -74,6 +74,8 @@ function navGroupsFor(role: string | undefined): NavGroup[] {
     adminItems.push({ icon: '🏛', label: 'Organisation', href: '/organisation' });
     adminItems.push({ icon: '📨', label: 'Courrier', href: '/courrier/administration' });
     adminItems.push({ icon: '🧰', label: 'Logistique', href: '/logistique/administration' });
+    // Réglages des stages (capacités, modèle d'attestation), jamais leur contenu.
+    adminItems.push({ icon: '🎓', label: 'Stages (réglages)', href: '/stages/parametres' });
   }
   if (adminItems.length === 0) return groups;
   return [...groups, { label: 'Administration', items: adminItems }];

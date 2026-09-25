@@ -2,8 +2,8 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { fixerCapacite, getModeleAttestation, getPlanning, importerModeleAttestation, telechargerModele } from '../../../../lib/api/stages';
-import type { ModeleAttestation, Planning } from '../../../../lib/stages/types';
+import { fixerCapacite, getCapacites, getModeleAttestation, getPlanning, importerModeleAttestation, telechargerModele } from '../../../../lib/api/stages';
+import type { Capacites, ModeleAttestation, Planning } from '../../../../lib/stages/types';
 import { PERIODE_STATUT_LABEL } from '../../../../lib/stages/types';
 import { Erreur, Libelle, SELECT_CLASS, messageErreur } from '../../../../components/courrier/ui';
 import { ChoixUnite } from '../../../../components/stages/FenetresStage';
@@ -18,6 +18,7 @@ const cle = (u: { divisionId: string | null; sectionId: string | null; celluleId
 export default function ParametresStagesPage() {
   const [modele, setModele] = useState<ModeleAttestation | null>(null);
   const [planning, setPlanning] = useState<Planning | null>(null);
+  const [reglages, setReglages] = useState<Capacites | null>(null);
   const [erreurChargement, setErreurChargement] = useState<string | null>(null);
   const [fichier, setFichier] = useState<File | null>(null);
   const [unite, setUnite] = useState({ divisionId: null as string | null, sectionId: null as string | null, celluleId: null as string | null });
@@ -28,7 +29,14 @@ export default function ParametresStagesPage() {
 
   const charger = useCallback(() => {
     getModeleAttestation().then(setModele).catch((e) => setErreurChargement(messageChargement(e)));
-    getPlanning().then(setPlanning).catch((e) => setErreurChargement(messageChargement(e)));
+    // Capacités seules (DRH et administrateur système) ; le planning, qui montre
+    // des stagiaires, seulement si l'API dit qu'il est visible (jamais pour l'admin).
+    getCapacites()
+      .then((r) => {
+        setReglages(r);
+        if (r.voitPlanning) getPlanning().then(setPlanning).catch((e) => setErreurChargement(messageChargement(e)));
+      })
+      .catch((e) => setErreurChargement(messageChargement(e)));
   }, []);
   useEffect(() => {
     charger();
@@ -62,10 +70,12 @@ export default function ParametresStagesPage() {
   return (
     <div className="max-w-[960px]">
       <ErreurChargement message={erreurChargement} />
-      <Link href="/stages" className="mb-4 inline-block text-[13px] text-accent">
-        ← Stagiaires
-      </Link>
-      <h1 className="mb-5 text-[22px] font-extrabold">Planning, capacités et modèle d’attestation</h1>
+      {reglages?.voitPlanning && (
+        <Link href="/stages" className="mb-4 inline-block text-[13px] text-accent">
+          ← Stagiaires
+        </Link>
+      )}
+      <h1 className="mb-5 text-[22px] font-extrabold">{reglages && !reglages.voitPlanning ? 'Réglages des stages' : 'Planning, capacités et modèle d’attestation'}</h1>
       <Erreur message={erreur} />
       {info && <div className="mb-4 rounded-md bg-sage-soft px-3.5 py-3 text-[13px] text-sage">{info}</div>}
 
@@ -73,8 +83,11 @@ export default function ParametresStagesPage() {
         <h2 className="mb-2 text-[15px] font-bold">Modèle d’attestation</h2>
         {modele?.modele ? (
           <p className="mb-3 text-[13px]">
-            Modèle actif : <strong>{modele.modele.fileName}</strong> ({modele.modele.type === 'DOCX' ? 'Word' : 'PDF à champs'}), importé le {date(modele.modele.createdAt)} par{' '}
-            {modele.modele.importePar.firstName} {modele.modele.importePar.lastName} — champs utilisés : {modele.modele.champs.join(', ')}.{' '}
+            Modèle actif : <strong>{modele.modele.fileName}</strong> ({modele.modele.type === 'DOCX' ? 'Word' : 'PDF à champs'}),{' '}
+            {modele.modele.parDefaut
+              ? 'modèle par défaut de la DNPEC, fourni avec l’application'
+              : `importé le ${date(modele.modele.createdAt)}${modele.modele.importePar ? ` par ${modele.modele.importePar.firstName} ${modele.modele.importePar.lastName}` : ''}`}{' '}
+            — champs utilisés : {modele.modele.champs.join(', ')}. Pour le remplacer, importez un autre modèle ci-dessous.{' '}
             <button className="text-accent underline" onClick={() => agir(() => telechargerModele(), 'Modèle téléchargé.')}>
               Télécharger
             </button>
@@ -118,14 +131,14 @@ export default function ParametresStagesPage() {
       <section className="mb-6 rounded-lg border border-line bg-surface p-4" data-testid="capacites">
         <h2 className="mb-2 text-[15px] font-bold">Capacités d’accueil</h2>
         <p className="mb-3 text-[12.5px] text-text-muted">Nombre maximal de stagiaires simultanés ; au-delà, une période est refusée. Une période en section compte aussi pour sa division.</p>
-        {planning && planning.capacites.length > 0 && (
+        {reglages && reglages.capacites.length > 0 && (
           <ul className="mb-3 text-[13px]">
-            {planning.capacites.map((c) => (
+            {reglages.capacites.map((c) => (
               <li key={c.uniteKey} className="flex items-center justify-between gap-2 border-b border-line py-1.5 last:border-b-0">
                 <span>
                   {c.libelle} : <strong>{c.maximum}</strong>
                 </span>
-                {planning.peutFixerCapacites && (
+                {reglages.peutModifier && (
                   <button className="text-[12.5px] text-accent underline" onClick={() => agir(() => fixerCapacite(c.uniteKey, null), 'Limite retirée.')}>
                     Retirer la limite
                   </button>
@@ -134,7 +147,7 @@ export default function ParametresStagesPage() {
             ))}
           </ul>
         )}
-        {planning?.peutFixerCapacites && (
+        {reglages?.peutModifier && (
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -155,6 +168,7 @@ export default function ParametresStagesPage() {
         )}
       </section>
 
+      {reglages?.voitPlanning && (
       <section className="mb-6" data-testid="planning">
         <h2 className="mb-2 text-[15px] font-bold">Planning {planning ? `du ${date(planning.debut)} au ${date(planning.fin)}` : ''}</h2>
         {parUnite.length === 0 ? (
@@ -182,6 +196,7 @@ export default function ParametresStagesPage() {
           ))
         )}
       </section>
+      )}
     </div>
   );
 }
