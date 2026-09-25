@@ -8,6 +8,7 @@ import type { Meeting } from '../../lib/meetings/types';
 import { RESPONSE_STATUS_LABEL } from '../../lib/meetings/types';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
+import { DecisionsSection } from './DecisionsSection';
 
 function formatWhen(iso: string): string {
   return new Date(iso).toLocaleString('fr-FR', { dateStyle: 'long', timeStyle: 'short' });
@@ -113,6 +114,8 @@ export function MeetingDetailDrawer({
             ))}
           </ul>
         </div>
+
+        <DecisionsSection meetingId={meeting.id} />
 
         {error && <div className="mb-4 rounded-md bg-clay-soft px-3 py-2.5 text-[13px] text-clay">{error}</div>}
 

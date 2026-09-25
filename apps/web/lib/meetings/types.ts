@@ -1,3 +1,6 @@
+import type { SystemRole } from '../auth/types';
+import type { TaskStatus } from '../tasks/types';
+
 export type MeetingStatus = 'PLANIFIEE' | 'ANNULEE';
 export type MeetingResponseStatus = 'EN_ATTENTE' | 'CONFIRME' | 'DECLINE';
 
@@ -38,3 +41,48 @@ export const RESPONSE_STATUS_LABEL: Record<MeetingResponseStatus, string> = {
   CONFIRME: 'Confirmé',
   DECLINE: 'Décliné',
 };
+
+// ---- Décisions de réunion (D2) -------------------------------------------
+
+export type DecisionStatus = 'EN_ATTENTE' | 'CLOTUREE';
+
+/** Actions permises à l'utilisateur, calculées par l'API (l'écran n'en déduit aucune). */
+export interface DecisionDroits {
+  modifier: boolean;
+  convertir: boolean;
+  cloturer: boolean;
+  relancer: boolean;
+}
+
+export interface Decision {
+  id: string;
+  meetingId: string;
+  content: string;
+  status: DecisionStatus;
+  closedAt: string | null;
+  closedById: string | null;
+  createdById: string;
+  createdAt: string;
+  updatedAt: string;
+  action: { id: string; title: string; status: TaskStatus; dueDate: string | null } | null;
+  droits: DecisionDroits;
+}
+
+export interface DecisionsReleve {
+  peutAjouter: boolean;
+  decisions: Decision[];
+}
+
+export interface ResponsablePossible {
+  id: string;
+  firstName: string;
+  lastName: string;
+  role: SystemRole;
+  jobTitle: string | null;
+}
+
+export interface ConvertDecisionInput {
+  title?: string;
+  assigneeId: string;
+  dueDate: string;
+}
