@@ -1,0 +1,88 @@
+name: CI — suite de bout en bout
+
+# Sur chaque pull request (et à la demande) : base PostgreSQL JETABLE créée par
+# le runner, migrations appliquées sur base vide, build de l'API et du web,
+# suite complète (API + Chromium). N'utilise AUCUN secret et ne touche JAMAIS la
+# production : DATABASE_URL est écrite ici en clair et pointe sur localhost, et
+# tests/e2e/scripts/garde-locale.sh refuse toute autre adresse.
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: dnpec
+          POSTGRES_PASSWORD: dnpec
+          POSTGRES_DB: dnpec_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U dnpec -d dnpec_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      DATABASE_URL: postgresql://dnpec:dnpec@localhost:5432/dnpec_ci?schema=public
+      JWT_ACCESS_SECRET: secret-de-test-ci-sans-valeur
+      JWT_ACCESS_EXPIRES_IN: 2h
+      WEB_APP_URL: http://localhost:3100
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:3000
+      API_BASE_URL: http://localhost:3000
+      TZ: UTC
+    steps:
+      - name: Checkout du dépôt
+        uses: actions/checkout@v4
+
+      - name: Installer pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+
+      - name: Installer Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Installer les dépendances (lockfile figé)
+        run: pnpm install --frozen-lockfile
+
+      - name: Outils des tests (python-docx, Chromium, client PostgreSQL)
+        run: |
+          pip install python-docx
+          pnpm --filter @dnpec/e2e exec playwright install --with-deps chromium
+          sudo apt-get install -y postgresql-client lsof >/dev/null
+
+      - name: Vérification des types (API et web)
+        run: |
+          pnpm --filter @dnpec/api exec prisma generate
+          pnpm --filter @dnpec/api typecheck
+          pnpm --filter @dnpec/web typecheck
+
+      - name: Suite complète (base vide, migrations, build, API + Chromium)
+        run: bash tests/e2e/run_all.sh
+
+      - name: Résultats (résumé, journaux, captures)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: resultats-e2e
+          path: |
+            tests/e2e/out/resume.txt
+            tests/e2e/out/logs/
+            tests/e2e/out/shots/
+          retention-days: 14
