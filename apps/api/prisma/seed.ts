@@ -18,11 +18,14 @@ const CELLULES = [
   { code: 'CSID', name: "Cellule des Systèmes d'Informations et de la Digitalisation" },
 ];
 
+// Crée seulement les cellules manquantes. Une cellule déjà en base n'est JAMAIS
+// modifiée (ni son identifiant ni son nom, qui a pu être changé dans
+// Administration → Organisation) : ce seed est lancé à chaque db-migrate.yml.
 async function main() {
   for (const cellule of CELLULES) {
     await prisma.cellule.upsert({
       where: { code: cellule.code },
-      update: { name: cellule.name },
+      update: {},
       create: cellule,
     });
   }
