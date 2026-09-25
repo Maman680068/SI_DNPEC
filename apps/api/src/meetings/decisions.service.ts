@@ -135,17 +135,37 @@ export class DecisionsService {
       this.cascade.assertHasDirectAuthorityOver(actor, assignee);
     }
 
-    const task = await this.prisma.task.create({
-      data: {
-        title: dto.title?.trim() || decision.content.slice(0, 300),
-        description: dto.description,
-        dueDate: new Date(dto.dueDate),
-        createdById: actor.id,
-        sourceDecisionId: decision.id,
-        assignees: { create: [{ userId: dto.assigneeId }] },
-      },
-      select: { id: true, title: true },
-    });
+    // Rattachement de la tâche à l'unité du responsable désigné, pour que la
+    // cascade (Chef de Section/Division/Cellule de l'assigné) la voie comme
+    // n'importe quelle tâche de son périmètre. Assigné sans unité (DN/DNA,
+    // Assistant) : tâche sans rattachement, comme avant.
+    //
+    // Double-clic / requêtes concurrentes : le contrôle `decision.action`
+    // ci-dessus ne suffit pas (deux requêtes peuvent le passer ensemble) —
+    // Task.sourceDecisionId est @unique, la seconde création échoue en P2002,
+    // traduite ici en 409 explicite. Rien n'est audité ni notifié dans ce cas.
+    let task: { id: string; title: string };
+    try {
+      task = await this.prisma.task.create({
+        data: {
+          title: dto.title?.trim() || decision.content.slice(0, 300),
+          description: dto.description,
+          dueDate: new Date(dto.dueDate),
+          createdById: actor.id,
+          sourceDecisionId: decision.id,
+          divisionId: assignee.divisionId,
+          sectionId: assignee.sectionId,
+          celluleId: assignee.celluleId,
+          assignees: { create: [{ userId: dto.assigneeId }] },
+        },
+        select: { id: true, title: true },
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        throw new ConflictException('Cette décision a déjà une action associée.');
+      }
+      throw error;
+    }
 
     await this.audit.log({
       actorId: actor.id,

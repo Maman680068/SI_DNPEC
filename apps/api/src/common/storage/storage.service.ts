@@ -31,6 +31,44 @@ export class StorageService {
     return { fileKey, sizeBytes: buffer.length };
   }
 
+  /**
+   * Dépose le fichier, puis exécute `persist` (l'écriture en base qui le
+   * référence : create, upsert ou transaction). Si `persist` échoue, le
+   * fichier déposé est supprimé (compensation) avant de relancer l'erreur
+   * d'origine — jamais de fichier orphelin sur le disque sans ligne en base.
+   * L'échec éventuel de la suppression elle-même n'écrase jamais l'erreur
+   * d'origine (c'est elle que l'appelant doit voir).
+   */
+  async saveThen<T>(
+    buffer: Buffer,
+    originalName: string,
+    persist: (saved: { fileKey: string; sizeBytes: number }) => Promise<T>,
+  ): Promise<T> {
+    const saved = await this.save(buffer, originalName);
+    try {
+      return await persist(saved);
+    } catch (error) {
+      await this.delete(saved.fileKey).catch(() => undefined);
+      throw error;
+    }
+  }
+
+  /** Variante de saveThen pour plusieurs fichiers déposés ensemble (ex. scans
+   * d'un courrier) : tous sont supprimés si l'écriture en base échoue. */
+  async saveAllThen<T>(
+    files: { buffer: Buffer; originalName: string }[],
+    persist: (saved: { fileKey: string; sizeBytes: number }[]) => Promise<T>,
+  ): Promise<T> {
+    const saved: { fileKey: string; sizeBytes: number }[] = [];
+    try {
+      for (const f of files) saved.push(await this.save(f.buffer, f.originalName));
+      return await persist(saved);
+    } catch (error) {
+      await Promise.all(saved.map((s) => this.delete(s.fileKey).catch(() => undefined)));
+      throw error;
+    }
+  }
+
   async readBuffer(fileKey: string): Promise<Buffer> {
     const filePath = this.resolvePath(fileKey);
     if (!existsSync(filePath)) throw new NotFoundException('Fichier introuvable sur le stockage');

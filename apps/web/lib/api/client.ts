@@ -13,9 +13,13 @@ export class ApiError extends Error {
 
 type TokenGetter = () => string | null;
 type Refresher = () => Promise<string | null>;
+type InterimGetter = () => string | null;
+type InterimRejectedHandler = (message: string) => void;
 
 let getAccessToken: TokenGetter = () => null;
 let refreshAccessToken: Refresher = async () => null;
+let getInterimFor: InterimGetter = () => null;
+let onInterimRejected: InterimRejectedHandler = () => {};
 
 /** Branché une seule fois par AuthProvider au montage — évite un import circulaire lib/api <-> lib/auth. */
 export function registerAuthHooks(getter: TokenGetter, refresher: Refresher): void {
@@ -23,10 +27,33 @@ export function registerAuthHooks(getter: TokenGetter, refresher: Refresher): vo
   refreshAccessToken = refresher;
 }
 
-/** Pour les cas hors apiFetch (téléchargement de fichier en blob) qui doivent poser
- * le même en-tête Authorization sans passer par le parsing JSON d'apiFetch. */
-export function getCurrentAccessToken(): string | null {
-  return getAccessToken();
+/**
+ * Suppléance/intérim (§4.10) — branché par InterimProvider, même principe que
+ * registerAuthHooks. `getter` renvoie l'id du titulaire au nom de qui l'onglet
+ * agit (ou null) : posé en en-tête X-Interim-For sur CHAQUE requête, jamais
+ * de façon ambiante côté serveur. `onRejected` est appelé quand l'API refuse
+ * cet intérim (suppléance expirée, révoquée ou non conforme) — le mode est
+ * alors quitté immédiatement plutôt que de laisser l'onglet dans un état où
+ * toutes les requêtes échouent.
+ */
+export function registerInterimHooks(getter: InterimGetter, onRejected: InterimRejectedHandler): void {
+  getInterimFor = getter;
+  onInterimRejected = onRejected;
+}
+
+/** Messages de refus de JwtAuthGuard propres à l'en-tête X-Interim-For. */
+const INTERIM_REJECTION_PATTERNS = ['Aucune suppléance active', 'rang comparable'];
+
+/** En-têtes d'authentification (jeton + intérim éventuel) — pour les appels hors
+ * apiFetch (téléchargement de fichier en blob, exports), qui doivent agir avec
+ * exactement la même identité que le reste de l'écran. */
+export function authHeaders(): Record<string, string> {
+  const headers: Record<string, string> = {};
+  const token = getAccessToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const interimFor = getInterimFor();
+  if (interimFor) headers['X-Interim-For'] = interimFor;
+  return headers;
 }
 
 async function parseBody(res: Response): Promise<unknown> {
@@ -44,17 +71,26 @@ async function parseBody(res: Response): Promise<unknown> {
  * routes — voir lib/auth/types.ts). Sur 401, tente un unique rafraîchissement silencieux
  * via /api/auth/refresh puis rejoue la requête une fois.
  */
-export async function apiFetch<T>(path: string, init: RequestInit = {}, isRetry = false): Promise<T> {
+export type ApiInit = RequestInit & {
+  /** N'envoie PAS X-Interim-For : requête faite en son nom propre même pendant un
+   * intérim (ex. lister ses propres suppléances pour construire le sélecteur). */
+  skipInterim?: boolean;
+};
+
+export async function apiFetch<T>(path: string, init: ApiInit = {}, isRetry = false): Promise<T> {
   const token = getAccessToken();
-  const headers = new Headers(init.headers);
+  const { skipInterim, ...requestInit } = init;
+  const interimFor = skipInterim ? null : getInterimFor();
+  const headers = new Headers(requestInit.headers);
   // FormData (upload de fichier) : jamais fixer Content-Type nous-mêmes — le
   // navigateur doit poser le boundary multipart lui-même à partir du body réel.
   if (!(init.body instanceof FormData)) {
     headers.set('Content-Type', 'application/json');
   }
   if (token) headers.set('Authorization', `Bearer ${token}`);
+  if (interimFor) headers.set('X-Interim-For', interimFor);
 
-  const res = await fetch(`${API_BASE_URL}${path}`, { ...init, headers });
+  const res = await fetch(`${API_BASE_URL}${path}`, { ...requestInit, headers });
 
   if (res.status === 401 && !isRetry) {
     const newToken = await refreshAccessToken();
@@ -63,8 +99,12 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}, isRetry 
 
   const body = await parseBody(res);
   if (!res.ok) {
-    const message = (body as { message?: string | string[] })?.message;
-    throw new ApiError(res.status, Array.isArray(message) ? message.join(', ') : message ?? res.statusText);
+    const raw = (body as { message?: string | string[] })?.message;
+    const message = Array.isArray(raw) ? raw.join(', ') : raw ?? res.statusText;
+    if (res.status === 403 && interimFor && INTERIM_REJECTION_PATTERNS.some((p) => message.includes(p))) {
+      onInterimRejected(message);
+    }
+    throw new ApiError(res.status, message);
   }
   return body as T;
 }

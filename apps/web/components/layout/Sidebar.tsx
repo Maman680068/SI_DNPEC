@@ -13,10 +13,13 @@ const NAV_GROUPS: NavGroup[] = [
     label: 'Général',
     items: [
       { icon: '▦', label: 'Tableau de bord', href: '/dashboard' },
-      { icon: '✎', label: 'Mes tâches' },
+      { icon: '✎', label: 'Mes tâches', href: '/tasks' },
       { icon: '✉', label: 'Communication', href: '/communication' },
       { icon: '🗂', label: 'Archives & documents', href: '/documents' },
       { icon: '🗓', label: 'Réunions', href: '/reunions' },
+      // Courrier et actes (D7) : tout profil — l'administrateur système n'y voit
+      // que son courrier personnel ; il en a aussi le paramétrage (Administration).
+      { icon: '📨', label: 'Courrier', href: '/courrier' },
     ],
   },
   {
@@ -29,19 +32,29 @@ const NAV_GROUPS: NavGroup[] = [
   },
 ];
 
+/** Rôles pouvant être titulaire ou suppléant (§4.10, API CHEF_TIER_ROLES) —
+ * rôle PROPRE de la personne, jamais le rôle emprunté pendant un intérim. */
+const SUPPLEANCE_NAV_ROLES = ['DN', 'DNA', 'CHEF_DIVISION', 'CHEF_SECTION', 'CHEF_CELLULE'];
+
 /** "Utilisateurs" n'apparaît que pour ADMIN_SYSTEME (gestion complète) et DN/DNA
  * (lecture seule — voir app/(app)/users/page.tsx). "Organisation" est réservée à
  * ADMIN_SYSTEME uniquement (voir app/(app)/organisation/page.tsx). */
 function navGroupsFor(role: string | undefined): NavGroup[] {
+  const groups = SUPPLEANCE_NAV_ROLES.includes(role ?? '')
+    ? NAV_GROUPS.map((g) =>
+        g.label === 'Personnel' ? { ...g, items: [...g.items, { icon: '⇄', label: 'Suppléances', href: '/suppleances' }] } : g,
+      )
+    : NAV_GROUPS;
   const adminItems: NavGroup['items'] = [];
   if (USERS_PAGE_VISIBLE_ROLES.includes(role ?? '')) {
     adminItems.push({ icon: '👤', label: 'Utilisateurs', href: '/users' });
   }
   if (role === 'ADMIN_SYSTEME') {
     adminItems.push({ icon: '🏛', label: 'Organisation', href: '/organisation' });
+    adminItems.push({ icon: '📨', label: 'Courrier', href: '/courrier/administration' });
   }
-  if (adminItems.length === 0) return NAV_GROUPS;
-  return [...NAV_GROUPS, { label: 'Administration', items: adminItems }];
+  if (adminItems.length === 0) return groups;
+  return [...groups, { label: 'Administration', items: adminItems }];
 }
 
 function initials(firstName: string, lastName: string): string {
@@ -52,6 +65,12 @@ export function Sidebar({ open = false, onClose }: { open?: boolean; onClose?: (
   const { user, logout } = useAuth();
   const pathname = usePathname();
   const navGroups = navGroupsFor(user?.role);
+  // Entrée active : le lien le plus précis qui contient la page (Courrier et
+  // Administration → Courrier ne s'allument jamais ensemble).
+  const activeHref = navGroups
+    .flatMap((g) => g.items.map((i) => i.href ?? ''))
+    .filter((h) => h && (pathname === h || pathname?.startsWith(`${h}/`)))
+    .sort((a, b) => b.length - a.length)[0];
 
   // Referme le tiroir mobile à chaque changement de page — sans ça, naviguer
   // depuis le tiroir le laisserait ouvert par-dessus la page suivante.
@@ -96,7 +115,7 @@ export function Sidebar({ open = false, onClose }: { open?: boolean; onClose?: (
               {group.label}
             </div>
             {group.items.map((item) => {
-              const active = !!item.href && pathname?.startsWith(item.href);
+              const active = !!item.href && item.href === activeHref;
               const className = `mb-0.5 flex items-center gap-3 rounded-md px-2.5 py-2 text-[13.6px] font-medium ${
                 active
                   ? 'bg-accent-soft font-bold text-ink shadow-[inset_3px_0_0_theme(colors.gold.DEFAULT)]'

@@ -6,6 +6,7 @@ import { CascadeService } from '../org/cascade/cascade.service';
 import { NotificationsService } from '../communication/notifications/notifications.service';
 import { AuthenticatedUser } from '../common/types/auth-user.type';
 import { CreateSuppleanceDto } from './dto/create-suppleance.dto';
+import { COMPARABLE_RANK_DESIGNATION_MESSAGE, isComparableRank } from './comparable-rank';
 
 /** Rôles "chef" — seuls éligibles comme titulaire OU suppléant (§2.6,
  * décision de conception validée) : ils exercent déjà une forme d'autorité
@@ -18,6 +19,9 @@ const CHEF_TIER_ROLES: SystemRole[] = [
   SystemRole.DN,
   SystemRole.DNA,
 ];
+
+/** Parties d'une suppléance telles qu'exposées au web (affichage, choix). */
+const PARTY_SELECT = { id: true, firstName: true, lastName: true, role: true, divisionId: true } as const;
 
 /**
  * Suppléance/intérim (§2.6). La désignation ne fait qu'enregistrer la
@@ -47,7 +51,7 @@ export class SuppleancesService {
       }),
       this.prisma.user.findUnique({
         where: { id: dto.suppleantId },
-        select: { id: true, role: true, status: true, firstName: true, lastName: true },
+        select: { id: true, role: true, status: true, divisionId: true, firstName: true, lastName: true },
       }),
     ]);
     if (!titulaire) throw new NotFoundException('Titulaire introuvable');
@@ -65,6 +69,9 @@ export class SuppleancesService {
     }
     if (suppleant.status !== UserStatus.ACTIF) {
       throw new ForbiddenException("Le suppléant désigné n'a pas de compte actif.");
+    }
+    if (!isComparableRank(titulaire, suppleant)) {
+      throw new ForbiddenException(COMPARABLE_RANK_DESIGNATION_MESSAGE);
     }
 
     // Qui peut désigner : le titulaire lui-même, ou son supérieur direct
@@ -125,11 +132,54 @@ export class SuppleancesService {
     return suppleance;
   }
 
-  findMine(actor: AuthenticatedUser) {
-    return this.prisma.suppleance.findMany({
-      where: { OR: [{ titulaireId: actor.id }, { suppleantId: actor.id }] },
+  /**
+   * Suppléances où `actor` est titulaire, suppléant, ou celui qui les a
+   * désignées (supérieur direct d'un titulaire — pour pouvoir les suivre et
+   * les révoquer). `conforme` : règle du rang comparable réévaluée sur les
+   * rôles ACTUELS, comme à l'usage dans JwtAuthGuard — une suppléance non
+   * conforme reste listée (avec ce statut) mais n'est plus utilisable.
+   */
+  async findMine(actor: AuthenticatedUser) {
+    const rows = await this.prisma.suppleance.findMany({
+      where: { OR: [{ titulaireId: actor.id }, { suppleantId: actor.id }, { createdById: actor.id }] },
+      include: { titulaire: { select: PARTY_SELECT }, suppleant: { select: PARTY_SELECT } },
       orderBy: { startDate: 'desc' },
     });
+    return rows.map((row) => ({ ...row, conforme: isComparableRank(row.titulaire, row.suppleant) }));
+  }
+
+  /** Titulaires pour lesquels `actor` peut désigner un suppléant : lui-même
+   * s'il a un rôle de chef, et tout chef ACTIF sur qui il a une autorité
+   * hiérarchique directe — exactement la règle de create(). */
+  async findManageableTitulaires(actor: AuthenticatedUser) {
+    const chefs = await this.prisma.user.findMany({
+      where: { role: { in: CHEF_TIER_ROLES }, status: UserStatus.ACTIF },
+      select: { ...PARTY_SELECT, sectionId: true, celluleId: true },
+      orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
+    });
+    return chefs
+      .filter((u) => u.id === actor.id || this.cascade.hasDirectAuthorityOver(actor, u))
+      .map(({ sectionId: _s, celluleId: _c, ...party }) => party);
+  }
+
+  /** Suppléants possibles pour `titulaireId` : comptes ACTIFS de rang
+   * comparable (isComparableRank) — le formulaire ne propose ainsi que des
+   * choix que create() acceptera. 403 si `actor` ne peut pas gérer ce titulaire. */
+  async findCandidates(actor: AuthenticatedUser, titulaireId: string) {
+    const titulaire = await this.prisma.user.findUnique({
+      where: { id: titulaireId },
+      select: { ...PARTY_SELECT, sectionId: true, celluleId: true },
+    });
+    if (!titulaire) throw new NotFoundException('Titulaire introuvable');
+    if (actor.id !== titulaire.id && !this.cascade.hasDirectAuthorityOver(actor, titulaire)) {
+      throw new ForbiddenException('Seuls le titulaire ou son supérieur direct peuvent désigner un suppléant.');
+    }
+    const chefs = await this.prisma.user.findMany({
+      where: { role: { in: CHEF_TIER_ROLES }, status: UserStatus.ACTIF, id: { not: titulaire.id } },
+      select: PARTY_SELECT,
+      orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
+    });
+    return chefs.filter((candidate) => isComparableRank(titulaire, candidate));
   }
 
   async revoke(actor: AuthenticatedUser, id: string) {

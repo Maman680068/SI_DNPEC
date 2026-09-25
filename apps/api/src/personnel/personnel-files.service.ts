@@ -148,17 +148,20 @@ export class PersonnelFilesService {
     this.assertCanWrite(actor, userId);
 
     const current = await this.prisma.personnelFileBasic.findUnique({ where: { userId } });
-    if (current?.jobDescriptionFileKey) await this.storage.delete(current.jobDescriptionFileKey);
-
-    const { fileKey } = await this.storage.save(file.buffer, file.originalname);
     const verifiedFields = markFieldsUnverified(current?.verifiedFields, ['jobDescription']);
     const source = actor.id === userId ? 'SELF' : 'DRH';
 
-    const updated = await this.prisma.personnelFileBasic.upsert({
-      where: { userId },
-      create: { userId, jobDescriptionFileKey: fileKey, jobDescriptionFileName: file.originalname, verifiedFields, source },
-      update: { jobDescriptionFileKey: fileKey, jobDescriptionFileName: file.originalname, verifiedFields, source },
-    });
+    const updated = await this.storage.saveThen(file.buffer, file.originalname, ({ fileKey }) =>
+      this.prisma.personnelFileBasic.upsert({
+        where: { userId },
+        create: { userId, jobDescriptionFileKey: fileKey, jobDescriptionFileName: file.originalname, verifiedFields, source },
+        update: { jobDescriptionFileKey: fileKey, jobDescriptionFileName: file.originalname, verifiedFields, source },
+      }),
+    );
+    // L'ancienne fiche n'est supprimée qu'APRÈS l'écriture réussie de la
+    // nouvelle — auparavant supprimée avant, un échec de l'upsert laissait la
+    // base pointer vers un fichier disparu.
+    if (current?.jobDescriptionFileKey) await this.storage.delete(current.jobDescriptionFileKey);
 
     await this.audit.log({
       actorId: actor.id,
@@ -203,17 +206,20 @@ export class PersonnelFilesService {
     await this.getTargetOrThrow(userId);
     this.assertCanAccessSensitive(actor, userId);
 
-    const saved = file ? await this.storage.save(file.buffer, file.originalname) : null;
-    const diploma = await this.prisma.personnelDiploma.create({
-      data: {
-        userId,
-        title: dto.title,
-        institution: dto.institution,
-        obtainedYear: dto.obtainedYear,
-        fileKey: saved?.fileKey,
-        fileName: file?.originalname,
-      },
-    });
+    const createDiploma = (fileKey?: string) =>
+      this.prisma.personnelDiploma.create({
+        data: {
+          userId,
+          title: dto.title,
+          institution: dto.institution,
+          obtainedYear: dto.obtainedYear,
+          fileKey,
+          fileName: file?.originalname,
+        },
+      });
+    const diploma = file
+      ? await this.storage.saveThen(file.buffer, file.originalname, ({ fileKey }) => createDiploma(fileKey))
+      : await createDiploma();
 
     await this.audit.log({
       actorId: actor.id,
@@ -249,10 +255,11 @@ export class PersonnelFilesService {
     await this.getTargetOrThrow(userId);
     this.assertCanAccessSensitive(actor, userId);
 
-    const { fileKey } = await this.storage.save(file.buffer, file.originalname);
-    const document = await this.prisma.personnelDocument.create({
-      data: { userId, label: dto.label, fileKey, fileName: file.originalname, uploadedById: actor.id },
-    });
+    const document = await this.storage.saveThen(file.buffer, file.originalname, ({ fileKey }) =>
+      this.prisma.personnelDocument.create({
+        data: { userId, label: dto.label, fileKey, fileName: file.originalname, uploadedById: actor.id },
+      }),
+    );
 
     await this.audit.log({
       actorId: actor.id,

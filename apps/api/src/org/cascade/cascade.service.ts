@@ -106,6 +106,43 @@ export class CascadeService {
   }
 
   /**
+   * Équivalent booléen de getVisibleUserWhereForLeadershipScope pour une cible
+   * déjà chargée : `actor` voit-il `target` dans son périmètre de cascade
+   * (contenu métier, ADMIN_SYSTEME exclu) ? Même vue effective (Assistant →
+   * superviseur, intérim → titulaire). Utilisé par le module courrier/ pour la
+   * visibilité d'un courrier ORDINAIRE par la cascade de ses imputés.
+   */
+  canSeeUserInLeadershipScope(actor: AuthenticatedUser, target: OrgTarget): boolean {
+    const effective = this.getVisibilityActor(actor);
+    if (LEADERSHIP_ROLES.includes(effective.role)) return true;
+    switch (effective.role) {
+      case SystemRole.CHEF_DIVISION:
+        return !!effective.divisionId && effective.divisionId === target.divisionId;
+      case SystemRole.CHEF_SECTION:
+        return (
+          !!effective.divisionId &&
+          effective.divisionId === target.divisionId &&
+          !!effective.sectionId &&
+          effective.sectionId === target.sectionId
+        );
+      case SystemRole.CHEF_CELLULE:
+        return !!effective.celluleId && effective.celluleId === target.celluleId;
+      default:
+        return actor.id === target.id;
+    }
+  }
+
+  /**
+   * Vue effective en lecture seule (rôle/rattachement pour la VISIBILITÉ) —
+   * voir getVisibilityActor. Exposée pour les modules qui composent leurs
+   * propres règles de visibilité (courrier/) ; jamais pour l'autorité d'action.
+   */
+  getVisibilityView(actor: AuthenticatedUser): Pick<AuthenticatedUser, 'role' | 'divisionId' | 'sectionId' | 'celluleId'> {
+    const { role, divisionId, sectionId, celluleId } = this.getVisibilityActor(actor);
+    return { role, divisionId, sectionId, celluleId };
+  }
+
+  /**
    * Vue effective de l'acteur pour la visibilité en cascade (getTaskScope et
    * getVisibleUserWhereForTopRoles ci-dessus) UNIQUEMENT : un
    * ASSISTANT_DIRECTION avec un superviseur (User.supervisorId) voit comme

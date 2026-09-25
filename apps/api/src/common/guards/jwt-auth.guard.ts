@@ -8,6 +8,7 @@ import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 import { AuthenticatedUser } from '../types/auth-user.type';
 import { AnyAuthTokenPayload } from '../types/jwt-payload.type';
 import { requestContextStorage } from '../request-context/request-context';
+import { COMPARABLE_RANK_USAGE_MESSAGE, isComparableRank } from '../../suppleances/comparable-rank';
 
 const INTERIM_HEADER = 'x-interim-for';
 
@@ -122,6 +123,14 @@ export class JwtAuthGuard implements CanActivate {
       throw new ForbiddenException(
         "Aucune suppléance active ne vous autorise à agir au nom de cette personne.",
       );
+    }
+    // Règle du rang comparable (§3.1), réévaluée à CHAQUE utilisation sur les
+    // rôles actuels : bloque une suppléance désignée avant la règle, ou devenue
+    // non conforme après un changement de rôle — sans jamais modifier la donnée.
+    // `actor` n'a pas encore emprunté l'identité du titulaire ici : ce sont bien
+    // le rôle et la division réels du suppléant.
+    if (!isComparableRank(suppleance.titulaire, actor)) {
+      throw new ForbiddenException(COMPARABLE_RANK_USAGE_MESSAGE);
     }
 
     return {

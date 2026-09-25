@@ -19,6 +19,7 @@ import { ExportModule } from './export/export.module';
 import { SuggestionsModule } from './suggestions/suggestions.module';
 import { PersonnelModule } from './personnel/personnel.module';
 import { SuppleancesModule } from './suppleances/suppleances.module';
+import { CourrierModule } from './courrier/courrier.module';
 import { AppController } from './app.controller';
 
 @Module({
@@ -42,6 +43,7 @@ import { AppController } from './app.controller';
     SuggestionsModule,
     PersonnelModule,
     SuppleancesModule,
+    CourrierModule,
   ],
   providers: [
     // Guards globaux, exécutés dans cet ordre : JwtAuthGuard peuple

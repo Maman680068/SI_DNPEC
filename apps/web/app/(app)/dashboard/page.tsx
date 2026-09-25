@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { useAuth } from '../../../lib/auth/AuthProvider';
+import { useInterim } from '../../../lib/interim/InterimProvider';
 import { getTasks, getDashboard } from '../../../lib/api/tasks';
 import { exportDashboardPdf, exportTasksExcel } from '../../../lib/api/export';
 import type { Task, TaskDashboard } from '../../../lib/tasks/types';
@@ -13,6 +13,7 @@ import { TaskDetailDrawer } from '../../../components/tasks/TaskDetailDrawer';
 import { CreateTaskModal } from '../../../components/tasks/CreateTaskModal';
 import { BroadcastTaskModal } from '../../../components/tasks/BroadcastTaskModal';
 import { Button } from '../../../components/ui/Button';
+import { CarteCourrier } from '../../../components/courrier/CarteCourrier';
 
 /** Rôles pouvant plausiblement diffuser une tâche à une division (voir
  * CascadeService.canBroadcastToDivision) — DN/DNA n'importe laquelle, Chef de
@@ -21,7 +22,8 @@ import { Button } from '../../../components/ui/Button';
 const CAN_BROADCAST_ROLES = ['DN', 'DNA', 'CHEF_DIVISION'];
 
 export default function DashboardPage() {
-  const { user: currentUser } = useAuth();
+  // Rôle emprunté pendant un intérim (le serveur reste seul juge).
+  const { effectiveRole } = useInterim();
   const [tasks, setTasks] = useState<Task[] | null>(null);
   const [dashboard, setDashboard] = useState<TaskDashboard | null>(null);
   const [view, setView] = useState<TaskView>('kanban');
@@ -30,7 +32,7 @@ export default function DashboardPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showBroadcastModal, setShowBroadcastModal] = useState(false);
   const [exporting, setExporting] = useState<'excel' | 'pdf' | null>(null);
-  const canBroadcast = CAN_BROADCAST_ROLES.includes(currentUser?.role ?? '');
+  const canBroadcast = CAN_BROADCAST_ROLES.includes(effectiveRole ?? '');
 
   async function handleExport(kind: 'excel' | 'pdf') {
     setExporting(kind);
@@ -103,6 +105,8 @@ export default function DashboardPage() {
       {error && <div className="mb-5 rounded-md bg-clay-soft px-4 py-3 text-sm text-clay">{error}</div>}
 
       {dashboard && <KpiRow dashboard={dashboard} />}
+
+      <CarteCourrier />
 
       <div className="mb-3.5 flex items-center justify-between">
         <h2 className="text-[16px] font-extrabold">Suivi des tâches</h2>

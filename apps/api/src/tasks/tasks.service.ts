@@ -2,6 +2,7 @@ import { ConflictException, ForbiddenException, Injectable, NotFoundException } 
 import {
   AuditAction,
   DecisionStatus,
+  ImputationStatut,
   NotificationType,
   Prisma,
   RecurrenceFrequency,
@@ -11,6 +12,7 @@ import {
   TaskStatus,
   UserStatus,
 } from '@prisma/client';
+import { recalculerStatutArrivee } from '../courrier/statut-arrivee';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../common/audit/audit.service';
 import { StorageService } from '../common/storage/storage.service';
@@ -49,6 +51,7 @@ const TASK_SELECT = {
   recurrenceSourceId: true,
   createdById: true,
   sourceDecisionId: true,
+  sourceImputationId: true,
   submittedById: true,
   submittedAt: true,
   validatedById: true,
@@ -523,8 +526,7 @@ export class TasksService {
   async validate(actor: AuthenticatedUser, id: string, dto: ValidateTaskDto): Promise<TaskWithAssignees> {
     const task = await this.getTaskOrThrow(id);
     this.assertIsRootTask(task);
-    const creator = await this.getCreatorOrgFields(task.createdById);
-    this.cascade.assertHasDirectAuthorityOver(actor, creator);
+    await this.assertCanDecideValidation(actor, task);
     if (task.status !== TaskStatus.SOUMISE_VALIDATION) {
       throw new ConflictException('Seule une tâche "Soumise pour validation" peut être validée.');
     }
@@ -572,6 +574,28 @@ export class TasksService {
       });
     }
 
+    // D7 — même principe pour une imputation de courrier convertie en tâche :
+    // l'imputation passe à TRAITEE (idempotent, sans effet si déjà traitée à
+    // la main), puis le statut dérivé du courrier est recalculé. Accès direct
+    // aux tables (fonction simple recalculerStatutArrivee), sans dépendance
+    // vers CourrierModule.
+    if (updated.sourceImputationId) {
+      const imputationId = updated.sourceImputationId;
+      await this.prisma.$transaction(async (tx) => {
+        const done = await tx.imputationCourrier.updateMany({
+          where: { id: imputationId, statut: ImputationStatut.EN_COURS },
+          data: { statut: ImputationStatut.TRAITEE, traiteeAt: new Date(), traiteeParId: actor.id, compteRendu: 'Tâche liée terminée.' },
+        });
+        if (done.count === 0) return;
+        const imputation = await tx.imputationCourrier.findUnique({ where: { id: imputationId }, select: { courrierId: true } });
+        if (imputation) await recalculerStatutArrivee(tx, imputation.courrierId);
+        await this.audit.log(
+          { actorId: actor.id, action: AuditAction.VALIDATION, entityType: 'ImputationCourrier', entityId: imputationId, metadata: { event: 'cloture_automatique', taskId: id } },
+          tx,
+        );
+      });
+    }
+
     return updated;
   }
 
@@ -579,8 +603,7 @@ export class TasksService {
   async reject(actor: AuthenticatedUser, id: string, dto: RejectTaskDto): Promise<TaskWithAssignees> {
     const task = await this.getTaskOrThrow(id);
     this.assertIsRootTask(task);
-    const creator = await this.getCreatorOrgFields(task.createdById);
-    this.cascade.assertHasDirectAuthorityOver(actor, creator);
+    await this.assertCanDecideValidation(actor, task);
     if (task.status !== TaskStatus.SOUMISE_VALIDATION) {
       throw new ConflictException('Seule une tâche "Soumise pour validation" peut être rejetée.');
     }
@@ -742,17 +765,18 @@ export class TasksService {
 
     const attachments = [];
     for (const file of files) {
-      const { fileKey, sizeBytes } = await this.storage.save(file.buffer, file.originalname);
-      const attachment = await this.prisma.taskAttachment.create({
-        data: {
-          taskId,
-          fileName: file.originalname,
-          fileKey,
-          mimeType: file.mimetype,
-          sizeBytes,
-          uploadedById: actor.id,
-        },
-      });
+      const attachment = await this.storage.saveThen(file.buffer, file.originalname, ({ fileKey, sizeBytes }) =>
+        this.prisma.taskAttachment.create({
+          data: {
+            taskId,
+            fileName: file.originalname,
+            fileKey,
+            mimeType: file.mimetype,
+            sizeBytes,
+            uploadedById: actor.id,
+          },
+        }),
+      );
       attachments.push(attachment);
 
       await this.audit.log({
@@ -940,6 +964,45 @@ export class TasksService {
     if (this.cascade.hasDirectAuthorityOver(actor, creator)) return;
     throw new ForbiddenException(
       'Seuls le créateur, un supérieur hiérarchique, ou une personne assignée peuvent déposer une pièce jointe.',
+    );
+  }
+
+  /**
+   * Qui peut valider/rejeter une tâche soumise (§4.1) :
+   * - jamais une personne assignée (sa propre tâche), y compris un suppléant
+   *   agissant en intérim pour un titulaire assigné ;
+   * - le créateur (celui qui a confié le travail), ou son suppléant en intérim ;
+   * - un chef ayant autorité hiérarchique sur TOUS les assignés — pas un seul :
+   *   un Chef de Section ne valide pas le travail d'agents d'une autre unité
+   *   dans une tâche partagée. DN/DNA l'ont sur tout le monde (sauf eux-mêmes).
+   * Tâche sans assigné : le créateur est aussi celui qui a fait le travail —
+   * règle historique conservée, seul son supérieur hiérarchique peut valider.
+   * (Remplace l'ancienne règle « autorité sur le créateur » seule, qui depuis
+   * le correctif d'auto-approbation a35e1a5 empêchait le créateur de valider
+   * le travail qu'il avait confié : seul son propre supérieur le pouvait.)
+   */
+  private async assertCanDecideValidation(actor: AuthenticatedUser, task: TaskWithAssignees): Promise<void> {
+    const assigneeIds = task.assignees.map((a) => a.userId);
+    if (assigneeIds.includes(actor.id) || (actor.interimForId && assigneeIds.includes(actor.interimForId))) {
+      throw new ForbiddenException('Une personne assignée ne peut pas valider ou rejeter sa propre tâche.');
+    }
+
+    if (assigneeIds.length === 0) {
+      const creator = await this.getCreatorOrgFields(task.createdById);
+      this.cascade.assertHasDirectAuthorityOver(actor, creator);
+      return;
+    }
+
+    if (this.cascade.isActingFor(actor, task.createdById)) return;
+
+    const assignees = await this.prisma.user.findMany({
+      where: { id: { in: assigneeIds } },
+      select: { id: true, divisionId: true, sectionId: true, celluleId: true },
+    });
+    if (assignees.length > 0 && assignees.every((u) => this.cascade.hasDirectAuthorityOver(actor, u))) return;
+
+    throw new ForbiddenException(
+      'Seuls le créateur de la tâche ou un supérieur hiérarchique de toutes les personnes assignées peuvent la valider ou la rejeter.',
     );
   }
 

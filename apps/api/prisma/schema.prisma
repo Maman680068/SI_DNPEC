@@ -235,6 +235,18 @@ enum NotificationType {
   DOSSIER_ERREUR_SIGNALEE
   DECISION_RELANCE
   SUPPLEANCE_DESIGNEE
+  // Courrier et actes (D7)
+  COURRIER_A_IMPUTER
+  COURRIER_IMPUTE
+  PLI_PERSONNEL_RECU
+  COURRIER_ACCES_OUVERT
+  IMPUTATION_ECHEANCE_PROCHE
+  IMPUTATION_EN_RETARD
+  ACTE_A_VISER
+  ACTE_RENVOYE
+  ACTE_A_SIGNER
+  ACTE_SIGNE
+  ACTE_PRISE_CONNAISSANCE
 
   @@map("notification_type")
 }
@@ -500,6 +512,32 @@ model User {
   suppleancesRevoked     Suppleance[] @relation("SuppleanceRevokedBy")
   auditLogsOnBehalfOf    AuditLog[]   @relation("AuditOnBehalfOf")
 
+  // Courrier et actes (D7)
+  habilitationsCourrier        HabilitationCourrier[] @relation("HabilitationCourrierUser")
+  habilitationsCourrierDonnees HabilitationCourrier[] @relation("HabilitationCourrierAccordeePar")
+  habilitationsCourrierRevoq   HabilitationCourrier[] @relation("HabilitationCourrierRevoqueePar")
+  arriveesEnregistrees         CourrierArrivee[]      @relation("ArriveeEnregistreePar")
+  arriveesDestinataire         CourrierArrivee[]      @relation("ArriveeDestinataire")
+  arriveesClassees             CourrierArrivee[]      @relation("ArriveeClasseePar")
+  arriveesAnnulees             CourrierArrivee[]      @relation("ArriveeAnnuleePar")
+  imputationsFaites            ImputationCourrier[]   @relation("ImputationImputePar")
+  imputationsAuNomDe           ImputationCourrier[]   @relation("ImputationAuNomDe")
+  imputationsRecues            ImputationCourrier[]   @relation("ImputationImputeA")
+  imputationsTraitees          ImputationCourrier[]   @relation("ImputationTraiteePar")
+  actesRediges                 ActeCourrier[]         @relation("ActeRedacteur")
+  actesBeneficiaire            ActeCourrier[]         @relation("ActeBeneficiaire")
+  actesSignes                  ActeCourrier[]         @relation("ActeSignataire")
+  actesSignesAuNomDe           ActeCourrier[]         @relation("ActeSigneAuNomDe")
+  actesExpedies                ActeCourrier[]         @relation("ActeExpediePar")
+  actesAnnules                 ActeCourrier[]         @relation("ActeAnnulePar")
+  visasAttendus                VisaActe[]             @relation("VisaViseurAttendu")
+  visasPoses                   VisaActe[]             @relation("VisaVisePar")
+  visasAuNomDe                 VisaActe[]             @relation("VisaViseAuNomDe")
+  piecesCourrierDeposees       PieceCourrier[]
+  accesDelegueRecus            AccesDelegueCourrier[] @relation("AccesDelegueBeneficiaire")
+  accesDelegueOuverts          AccesDelegueCourrier[] @relation("AccesDelegueOuvertPar")
+  accesDelegueRevoques         AccesDelegueCourrier[] @relation("AccesDelegueRevoquePar")
+
   @@map("users")
 }
 
@@ -615,6 +653,12 @@ model Task {
   // cette tâche passe à TERMINEE.
   sourceDecisionId String?   @unique
   sourceDecision   Decision? @relation("DecisionAction", fields: [sourceDecisionId], references: [id])
+
+  // D7 — tâche générée depuis une imputation de courrier (conversion manuelle,
+  // même modèle que D2) : TasksService.validate passe l'imputation liée à
+  // TRAITEE dès que cette tâche est terminée.
+  sourceImputationId String?             @unique
+  sourceImputation   ImputationCourrier? @relation("ImputationTache", fields: [sourceImputationId], references: [id])
 
   // Workflow de validation (§4.1)
   submittedById     String?
@@ -1389,5 +1433,382 @@ model Suppleance {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // D7 — accès délégués à des courriers confidentiels ouverts au suppléant ;
+  // ils expirent avec la suppléance (vérifié à chaque lecture).
+  accesDelegues AccesDelegueCourrier[]
+
   @@map("suppleances")
+}
+
+// ----------------------------------------------------------------------------
+// Module Courrier et actes (D7)
+// ----------------------------------------------------------------------------
+// Deux flux : le courrier ARRIVÉE (enregistrement → imputation → traitement →
+// classement) et les DÉPARTS/ACTES (brouillon → visa → signature numérotée →
+// expédition). Voir apps/api/src/courrier/ pour les règles.
+//
+// Unité (`uniteKey`, jamais nulle) : "DNPEC" pour un registre de portée
+// DIRECTION ; "DIV:<divisionId>" ou "CEL:<celluleId>" pour la portée UNITE.
+// Clé texte plutôt que deux FK nullables : elle entre dans la clé primaire du
+// compteur (PostgreSQL refuse NULL dans une clé primaire).
+//
+// Intégrité du registre (triggers SQL de la migration add_courrier_actes) :
+// une arrivée n'est jamais supprimée, un acte numéroté non plus ; numero,
+// sequence, annee, registreId et uniteKey sont figés dès que la séquence est
+// attribuée. L'annulation garde le numéro (statut ANNULE + motif).
+//
+// Besoin d'en connaître (§2.2) : un CONFIDENTIEL n'est jamais lisible par un
+// rôle EMPRUNTÉ (intérim) — seulement par identité réelle ou accès délégué
+// (AccesDelegueCourrier) ; un PERSONNEL seulement par son destinataire
+// (actor.id strict, jamais délégable).
+
+enum RegistreNature {
+  ARRIVEE
+  DEPART
+  ACTE
+
+  @@map("registre_nature")
+}
+
+enum RegistrePortee {
+  DIRECTION // numérotation unique DNPEC ; départs/actes signés par DN/DNA
+  UNITE // numérotation propre à chaque Division/Cellule ; signés par son chef ou DN/DNA
+
+  @@map("registre_portee")
+}
+
+enum CourrierConfidentialite {
+  ORDINAIRE
+  CONFIDENTIEL
+  PERSONNEL // pli fermé — arrivées uniquement
+
+  @@map("courrier_confidentialite")
+}
+
+enum ArriveeStatut {
+  ENREGISTRE
+  IMPUTE
+  TRAITE
+  CLASSE
+  ANNULE
+
+  @@map("arrivee_statut")
+}
+
+enum ImputationNature {
+  ATTRIBUTION
+  INFORMATION
+  AVIS
+
+  @@map("imputation_nature")
+}
+
+enum ImputationStatut {
+  EN_COURS
+  TRAITEE
+
+  @@map("imputation_statut")
+}
+
+enum ActeStatut {
+  BROUILLON
+  EN_VISA
+  RENVOYE
+  A_SIGNER
+  SIGNE
+  EXPEDIE
+  ANNULE
+
+  @@map("acte_statut")
+}
+
+enum VisaStatut {
+  EN_ATTENTE
+  VISE
+  RENVOYE
+  SAUTE // niveau sans objet : rédacteur lui-même chef de ce niveau, ou poste vacant
+
+  @@map("visa_statut")
+}
+
+enum PieceCourrierNature {
+  SCAN
+  ANNEXE
+  ACTE_SIGNE
+
+  @@map("piece_courrier_nature")
+}
+
+enum AccesDelegueType {
+  ASSISTANT
+  SUPPLEANT
+
+  @@map("acces_delegue_type")
+}
+
+// Registres paramétrables par l'administrateur (comme les types de congés).
+// `nature` et `portee` sont figées dès qu'une entrée existe ; changer le
+// gabarit ne réécrit jamais un numéro déjà attribué (numero figé).
+model RegistreCourrier {
+  id            String         @id @default(cuid())
+  code          String         @unique
+  libelle       String
+  nature        RegistreNature
+  portee        RegistrePortee
+  // Variables : {seq} ou {seq:n} (obligatoire), {code}, {annee}, {unite}.
+  gabaritNumero String
+  isActive      Boolean        @default(true)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  habilitations HabilitationCourrier[]
+  compteurs     CompteurRegistre[]
+  arrivees      CourrierArrivee[]
+  actes         ActeCourrier[]
+
+  @@map("registres_courrier")
+}
+
+// Habilitation courrier (secrétariat) : enregistrer les arrivées d'un
+// registre pour une unité, expédier ses actes signés. N'est PAS un rôle et ne
+// donne AUCUNE autorité d'imputation.
+model HabilitationCourrier {
+  id            String           @id @default(cuid())
+  userId        String
+  user          User             @relation("HabilitationCourrierUser", fields: [userId], references: [id])
+  registreId    String
+  registre      RegistreCourrier @relation(fields: [registreId], references: [id])
+  uniteKey      String
+  accordeeParId String
+  accordeePar   User             @relation("HabilitationCourrierAccordeePar", fields: [accordeeParId], references: [id])
+  createdAt     DateTime         @default(now())
+  revoqueeAt    DateTime?
+  revoqueeParId String?
+  revoqueePar   User?            @relation("HabilitationCourrierRevoqueePar", fields: [revoqueeParId], references: [id])
+
+  @@index([userId])
+  @@map("habilitations_courrier")
+}
+
+// Compteur de numérotation : une ligne par (registre, unité, année), incrémentée
+// par upsert atomique (INSERT ... ON CONFLICT DO UPDATE ... RETURNING) DANS la
+// transaction de l'écriture métier — verrou de ligne, pas de trou (rollback),
+// pas de doublon. Voir courrier/numerotation.service.ts.
+model CompteurRegistre {
+  registreId String
+  registre   RegistreCourrier @relation(fields: [registreId], references: [id])
+  uniteKey   String
+  annee      Int
+  dernier    Int
+  updatedAt  DateTime         @default(now())
+
+  @@id([registreId, uniteKey, annee])
+  @@map("compteurs_registre")
+}
+
+model CourrierArrivee {
+  id                  String                  @id @default(cuid())
+  registreId          String
+  registre            RegistreCourrier        @relation(fields: [registreId], references: [id])
+  uniteKey            String
+  annee               Int
+  sequence            Int
+  numero              String
+  dateReception       DateTime
+  expediteur          String
+  referenceExpediteur String?
+  dateCourrier        DateTime?
+  // Dérogation au contrôle des dates (réception dans le futur, ou courrier
+  // daté après sa réception) : motif obligatoire, stocké et audité.
+  motifDerogationDate String?
+  // Toujours null à l'enregistrement d'un PERSONNEL : seul son destinataire
+  // peut ensuite compléter la fiche (objet, pièces).
+  objet               String?
+  confidentialite     CourrierConfidentialite
+  destinataireId      String?
+  destinataire        User?                   @relation("ArriveeDestinataire", fields: [destinataireId], references: [id])
+  statut              ArriveeStatut           @default(ENREGISTRE)
+  enregistreParId     String
+  enregistrePar       User                    @relation("ArriveeEnregistreePar", fields: [enregistreParId], references: [id])
+  classeAt            DateTime?
+  classeParId         String?
+  classePar           User?                   @relation("ArriveeClasseePar", fields: [classeParId], references: [id])
+  annuleAt            DateTime?
+  annuleParId         String?
+  annulePar           User?                   @relation("ArriveeAnnuleePar", fields: [annuleParId], references: [id])
+  motifAnnulation     String?
+  createdAt           DateTime                @default(now())
+  updatedAt           DateTime                @updatedAt
+
+  imputations   ImputationCourrier[]
+  pieces        PieceCourrier[]
+  accesDelegues AccesDelegueCourrier[]
+  actesReponse  ActeCourrier[]
+
+  @@unique([registreId, uniteKey, annee, sequence])
+  @@index([annee])
+  @@map("courriers_arrivee")
+}
+
+model ImputationCourrier {
+  id                     String               @id @default(cuid())
+  courrierId             String
+  courrier               CourrierArrivee      @relation(fields: [courrierId], references: [id])
+  parentId               String?
+  parent                 ImputationCourrier?  @relation("SousImputations", fields: [parentId], references: [id])
+  sousImputations        ImputationCourrier[] @relation("SousImputations")
+  imputeParId            String
+  imputePar              User                 @relation("ImputationImputePar", fields: [imputeParId], references: [id])
+  // Suppléance « P.I. » : titulaire au nom de qui l'imputation a été posée
+  // (stocké ici en plus de l'audit).
+  auNomDeId              String?
+  auNomDe                User?                @relation("ImputationAuNomDe", fields: [auNomDeId], references: [id])
+  imputeAId              String
+  imputeA                User                 @relation("ImputationImputeA", fields: [imputeAId], references: [id])
+  nature                 ImputationNature
+  instructions           String?
+  echeance               DateTime?
+  statut                 ImputationStatut     @default(EN_COURS)
+  compteRendu            String?
+  reponseActeId          String?
+  reponseActe            ActeCourrier?        @relation("ImputationReponse", fields: [reponseActeId], references: [id])
+  traiteeAt              DateTime?
+  traiteeParId           String?
+  traiteePar             User?                @relation("ImputationTraiteePar", fields: [traiteeParId], references: [id])
+  // Rappels automatiques (CourrierRappelsService) — posés une seule fois.
+  rappelEcheanceEnvoyeAt DateTime?
+  rappelRetardEnvoyeAt   DateTime?
+  createdAt              DateTime             @default(now())
+  updatedAt              DateTime             @updatedAt
+
+  tache Task? @relation("ImputationTache")
+
+  @@index([courrierId])
+  @@index([imputeAId])
+  @@map("imputations_courrier")
+}
+
+model ActeCourrier {
+  id                       String                  @id @default(cuid())
+  registreId               String
+  registre                 RegistreCourrier        @relation(fields: [registreId], references: [id])
+  // Unité émettrice, figée à la création (rattachement réel du rédacteur).
+  uniteKey                 String
+  // Numérotation : nulle jusqu'à la SIGNATURE, jamais au brouillon.
+  annee                    Int?
+  sequence                 Int?
+  numero                   String?
+  objet                    String
+  destinataires            String?
+  corps                    String?
+  confidentialite          CourrierConfidentialite
+  beneficiaireId           String?
+  beneficiaire             User?                   @relation("ActeBeneficiaire", fields: [beneficiaireId], references: [id])
+  priseConnaissanceRequise Boolean                 @default(false)
+  priseConnaissanceAt      DateTime?
+  repondAId                String?
+  repondA                  CourrierArrivee?        @relation(fields: [repondAId], references: [id])
+  redacteurId              String
+  redacteur                User                    @relation("ActeRedacteur", fields: [redacteurId], references: [id])
+  statut                   ActeStatut              @default(BROUILLON)
+  // Nombre de soumissions : 0 = jamais soumis (seul cas de suppression
+  // physique possible) ; chaque resoumission recalcule le circuit.
+  cycle                    Int                     @default(0)
+  motifRenvoi              String?
+  signataireId             String?
+  signataire               User?                   @relation("ActeSignataire", fields: [signataireId], references: [id])
+  signeAuNomDeId           String?
+  signeAuNomDe             User?                   @relation("ActeSigneAuNomDe", fields: [signeAuNomDeId], references: [id])
+  signeAt                  DateTime?
+  expedieAt                DateTime?
+  expedieParId             String?
+  expediePar               User?                   @relation("ActeExpediePar", fields: [expedieParId], references: [id])
+  modeExpedition           String?
+  annuleAt                 DateTime?
+  annuleParId              String?
+  annulePar                User?                   @relation("ActeAnnulePar", fields: [annuleParId], references: [id])
+  motifAnnulation          String?
+  createdAt                DateTime                @default(now())
+  updatedAt                DateTime                @updatedAt
+
+  visas              VisaActe[]
+  pieces             PieceCourrier[]
+  accesDelegues      AccesDelegueCourrier[]
+  imputationsReponse ImputationCourrier[]   @relation("ImputationReponse")
+
+  @@unique([registreId, uniteKey, annee, sequence])
+  @@index([redacteurId])
+  @@map("actes_courrier")
+}
+
+// Circuit de visa, recalculé à chaque soumission (cycle) — l'historique des
+// cycles précédents est conservé.
+model VisaActe {
+  id              String       @id @default(cuid())
+  acteId          String
+  acte            ActeCourrier @relation(fields: [acteId], references: [id], onDelete: Cascade)
+  cycle           Int
+  ordre           Int
+  niveau          SystemRole
+  viseurAttenduId String?
+  viseurAttendu   User?        @relation("VisaViseurAttendu", fields: [viseurAttenduId], references: [id])
+  statut          VisaStatut   @default(EN_ATTENTE)
+  motifSaut       String?
+  viseParId       String?
+  visePar         User?        @relation("VisaVisePar", fields: [viseParId], references: [id])
+  viseAuNomDeId   String?
+  viseAuNomDe     User?        @relation("VisaViseAuNomDe", fields: [viseAuNomDeId], references: [id])
+  commentaire     String?
+  viseAt          DateTime?
+  createdAt       DateTime     @default(now())
+
+  @@index([acteId, cycle])
+  @@map("visas_acte")
+}
+
+// Pièce jointe d'une arrivée OU d'un acte (exclusivité vérifiée par
+// l'application, comme Task.divisionId/celluleId). Fichier via StorageService.
+model PieceCourrier {
+  id          String              @id @default(cuid())
+  arriveeId   String?
+  arrivee     CourrierArrivee?    @relation(fields: [arriveeId], references: [id])
+  acteId      String?
+  acte        ActeCourrier?       @relation(fields: [acteId], references: [id], onDelete: Cascade)
+  nature      PieceCourrierNature
+  fileName    String
+  fileKey     String
+  mimeType    String
+  sizeBytes   Int
+  deposeParId String
+  deposePar   User                @relation(fields: [deposeParId], references: [id])
+  createdAt   DateTime            @default(now())
+
+  @@map("pieces_courrier")
+}
+
+// Accès délégué à un courrier CONFIDENTIEL (arrivée OU acte), courrier par
+// courrier, par quelqu'un qui y a lui-même accès, à SON assistant ou à SON
+// suppléant. Révocable, audité ; un accès SUPPLEANT expire avec la suppléance
+// (fin, révocation, non-conformité — réévalué à chaque lecture). Jamais pour
+// un pli PERSONNEL.
+model AccesDelegueCourrier {
+  id             String           @id @default(cuid())
+  arriveeId      String?
+  arrivee        CourrierArrivee? @relation(fields: [arriveeId], references: [id])
+  acteId         String?
+  acte           ActeCourrier?    @relation(fields: [acteId], references: [id], onDelete: Cascade)
+  beneficiaireId String
+  beneficiaire   User             @relation("AccesDelegueBeneficiaire", fields: [beneficiaireId], references: [id])
+  type           AccesDelegueType
+  suppleanceId   String?
+  suppleance     Suppleance?      @relation(fields: [suppleanceId], references: [id])
+  ouvertParId    String
+  ouvertPar      User             @relation("AccesDelegueOuvertPar", fields: [ouvertParId], references: [id])
+  createdAt      DateTime         @default(now())
+  revoqueAt      DateTime?
+  revoqueParId   String?
+  revoquePar     User?            @relation("AccesDelegueRevoquePar", fields: [revoqueParId], references: [id])
+
+  @@index([beneficiaireId])
+  @@map("acces_delegues_courrier")
 }

@@ -25,6 +25,9 @@ export default function LeavesPage() {
   const [year, setYear] = useState<number>(new Date().getFullYear());
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedValidation, setSelectedValidation] = useState<LeaveRequest | null>(null);
+  const [highlightId, setHighlightId] = useState<string | null>(null);
+  const [linkNotice, setLinkNotice] = useState<string | null>(null);
+  const [linkHandled, setLinkHandled] = useState(false);
 
   const loadRequests = useCallback(() => {
     getLeaveRequests().then(setRequests);
@@ -35,6 +38,28 @@ export default function LeavesPage() {
     getMyBalances().then(setBalances);
     loadRequests();
   }, [loadRequests]);
+
+  // Lien d'email « /leaves?id=<id> », traité une fois les demandes chargées :
+  // la sienne (approuvée/rejetée) → mise en évidence dans « Mes demandes » ;
+  // celle d'un autre, en attente (soumise pour validation) → tiroir de décision.
+  useEffect(() => {
+    if (linkHandled || requests === null || !currentUser) return;
+    setLinkHandled(true);
+    const id = new URLSearchParams(window.location.search).get('id');
+    if (!id) return;
+    const request = requests.find((r) => r.id === id);
+    if (!request) {
+      setLinkNotice('Cette demande de congé est introuvable ou hors de votre périmètre.');
+    } else if (request.userId === currentUser.id) {
+      setTab('mine');
+      setHighlightId(id);
+    } else if (request.status === 'EN_ATTENTE' && canValidate) {
+      setTab('validation');
+      setSelectedValidation(request);
+    } else {
+      setLinkNotice('Cette demande de congé a déjà été traitée.');
+    }
+  }, [linkHandled, requests, currentUser, canValidate]);
 
   const availableYears = useMemo(() => {
     const years = new Set(balances?.map((b) => b.year) ?? []);
@@ -86,6 +111,8 @@ export default function LeavesPage() {
           </Button>
         )}
       </div>
+
+      {linkNotice && <div className="mb-4 rounded-md bg-clay-soft px-4 py-3 text-sm text-clay">{linkNotice}</div>}
 
       {canValidate && (
         <div className="mb-4 flex gap-0.5 rounded-md border border-line bg-bg p-0.5" style={{ width: 'fit-content' }}>
@@ -139,7 +166,7 @@ export default function LeavesPage() {
           {requests === null ? (
             <p className="text-sm text-text-muted">Chargement…</p>
           ) : (
-            <LeaveRequestList requests={myRequests} onChange={handleRequestUpdated} />
+            <LeaveRequestList requests={myRequests} onChange={handleRequestUpdated} highlightId={highlightId} />
           )}
         </div>
       ) : requests === null ? (

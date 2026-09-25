@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '../../lib/auth/AuthProvider';
+import { useInterim } from '../../lib/interim/InterimProvider';
 import { useOrg } from '../../lib/org/OrgProvider';
 import {
   addAttachments,
@@ -43,12 +44,14 @@ export function TaskDetailDrawer({
   onTaskChanged: (task: Task) => void;
 }) {
   const { user: currentUser } = useAuth();
+  const { interim, effectiveRole } = useInterim();
   const { getDivisionName, getSectionName, getCelluleName, getUserLabel } = useOrg();
   const [task, setTask] = useState<Task | null>(null);
   const [subtasks, setSubtasks] = useState<Task[]>([]);
   const [comments, setComments] = useState<TaskComment[]>([]);
   const [attachments, setAttachments] = useState<TaskAttachment[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionBusy, setActionBusy] = useState(false);
   const [showRejectForm, setShowRejectForm] = useState(false);
@@ -62,6 +65,8 @@ export function TaskDetailDrawer({
   useEffect(() => {
     if (!taskId) return;
     setLoading(true);
+    setLoadError(null);
+    setTask(null);
     setActionError(null);
     setShowRejectForm(false);
     setAttachmentError(null);
@@ -74,6 +79,9 @@ export function TaskDetailDrawer({
         setAttachments(attachmentsResult);
         setProgressDraft(taskResult.progressPercent ?? 0);
       })
+      // Tâche hors périmètre ou introuvable (ex. lien direct /tasks/:id reçu par
+      // email) : message de l'API plutôt qu'un « Chargement… » sans fin.
+      .catch((err) => setLoadError(err instanceof Error ? err.message : 'Impossible de charger cette tâche'))
       .finally(() => setLoading(false));
   }, [taskId]);
 
@@ -101,10 +109,18 @@ export function TaskDetailDrawer({
 
   const isCreator = task?.createdById === currentUser?.id;
   const isAssignee = task?.assignees.some((a) => a.userId === currentUser?.id) ?? false;
+  // Intérim : le suppléant agit comme le titulaire pour la validation (créateur
+  // ou rôle emprunté), mais jamais sur une tâche dont lui-même ou le titulaire
+  // est assigné (même règle que l'API, TasksService.assertCanDecideValidation).
+  const actingForCreator = !!interim && task?.createdById === interim.titulaireId;
+  const actingForAssignee = !!interim && (task?.assignees.some((a) => a.userId === interim.titulaireId) ?? false);
   const isResponsable = task?.assignees.some((a) => a.userId === currentUser?.id && a.roleOnTask === 'RESPONSABLE') ?? false;
   const canStart = isCreator || isAssignee;
   const canSubmit = isCreator || isResponsable;
-  const canDecide = isCreator || (currentUser ? LEADERSHIP_LIKE_ROLES.includes(currentUser.role) : false);
+  const canDecide =
+    !isAssignee &&
+    !actingForAssignee &&
+    (isCreator || actingForCreator || LEADERSHIP_LIKE_ROLES.includes(effectiveRole ?? ''));
   // Même périmètre que la soumission (assertIsCreatorOrResponsable côté API) : un
   // simple Collaborateur peut démarrer la tâche mais pas déclarer son avancement.
   const canEditProgress = subtasks.length === 0 && (isCreator || isResponsable);
@@ -179,7 +195,9 @@ export function TaskDetailDrawer({
           </button>
         </div>
 
-        {loading || !task ? (
+        {loadError ? (
+          <div className="rounded-md bg-clay-soft px-3.5 py-3 text-[13px] text-clay">{loadError}</div>
+        ) : loading || !task ? (
           <p className="text-sm text-text-muted">Chargement…</p>
         ) : (
           <>
