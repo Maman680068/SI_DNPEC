@@ -131,12 +131,20 @@ export class NotificationsService {
     await Promise.all(userIds.map((userId) => this.notify(userId, type, title, body, link, subjectDetail)));
   }
 
+  /** Cloche in-app : chaque notification est écrite deux fois (IN_APP et
+   * EMAIL, voir notify) — seule la ligne IN_APP s'affiche et se compte. Les
+   * 50 plus récentes suffisent à la cloche. */
   listForUser(userId: string) {
-    return this.prisma.notification.findMany({ where: { userId }, orderBy: { createdAt: 'desc' } });
+    return this.prisma.notification.findMany({
+      where: { userId, channel: NotificationChannel.IN_APP },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+      select: { id: true, type: true, title: true, body: true, link: true, isRead: true, createdAt: true },
+    });
   }
 
   countUnread(userId: string) {
-    return this.prisma.notification.count({ where: { userId, isRead: false } });
+    return this.prisma.notification.count({ where: { userId, isRead: false, channel: NotificationChannel.IN_APP } });
   }
 
   async markRead(userId: string, id: string): Promise<void> {
