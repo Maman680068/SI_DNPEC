@@ -39,6 +39,9 @@ export class AccesDeleguesService {
     });
     if (!beneficiaire) throw new NotFoundException('Bénéficiaire introuvable');
     if (beneficiaire.status !== UserStatus.ACTIF) throw new BadRequestException('Le bénéficiaire n’a pas de compte actif.');
+    if (beneficiaire.role === SystemRole.ADMIN_SYSTEME) {
+      throw new ForbiddenException('L’administrateur système n’a pas accès au courrier : il ne peut pas recevoir d’accès délégué.');
+    }
 
     const delegation = await this.lienDelegation(actor, beneficiaire);
     if (!delegation) {
@@ -148,6 +151,7 @@ export class AccesDeleguesService {
     u: { id: string; role: SystemRole; supervisorId: string | null; divisionId: string | null },
     now: Date = new Date(),
   ): Promise<{ type: AccesDelegueType; suppleanceId: string | null } | null> {
+    if (u.role === SystemRole.ADMIN_SYSTEME) return null; // jamais délégataire (voir ouvrir)
     if (u.role === SystemRole.ASSISTANT_DIRECTION && u.supervisorId === actor.id) {
       return { type: AccesDelegueType.ASSISTANT, suppleanceId: null };
     }

@@ -61,8 +61,9 @@ export function FenetreRediger({
   const [annexes, setAnnexes] = useState<File[]>([]);
   const { enCours, erreur, setErreur, envoyer } = useEnvoi();
   useEffect(() => {
+    // L'administrateur système n'est jamais bénéficiaire d'un acte (refus 403 côté API).
     getDirectory()
-      .then(setAnnuaire)
+      .then((u) => setAnnuaire(u.filter((x) => x.role !== 'ADMIN_SYSTEME')))
       .catch(() => setAnnuaire([]));
   }, []);
   const repondAId = acte?.repondAId ?? repondA?.id;
