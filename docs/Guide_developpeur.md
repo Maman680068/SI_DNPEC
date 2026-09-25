@@ -84,7 +84,5 @@ pnpm --filter @dnpec/api start:dev
 
 ## Reste à faire
 
-- **Icône messagerie (✉) de la barre du haut** : point rouge fixe, non relié au nombre de
-  messages non lus.
 - **Modules non construits** : D6 (rotation des stagiaires), D9 (logistique) ; D5
   (rémunération) hors périmètre (§5 du cahier des charges).

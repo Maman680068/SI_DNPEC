@@ -3,7 +3,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { useAuth } from '../../lib/auth/AuthProvider';
 import { useOrg } from '../../lib/org/OrgProvider';
-import { getMessagesWith, markMessageRead, sendMessage } from '../../lib/api/communication';
+import { EVENEMENT_MESSAGES_LUS, getMessagesWith, markMessageRead, sendMessage } from '../../lib/api/communication';
 import type { DirectMessage } from '../../lib/communication/types';
 import { Chargement, messageChargement } from '../ui/ErreurChargement';
 
@@ -37,6 +37,7 @@ export function MessageThread({
       const unread = result.filter((m) => m.recipientId === currentUser?.id && !m.readAt);
       if (unread.length > 0) {
         await Promise.all(unread.map((m) => markMessageRead(m.id)));
+        window.dispatchEvent(new Event(EVENEMENT_MESSAGES_LUS));
         onSent();
       }
     }).catch((err) => setError(messageChargement(err)));

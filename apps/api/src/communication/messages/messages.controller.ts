@@ -18,6 +18,12 @@ export class MessagesController {
     return this.messagesService.listConversations(actor);
   }
 
+  /** Pastille de l'icône messagerie : messages reçus non encore lus. */
+  @Get('unread-count')
+  unreadCount(@CurrentUser() actor: AuthenticatedUser) {
+    return this.messagesService.countUnread(actor);
+  }
+
   @Get('with/:userId')
   listWith(@Param('userId') userId: string, @CurrentUser() actor: AuthenticatedUser) {
     return this.messagesService.listWith(actor, userId);
