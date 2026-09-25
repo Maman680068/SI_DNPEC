@@ -101,6 +101,12 @@ enum SystemRole {
   // des comptes différents, ou non, décision organisationnelle hors du
   // périmètre applicatif.
   DRH
+  // Stagiaire (D6) — accès restreint par liste blanche (StagiaireGuard) :
+  // ses propres tâches, la messagerie, les annonces, son dossier et son
+  // stage. Aucune visibilité passive (tâches de la section, GED privée,
+  // courrier), aucune autorité. Rattachement optionnel, tenu par la
+  // rotation des stages (StagesService).
+  STAGIAIRE
 
   @@map("system_role")
 }

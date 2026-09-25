@@ -3,7 +3,9 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AuthenticatedUser } from '../../common/types/auth-user.type';
 import { MessagesService } from './messages.service';
 import { CreateMessageDto } from '../dto/create-message.dto';
+import { OuvertAuxStagiaires } from '../../common/decorators/ouvert-aux-stagiaires.decorator';
 
+@OuvertAuxStagiaires()
 @Controller('messages')
 export class MessagesController {
   constructor(private readonly messagesService: MessagesService) {}

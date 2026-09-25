@@ -11,6 +11,7 @@ import { UpdateAssignmentDto } from './dto/update-assignment.dto';
 import { ApproveRegistrationDto } from './dto/approve-registration.dto';
 import { ResolveUsersDto } from './dto/resolve-users.dto';
 import { SearchUsersDto } from './dto/search-users.dto';
+import { OuvertAuxStagiaires } from '../common/decorators/ouvert-aux-stagiaires.decorator';
 
 @Controller('users')
 export class UsersController {
@@ -22,6 +23,7 @@ export class UsersController {
     return this.usersService.create(dto, actor);
   }
 
+  @OuvertAuxStagiaires()
   @Get()
   findAll(@CurrentUser() actor: AuthenticatedUser) {
     return this.usersService.findAllVisibleTo(actor);
@@ -41,6 +43,7 @@ export class UsersController {
    * sensibles (ni email, ni rôle, ni statut de compte). Accessible à tout
    * utilisateur authentifié.
    */
+  @OuvertAuxStagiaires()
   @Get('resolve')
   resolve(@Query() dto: ResolveUsersDto) {
     const ids = dto.ids.split(',').map((id) => id.trim()).filter(Boolean);
@@ -53,6 +56,7 @@ export class UsersController {
    * Mêmes champs non sensibles que /users/resolve, comptes actifs
    * uniquement. Accessible à tout utilisateur authentifié.
    */
+  @OuvertAuxStagiaires()
   @Get('search')
   search(@Query() dto: SearchUsersDto) {
     return this.usersService.searchBasicInfo(dto.q);
@@ -68,6 +72,7 @@ export class UsersController {
     return this.usersService.listDirectory();
   }
 
+  @OuvertAuxStagiaires()
   @Get(':id')
   findOne(@Param('id') id: string, @CurrentUser() actor: AuthenticatedUser) {
     return this.usersService.findOneVisibleTo(actor, id);

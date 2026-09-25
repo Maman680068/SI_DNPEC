@@ -1,6 +1,6 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { AuditAction, MeetingResponseStatus, MeetingStatus, NotificationType, Prisma, UserStatus } from '@prisma/client';
+import { AuditAction, MeetingResponseStatus, MeetingStatus, NotificationType, Prisma, SystemRole, UserStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../common/audit/audit.service';
 import { CascadeService } from '../org/cascade/cascade.service';
@@ -300,13 +300,17 @@ export class MeetingsService {
     if (userIds.length === 0) return;
     const users = await this.prisma.user.findMany({
       where: { id: { in: userIds } },
-      select: { id: true, status: true },
+      select: { id: true, status: true, role: true },
     });
     if (users.length !== userIds.length) {
       throw new NotFoundException('Un ou plusieurs participants sont introuvables.');
     }
     if (users.some((u) => u.status !== UserStatus.ACTIF)) {
       throw new ForbiddenException('Un ou plusieurs participants n’ont pas de compte actif.');
+    }
+    // Stagiaire (D6) : le module Réunions ne lui est pas ouvert.
+    if (users.some((u) => u.role === SystemRole.STAGIAIRE)) {
+      throw new ForbiddenException('Un stagiaire n’a pas accès aux réunions : il ne peut pas y être invité.');
     }
   }
 }

@@ -23,10 +23,12 @@ import { UpdatePersonnelSensitiveDto } from './dto/update-personnel-sensitive.dt
 import { CreateDiplomaDto } from './dto/create-diploma.dto';
 import { CreatePersonnelDocumentDto } from './dto/create-personnel-document.dto';
 import { ReportPersonnelErrorDto } from './dto/report-personnel-error.dto';
+import { OuvertAuxStagiaires } from '../common/decorators/ouvert-aux-stagiaires.decorator';
 
 const MAX_FILE_SIZE_BYTES = 25 * 1024 * 1024;
 const fileInterceptorOptions = { storage: memoryStorage(), limits: { fileSize: MAX_FILE_SIZE_BYTES } };
 
+@OuvertAuxStagiaires()
 @Controller('personnel-files')
 export class PersonnelFilesController {
   constructor(private readonly filesService: PersonnelFilesService) {}

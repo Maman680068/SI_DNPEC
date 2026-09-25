@@ -6,16 +6,19 @@ import { AuthenticatedUser } from '../../common/types/auth-user.type';
 import { DivisionsService } from './divisions.service';
 import { CreateDivisionDto } from './dto/create-division.dto';
 import { UpdateDivisionDto } from './dto/update-division.dto';
+import { OuvertAuxStagiaires } from '../../common/decorators/ouvert-aux-stagiaires.decorator';
 
 @Controller('org/divisions')
 export class DivisionsController {
   constructor(private readonly divisionsService: DivisionsService) {}
 
+  @OuvertAuxStagiaires()
   @Get()
   findAll() {
     return this.divisionsService.findAll();
   }
 
+  @OuvertAuxStagiaires()
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.divisionsService.findOneOrThrow(id);

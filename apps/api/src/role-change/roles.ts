@@ -12,6 +12,7 @@ export const ROLE_LIBELLE: Record<SystemRole, string> = {
   ASSISTANT_DIRECTION: 'Assistant(e) de Direction',
   ADMIN_SYSTEME: 'Administrateur Système',
   DRH: 'Directeur des Ressources Humaines',
+  STAGIAIRE: 'Stagiaire',
 };
 
 export interface RattachementRole {
@@ -53,6 +54,12 @@ export function rattachementPourRole(role: SystemRole, saisie: Partial<Rattachem
     case SystemRole.ASSISTANT_DIRECTION:
       exige(!!sup, 'Un(e) Assistant(e) de Direction est rattaché(e) à un superviseur (DN, DNA ou Chef de Cellule).');
       return { divisionId: null, sectionId: null, celluleId: null, supervisorId: sup };
+    case SystemRole.STAGIAIRE:
+      // Rattachement facultatif : c'est la rotation du stage (D6) qui le tient
+      // à jour ; s'il est donné, même forme que pour un Chargé d'Études.
+      exige(!(d && c), 'Un stagiaire est rattaché à une Division (section facultative), à une Cellule, ou à aucune unité.');
+      exige(!s || !!d, 'Une Section ne peut être renseignée sans Division.');
+      return d ? { divisionId: d, sectionId: s, celluleId: null, supervisorId: null } : { divisionId: null, sectionId: null, celluleId: c, supervisorId: null };
     case SystemRole.DRH:
     case SystemRole.ADMIN_SYSTEME:
       return { divisionId: null, sectionId: null, celluleId: c, supervisorId: null };

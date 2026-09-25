@@ -173,20 +173,25 @@ export class PersonnelImportService {
     if (!firstName || !lastName) {
       throw new Error('Prénom et nom sont requis pour créer un nouveau compte.');
     }
-    // L'import ne crée que des comptes de Chargé d'Études : tout autre rôle
-    // (chefs, DN/DNA, DRH, administrateur, assistant) s'attribue ensuite par
-    // l'administrateur système via le changement de rôle — motif obligatoire,
-    // unicité des chefs, audit et notifications (Lot E). Colonne « Rôle »
-    // vide : Chargé d'Études.
+    // L'import ne crée que des comptes de Chargé d'Études ou de Stagiaire (D6) :
+    // tout autre rôle (chefs, DN/DNA, DRH, administrateur, assistant)
+    // s'attribue ensuite par l'administrateur système via le changement de
+    // rôle — motif obligatoire, unicité des chefs, audit et notifications
+    // (Lot E). Colonne « Rôle » vide : Chargé d'Études.
     const roleRaw = this.cellString(row, columns.role);
     const roleNormalise = roleRaw ? normalizeHeader(roleRaw) : 'AGENT';
-    if (roleNormalise !== 'AGENT' && roleNormalise !== 'CHARGE D ETUDES') {
+    const role =
+      roleNormalise === 'AGENT' || roleNormalise === 'CHARGE D ETUDES'
+        ? SystemRole.AGENT
+        : roleNormalise === 'STAGIAIRE'
+          ? SystemRole.STAGIAIRE
+          : null;
+    if (!role) {
       throw new Error(
-        `Rôle « ${roleRaw} » : l'import ne crée que des comptes de Chargé d'Études. ` +
+        `Rôle « ${roleRaw} » : l'import ne crée que des comptes de Chargé d'Études ou de Stagiaire. ` +
           "Créez la ligne en Chargé d'Études, puis demandez à l'administrateur système le changement de rôle.",
       );
     }
-    const role = SystemRole.AGENT;
 
     const divisionCode = this.cellString(row, columns.divisionCode)?.toUpperCase();
     const sectionCode = this.cellString(row, columns.sectionCode)?.toUpperCase();

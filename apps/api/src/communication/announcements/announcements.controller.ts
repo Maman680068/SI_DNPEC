@@ -3,6 +3,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AuthenticatedUser } from '../../common/types/auth-user.type';
 import { AnnouncementsService } from './announcements.service';
 import { CreateAnnouncementDto } from '../dto/create-announcement.dto';
+import { OuvertAuxStagiaires } from '../../common/decorators/ouvert-aux-stagiaires.decorator';
 
 @Controller('announcements')
 export class AnnouncementsController {
@@ -13,16 +14,19 @@ export class AnnouncementsController {
     return this.announcementsService.create(actor, dto);
   }
 
+  @OuvertAuxStagiaires()
   @Get()
   findAll(@CurrentUser() actor: AuthenticatedUser) {
     return this.announcementsService.findAllVisibleTo(actor);
   }
 
+  @OuvertAuxStagiaires()
   @Get(':id')
   findOne(@Param('id') id: string, @CurrentUser() actor: AuthenticatedUser) {
     return this.announcementsService.findOneVisibleTo(actor, id);
   }
 
+  @OuvertAuxStagiaires()
   @Post(':id/read')
   markRead(@Param('id') id: string, @CurrentUser() actor: AuthenticatedUser) {
     return this.announcementsService.markRead(actor, id);

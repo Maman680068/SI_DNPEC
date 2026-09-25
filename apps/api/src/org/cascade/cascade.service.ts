@@ -370,6 +370,9 @@ export class CascadeService {
    * division dont ils ne sont pas membres.
    */
   isMemberOfDivision(actor: AuthenticatedUser, divisionId: string): boolean {
+    // Stagiaire (D6) : rattaché à une division le temps d'une période, jamais
+    // lecteur de son espace privé (le module est de plus fermé par StagiaireGuard).
+    if (actor.role === SystemRole.STAGIAIRE) return false;
     return actor.divisionId === divisionId;
   }
 
