@@ -37,4 +37,11 @@ export class AdminPasswordController {
   ) {
     return this.authService.adminSetPassword(actor, userId, dto);
   }
+
+  @Roles(SystemRole.ADMIN_SYSTEME)
+  @HttpCode(HttpStatus.OK)
+  @Post(':userId/2fa/reset')
+  resetTwoFa(@Param('userId') userId: string, @CurrentUser() actor: AuthenticatedUser) {
+    return this.authService.adminResetTwoFa(actor, userId);
+  }
 }

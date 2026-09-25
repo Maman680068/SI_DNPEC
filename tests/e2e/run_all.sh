@@ -101,6 +101,8 @@ lancer "21c. D6 — ATTESTATION" api/d6_attestation.js
 lancer "21d. D6 — LISTES DE CHOIX" api/d6_listes.js
 lancer "21e. D9 — LOGISTIQUE" api/d9_logistique.js
 lancer "21f. D9 — RÉSERVATIONS ET PRIORITÉ" api/d9_reservations.js
+lancer "21g. G3 — DOUBLE AUTHENTIFICATION (API)" api/g3_2fa.js
+lancer "21h. G3 — SOCLE : INSCRIPTION, MOT DE PASSE, TÂCHES, CONGÉS, GED, ANNONCES, SONDAGES" api/g3_socle.js
 lancer "22. CHROMIUM — C2 PAGE" ui/c2_page.js
 lancer "23. CHROMIUM — C2 ARRIVÉE" ui/c2_arrivee.js
 lancer "24. CHROMIUM — C2 ACTE" ui/c2_acte.js
@@ -115,6 +117,7 @@ lancer "32. CHROMIUM — MESSAGERIE" ui/f_messagerie_ui.js
 lancer "33. CHROMIUM — D6 RÔLE STAGIAIRE" ui/d6_role_ui.js
 lancer "34. CHROMIUM — D6 STAGES" ui/d6_stages_ui.js
 lancer "35. CHROMIUM — D9 LOGISTIQUE" ui/d9_logistique_ui.js
+lancer "36. CHROMIUM — G3 DOUBLE AUTHENTIFICATION" ui/g3_2fa_ui.js
 
 for f in "$E2E_OUT"/logs/*.pid; do [ -f "$f" ] && kill "$(cat "$f")" 2>/dev/null; done
 echo; echo "################ RÉSUMÉ"

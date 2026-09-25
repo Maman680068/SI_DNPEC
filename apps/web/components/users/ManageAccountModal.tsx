@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, type FormEvent } from 'react';
-import { sendPasswordResetEmail, setUserPassword, setUserStatus } from '../../lib/api/users';
+import { resetTwoFa, sendPasswordResetEmail, setUserPassword, setUserStatus } from '../../lib/api/users';
 import type { AdminUser, UserStatus } from '../../lib/users/types';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
@@ -67,6 +67,23 @@ export function ManageAccountModal({
       setNotice(result.message);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Impossible d'envoyer l'email de réinitialisation");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function handleResetTwoFa() {
+    if (!window.confirm('Confirmer : réinitialiser la double authentification de ce compte ? La personne devra se reconnecter avec son seul mot de passe.')) {
+      return;
+    }
+    setBusy('reset-2fa');
+    setError(null);
+    setNotice(null);
+    try {
+      const result = await resetTwoFa(user.id);
+      setNotice(result.message);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Impossible de réinitialiser la double authentification');
     } finally {
       setBusy(null);
     }
@@ -207,6 +224,16 @@ export function ManageAccountModal({
               {busy === 'set-password' ? 'Application…' : 'Définir ce mot de passe'}
             </Button>
           </form>
+        </div>
+
+        <div className="mb-2 mt-5">
+          <div className="mb-2 text-xs font-bold uppercase tracking-wide text-text-muted">Double authentification</div>
+          <Button variant="outline" className="w-full" disabled={!!busy} onClick={handleResetTwoFa}>
+            {busy === 'reset-2fa' ? 'Réinitialisation…' : 'Réinitialiser la double authentification'}
+          </Button>
+          <p className="mt-1.5 text-[11.5px] text-text-faint">
+            Si la personne a perdu ou changé de téléphone. Ses sessions sont fermées ; elle pourra la réactiver ensuite.
+          </p>
         </div>
 
         <div className="mt-5 flex justify-end">

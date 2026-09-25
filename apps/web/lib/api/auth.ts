@@ -1,3 +1,4 @@
+import { apiFetch } from './client';
 import type { AuthUser, LoginProxyResult, RegistrationOrgOptions, RegistrationSupervisorOption } from '../auth/types';
 
 const PUBLIC_API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:3000';
@@ -148,3 +149,11 @@ export async function logoutAllRequest(bearerToken: string): Promise<void> {
     headers: { Authorization: `Bearer ${bearerToken}` },
   });
 }
+
+// ---- Page Sécurité du compte (session ouverte, via apiFetch) ----------------
+
+export const getStatutDoubleAuth = () => apiFetch<{ enabled: boolean; pending: boolean }>('/auth/2fa/status');
+export const configurerDoubleAuth = () =>
+  apiFetch<{ secret: string; otpAuthUrl: string; qrCodeDataUrl: string }>('/auth/2fa/setup', { method: 'POST' });
+export const activerDoubleAuth = (code: string) => apiFetch<{ enabled: true }>('/auth/2fa/activate', { method: 'POST', body: JSON.stringify({ code }) });
+export const desactiverDoubleAuth = (code: string) => apiFetch<void>('/auth/2fa/disable', { method: 'POST', body: JSON.stringify({ code }) });

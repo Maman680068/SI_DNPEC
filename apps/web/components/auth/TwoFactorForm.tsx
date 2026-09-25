@@ -9,7 +9,7 @@ import { Button } from '../ui/Button';
 
 export function TwoFactorForm() {
   const router = useRouter();
-  const { pendingChallenge, submitTwoFaCode } = useAuth();
+  const { status, pendingChallenge, submitTwoFaCode } = useAuth();
   const [code, setCode] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -23,8 +23,11 @@ export function TwoFactorForm() {
   const isFirstTimeSetup = pendingChallenge?.type === 'two_fa_setup_required';
 
   useEffect(() => {
+    // Sans vérification en attente, retour à la connexion — sauf si le code
+    // vient d'être accepté : AuthProvider conduit alors à la page visée
+    // (sinon cette redirection l'écraserait et on retomberait sur /login).
     if (!pendingChallenge) {
-      router.replace('/login');
+      if (status !== 'authenticated') router.replace('/login');
       return;
     }
     if (pendingChallenge.type === 'two_fa_setup_required' && !setupCalledRef.current) {
@@ -37,7 +40,7 @@ export function TwoFactorForm() {
         .catch((err) => setError(err instanceof Error ? err.message : 'Impossible de démarrer la configuration 2FA'));
     }
     // pendingChallenge.token ne change jamais pour un même challenge : un seul appel voulu.
-  }, [pendingChallenge?.type]);
+  }, [pendingChallenge?.type, status]);
 
   if (!pendingChallenge) return null;
 
@@ -59,7 +62,7 @@ export function TwoFactorForm() {
       <h2 className="mb-1.5 text-[23px] font-semibold">Vérification en deux étapes</h2>
       <p className="mb-8 text-sm text-text-muted">
         {isFirstTimeSetup
-          ? 'Votre rôle requiert la double authentification. Scannez ce QR code avec votre application d’authentification, puis saisissez le code généré.'
+          ? 'Scannez ce QR code avec votre application d’authentification, puis saisissez le code généré.'
           : 'Saisissez le code affiché par votre application d’authentification.'}
       </p>
 

@@ -261,6 +261,32 @@ export class AuthService {
     return { message: 'Mot de passe défini. Les sessions actives de ce compte ont été révoquées.' };
   }
 
+  /**
+   * Réinitialisation de la 2FA par l'administrateur (téléphone perdu ou
+   * changé) : désactive la 2FA, efface le secret et ferme toutes les sessions
+   * du compte ; la personne se reconnecte avec son mot de passe et peut la
+   * réactiver. Jamais sur son propre compte (désactivation par code).
+   */
+  async adminResetTwoFa(actor: AuthenticatedUser, userId: string): Promise<{ message: string }> {
+    if (actor.id === userId) {
+      throw new ForbiddenException('Pour votre propre compte, désactivez la double authentification depuis la page Sécurité.');
+    }
+    const user = await this.getUserOrThrow(userId);
+    if (!user.twoFactorEnabled && !user.twoFactorSecret) {
+      throw new ConflictException('La double authentification n’est pas activée sur ce compte.');
+    }
+    await this.prisma.user.update({ where: { id: user.id }, data: { twoFactorEnabled: false, twoFactorSecret: null } });
+    await this.sessionService.revokeAllSessions(user.id);
+    await this.audit.log({
+      actorId: actor.id,
+      action: AuditAction.MODIFICATION,
+      entityType: 'User',
+      entityId: user.id,
+      metadata: { event: 'admin_reset_two_fa' },
+    });
+    return { message: 'Double authentification réinitialisée. Les sessions actives de ce compte ont été fermées.' };
+  }
+
   async login(dto: LoginDto, ip: string) {
     this.loginAttempts.assertNotLocked(dto.email, ip);
 
@@ -338,6 +364,11 @@ export class AuthService {
   async setupTwoFa(authorizationHeader: string | undefined) {
     const userId = await this.resolveSetupOrAccessSubject(authorizationHeader);
     const user = await this.getUserOrThrow(userId);
+    // Déjà active : régénérer le secret désynchroniserait l'application
+    // d'authentification et bloquerait le compte (désactiver d'abord).
+    if (user.twoFactorEnabled) {
+      throw new ConflictException('La double authentification est déjà active : désactivez-la avant de la reconfigurer.');
+    }
 
     const secret = this.totpService.generateSecret();
     // Secret stocké dès la génération, mais 2FA reste désactivée
@@ -373,8 +404,47 @@ export class AuthService {
     return this.issueSession(user, undefined);
   }
 
-  async disableTwoFa(userId: string): Promise<void> {
+  /** État de la double authentification du compte connecté (page Sécurité). */
+  async twoFaStatus(userId: string): Promise<{ enabled: boolean; pending: boolean }> {
     const user = await this.getUserOrThrow(userId);
+    return { enabled: user.twoFactorEnabled, pending: !user.twoFactorEnabled && !!user.twoFactorSecret };
+  }
+
+  /**
+   * Activation depuis une session ouverte (page Sécurité) : confirme le
+   * premier code du secret généré par setupTwoFa, sans ouvrir de seconde
+   * session (contrairement à enableTwoFa, parcours du jeton de configuration).
+   */
+  async activateTwoFa(userId: string, dto: EnableTwoFaDto): Promise<{ enabled: true }> {
+    const user = await this.getUserOrThrow(userId);
+    if (user.twoFactorEnabled) throw new ConflictException('La double authentification est déjà active.');
+    if (!user.twoFactorSecret) {
+      throw new ConflictException('Aucune configuration en attente : générez d’abord le QR code.');
+    }
+    if (!this.totpService.verify(dto.code, user.twoFactorSecret)) {
+      throw new UnauthorizedException('Code de vérification invalide');
+    }
+    await this.prisma.user.update({ where: { id: user.id }, data: { twoFactorEnabled: true } });
+    await this.audit.log({
+      actorId: user.id,
+      action: AuditAction.MODIFICATION,
+      entityType: 'User',
+      entityId: user.id,
+      metadata: { event: 'two_fa_enabled' },
+    });
+    return { enabled: true };
+  }
+
+  /**
+   * Désactivation par la personne elle-même : exige un code valide de son
+   * application, pour qu'une session volée ne suffise pas à retirer la 2FA.
+   */
+  async disableTwoFa(userId: string, dto: EnableTwoFaDto): Promise<void> {
+    const user = await this.getUserOrThrow(userId);
+    if (!user.twoFactorEnabled) throw new ConflictException('La double authentification n’est pas active.');
+    if (!user.twoFactorSecret || !this.totpService.verify(dto.code, user.twoFactorSecret)) {
+      throw new UnauthorizedException('Code de vérification invalide');
+    }
 
     await this.prisma.user.update({
       where: { id: user.id },
