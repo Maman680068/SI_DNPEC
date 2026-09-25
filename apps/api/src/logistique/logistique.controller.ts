@@ -82,6 +82,12 @@ export class LogistiqueController {
   }
 
   @Roles(SystemRole.ADMIN_SYSTEME)
+  @Get('habilitations/candidats')
+  candidats() {
+    return this.gestionnaires.candidats();
+  }
+
+  @Roles(SystemRole.ADMIN_SYSTEME)
   @Post('habilitations')
   accorder(@Body() dto: HabilitationLogistiqueDto, @CurrentUser() actor: AuthenticatedUser) {
     return this.gestionnaires.accorder(actor, dto.userId);

@@ -21,6 +21,8 @@ const NAV_GROUPS: NavGroup[] = [
       // Courrier et actes (D7) : tout profil — l'administrateur système n'y voit
       // que son courrier personnel ; il en a aussi le paramétrage (Administration).
       { icon: '📨', label: 'Courrier', href: '/courrier' },
+      // Logistique (D9) : tout profil sauf stagiaire (NAVIGATION_STAGIAIRE).
+      { icon: '🧰', label: 'Logistique', href: '/logistique' },
     ],
   },
   {
@@ -71,6 +73,7 @@ function navGroupsFor(role: string | undefined): NavGroup[] {
   if (role === 'ADMIN_SYSTEME') {
     adminItems.push({ icon: '🏛', label: 'Organisation', href: '/organisation' });
     adminItems.push({ icon: '📨', label: 'Courrier', href: '/courrier/administration' });
+    adminItems.push({ icon: '🧰', label: 'Logistique', href: '/logistique/administration' });
   }
   if (adminItems.length === 0) return groups;
   return [...groups, { label: 'Administration', items: adminItems }];

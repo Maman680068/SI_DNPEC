@@ -16,6 +16,7 @@ import { BroadcastTaskModal } from '../../../components/tasks/BroadcastTaskModal
 import { Button } from '../../../components/ui/Button';
 import { CarteCourrier } from '../../../components/courrier/CarteCourrier';
 import { CarteStages } from '../../../components/stages/CarteStages';
+import { CarteLogistique } from '../../../components/logistique/CarteLogistique';
 
 /** Rôles pouvant plausiblement diffuser une tâche à une division (voir
  * CascadeService.canBroadcastToDivision) — DN/DNA n'importe laquelle, Chef de
@@ -120,6 +121,7 @@ export default function DashboardPage() {
 
       {!stagiaire && <CarteCourrier />}
       {!stagiaire && <CarteStages />}
+      {!stagiaire && <CarteLogistique />}
 
       <div className="mb-3.5 flex items-center justify-between">
         <h2 className="text-[16px] font-extrabold">Suivi des tâches</h2>

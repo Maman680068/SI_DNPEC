@@ -25,6 +25,8 @@ export interface Meeting {
   createdAt: string;
   updatedAt: string;
   participants: MeetingParticipant[];
+  // D9 — salle réservée avec la réunion (statut : éviction pour priorité, refus...).
+  reservation: { id: string; statut: 'EN_ATTENTE' | 'CONFIRMEE' | 'REFUSEE' | 'ANNULEE' | 'ANNULEE_PRIORITE'; ressource: { id: string; nom: string } } | null;
 }
 
 export interface CreateMeetingInput {
@@ -34,6 +36,8 @@ export interface CreateMeetingInput {
   startAt: string;
   endAt?: string;
   participantIds: string[];
+  ressourceId?: string;
+  prioritaire?: boolean;
 }
 
 export const RESPONSE_STATUS_LABEL: Record<MeetingResponseStatus, string> = {

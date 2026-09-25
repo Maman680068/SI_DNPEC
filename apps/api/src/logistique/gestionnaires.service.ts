@@ -57,6 +57,19 @@ export class GestionnairesLogistiqueService {
     });
   }
 
+  /** Liste de choix de l'administration : comptes que `accorder` accepte. */
+  candidats() {
+    return this.prisma.user.findMany({
+      where: {
+        status: UserStatus.ACTIF,
+        role: { not: SystemRole.STAGIAIRE },
+        habilitationsLogistique: { none: { revoqueeAt: null } },
+      },
+      select: { id: true, firstName: true, lastName: true, role: true },
+      orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
+    });
+  }
+
   async accorder(actor: AuthenticatedUser, userId: string) {
     const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { status: true, role: true } });
     if (!user) throw new NotFoundException('Utilisateur introuvable');

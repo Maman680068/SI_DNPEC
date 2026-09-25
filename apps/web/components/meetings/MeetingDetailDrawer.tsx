@@ -79,6 +79,15 @@ export function MeetingDetailDrawer({
         <h2 className="mb-1.5 text-[19px] font-semibold leading-snug">{meeting.title}</h2>
         <p className="mb-1 text-[13px] text-text-muted">{formatWhen(meeting.startAt)}</p>
         {meeting.location && <p className="mb-1 text-[13px] text-text-muted">📍 {meeting.location}</p>}
+        {meeting.reservation?.statut === 'EN_ATTENTE' && (
+          <p className="mb-1 text-[12.5px] text-text-muted">Salle « {meeting.reservation.ressource.nom} » en attente de validation par un gestionnaire.</p>
+        )}
+        {meeting.status === 'PLANIFIEE' && (meeting.reservation?.statut === 'ANNULEE_PRIORITE' || meeting.reservation?.statut === 'REFUSEE' || meeting.reservation?.statut === 'ANNULEE') && (
+          <p className="mb-1 rounded-md bg-clay-soft px-3 py-2 text-[12.5px] text-clay" data-testid="salle-perdue">
+            Salle « {meeting.reservation.ressource.nom} » perdue
+            {meeting.reservation.statut === 'ANNULEE_PRIORITE' ? ' (priorité hiérarchique)' : meeting.reservation.statut === 'REFUSEE' ? ' (refusée)' : ''} : la réunion n’a plus de salle.
+          </p>
+        )}
         <p className="mb-5 text-[12px] text-text-faint">
           Organisée par {isOrganizer ? 'vous' : getUserLabel(meeting.createdById)}
         </p>

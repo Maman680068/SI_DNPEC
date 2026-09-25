@@ -4,6 +4,8 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { useAuth } from '../../lib/auth/AuthProvider';
 import { searchUsers } from '../../lib/api/org';
 import { createMeeting } from '../../lib/api/meetings';
+import { getDisponibilite } from '../../lib/api/logistique';
+import type { Disponibilite } from '../../lib/logistique/types';
 import type { BasicUserInfo } from '../../lib/org/types';
 import type { Meeting } from '../../lib/meetings/types';
 import { Field } from '../ui/Input';
@@ -21,6 +23,31 @@ export function CreateMeetingModal({ onClose, onCreated }: { onClose: () => void
   const [participants, setParticipants] = useState<BasicUserInfo[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // D9 — salles proposées par l'API pour le créneau : libres, ou occupées
+  // quand la priorité hiérarchique est possible (liste = ce que l'API accepte).
+  const [salles, setSalles] = useState<Disponibilite[] | null>(null);
+  const [salleId, setSalleId] = useState('');
+
+  useEffect(() => {
+    setSalles(null);
+    if (!startAt || !endAt || new Date(endAt) <= new Date(startAt)) return;
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      getDisponibilite(new Date(startAt).toISOString(), new Date(endAt).toISOString(), 'SALLE')
+        .then((d) => {
+          if (cancelled) return;
+          const proposees = d.filter((r) => r.libre || r.prioritePossible);
+          setSalles(proposees);
+          setSalleId((id) => (proposees.some((r) => r.id === id) ? id : ''));
+        })
+        .catch(() => !cancelled && setSalles([]));
+    }, 250);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [startAt, endAt]);
+  const salle = salles?.find((r) => r.id === salleId) ?? null;
 
   useEffect(() => {
     if (!query.trim()) {
@@ -60,10 +87,11 @@ export function CreateMeetingModal({ onClose, onCreated }: { onClose: () => void
       const meeting = await createMeeting({
         title,
         agenda: agenda.trim() || undefined,
-        location: location.trim() || undefined,
+        location: salle ? undefined : location.trim() || undefined,
         startAt: new Date(startAt).toISOString(),
         endAt: endAt ? new Date(endAt).toISOString() : undefined,
         participantIds: participants.map((p) => p.id),
+        ...(salle ? { ressourceId: salle.id, prioritaire: salle.libre ? undefined : true } : {}),
       });
       onCreated(meeting);
     } catch (err) {
@@ -95,7 +123,35 @@ export function CreateMeetingModal({ onClose, onCreated }: { onClose: () => void
           <Field label="Fin (optionnel)" type="datetime-local" value={endAt} onChange={(e) => setEndAt(e.target.value)} />
         </div>
 
-        <Field label="Lieu / salle (optionnel)" value={location} onChange={(e) => setLocation(e.target.value)} />
+        <div className="mb-4">
+          <label htmlFor="reunion-salle" className="mb-1.5 block text-[12.5px] font-semibold text-text">
+            Réserver une salle
+          </label>
+          <select
+            id="reunion-salle"
+            value={salleId}
+            onChange={(e) => setSalleId(e.target.value)}
+            disabled={!salles}
+            className="w-full rounded-md border border-line bg-surface px-3.5 py-2.5 text-sm focus:border-accent focus:outline focus:outline-2 focus:outline-accent disabled:opacity-60"
+          >
+            <option value="">{salles ? 'Aucune (lieu libre ci-dessous)' : 'Indiquez le début et la fin pour voir les salles libres'}</option>
+            {salles?.map((r) => (
+              <option key={r.id} value={r.id}>
+                {r.nom}
+                {r.capacite ? ` (${r.capacite} places)` : ''}
+                {r.libre ? (r.mode === 'VALIDATION' ? ' — soumise à validation' : '') : ` — occupée : priorité hiérarchique sur ${r.conflits.map((c) => `${c.titulaire.firstName} ${c.titulaire.lastName}`).join(', ')}`}
+              </option>
+            ))}
+          </select>
+          {salle && !salle.libre && (
+            <p className="mt-1.5 rounded-md bg-clay-soft px-3 py-2 text-[12px] text-clay">
+              En créant la réunion, vous faites valoir la priorité hiérarchique : la réservation de{' '}
+              {salle.conflits.map((c) => `${c.titulaire.firstName} ${c.titulaire.lastName}`).join(', ')} sera annulée et la personne prévenue avec votre nom.
+            </p>
+          )}
+        </div>
+
+        {!salle && <Field label="Lieu (optionnel)" value={location} onChange={(e) => setLocation(e.target.value)} />}
 
         <div className="mb-4">
           <label className="mb-1.5 block text-[12.5px] font-semibold text-text">Ordre du jour (optionnel)</label>

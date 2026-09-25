@@ -169,6 +169,7 @@ export class ReservationsService {
       titulaire: { id: titulaire.id, firstName: titulaire.firstName, lastName: titulaire.lastName },
       objet: visible ? r.objet : null,
       meeting: visible ? meeting : null,
+      estTitulaire: soiMeme,
       droits: {
         // Une réservation de réunion se libère en annulant la réunion.
         annuler: active && aVenir && ((soiMeme && !r.meetingId) || (gestionnaire && !soiMeme)),
