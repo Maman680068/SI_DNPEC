@@ -14,6 +14,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import type { Response } from 'express';
+import type { ReadStream } from 'fs';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { AuthenticatedUser } from '../common/types/auth-user.type';
 import { PersonnelFilesService } from './personnel-files.service';
@@ -32,6 +33,11 @@ export class PersonnelFilesController {
 
   // Route statique déclarée avant ":userId" pour ne pas être capturée par lui
   // (même précaution que UsersController pour /pending, /resolve, /search...).
+  @Get()
+  list(@CurrentUser() actor: AuthenticatedUser) {
+    return this.filesService.list(actor);
+  }
+
   @Get('me')
   getMine(@CurrentUser() actor: AuthenticatedUser) {
     return this.filesService.getFile(actor, actor.id);
@@ -61,6 +67,16 @@ export class PersonnelFilesController {
     return this.filesService.setJobDescription(actor, userId, file);
   }
 
+  @Get(':userId/job-description')
+  async downloadJobDescription(
+    @Param('userId') userId: string,
+    @CurrentUser() actor: AuthenticatedUser,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<StreamableFile> {
+    const { fileName, stream } = await this.filesService.downloadJobDescription(actor, userId);
+    return this.fichier(res, fileName, stream);
+  }
+
   @Patch(':userId/sensitive')
   updateSensitive(
     @Param('userId') userId: string,
@@ -79,6 +95,17 @@ export class PersonnelFilesController {
     @CurrentUser() actor: AuthenticatedUser,
   ) {
     return this.filesService.addDiploma(actor, userId, dto, file);
+  }
+
+  @Get(':userId/diplomas/:diplomaId/download')
+  async downloadDiploma(
+    @Param('userId') userId: string,
+    @Param('diplomaId') diplomaId: string,
+    @CurrentUser() actor: AuthenticatedUser,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<StreamableFile> {
+    const { fileName, stream } = await this.filesService.downloadDiploma(actor, userId, diplomaId);
+    return this.fichier(res, fileName, stream);
   }
 
   @Delete(':userId/diplomas/:diplomaId')
@@ -118,11 +145,7 @@ export class PersonnelFilesController {
     @Res({ passthrough: true }) res: Response,
   ): Promise<StreamableFile> {
     const { document, stream } = await this.filesService.downloadDocument(actor, userId, documentId);
-    res.set({
-      'Content-Type': 'application/octet-stream',
-      'Content-Disposition': `attachment; filename="${encodeURIComponent(document.fileName)}"`,
-    });
-    return new StreamableFile(stream);
+    return this.fichier(res, document.fileName, stream);
   }
 
   @Get(':userId/career-history')
@@ -142,5 +165,13 @@ export class PersonnelFilesController {
     @CurrentUser() actor: AuthenticatedUser,
   ) {
     return this.filesService.reportError(actor, userId, dto);
+  }
+
+  private fichier(res: Response, fileName: string, stream: ReadStream): StreamableFile {
+    res.set({
+      'Content-Type': 'application/octet-stream',
+      'Content-Disposition': `attachment; filename="${encodeURIComponent(fileName)}"`,
+    });
+    return new StreamableFile(stream);
   }
 }
