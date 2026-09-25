@@ -197,6 +197,11 @@ export function TiroirArrivee({
                   <Info label="Référence">{a.referenceExpediteur ?? '—'}</Info>
                   <Info label="Daté du">{formatDate(a.dateCourrier)}</Info>
                 </div>
+                {a.motifDerogationDate && (
+                  <div className="rounded-md bg-gold-soft px-3 py-2 text-[12.5px] text-ink" data-testid="derogation-date">
+                    <strong>Date confirmée par dérogation :</strong> {a.motifDerogationDate}
+                  </div>
+                )}
               </div>
             </>
           )}

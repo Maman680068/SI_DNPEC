@@ -34,6 +34,60 @@ function aujourdhuiDe(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+/** Dérogation au contrôle des dates (même règle que l'API, qui reste seule juge). */
+export interface Derogation {
+  confirme: boolean;
+  motif: string;
+}
+function anomaliesDates(dateReception: string, dateCourrier: string): string[] {
+  const a: string[] = [];
+  if (dateReception && dateReception > aujourdhui()) a.push('la date de réception est dans le futur');
+  if (dateCourrier && dateReception && dateCourrier > dateReception) a.push('la date du courrier est postérieure à sa date de réception');
+  return a;
+}
+/** Champs à envoyer : la dérogation n'est transmise que si elle est confirmée. */
+const champsDerogation = (d: Derogation) => (d.confirme ? { derogationDate: true, motifDerogation: d.motif.trim() } : {});
+
+function ControleDates({
+  dateReception,
+  dateCourrier,
+  valeur,
+  onChange,
+}: {
+  dateReception: string;
+  dateCourrier: string;
+  valeur: Derogation;
+  onChange: (d: Derogation) => void;
+}) {
+  const anomalies = anomaliesDates(dateReception, dateCourrier);
+  if (anomalies.length === 0) return null;
+  return (
+    <div className="mb-4 rounded-md border border-gold bg-gold-soft px-3.5 py-3 text-[12.5px] text-ink" data-testid="controle-dates">
+      <p className="mb-2">
+        <strong>Date inhabituelle :</strong> {anomalies.join(' ; ')}. Vérifiez la saisie, ou confirmez-la en indiquant le motif (il sera conservé et
+        tracé).
+      </p>
+      <label className="flex items-start gap-2 font-semibold">
+        <input type="checkbox" checked={valeur.confirme} onChange={(e) => onChange({ ...valeur, confirme: e.target.checked })} className="mt-0.5" />
+        Je confirme cette date
+      </label>
+      {valeur.confirme && (
+        <div className="mt-2.5">
+          <Libelle htmlFor="motifDerogation">Motif de la dérogation (obligatoire)</Libelle>
+          <textarea
+            id="motifDerogation"
+            className={`${TEXTAREA_CLASS} !min-h-[64px]`}
+            value={valeur.motif}
+            onChange={(e) => onChange({ ...valeur, motif: e.target.value })}
+            required
+            maxLength={1000}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
 /** Gestion commune de l'état d'une fenêtre (envoi, erreur API affichée telle quelle). */
 function useEnvoi() {
   const [enCours, setEnCours] = useState(false);
@@ -76,6 +130,7 @@ export function FenetreEnregistrer({ unites, onClose, onEnregistre }: { unites: 
   const [objet, setObjet] = useState('');
   const [destinataireId, setDestinataireId] = useState('');
   const [fichiers, setFichiers] = useState<File[]>([]);
+  const [derogation, setDerogation] = useState<Derogation>({ confirme: false, motif: '' });
   const { enCours, erreur, setErreur, envoyer } = useEnvoi();
 
   useEffect(() => {
@@ -122,6 +177,7 @@ export function FenetreEnregistrer({ unites, onClose, onEnregistre }: { unites: 
               objet: personnel ? undefined : objet.trim(),
               confidentialite,
               destinataireId: personnel ? destinataireId : undefined,
+              ...(anomaliesDates(dateReception, dateCourrier).length > 0 ? champsDerogation(derogation) : {}),
             },
             personnel ? [] : fichiers,
           );
@@ -180,6 +236,7 @@ export function FenetreEnregistrer({ unites, onClose, onEnregistre }: { unites: 
         <Field label="Référence de l’expéditeur (facultatif)" id="reference" value={reference} onChange={(e) => setReference(e.target.value)} maxLength={120} />
         <Field label="Date du courrier (facultatif)" id="dateCourrier" type="date" value={dateCourrier} onChange={(e) => setDateCourrier(e.target.value)} />
       </div>
+      <ControleDates dateReception={dateReception} dateCourrier={dateCourrier} valeur={derogation} onChange={setDerogation} />
       {personnel ? (
         <>
           <p className="mb-3 rounded-md bg-gold-soft px-3.5 py-2.5 text-[12.5px] text-ink">
@@ -368,8 +425,10 @@ export function FenetreCorriger({ arrivee, onClose, onFait }: { arrivee: Arrivee
     dateCourrier: versJour(arrivee.dateCourrier),
     objet: arrivee.objet ?? '',
   });
+  const [derogation, setDerogation] = useState<Derogation>({ confirme: false, motif: '' });
   const { enCours, erreur, envoyer } = useEnvoi();
   const personnel = arrivee.confidentialite === 'PERSONNEL';
+  const datesModifiees = v.dateReception !== versJour(arrivee.dateReception) || (!!v.dateCourrier && v.dateCourrier !== versJour(arrivee.dateCourrier));
   return (
     <Fenetre
       titre="Corriger l’enregistrement"
@@ -385,6 +444,7 @@ export function FenetreCorriger({ arrivee, onClose, onFait }: { arrivee: Arrivee
         if (v.referenceExpediteur.trim() !== (arrivee.referenceExpediteur ?? '') && v.referenceExpediteur.trim()) diff.referenceExpediteur = v.referenceExpediteur.trim();
         if (v.dateCourrier && v.dateCourrier !== versJour(arrivee.dateCourrier)) diff.dateCourrier = jourIso(v.dateCourrier);
         if (!personnel && v.objet.trim() !== (arrivee.objet ?? '')) diff.objet = v.objet.trim();
+        if (datesModifiees && anomaliesDates(v.dateReception, v.dateCourrier).length > 0) Object.assign(diff, champsDerogation(derogation));
         if (Object.keys(diff).length === 0) return onClose();
         const ok = await envoyer(() => corrigerArrivee(arrivee.id, diff), 'Correction impossible');
         if (ok) onFait();
@@ -395,6 +455,7 @@ export function FenetreCorriger({ arrivee, onClose, onFait }: { arrivee: Arrivee
         <Field label="Date de réception" id="c-dateReception" type="date" value={v.dateReception} onChange={(e) => setV({ ...v, dateReception: e.target.value })} required />
         <Field label="Date du courrier" id="c-dateCourrier" type="date" value={v.dateCourrier} onChange={(e) => setV({ ...v, dateCourrier: e.target.value })} />
       </div>
+      {datesModifiees && <ControleDates dateReception={v.dateReception} dateCourrier={v.dateCourrier} valeur={derogation} onChange={setDerogation} />}
       <Field label="Expéditeur" id="c-expediteur" value={v.expediteur} onChange={(e) => setV({ ...v, expediteur: e.target.value })} required minLength={2} maxLength={300} />
       <Field label="Référence de l’expéditeur" id="c-reference" value={v.referenceExpediteur} onChange={(e) => setV({ ...v, referenceExpediteur: e.target.value })} maxLength={120} />
       {!personnel && arrivee.niveau !== 'EXISTENCE' && (

@@ -27,6 +27,7 @@ import {
 import { NumerotationService, TRANSACTION_NUMEROTATION } from './numerotation.service';
 import { UNITE_DIRECTION, assertUnitePourPortee } from './unites';
 import { responsablesDeUnite } from './responsables';
+import { controlerDates } from './dates-arrivee';
 import { CascadeService } from '../org/cascade/cascade.service';
 import { chargerPersonnes, personnesCitees } from './personnes';
 import {
@@ -47,6 +48,7 @@ export const ARRIVEE_SELECT = {
   expediteur: true,
   referenceExpediteur: true,
   dateCourrier: true,
+  motifDerogationDate: true,
   objet: true,
   statut: true,
   enregistreParId: true,
@@ -143,6 +145,10 @@ export class ArriveesService {
       throw new BadRequestException('L’objet du courrier est obligatoire.');
     }
     if (dto.destinataireId) await this.assertActif(dto.destinataireId, 'Destinataire');
+    const motifDerogationDate = controlerDates(
+      { dateReception: new Date(dto.dateReception), dateCourrier: dto.dateCourrier ? new Date(dto.dateCourrier) : null },
+      dto,
+    );
 
     const uniteCode = await this.numerotation.codeUnite(uniteKey);
 
@@ -162,6 +168,7 @@ export class ArriveesService {
               expediteur: dto.expediteur,
               referenceExpediteur: dto.referenceExpediteur,
               dateCourrier: dto.dateCourrier ? new Date(dto.dateCourrier) : undefined,
+              motifDerogationDate,
               objet: dto.objet,
               confidentialite: dto.confidentialite,
               destinataireId: dto.destinataireId,
@@ -185,7 +192,14 @@ export class ArriveesService {
               action: AuditAction.CREATION,
               entityType: 'CourrierArrivee',
               entityId: arrivee.id,
-              metadata: { event: 'enregistrement', numero: n.numero, registre: registre.code, uniteKey, confidentialite: dto.confidentialite },
+              metadata: {
+                event: 'enregistrement',
+                numero: n.numero,
+                registre: registre.code,
+                uniteKey,
+                confidentialite: dto.confidentialite,
+                ...(motifDerogationDate ? { derogationDate: motifDerogationDate } : {}),
+              },
             },
             tx,
           );
@@ -296,9 +310,9 @@ export class ArriveesService {
       droits: this.droits(ctx, a, niveau),
     };
     if (niveau === 'EXISTENCE') {
-      return { ...base, objet: null, referenceExpediteur: null, dateCourrier: null, imputations: [], pieces: [] };
+      return { ...base, objet: null, referenceExpediteur: null, dateCourrier: null, motifDerogationDate: null, imputations: [], pieces: [] };
     }
-    const meta = { ...base, objet: a.objet, referenceExpediteur: a.referenceExpediteur, dateCourrier: a.dateCourrier };
+    const meta = { ...base, objet: a.objet, referenceExpediteur: a.referenceExpediteur, dateCourrier: a.dateCourrier, motifDerogationDate: a.motifDerogationDate };
     if (niveau === 'METADONNEES') return { ...meta, imputations: [], pieces: [] };
     return {
       ...meta,
@@ -407,14 +421,28 @@ export class ArriveesService {
     if (a.confidentialite === CourrierConfidentialite.PERSONNEL && dto.objet !== undefined) {
       throw new ForbiddenException('L’objet d’un pli personnel ne peut être renseigné que par son destinataire.');
     }
+    const { derogationDate, motifDerogation, ...modif } = dto;
     const data: Prisma.CourrierArriveeUpdateInput = {
-      dateReception: dto.dateReception ? new Date(dto.dateReception) : undefined,
-      expediteur: dto.expediteur,
-      referenceExpediteur: dto.referenceExpediteur,
-      dateCourrier: dto.dateCourrier ? new Date(dto.dateCourrier) : undefined,
-      objet: dto.objet,
+      dateReception: modif.dateReception ? new Date(modif.dateReception) : undefined,
+      expediteur: modif.expediteur,
+      referenceExpediteur: modif.referenceExpediteur,
+      dateCourrier: modif.dateCourrier ? new Date(modif.dateCourrier) : undefined,
+      objet: modif.objet,
     };
-    const champs = Object.keys(dto).filter((k) => (dto as Record<string, unknown>)[k] !== undefined);
+    // Même contrôle des dates qu'à l'enregistrement, dès qu'une date change (ou
+    // qu'une dérogation est envoyée) : le motif est réécrit — vidé si l'anomalie
+    // disparaît — et tracé avant/après.
+    if (modif.dateReception !== undefined || modif.dateCourrier !== undefined || derogationDate) {
+      data.motifDerogationDate = controlerDates(
+        {
+          dateReception: modif.dateReception ? new Date(modif.dateReception) : a.dateReception,
+          dateCourrier: modif.dateCourrier ? new Date(modif.dateCourrier) : a.dateCourrier,
+        },
+        { derogationDate, motifDerogation },
+      );
+    }
+    const champs = Object.keys(modif).filter((k) => (modif as Record<string, unknown>)[k] !== undefined);
+    if (data.motifDerogationDate !== undefined && data.motifDerogationDate !== a.motifDerogationDate) champs.push('motifDerogationDate');
     // Avant/après : valeurs réelles, sauf l'objet d'un CONFIDENTIEL (seulement
     // mentionné comme modifié — l'audit n'est pas un canal de lecture).
     const valeur = (k: string, v: unknown) =>
@@ -422,7 +450,7 @@ export class ArriveesService {
     // Sérialisation JSON explicite (dates → chaînes) pour la colonne metadata.
     const json = (o: object) => JSON.parse(JSON.stringify(o)) as Prisma.InputJsonObject;
     const avant = json(Object.fromEntries(champs.map((k) => [k, valeur(k, (a as Record<string, unknown>)[k])])));
-    const apres = json(Object.fromEntries(champs.map((k) => [k, valeur(k, (dto as Record<string, unknown>)[k])])));
+    const apres = json(Object.fromEntries(champs.map((k) => [k, valeur(k, k === 'motifDerogationDate' ? data.motifDerogationDate : (modif as Record<string, unknown>)[k])])));
 
     await this.prisma.$transaction(async (tx) => {
       await tx.courrierArrivee.update({ where: { id }, data });

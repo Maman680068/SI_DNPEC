@@ -73,16 +73,21 @@ export interface EnregistrementInput {
   objet?: string;
   confidentialite: Confidentialite;
   destinataireId?: string;
+  /** Dérogation au contrôle des dates (motif obligatoire). */
+  derogationDate?: boolean;
+  motifDerogation?: string;
 }
 export function enregistrerArrivee(input: EnregistrementInput, fichiers: File[]): Promise<Arrivee> {
   const fd = new FormData();
-  for (const [k, v] of Object.entries(input)) if (v !== undefined && v !== '') fd.append(k, v);
+  for (const [k, v] of Object.entries(input)) if (v !== undefined && v !== '') fd.append(k, String(v));
   for (const f of fichiers) fd.append('files', f);
   return apiFetch<Arrivee>('/courrier/arrivees', { method: 'POST', body: fd });
 }
 export const corrigerArrivee = (
   id: string,
-  input: Partial<Pick<EnregistrementInput, 'dateReception' | 'expediteur' | 'referenceExpediteur' | 'dateCourrier' | 'objet'>>,
+  input: Partial<
+    Pick<EnregistrementInput, 'dateReception' | 'expediteur' | 'referenceExpediteur' | 'dateCourrier' | 'objet' | 'derogationDate' | 'motifDerogation'>
+  >,
 ) => apiFetch<Arrivee>(`/courrier/arrivees/${id}`, { method: 'PATCH', body: JSON.stringify(input) });
 export const annulerArrivee = (id: string, motif: string) => post<Arrivee>(`/courrier/arrivees/${id}/annuler`, { motif });
 export const classerArrivee = (id: string) => post<Arrivee>(`/courrier/arrivees/${id}/classer`);

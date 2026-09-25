@@ -104,6 +104,8 @@ export interface Arrivee {
   objet: string | null;
   referenceExpediteur: string | null;
   dateCourrier: string | null;
+  /** Motif de la dérogation au contrôle des dates, s'il y en a eu une. */
+  motifDerogationDate: string | null;
   imputations: Imputation[];
   pieces: Piece[];
   personnes: Record<string, Personne>;

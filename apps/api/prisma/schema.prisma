@@ -1618,6 +1618,9 @@ model CourrierArrivee {
   expediteur          String
   referenceExpediteur String?
   dateCourrier        DateTime?
+  // Dérogation au contrôle des dates (réception dans le futur, ou courrier
+  // daté après sa réception) : motif obligatoire, stocké et audité.
+  motifDerogationDate String?
   // Toujours null à l'enregistrement d'un PERSONNEL : seul son destinataire
   // peut ensuite compléter la fiche (objet, pièces).
   objet               String?

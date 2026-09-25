@@ -1,5 +1,5 @@
-import { Type } from 'class-transformer';
-import { IsDateString, IsEnum, IsIn, IsInt, IsOptional, IsString, Length, Max, Min } from 'class-validator';
+import { Transform, Type } from 'class-transformer';
+import { IsBoolean, IsDateString, IsEnum, IsIn, IsInt, IsOptional, IsString, Length, Max, Min } from 'class-validator';
 import { ArriveeStatut, CourrierConfidentialite, ImputationNature } from '@prisma/client';
 
 export class CreateArriveeDto {
@@ -36,6 +36,19 @@ export class CreateArriveeDto {
   @IsEnum(CourrierConfidentialite)
   confidentialite!: CourrierConfidentialite;
 
+  /** Dérogation au contrôle des dates (réception future, courrier daté après
+   * sa réception) : confirmation explicite + motif obligatoire. Accepte
+   * "true"/"false" (formulaire multipart). */
+  @IsOptional()
+  @Transform(({ value }) => (value === 'true' ? true : value === 'false' ? false : value))
+  @IsBoolean()
+  derogationDate?: boolean;
+
+  @IsOptional()
+  @IsString()
+  @Length(0, 1000)
+  motifDerogation?: string;
+
   /** Destinataire nominatif — obligatoire pour un pli PERSONNEL. */
   @IsOptional()
   @IsString()
@@ -66,6 +79,19 @@ export class UpdateArriveeDto {
   @IsString()
   @Length(2, 500)
   objet?: string;
+
+  /** Dérogation au contrôle des dates (réception future, courrier daté après
+   * sa réception) : confirmation explicite + motif obligatoire. Accepte
+   * "true"/"false" (formulaire multipart). */
+  @IsOptional()
+  @Transform(({ value }) => (value === 'true' ? true : value === 'false' ? false : value))
+  @IsBoolean()
+  derogationDate?: boolean;
+
+  @IsOptional()
+  @IsString()
+  @Length(0, 1000)
+  motifDerogation?: string;
 }
 
 export class MotifDto {
