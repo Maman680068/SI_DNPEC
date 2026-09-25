@@ -61,20 +61,26 @@ export default function DashboardPage() {
 
   function handleTaskChanged(updated: Task) {
     setTasks((prev) => prev?.map((t) => (t.id === updated.id ? updated : t)) ?? prev);
-    getDashboard().then(setDashboard);
+    getDashboard()
+      .then(setDashboard)
+      .catch((err) => setError(err instanceof Error ? err.message : 'Impossible de mettre à jour les indicateurs'));
   }
 
   function handleCreated(task: Task) {
     setTasks((prev) => (prev ? [task, ...prev] : [task]));
     setShowCreateModal(false);
-    getDashboard().then(setDashboard);
+    getDashboard()
+      .then(setDashboard)
+      .catch((err) => setError(err instanceof Error ? err.message : 'Impossible de mettre à jour les indicateurs'));
     setSelectedTaskId(task.id);
   }
 
   function handleBroadcastCreated(created: Task[]) {
     setTasks((prev) => (prev ? [...created, ...prev] : created));
     setShowBroadcastModal(false);
-    getDashboard().then(setDashboard);
+    getDashboard()
+      .then(setDashboard)
+      .catch((err) => setError(err instanceof Error ? err.message : 'Impossible de mettre à jour les indicateurs'));
   }
 
   return (
@@ -114,7 +120,7 @@ export default function DashboardPage() {
       </div>
 
       {!tasks ? (
-        <div className="text-sm text-text-muted">Chargement des tâches…</div>
+        !error && <div className="text-sm text-text-muted">Chargement des tâches…</div>
       ) : view === 'kanban' ? (
         <KanbanBoard tasks={tasks} onSelect={setSelectedTaskId} />
       ) : (

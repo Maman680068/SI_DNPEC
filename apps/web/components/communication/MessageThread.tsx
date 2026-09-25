@@ -5,6 +5,7 @@ import { useAuth } from '../../lib/auth/AuthProvider';
 import { useOrg } from '../../lib/org/OrgProvider';
 import { getMessagesWith, markMessageRead, sendMessage } from '../../lib/api/communication';
 import type { DirectMessage } from '../../lib/communication/types';
+import { Chargement, messageChargement } from '../ui/ErreurChargement';
 
 function formatWhen(iso: string): string {
   const date = new Date(iso);
@@ -38,7 +39,7 @@ export function MessageThread({
         await Promise.all(unread.map((m) => markMessageRead(m.id)));
         onSent();
       }
-    });
+    }).catch((err) => setError(messageChargement(err)));
     // onSent ne doit déclencher un refetch que sur envoi/lecture, pas re-résoudre à chaque rendu.
   }, [otherUserId, currentUser?.id]);
 
@@ -76,7 +77,7 @@ export function MessageThread({
 
       <div className="flex-1 space-y-2.5 overflow-y-auto px-5 py-4">
         {messages === null ? (
-          <p className="text-sm text-text-muted">Chargement…</p>
+          <Chargement erreur={error} />
         ) : messages.length === 0 ? (
           <p className="text-sm text-text-faint">Aucun message pour l&apos;instant.</p>
         ) : (

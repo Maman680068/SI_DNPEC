@@ -50,9 +50,15 @@ export function OrgProvider({ children }: { children: React.ReactNode }) {
     if (status !== 'authenticated') return;
     let cancelled = false;
 
-    loadOrg(() => cancelled).finally(() => {
-      if (!cancelled) setLoading(false);
-    });
+    loadOrg(() => cancelled)
+      .catch(() => {
+        // Référentiel d'affichage (noms d'unités et de personnes) : en cas
+        // d'échec, les noms retombent sur leur repli ; chaque page affiche
+        // l'erreur de son propre chargement.
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
 
     return () => {
       cancelled = true;

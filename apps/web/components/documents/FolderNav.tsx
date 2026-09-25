@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { createFolder, getFolders } from '../../lib/api/documents';
 import type { Folder } from '../../lib/documents/types';
+import { ErreurChargement, messageChargement } from '../ui/ErreurChargement';
 
 export function FolderNav({
   divisionId,
@@ -14,14 +15,19 @@ export function FolderNav({
   onNavigate: (folderId: string | null) => void;
 }) {
   const [folders, setFolders] = useState<Folder[] | null>(null);
+  const [erreurChargement, setErreurChargement] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [newName, setNewName] = useState('');
 
   useEffect(() => {
     setFolders(null);
-    getFolders(divisionId).then(setFolders);
+    setErreurChargement(null);
+    getFolders(divisionId)
+      .then(setFolders)
+      .catch((err) => setErreurChargement(messageChargement(err)));
   }, [divisionId]);
 
+  if (erreurChargement) return <ErreurChargement message={erreurChargement} />;
   if (folders === null) return <p className="text-[13px] text-text-muted">Chargement des dossiers…</p>;
 
   const byId = new Map(folders.map((f) => [f.id, f]));

@@ -8,6 +8,7 @@ import type { DnpecDocument, DocumentVersionSummary } from '../../lib/documents/
 import { CATEGORY_LABEL, CAN_PUBLISH_ROLES } from '../../lib/documents/types';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
+import { Chargement, messageChargement } from '../ui/ErreurChargement';
 
 function formatDateTime(iso: string): string {
   return new Date(iso).toLocaleString('fr-FR', { dateStyle: 'long', timeStyle: 'short' });
@@ -36,7 +37,9 @@ export function DocumentDetailDrawer({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    getVersions(doc.id).then(setVersions);
+    getVersions(doc.id)
+      .then(setVersions)
+      .catch((err) => setError(messageChargement(err)));
   }, [doc.id]);
 
   const isCreator = doc.createdById === currentUser?.id;
@@ -81,7 +84,9 @@ export function DocumentDetailDrawer({
     try {
       const updated = await addVersion(doc.id, file);
       onChange(updated);
-      getVersions(doc.id).then(setVersions);
+      getVersions(doc.id)
+        .then(setVersions)
+        .catch((err) => setError(messageChargement(err)));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Impossible d'ajouter cette version");
     } finally {
@@ -144,7 +149,7 @@ export function DocumentDetailDrawer({
 
         <div className="mb-2.5 text-xs font-bold uppercase tracking-wide text-text-muted">Versions</div>
         {versions === null ? (
-          <p className="text-[13px] text-text-muted">Chargement…</p>
+          <Chargement erreur={error} className="text-[13px] text-text-muted" />
         ) : (
           <div className="space-y-1.5">
             {versions.map((version) => (

@@ -6,6 +6,7 @@ import { getDirectory } from '../../../lib/api/org';
 import type { DirectoryUser } from '../../../lib/org/types';
 import { PersonCard } from '../../../components/directory/PersonCard';
 import { PersonDetailModal } from '../../../components/directory/PersonDetailModal';
+import { Chargement, ErreurChargement, messageChargement } from '../../../components/ui/ErreurChargement';
 
 /** Valeur du filtre "Unité" — encode le type d'unité dans la valeur plutôt que
  * d'avoir deux menus déroulants Division/Cellule séparés : un utilisateur n'est
@@ -39,12 +40,13 @@ function matchesUnit(person: DirectoryUser, unit: UnitFilter): boolean {
 export default function AnnuairePage() {
   const { divisions, sections, cellules } = useOrg();
   const [people, setPeople] = useState<DirectoryUser[] | null>(null);
+  const [erreurChargement, setErreurChargement] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [unit, setUnit] = useState<UnitFilter>({ kind: 'all' });
   const [selected, setSelected] = useState<DirectoryUser | null>(null);
 
   useEffect(() => {
-    getDirectory().then(setPeople);
+    getDirectory().then(setPeople).catch((err) => setErreurChargement(messageChargement(err)));
   }, []);
 
   const filtered = useMemo(() => {
@@ -60,6 +62,7 @@ export default function AnnuairePage() {
 
   return (
     <div>
+      <ErreurChargement message={erreurChargement} />
       <div className="mb-[22px]">
         <div className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-sage">Personnel</div>
         <h1 className="text-[22px] font-extrabold">Annuaire</h1>
@@ -103,7 +106,7 @@ export default function AnnuairePage() {
       </div>
 
       {people === null ? (
-        <p className="py-8 text-center text-[13px] text-text-faint">Chargement…</p>
+        <Chargement erreur={erreurChargement} className="py-8 text-center text-[13px] text-text-faint" />
       ) : filtered.length === 0 ? (
         <p className="py-8 text-center text-[13px] text-text-faint">Aucune personne ne correspond à ces critères.</p>
       ) : (

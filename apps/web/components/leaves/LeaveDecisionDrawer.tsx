@@ -5,6 +5,7 @@ import { useOrg } from '../../lib/org/OrgProvider';
 import { approveLeaveRequest, getBalancesForUser, rejectLeaveRequest } from '../../lib/api/leaves';
 import type { LeaveBalanceView, LeaveRequest } from '../../lib/leaves/types';
 import { Button } from '../ui/Button';
+import { Chargement, messageChargement } from '../ui/ErreurChargement';
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
@@ -30,7 +31,9 @@ export function LeaveDecisionDrawer({
   const relevantBalance = balances?.find((b) => b.leaveTypeId === request.leaveTypeId && b.year === requestYear);
 
   useEffect(() => {
-    getBalancesForUser(request.userId).then(setBalances);
+    getBalancesForUser(request.userId)
+      .then(setBalances)
+      .catch((err) => setError(messageChargement(err)));
   }, [request.userId]);
 
   async function handleApprove() {
@@ -102,7 +105,7 @@ export function LeaveDecisionDrawer({
             Solde {request.leaveType.name} — {requestYear}
           </div>
           {balances === null ? (
-            <p className="text-[13px] text-text-muted">Chargement…</p>
+            <Chargement erreur={error} className="text-[13px] text-text-muted" />
           ) : relevantBalance ? (
             <div className="rounded-md border border-line px-3.5 py-2.5 text-[13px]">
               <strong>{relevantBalance.remainingDays}</strong> jour{relevantBalance.remainingDays > 1 ? 's' : ''} restant

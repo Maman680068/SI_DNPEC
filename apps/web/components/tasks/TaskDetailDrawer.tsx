@@ -159,7 +159,7 @@ export function TaskDetailDrawer({
    */
   function handleSubtasksChange(next: Task[]) {
     setSubtasks(next);
-    if (task) getTask(task.id).then(applyUpdate);
+    if (task) getTask(task.id).then(applyUpdate).catch((err) => setActionError(err instanceof Error ? err.message : 'Impossible de recharger la tâche'));
   }
 
   async function handleSaveProgress() {
