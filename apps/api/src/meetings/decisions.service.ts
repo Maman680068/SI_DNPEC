@@ -55,13 +55,70 @@ export class DecisionsService {
     private readonly meetings: MeetingsService,
   ) {}
 
-  async findAllForMeeting(actor: AuthenticatedUser, meetingId: string): Promise<DecisionWithAction[]> {
+  /** Relevé de décisions d'une réunion, avec les actions possibles de
+   * l'acteur (l'écran n'en calcule aucune ; chaque action revérifie). */
+  async findAllForMeeting(actor: AuthenticatedUser, meetingId: string) {
     await this.meetings.findOneVisibleTo(actor, meetingId); // 404 si hors périmètre
-    return this.prisma.decision.findMany({
+    const meeting = await this.getMeetingOrThrow(meetingId);
+    const organisateur = this.cascade.isActingFor(actor, meeting.createdById);
+    const decisions = await this.prisma.decision.findMany({
       where: { meetingId },
       select: DECISION_SELECT,
       orderBy: { createdAt: 'asc' },
     });
+    return {
+      peutAjouter: organisateur,
+      decisions: decisions.map((d) => {
+        const ouverte = d.status !== DecisionStatus.CLOTUREE;
+        return {
+          ...d,
+          droits: {
+            modifier: organisateur && ouverte,
+            convertir: organisateur && ouverte && !d.action,
+            cloturer: organisateur && ouverte,
+            // « Relancer » : la hiérarchie qui voit la décision sans l'organiser.
+            relancer: !organisateur && ouverte,
+          },
+        };
+      }),
+    };
+  }
+
+  /** Personnes que convertToAction accepterait comme responsable : mêmes
+   * préconditions et même critère (une seule implémentation). */
+  async responsablesPossibles(actor: AuthenticatedUser, decisionId: string) {
+    const decision = await this.getDecisionOrThrow(decisionId);
+    this.assertPeutConvertir(actor, decision);
+    const actifs = await this.prisma.user.findMany({
+      where: { status: UserStatus.ACTIF },
+      select: { id: true, firstName: true, lastName: true, role: true, jobTitle: true, divisionId: true, sectionId: true, celluleId: true, status: true },
+      orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
+    });
+    return actifs
+      .filter((u) => this.refusResponsable(actor, u) === null)
+      .map(({ id, firstName, lastName, role, jobTitle }) => ({ id, firstName, lastName, role, jobTitle }));
+  }
+
+  private assertPeutConvertir(actor: AuthenticatedUser, decision: { status: DecisionStatus; action: unknown; meeting: { createdById: string } }): void {
+    this.assertIsOrganizer(actor, decision.meeting);
+    this.assertNotClosed(decision);
+    if (decision.action) {
+      throw new ConflictException('Cette décision a déjà une action associée.');
+    }
+  }
+
+  /** Critère sur le responsable d'une action (null si accepté). Même règle
+   * que TasksService.assertCanAssignAll : soi-même sans autorité, un tiers
+   * seulement avec autorité hiérarchique directe. */
+  private refusResponsable(
+    actor: AuthenticatedUser,
+    u: { id: string; status: UserStatus; divisionId: string | null; sectionId: string | null; celluleId: string | null },
+  ): Error | null {
+    if (u.status !== UserStatus.ACTIF) return new ForbiddenException("Le responsable désigné n'a pas de compte actif.");
+    if (u.id !== actor.id && !this.cascade.hasDirectAuthorityOver(actor, u)) {
+      return new ForbiddenException('Vous ne pouvez désigner comme responsable qu’une personne de votre périmètre (ou vous-même).');
+    }
+    return null;
   }
 
   async create(actor: AuthenticatedUser, meetingId: string, dto: CreateDecisionDto): Promise<DecisionWithAction> {
@@ -115,25 +172,15 @@ export class DecisionsService {
     dto: ConvertDecisionDto,
   ): Promise<DecisionWithAction> {
     const decision = await this.getDecisionOrThrow(decisionId);
-    this.assertIsOrganizer(actor, decision.meeting);
-    this.assertNotClosed(decision);
-    if (decision.action) {
-      throw new ConflictException('Cette décision a déjà une action associée.');
-    }
+    this.assertPeutConvertir(actor, decision);
 
     const assignee = await this.prisma.user.findUnique({
       where: { id: dto.assigneeId },
       select: { id: true, divisionId: true, sectionId: true, celluleId: true, status: true },
     });
     if (!assignee) throw new NotFoundException('Responsable introuvable');
-    if (assignee.status !== UserStatus.ACTIF) {
-      throw new ForbiddenException("Le responsable désigné n'a pas de compte actif.");
-    }
-    // Même règle que TasksService.assertCanAssignAll : assigner à soi-même
-    // n'a jamais besoin d'autorité hiérarchique, assigner à un tiers si.
-    if (assignee.id !== actor.id) {
-      this.cascade.assertHasDirectAuthorityOver(actor, assignee);
-    }
+    const refus = this.refusResponsable(actor, assignee);
+    if (refus) throw refus;
 
     // Rattachement de la tâche à l'unité du responsable désigné, pour que la
     // cascade (Chef de Section/Division/Cellule de l'assigné) la voie comme

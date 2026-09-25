@@ -34,6 +34,11 @@ export class DecisionsController {
     return this.decisionsService.update(actor, id, dto);
   }
 
+  @Get('decisions/:id/responsables-possibles')
+  responsablesPossibles(@Param('id') id: string, @CurrentUser() actor: AuthenticatedUser) {
+    return this.decisionsService.responsablesPossibles(actor, id);
+  }
+
   @Post('decisions/:id/convert-to-action')
   convertToAction(
     @Param('id') id: string,
