@@ -25,6 +25,9 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: 'Personnel',
     items: [
+      // Dossier du personnel (D3) : tout profil — au moins son propre dossier ;
+      // les autres selon GET /personnel-files.
+      { icon: '📁', label: 'Dossier du personnel', href: '/personnel' },
       { icon: '🌴', label: 'Congés & absences', href: '/leaves' },
       { icon: '☰', label: 'Annuaire', href: '/annuaire' },
       { icon: '✦', label: 'Boîte à suggestions', href: '/suggestions' },

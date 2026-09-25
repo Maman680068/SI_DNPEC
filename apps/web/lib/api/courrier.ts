@@ -1,4 +1,4 @@
-import { API_BASE_URL, ApiError, apiFetch, authHeaders } from './client';
+import { apiFetch, telechargerFichier } from './client';
 import type {
   AccesDelegue,
   Acte,
@@ -165,28 +165,7 @@ export function ajouterPiecesActe(id: string, fichiers: File[]): Promise<Acte> {
 
 // --- Fichiers (flux binaires, hors apiFetch) ------------------------------------
 
-/** Télécharge un flux binaire avec la même identité que l'écran ; un refus de
- * l'API remonte avec SON message (ex. 403 d'un courrier confidentiel). */
-async function telecharger(path: string, fileName: string): Promise<void> {
-  const res = await fetch(`${API_BASE_URL}${path}`, { headers: authHeaders() });
-  if (!res.ok) {
-    let message = 'Téléchargement impossible';
-    try {
-      const body = (await res.json()) as { message?: string | string[] };
-      if (body.message) message = Array.isArray(body.message) ? body.message.join(', ') : body.message;
-    } catch {
-      // corps non JSON : message générique
-    }
-    throw new ApiError(res.status, message);
-  }
-  const blob = await res.blob();
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = fileName;
-  link.click();
-  URL.revokeObjectURL(url);
-}
+const telecharger = telechargerFichier;
 
 export const telechargerPieceArrivee = (arriveeId: string, pieceId: string, fileName: string) =>
   telecharger(`/courrier/arrivees/${arriveeId}/pieces/${pieceId}/download`, fileName);
