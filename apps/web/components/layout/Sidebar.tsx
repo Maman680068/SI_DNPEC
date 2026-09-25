@@ -23,6 +23,8 @@ const NAV_GROUPS: NavGroup[] = [
       { icon: '📨', label: 'Courrier', href: '/courrier' },
       // Logistique (D9) : tout profil sauf stagiaire (NAVIGATION_STAGIAIRE).
       { icon: '🧰', label: 'Logistique', href: '/logistique' },
+      // Aide (G4) : tout profil, stagiaire compris ; guides filtrés par GET /aide/profils.
+      { icon: '?', label: 'Aide', href: '/aide' },
     ],
   },
   {
@@ -176,6 +178,9 @@ export function Sidebar({ open = false, onClose }: { open?: boolean; onClose?: (
             </div>
             <div className="truncate text-[11px] text-text-faint">{user.jobTitle ?? user.role}</div>
           </div>
+          <Link href="/compte/securite" title="Sécurité du compte" aria-label="Sécurité du compte" className="text-text-faint hover:text-ink">
+            🔒
+          </Link>
           <button
             onClick={() => logout()}
             title="Se déconnecter"

@@ -2,7 +2,7 @@
 
 Système d'information interne de la DNPEC (Guinée), **en production** sur Render
 (PostgreSQL, API NestJS et frontend Next.js en services distincts, emails réels via Brevo).
-Référence fonctionnelle : cahier des charges v2.1 (§2.2 « besoin d'en connaître », §3.2 changement
+Référence fonctionnelle : cahier des charges v2.3 (§2.2 « besoin d'en connaître », §3.2 changement
 de rôle, §4.10 suppléance, §4.11 courrier et actes, Annexe B = journal des décisions) : `docs/Cahier_des_charges_DNPEC_SI.docx`.
 
 ## Règles de travail (strictes, non négociables)
@@ -28,8 +28,11 @@ de rôle, §4.10 suppléance, §4.11 courrier et actes, Annexe B = journal des d
 
 Monorepo pnpm 10 + turbo, Node 22. `apps/api` (NestJS 12, Prisma 5, PostgreSQL),
 `apps/web` (Next.js 15, React 19, Tailwind 3). `apps/mobile`, `packages/*` et `infra/` sont des
-squelettes non utilisés. **Aucun framework de test automatisé** : les validations se font par
-appels API réels sur serveur local (voir les messages de commit existants).
+squelettes non utilisés. **Pas de tests unitaires** : les validations se font par appels API
+réels et sous Chromium, sur serveur local, avec la suite de bout en bout `tests/e2e/`
+(`bash tests/e2e/run_all.sh`, voir son README ; refuse toute base non locale). Elle tourne
+aussi en CI sur chaque PR (`.github/workflows/ci.yml`, base Postgres jetable). Toute nouvelle
+fonctionnalité ajoute sa suite (`tests/e2e/api/`, `tests/e2e/ui/`) et sa ligne dans `run_all.sh`.
 
 ### API (`apps/api/src`)
 - Un dossier par module : `<module>.module.ts`, `*.controller.ts` (mince, `@CurrentUser()`),
@@ -83,6 +86,15 @@ appels API réels sur serveur local (voir les messages de commit existants).
   CHECK) ; réservations sans chevauchement (trigger qui verrouille la ressource) ; priorité
   hiérarchique = `ReservationsService.peutEvincer` (cascade ; DN et DNA pairs entre eux) ; une réunion
   réserve sa salle dans sa propre transaction (`creerDansTransaction`).
+- Double authentification (`auth/`) : `GET /auth/2fa/status`, `POST /auth/2fa/setup` (409 si
+  active), `POST /auth/2fa/activate`, `POST /auth/2fa/disable` (code exigé) ; réinitialisation
+  par l'administrateur `POST /users/:id/2fa/reset` (jamais sur soi-même). Écran
+  `/compte/securite`.
+- Aide (`aide/`) : `GET /aide/profils` = rôle propre (jamais celui de l'intérim) +
+  habilitations (`SECRETARIAT_COURRIER`, `GESTIONNAIRE_LOGISTIQUE`) ; ouverte aux stagiaires.
+  Contenu : `apps/web/lib/aide/guides.json`, captures `apps/web/public/aide/` ; toute évolution
+  d'écran qui change un libellé cité doit mettre le guide à jour, puis régénérer captures et PDF
+  (`tests/e2e/outils/captures_aide.js`, `guide_pdf.js`).
 - Écrans : l'API renvoie les droits (`droits`, `peutAjouter`...) et les listes de choix
   (« responsables possibles »...) ; le web n'en calcule aucun.
 
@@ -100,7 +112,12 @@ pnpm install
 pnpm --filter @dnpec/api exec prisma migrate dev --name <nom>   # base LOCALE uniquement
 pnpm --filter @dnpec/api typecheck && pnpm --filter @dnpec/web typecheck
 pnpm --filter @dnpec/api start:dev
+bash tests/e2e/run_all.sh                                        # suite complète, base LOCALE
+pnpm audit                                                        # voir docs/Securite_dependances.md
 ```
+
+Exploitation (sauvegardes, mise à jour PR → CI verte → migration → fusion, pannes, secrets) :
+`docs/Exploitation.md`.
 
 ## Reste à faire
 

@@ -10,4 +10,4 @@ export function estStagiaire(role: SystemRole | string | null | undefined): bool
 }
 
 /** Entrées de navigation ouvertes à un stagiaire. */
-export const NAVIGATION_STAGIAIRE = ['/dashboard', '/tasks', '/communication', '/personnel', '/stages'];
+export const NAVIGATION_STAGIAIRE = ['/dashboard', '/tasks', '/communication', '/personnel', '/stages', '/aide'];

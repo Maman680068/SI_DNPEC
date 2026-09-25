@@ -102,10 +102,21 @@ export class AuthController {
     return this.authService.enableTwoFa(authorization, dto);
   }
 
+  @Get('2fa/status')
+  twoFaStatus(@CurrentUser('id') userId: string) {
+    return this.authService.twoFaStatus(userId);
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @Post('2fa/activate')
+  activateTwoFa(@CurrentUser('id') userId: string, @Body() dto: EnableTwoFaDto) {
+    return this.authService.activateTwoFa(userId, dto);
+  }
+
   @HttpCode(HttpStatus.OK)
   @Post('2fa/disable')
-  disableTwoFa(@CurrentUser('id') userId: string) {
-    return this.authService.disableTwoFa(userId);
+  disableTwoFa(@CurrentUser('id') userId: string, @Body() dto: EnableTwoFaDto) {
+    return this.authService.disableTwoFa(userId, dto);
   }
 
   @Public()

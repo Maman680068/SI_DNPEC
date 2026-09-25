@@ -51,3 +51,9 @@ export function apercuChangementRole(id: string, input: ChangementRoleInput): Pr
 export function changerRole(id: string, input: ChangementRoleInput): Promise<ChangementRoleApercu> {
   return apiFetch<ChangementRoleApercu>(`/users/${id}/role`, { method: 'POST', body: JSON.stringify(input) });
 }
+
+/** Réinitialisation de la double authentification d'un compte (téléphone perdu) :
+ * 2FA désactivée, secret effacé, sessions fermées. Administrateur système seulement. */
+export function resetTwoFa(id: string): Promise<{ message: string }> {
+  return apiFetch<{ message: string }>(`/users/${id}/2fa/reset`, { method: 'POST' });
+}

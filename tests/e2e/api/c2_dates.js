@@ -1,0 +1,57 @@
+// C2 — contrôle des dates d'une arrivée (enregistrement et correction) et dérogation motivée.
+const E = require('../config');
+const { call, upload, ids, check, expect, bilan } = require('../lib');
+const reg = require(E.etat('registres.json'));
+const { PrismaClient } = require('@prisma/client'); const prisma = new PrismaClient();
+const J = 864e5, iso = (ms) => new Date(Date.now() + ms).toISOString();
+const S = Date.now().toString(36);
+const arrivee = (champs) => upload('secdg', '/courrier/arrivees', { registreId: reg.ARR, expediteur: 'Ministère du Plan', objet: `C2 dates ${S}`, confidentialite: 'ORDINAIRE', dateReception: iso(0), ...champs });
+const audit = (id, event) => prisma.auditLog.findFirst({ where: { entityType: 'CourrierArrivee', entityId: id, metadata: { path: ['event'], equals: event } }, orderBy: { createdAt: 'desc' } });
+(async () => {
+  console.log('— Enregistrement');
+  const f1 = await arrivee({ dateReception: iso(2 * J) });
+  expect('réception dans le futur, sans dérogation', f1, 400);
+  check('… message explicite', /réception est dans le futur/.test(f1.body.message), f1.body.message);
+  expect('réception future, dérogation sans motif', await arrivee({ dateReception: iso(2 * J), derogationDate: 'true' }), 400);
+  expect('réception future, dérogation au motif vide (espaces)', await arrivee({ dateReception: iso(2 * J), derogationDate: 'true', motifDerogation: '   ' }), 400);
+  const f2 = await arrivee({ dateReception: iso(2 * J), derogationDate: 'true', motifDerogation: 'Courrier daté du jour de la cérémonie, reçu par anticipation.' });
+  expect('réception future, dérogation avec motif', f2, 201);
+  check('… motif stocké et renvoyé dans la fiche', f2.body.motifDerogationDate === 'Courrier daté du jour de la cérémonie, reçu par anticipation.');
+  const a2 = await audit(f2.body.id, 'enregistrement');
+  check('… motif audité (journal de l’enregistrement)', a2 && a2.metadata.derogationDate === f2.body.motifDerogationDate, JSON.stringify(a2 && a2.metadata));
+  const c1 = await arrivee({ dateReception: iso(-3 * J), dateCourrier: iso(-1 * J) });
+  expect('date du courrier postérieure à la réception', c1, 400);
+  check('… message explicite', /postérieure à sa date de réception/.test(c1.body.message), c1.body.message);
+  const c2 = await arrivee({ dateReception: iso(-3 * J), dateCourrier: iso(-1 * J), derogationDate: 'true', motifDerogation: 'Erreur de date sur le courrier original.' });
+  expect('… acceptée avec dérogation motivée', c2, 201);
+  const t = await arrivee({ dateReception: iso(-60 * J), dateCourrier: iso(-70 * J) });
+  expect('réception antérieure (enregistrement tardif), sans dérogation', t, 201);
+  check('… aucun motif stocké', t.body.motifDerogationDate === null);
+  expect('courrier daté du jour de sa réception', await arrivee({ dateReception: iso(0), dateCourrier: iso(0) }), 201);
+  const inutile = await arrivee({ derogationDate: 'true', motifDerogation: 'Par précaution' });
+  expect('dérogation sans anomalie', inutile, 201);
+  check('… rien n’est stocké (aucune anomalie)', inutile.body.motifDerogationDate === null);
+  expect('PERSONNEL : même règle (réception future)', await upload('secdg', '/courrier/arrivees', { registreId: reg.ARR, expediteur: 'Cabinet', confidentialite: 'PERSONNEL', destinataireId: ids.chefdpe, dateReception: iso(3 * J) }), 400);
+
+  console.log('— Correction');
+  const A = t.body;
+  const p = (body) => call('secdg', 'PATCH', `/courrier/arrivees/${A.id}`, body);
+  const r1 = await p({ dateCourrier: iso(-50 * J) });
+  expect('correction : date du courrier après la réception', r1, 400);
+  expect('… dérogation sans motif', await p({ dateCourrier: iso(-50 * J), derogationDate: true }), 400);
+  expect('correction : réception déplacée dans le futur', await p({ dateReception: iso(5 * J) }), 400);
+  const r2 = await p({ dateCourrier: iso(-50 * J), derogationDate: true, motifDerogation: 'Date du courrier corrigée d’après l’original.' });
+  expect('… acceptée avec dérogation motivée', r2, 200);
+  const au2 = await audit(A.id, 'correction');
+  check('… audit avant/après du motif', au2 && au2.metadata.avant.motifDerogationDate === null && au2.metadata.apres.motifDerogationDate === 'Date du courrier corrigée d’après l’original.', JSON.stringify(au2 && au2.metadata));
+  check('… dérogation absente des champs corrigés tracés', au2 && !('derogationDate' in au2.metadata.apres) && !('motifDerogation' in au2.metadata.apres));
+  expect('correction d’un autre champ : pas de nouvelle dérogation exigée', await p({ expediteur: 'Ministère du Plan (cabinet)' }), 200);
+  check('… motif conservé', (await call('secdg', 'GET', `/courrier/arrivees/${A.id}`)).body.motifDerogationDate === 'Date du courrier corrigée d’après l’original.');
+  const r3 = await p({ dateCourrier: iso(-65 * J) });
+  expect('correction qui supprime l’anomalie', r3, 200);
+  const au3 = await audit(A.id, 'correction');
+  check('… motif effacé et tracé (avant → null)', r3.body.motifDerogationDate === null && au3.metadata.avant.motifDerogationDate === 'Date du courrier corrigée d’après l’original.' && au3.metadata.apres.motifDerogationDate === null, JSON.stringify(au3.metadata));
+
+  await prisma.$disconnect();
+  process.exit(bilan() ? 1 : 0);
+})().catch((e) => { console.error(e); process.exit(2); });
