@@ -36,14 +36,17 @@ appels API réels sur serveur local (voir les messages de commit existants).
   `*.service.ts` (toute la logique d'autorisation), `dto/*.dto.ts` (class-validator ;
   `ValidationPipe` global avec `whitelist` + `forbidNonWhitelisted`).
 - Guards globaux : `JwtAuthGuard` (tout est authentifié sauf `@Public()`), puis `RolesGuard`
-  (`@Roles(...)`, contrôle grossier). L'autorisation fine est dans les services via `CascadeService`.
+  (`@Roles(...)`, contrôle grossier), puis `StagiaireGuard` : un STAGIAIRE est refusé (403) partout
+  sauf routes ou contrôleurs marqués `@OuvertAuxStagiaires()` — toute nouvelle route lui est fermée
+  par défaut. L'autorisation fine est dans les services via `CascadeService`.
 - Erreurs : exceptions Nest (`ForbiddenException` 403, `ConflictException` 409 pour une transition
   d'état invalide, `NotFoundException` 404), messages en français. `HttpExceptionFilter` ne capte
   que les `HttpException` : une erreur Prisma non traduite (ex. P2002) sort en 500.
 - Sélections Prisma explicites via constantes `XXX_SELECT` + `satisfies Prisma.XxxSelect`.
 - Rôles (`SystemRole`) : DN, DNA, CHEF_DIVISION, CHEF_SECTION, CHEF_CELLULE, AGENT
   (= Chargé d'Études), ASSISTANT_DIRECTION (rattaché via `supervisorId` à DN/DNA/CHEF_CELLULE),
-  ADMIN_SYSTEME, DRH. Rattachement : `divisionId`/`sectionId` OU `celluleId`.
+  ADMIN_SYSTEME, DRH, STAGIAIRE (rattachement facultatif, aucun droit par défaut, jamais habilitable).
+  Rattachement : `divisionId`/`sectionId` OU `celluleId`.
   Seule `Cellule` a un `chefId` ; le chef d'une Division/Section se retrouve par
   `role + divisionId (+ sectionId) + status ACTIF`.
 - `CascadeService` : `hasDirectAuthorityOver` (DN/DNA + chef direct ; **jamais sur soi-même**,
@@ -63,6 +66,15 @@ appels API réels sur serveur local (voir les messages de commit existants).
 - Changement de rôle (`role-change/`) : une seule préparation pour l'aperçu et l'action ;
   toute attribution de rôle à un compte existant (dont chef de cellule) passe par là.
   Rattachement exigé par rôle : `rattachementPourRole` (`role-change/roles.ts`).
+- Habilitations (pas des rôles) : courrier (`HabilitationCourrier`, par registre et unité) et
+  gestionnaire logistique (`GestionnairesLogistiqueService`), personnelles : jugées sur `actor.id`,
+  jamais empruntées en intérim.
+- Stages (`stages/`, D6) : job quotidien `StagesRotationService.executer(now)` (appelable avec une
+  date simulée) ; attestation finale = acte du Courrier (`ActesService`).
+- Logistique (`logistique/`, D9) : numérotation d'inventaire et stock protégés en base (triggers,
+  CHECK) ; réservations sans chevauchement (trigger qui verrouille la ressource) ; priorité
+  hiérarchique = `ReservationsService.peutEvincer` (cascade, jamais DNA sur DN) ; une réunion
+  réserve sa salle dans sa propre transaction (`creerDansTransaction`).
 - Écrans : l'API renvoie les droits (`droits`, `peutAjouter`...) et les listes de choix
   (« responsables possibles »...) ; le web n'en calcule aucun.
 
@@ -84,5 +96,4 @@ pnpm --filter @dnpec/api start:dev
 
 ## Reste à faire
 
-- **Modules non construits** : D6 (rotation des stagiaires), D9 (logistique) ; D5
-  (rémunération) hors périmètre (§5 du cahier des charges).
+- **Module non construit** : D5 (rémunération), hors périmètre (§5 du cahier des charges).
