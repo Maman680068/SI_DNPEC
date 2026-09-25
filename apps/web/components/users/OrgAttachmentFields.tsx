@@ -6,7 +6,7 @@ import { getRegistrationSupervisorOptionsRequest } from '../../lib/api/auth';
 import type { RegistrationSupervisorOption, SystemRole } from '../../lib/auth/types';
 import type { OrgAttachment } from '../../lib/users/types';
 
-type Kind = 'none' | 'division' | 'division_section' | 'cellule' | 'cellule_optional' | 'agent' | 'supervisor';
+type Kind = 'none' | 'division' | 'division_section' | 'cellule' | 'cellule_optional' | 'agent' | 'stagiaire' | 'supervisor';
 type AgentMode = 'division' | 'cellule';
 
 const EMPTY: OrgAttachment = { divisionId: null, sectionId: null, celluleId: null, supervisorId: null };
@@ -47,6 +47,10 @@ function attachmentKind(role: SystemRole): Kind {
       return 'cellule_optional';
     case 'AGENT':
       return 'agent';
+    // Stagiaire : mêmes champs qu'un Chargé d'Études, mais facultatifs (la
+    // rotation du stage tient le rattachement à jour).
+    case 'STAGIAIRE':
+      return 'stagiaire';
   }
 }
 
@@ -110,9 +114,9 @@ export function OrgAttachmentFields({
     );
   }
 
-  const showDivision = kind === 'division' || kind === 'division_section' || (kind === 'agent' && agentMode === 'division');
-  const showSection = kind === 'division_section' || (kind === 'agent' && agentMode === 'division');
-  const showCellule = kind === 'cellule' || kind === 'cellule_optional' || (kind === 'agent' && agentMode === 'cellule');
+  const showDivision = kind === 'division' || kind === 'division_section' || ((kind === 'agent' || kind === 'stagiaire') && agentMode === 'division');
+  const showSection = kind === 'division_section' || ((kind === 'agent' || kind === 'stagiaire') && agentMode === 'division');
+  const showCellule = kind === 'cellule' || kind === 'cellule_optional' || ((kind === 'agent' || kind === 'stagiaire') && agentMode === 'cellule');
   const showSupervisor = kind === 'supervisor';
   const divisionRequired = kind === 'division' || kind === 'division_section' || (kind === 'agent' && agentMode === 'division');
   const sectionRequired = kind === 'division_section';
@@ -121,7 +125,10 @@ export function OrgAttachmentFields({
 
   return (
     <div className="mb-4">
-      {kind === 'agent' && (
+      {kind === 'stagiaire' && (
+        <p className="mb-2 text-[11.5px] text-text-faint">Facultatif : la rotation du stage met ce rattachement à jour à chaque période.</p>
+      )}
+      {(kind === 'agent' || kind === 'stagiaire') && (
         <div className="mb-2.5 flex gap-0.5 rounded-md border border-line bg-bg p-0.5" style={{ width: 'fit-content' }}>
           {(
             [

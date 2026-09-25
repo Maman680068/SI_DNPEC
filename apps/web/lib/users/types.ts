@@ -61,6 +61,8 @@ export const SYSTEM_ROLES: SystemRole[] = [
   // Attribuable par l'administrateur à la création et à l'approbation — jamais
   // déclarable à l'auto-inscription (absent de DECLARABLE_ROLES, lib/auth/types).
   'DRH',
+  // Stagiaire (D6) : rattachement facultatif, tenu par la rotation du stage.
+  'STAGIAIRE',
 ];
 
 export const ROLE_LABEL: Record<SystemRole, string> = {
@@ -73,6 +75,7 @@ export const ROLE_LABEL: Record<SystemRole, string> = {
   ADMIN_SYSTEME: 'Administrateur Système',
   ASSISTANT_DIRECTION: 'Assistant(e) de Direction',
   DRH: 'Directeur des Ressources Humaines',
+  STAGIAIRE: 'Stagiaire',
 };
 
 /**

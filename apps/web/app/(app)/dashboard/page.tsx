@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useInterim } from '../../../lib/interim/InterimProvider';
+import { estStagiaire } from '../../../lib/auth/stagiaire';
 import { getTasks, getDashboard } from '../../../lib/api/tasks';
 import { exportDashboardPdf, exportTasksExcel } from '../../../lib/api/export';
 import type { Task, TaskDashboard } from '../../../lib/tasks/types';
@@ -33,6 +34,8 @@ export default function DashboardPage() {
   const [showBroadcastModal, setShowBroadcastModal] = useState(false);
   const [exporting, setExporting] = useState<'excel' | 'pdf' | null>(null);
   const canBroadcast = CAN_BROADCAST_ROLES.includes(effectiveRole ?? '');
+  // Stagiaire : ses tâches seulement (ni création, ni export, ni courrier).
+  const stagiaire = estStagiaire(effectiveRole);
 
   async function handleExport(kind: 'excel' | 'pdf') {
     setExporting(kind);
@@ -90,6 +93,7 @@ export default function DashboardPage() {
           <div className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-sage">Mon périmètre</div>
           <h1 className="text-[22px] font-extrabold">Tableau de bord</h1>
         </div>
+        {!stagiaire && (
         <div className="flex flex-wrap gap-2.5">
           <Button variant="outline" disabled={exporting !== null} onClick={() => handleExport('excel')}>
             {exporting === 'excel' ? 'Export…' : 'Exporter (Excel)'}
@@ -106,13 +110,14 @@ export default function DashboardPage() {
             + Nouvelle tâche
           </Button>
         </div>
+        )}
       </div>
 
       {error && <div className="mb-5 rounded-md bg-clay-soft px-4 py-3 text-sm text-clay">{error}</div>}
 
       {dashboard && <KpiRow dashboard={dashboard} />}
 
-      <CarteCourrier />
+      {!stagiaire && <CarteCourrier />}
 
       <div className="mb-3.5 flex items-center justify-between">
         <h2 className="text-[16px] font-extrabold">Suivi des tâches</h2>

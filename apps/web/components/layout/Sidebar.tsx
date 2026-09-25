@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '../../lib/auth/AuthProvider';
 import { USERS_PAGE_VISIBLE_ROLES } from '../../lib/users/types';
+import { NAVIGATION_STAGIAIRE, estStagiaire } from '../../lib/auth/stagiaire';
 
 type NavGroup = { label: string; items: { icon: string; label: string; href?: string }[] };
 
@@ -43,6 +44,9 @@ const SUPPLEANCE_NAV_ROLES = ['DN', 'DNA', 'CHEF_DIVISION', 'CHEF_SECTION', 'CHE
  * (lecture seule — voir app/(app)/users/page.tsx). "Organisation" est réservée à
  * ADMIN_SYSTEME uniquement (voir app/(app)/organisation/page.tsx). */
 function navGroupsFor(role: string | undefined): NavGroup[] {
+  if (estStagiaire(role)) {
+    return NAV_GROUPS.map((g) => ({ ...g, items: g.items.filter((i) => NAVIGATION_STAGIAIRE.includes(i.href ?? '')) })).filter((g) => g.items.length > 0);
+  }
   const groups = SUPPLEANCE_NAV_ROLES.includes(role ?? '')
     ? NAV_GROUPS.map((g) =>
         g.label === 'Personnel' ? { ...g, items: [...g.items, { icon: '⇄', label: 'Suppléances', href: '/suppleances' }] } : g,

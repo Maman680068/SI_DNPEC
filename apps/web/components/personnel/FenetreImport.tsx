@@ -67,7 +67,7 @@ export function FenetreImport({ onClose, onImported }: { onClose: () => void; on
   return (
     <Fenetre
       titre="Importer le personnel (Excel)"
-      sousTitre="Une ligne par personne. Adresse inconnue : un compte de Chargé d’Études est créé (les autres rôles s’attribuent ensuite par l’administrateur système). Adresse connue : seul le dossier est mis à jour."
+      sousTitre="Une ligne par personne. Adresse inconnue : un compte est créé — Chargé d’Études, ou Stagiaire si la colonne Rôle l’indique (les autres rôles s’attribuent ensuite par l’administrateur système). Adresse connue : seul le dossier est mis à jour."
       onClose={onClose}
       onSubmit={envoyer}
       valider="Importer"

@@ -17,6 +17,7 @@ import { PollDetailDrawer } from '../../../components/communication/PollDetailDr
 import { CreatePollModal } from '../../../components/communication/CreatePollModal';
 import { Button } from '../../../components/ui/Button';
 import { Chargement, ErreurChargement, messageChargement } from '../../../components/ui/ErreurChargement';
+import { estStagiaire } from '../../../lib/auth/stagiaire';
 
 type Tab = 'messages' | 'announcements' | 'polls';
 
@@ -26,6 +27,8 @@ const CAN_ANNOUNCE_ROLES = ['DN', 'DNA', 'ADMIN_SYSTEME', 'CHEF_DIVISION', 'CHEF
 
 export default function CommunicationPage() {
   const { user: currentUser } = useAuth();
+  // Stagiaire : messagerie et annonces seulement (les sondages lui sont fermés).
+  const stagiaire = estStagiaire(currentUser?.role);
   const [tab, setTab] = useState<Tab>('messages');
   const [erreurChargement, setErreurChargement] = useState<string | null>(null);
 
@@ -55,8 +58,8 @@ export default function CommunicationPage() {
   useEffect(() => {
     loadConversations();
     loadAnnouncements();
-    loadPolls();
-  }, [loadConversations, loadAnnouncements, loadPolls]);
+    if (!stagiaire) loadPolls();
+  }, [loadConversations, loadAnnouncements, loadPolls, stagiaire]);
 
   // Ouvre directement une conversation depuis un lien externe (ex. la fiche d'une
   // personne dans l'Annuaire, "/communication?with=<id>") — lu une seule fois au
@@ -117,7 +120,7 @@ export default function CommunicationPage() {
             { key: 'announcements', label: 'Annonces' },
             { key: 'polls', label: 'Sondages' },
           ] as const
-        ).map((option) => (
+        ).filter((option) => !stagiaire || option.key !== 'polls').map((option) => (
           <button
             key={option.key}
             onClick={() => setTab(option.key)}
