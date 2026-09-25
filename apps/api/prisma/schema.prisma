@@ -255,6 +255,17 @@ enum NotificationType {
   ACTE_PRISE_CONNAISSANCE
   ROLE_MODIFIE // changement de rôle d'un compte (personne concernée et DRH)
   SUPPLEANCE_REVOQUEE // suppléance révoquée (ex. devenue non conforme après un changement de rôle)
+  // Stages (D6)
+  STAGE_PERIODE_A_ACCEPTER // au responsable de l'unité d'accueil
+  STAGE_PERIODE_REFUSEE // au DRH
+  STAGE_PERIODE_A_VENIR // 3 jours avant : stagiaire, tuteur, responsable
+  STAGE_PERIODE_DEBUT // changement d'unité appliqué
+  STAGE_ALERTE // au DRH : période non acceptée à sa date, unité suspendue, compte inactif
+  STAGE_PLAN_MODIFIE // tuteurs et responsables concernés
+  STAGE_EVALUATION_A_FAIRE
+  STAGE_EVALUATION_A_VISER
+  STAGE_EVALUATION_RENVOYEE
+  STAGE_EVALUATION_VISEE
 
   @@map("notification_type")
 }
@@ -298,6 +309,8 @@ model Division {
   announcements Announcement[]
   Poll          Poll[]
 
+  periodesStage PeriodeStage[]
+
   @@map("divisions")
 }
 
@@ -318,6 +331,8 @@ model Section {
   tasks         Task[]
   announcements Announcement[]
   Poll          Poll[]
+
+  periodesStage PeriodeStage[]
 
   @@unique([divisionId, code])
   @@map("sections")
@@ -352,6 +367,8 @@ model Cellule {
   tasks         Task[]
   announcements Announcement[]
   Poll          Poll[]
+
+  periodesStage PeriodeStage[]
 
   @@map("cellules")
 }
@@ -545,6 +562,15 @@ model User {
   accesDelegueRecus            AccesDelegueCourrier[] @relation("AccesDelegueBeneficiaire")
   accesDelegueOuverts          AccesDelegueCourrier[] @relation("AccesDelegueOuvertPar")
   accesDelegueRevoques         AccesDelegueCourrier[] @relation("AccesDelegueRevoquePar")
+
+  // Stages (D6)
+  stagesSuivis        Stage[]           @relation("StageStagiaire")
+  stagesCrees         Stage[]           @relation("StageCreePar")
+  periodesTutorees    PeriodeStage[]    @relation("PeriodeTuteur")
+  periodesDecidees    PeriodeStage[]    @relation("PeriodeDecideePar")
+  evaluationsRedigees EvaluationStage[] @relation("EvaluationRedacteur")
+  evaluationsVisees   EvaluationStage[] @relation("EvaluationViseePar")
+  capacitesFixees     CapaciteAccueil[] @relation("CapaciteFixeePar")
 
   @@map("users")
 }
@@ -1819,4 +1845,148 @@ model AccesDelegueCourrier {
 
   @@index([beneficiaireId])
   @@map("acces_delegues_courrier")
+}
+
+// ============================================================================
+// Rotation des stagiaires (D6, cahier des charges §4.12)
+// ============================================================================
+// Un stage = une suite de périodes datées dans des unités (Division, Section ou
+// Cellule), chacune acceptée par le responsable de l'unité qui désigne le
+// tuteur. Le changement d'unité est appliqué par StagesRotationService à la
+// date prévue (historique de carrière). Les données personnelles du stagiaire
+// restent au niveau 2 du dossier du personnel (D3) : rien n'est dupliqué ici.
+
+enum StageStatut {
+  PREVU
+  EN_COURS
+  TERMINE
+  INTERROMPU
+
+  @@map("stage_statut")
+}
+
+enum PeriodeStageStatut {
+  PROPOSEE // créée par le DRH, en attente du responsable de l'unité
+  ACCEPTEE // tuteur désigné
+  REFUSEE // motif obligatoire
+  EN_COURS // rattachement appliqué
+  TERMINEE
+  ANNULEE // retirée du plan (jamais supprimée)
+
+  @@map("periode_stage_statut")
+}
+
+enum EvaluationFormat {
+  GRILLE // 4 critères + appréciation
+  TEXTE // appréciation libre
+  AUCUNE // pas d'évaluation pour cette période
+
+  @@map("evaluation_format")
+}
+
+enum EvaluationStageStatut {
+  BROUILLON
+  SOUMISE
+  RENVOYEE
+  VISEE
+
+  @@map("evaluation_stage_statut")
+}
+
+model Stage {
+  id                  String      @id @default(cuid())
+  stagiaireId         String
+  stagiaire           User        @relation("StageStagiaire", fields: [stagiaireId], references: [id])
+  etablissement       String
+  diplomePrepare      String?
+  encadrantAcademique String?
+  dateDebut           DateTime    @db.Date
+  dateFin             DateTime    @db.Date
+  statut              StageStatut @default(PREVU)
+  motifInterruption   String?
+  clotureAt           DateTime?
+  createdById         String
+  createdBy           User        @relation("StageCreePar", fields: [createdById], references: [id])
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+
+  periodes PeriodeStage[]
+
+  @@index([stagiaireId])
+  @@map("stages")
+}
+
+model PeriodeStage {
+  id                     String             @id @default(cuid())
+  stageId                String
+  stage                  Stage              @relation(fields: [stageId], references: [id])
+  ordre                  Int
+  // Même invariant que User : divisionId (+ sectionId) OU celluleId.
+  divisionId             String?
+  division               Division?          @relation(fields: [divisionId], references: [id])
+  sectionId              String?
+  section                Section?           @relation(fields: [sectionId], references: [id])
+  celluleId              String?
+  cellule                Cellule?           @relation(fields: [celluleId], references: [id])
+  dateDebut              DateTime           @db.Date
+  dateFin                DateTime           @db.Date
+  objectifs              String?
+  formatEvaluation       EvaluationFormat
+  statut                 PeriodeStageStatut @default(PROPOSEE)
+  tuteurId               String?
+  tuteur                 User?              @relation("PeriodeTuteur", fields: [tuteurId], references: [id])
+  motifRefus             String?
+  decideeParId           String?
+  decideePar             User?              @relation("PeriodeDecideePar", fields: [decideeParId], references: [id])
+  decideeAt              DateTime?
+  // Horodatages du job de rotation (chaque action une seule fois).
+  rattachementAppliqueAt DateTime?
+  rappelAVenirAt         DateTime?
+  alerteAt               DateTime?
+  rappelEvaluationAt     DateTime?
+  relanceEvaluationAt    DateTime?
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
+
+  evaluation EvaluationStage?
+
+  @@index([stageId])
+  @@index([divisionId])
+  @@index([sectionId])
+  @@index([celluleId])
+  @@map("periodes_stage")
+}
+
+model EvaluationStage {
+  id           String                @id @default(cuid())
+  periodeId    String                @unique
+  periode      PeriodeStage          @relation(fields: [periodeId], references: [id])
+  redacteurId  String
+  redacteur    User                  @relation("EvaluationRedacteur", fields: [redacteurId], references: [id])
+  // Format GRILLE : { assiduite, qualite, autonomie, integration } → niveau.
+  criteres     Json?
+  appreciation String?
+  statut       EvaluationStageStatut @default(BROUILLON)
+  motifRenvoi  String?
+  soumiseAt    DateTime?
+  viseeParId   String?
+  viseePar     User?                 @relation("EvaluationViseePar", fields: [viseeParId], references: [id])
+  viseeAt      DateTime?
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
+
+  @@map("evaluations_stage")
+}
+
+/// Nombre maximal de stagiaires simultanés d'une unité (« DIV:<id> »,
+/// « SEC:<id> », « CEL:<id> »), fixé par le DRH. Sans ligne : pas de limite.
+/// Une période en section compte aussi pour sa division.
+model CapaciteAccueil {
+  uniteKey   String   @id
+  maximum    Int
+  fixeeParId String
+  fixeePar   User     @relation("CapaciteFixeePar", fields: [fixeeParId], references: [id])
+  updatedAt  DateTime @updatedAt
+
+  @@map("capacites_accueil")
 }

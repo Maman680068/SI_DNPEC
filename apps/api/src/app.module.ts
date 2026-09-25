@@ -20,6 +20,7 @@ import { ExportModule } from './export/export.module';
 import { SuggestionsModule } from './suggestions/suggestions.module';
 import { PersonnelModule } from './personnel/personnel.module';
 import { PersonnelImportModule } from './personnel/personnel-import.module';
+import { StagesModule } from './stages/stages.module';
 import { SuppleancesModule } from './suppleances/suppleances.module';
 import { CourrierModule } from './courrier/courrier.module';
 import { RoleChangeModule } from './role-change/role-change.module';
@@ -46,6 +47,7 @@ import { AppController } from './app.controller';
     SuggestionsModule,
     PersonnelModule,
     PersonnelImportModule,
+    StagesModule,
     SuppleancesModule,
     CourrierModule,
     RoleChangeModule,
