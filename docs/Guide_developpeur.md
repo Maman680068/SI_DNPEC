@@ -86,6 +86,10 @@ fonctionnalité ajoute sa suite (`tests/e2e/api/`, `tests/e2e/ui/`) et sa ligne 
   CHECK) ; réservations sans chevauchement (trigger qui verrouille la ressource) ; priorité
   hiérarchique = `ReservationsService.peutEvincer` (cascade ; DN et DNA pairs entre eux) ; une réunion
   réserve sa salle dans sa propre transaction (`creerDansTransaction`).
+- Emails de compte (`users/comptes-emails.service.ts`) : inscription approuvée (rôle, unité,
+  « Se connecter »), rejetée (motif facultatif `POST /users/:id/reject { motif? }`), compte créé
+  par l'admin (lien de premier accès 7 jours, `creerLienPremierAcces`, partagé avec l'import).
+  Envoyés après l'action, jamais bloquants (A7) ; pas de notification in-app.
 - Double authentification (`auth/`) : `GET /auth/2fa/status`, `POST /auth/2fa/setup` (409 si
   active), `POST /auth/2fa/activate`, `POST /auth/2fa/disable` (code exigé) ; réinitialisation
   par l'administrateur `POST /users/:id/2fa/reset` (jamais sur soi-même). Écran

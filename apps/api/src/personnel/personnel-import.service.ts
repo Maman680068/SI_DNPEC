@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import ExcelJS from 'exceljs';
-import { createHash, randomBytes } from 'crypto';
+import { randomBytes } from 'crypto';
 import { AuditAction, SystemRole, UserStatus } from '@prisma/client';
 import { UsersService } from '../users/users.service';
 import { rattachementPourRole } from '../role-change/roles';
@@ -10,6 +10,7 @@ import { AuditService } from '../common/audit/audit.service';
 import { PasswordService } from '../common/security/password.service';
 import { EmailService } from '../communication/notifications/email.service';
 import { buildEmailContent } from '../communication/notifications/email-template';
+import { creerLienPremierAcces } from '../communication/notifications/lien-premier-acces';
 import { AuthenticatedUser } from '../common/types/auth-user.type';
 import { markFieldsUnverified } from './personnel-field-status.util';
 
@@ -241,20 +242,12 @@ export class PersonnelImportService {
     return user;
   }
 
-  /** Réutilise PasswordResetToken directement (pas PasswordResetService, module
-   * auth/ — importer AuthModule créerait un cycle avec UsersModule -> PersonnelModule).
-   * TTL plus long (7 jours) que le "mot de passe oublié" standard (1h) : c'est un
-   * premier contact, pas une demande active de l'utilisateur. Si le lien expire,
-   * le compte étant déjà ACTIF, "mot de passe oublié" fonctionne normalement. */
+  /** Lien de premier accès partagé avec la création par l'administrateur
+   * (creerLienPremierAcces : PasswordResetToken, 7 jours). Si le lien expire, le
+   * compte étant déjà ACTIF, "mot de passe oublié" fonctionne normalement. */
   private async sendWelcomeEmail(user: { id: string; email: string; firstName: string }): Promise<void> {
-    const plainToken = randomBytes(32).toString('base64url');
-    const tokenHash = createHash('sha256').update(plainToken).digest('hex');
-    await this.prisma.passwordResetToken.create({
-      data: { userId: user.id, tokenHash, expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) },
-    });
-
     const webAppUrl = this.config.get<string>('WEB_APP_URL', 'http://localhost:3100');
-    const resetUrl = `${webAppUrl}/reset-password?token=${plainToken}`;
+    const resetUrl = await creerLienPremierAcces(this.prisma, webAppUrl, user.id);
     const { html, text } = buildEmailContent({
       recipientFirstName: user.firstName,
       paragraphs: [

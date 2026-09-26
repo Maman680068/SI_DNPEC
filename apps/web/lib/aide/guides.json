@@ -10,6 +10,7 @@
         {
           "titre": "Se connecter",
           "etapes": [
+            "Pas encore de compte ? Sur la page d’accueil, cliquez sur « Demander l’accès ». Vous recevez un email dès que l’administrateur a traité votre demande.",
             "Ouvrez l’adresse du SI DNPEC dans votre navigateur (ordinateur ou téléphone).",
             "Saisissez votre adresse e-mail et votre mot de passe, puis cliquez sur « Se connecter ».",
             "Si vous avez activé la double authentification, saisissez le code à 6 chiffres affiché par l’application de votre téléphone.",
@@ -363,6 +364,7 @@
           "titre": "Comptes",
           "etapes": [
             "Administration → « Utilisateurs » : « + Nouveau compte », approbation des inscriptions, suspension.",
+            "La personne est prévenue par email : inscription approuvée (rôle, unité, bouton « Se connecter »), inscription rejetée (motif facultatif, saisi dans la fenêtre « Rejeter l’inscription »), compte créé par vous (lien pour choisir son mot de passe, valable 7 jours).",
             "Sur un compte : « Changer de rôle » (aperçu des effets, puis confirmation avec un motif), mot de passe temporaire, lien de réinitialisation, « Réinitialiser la double authentification ».",
             "Vous n’avez pas accès au contenu métier des agents (tâches, stages, courrier des autres)."
           ],

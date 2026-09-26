@@ -33,9 +33,10 @@ Chacun n'y voit que ce qui le concerne.
    (8 caractères au moins).
 3. Indiquez votre poste et votre division, section ou cellule, puis cliquez sur
    **« Envoyer la demande »**.
-4. L'administrateur vérifie votre demande et l'approuve, en général dans la journée.
-   Vous pouvez alors vous connecter avec **« Se connecter »**. Aucun email n'est envoyé
-   à ce moment-là : si la connexion est refusée, votre demande n'est pas encore approuvée.
+4. L'administrateur vérifie votre demande, en général dans la journée. Vous recevez
+   alors un email : s'il l'approuve, cet email indique votre rôle et votre unité et
+   contient un bouton **« Se connecter »**. Pensez à regarder aussi dans vos courriers
+   indésirables.
 
 **Besoin d'aide ?**
 Une fois connecté, ouvrez **« Aide »** dans le menu. Vous y trouverez un guide pas à pas

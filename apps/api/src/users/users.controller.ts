@@ -9,6 +9,7 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { UpdateStatusDto } from './dto/update-status.dto';
 import { UpdateAssignmentDto } from './dto/update-assignment.dto';
 import { ApproveRegistrationDto } from './dto/approve-registration.dto';
+import { RejectRegistrationDto } from './dto/reject-registration.dto';
 import { ResolveUsersDto } from './dto/resolve-users.dto';
 import { SearchUsersDto } from './dto/search-users.dto';
 import { OuvertAuxStagiaires } from '../common/decorators/ouvert-aux-stagiaires.decorator';
@@ -114,7 +115,7 @@ export class UsersController {
 
   @Roles(SystemRole.ADMIN_SYSTEME)
   @Post(':id/reject')
-  reject(@Param('id') id: string, @CurrentUser() actor: AuthenticatedUser) {
-    return this.usersService.rejectRegistration(actor, id);
+  reject(@Param('id') id: string, @Body() dto: RejectRegistrationDto, @CurrentUser() actor: AuthenticatedUser) {
+    return this.usersService.rejectRegistration(actor, id, dto);
   }
 }
