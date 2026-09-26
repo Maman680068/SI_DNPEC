@@ -123,6 +123,24 @@ lancer "36. CHROMIUM — G3 DOUBLE AUTHENTIFICATION" ui/g3_2fa_ui.js
 lancer "37. CHROMIUM — G4 AIDE EN LIGNE" ui/g4_aide_ui.js
 lancer "38. CHROMIUM — H EMAILS DE COMPTE" ui/h_email_comptes_ui.js
 
+# Données de démonstration (prisma/demo.ts) : en dernier, car chaque phase repart d'une base neuve.
+demo_voulue() { veut z_demo_creer || veut z_demo_ui || veut z_demo_supprimer || veut z_demo_apres_ui || veut z_demo_sans_dn; }
+if demo_voulue; then
+  echo; echo "################ 40. DÉMONSTRATION — BASE NEUVE, PARAMÉTRAGE, JEU DE TEST « RÉEL »"
+  base_neuve
+  (cd "$API" && pnpm run -s db:parametrage >/dev/null) || { echo "Paramétrage : échec"; exit 1; }
+  bash "$ICI/scripts/api.sh" normal >/dev/null || exit 1
+  lancer "40a. DÉMONSTRATION : CRÉATION, DONNÉES RÉELLES INTACTES, EMAILS, RELANCE, EXPIRATION" api/z_demo_creer.js
+  lancer "40b. CHROMIUM — DÉMONSTRATION : ÉCRANS REMPLIS, VUE DIRECTION" ui/z_demo_ui.js
+  lancer "40c. DÉMONSTRATION : SUPPRESSION" api/z_demo_supprimer.js
+  lancer "40d. CHROMIUM — DÉMONSTRATION : PLUS RIEN DE « TEST » À L'ÉCRAN" ui/z_demo_apres_ui.js
+  echo; echo "################ 41. DÉMONSTRATION SUR UNE BASE SANS AUCUN COMPTE RÉEL"
+  psql -q "$PSQL_URL" -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public;' >/dev/null 2>&1
+  (cd "$API" && pnpm exec prisma migrate deploy >/dev/null 2>&1 && pnpm run -s db:seed >/dev/null && pnpm run -s db:parametrage >/dev/null) || { echo "Base neuve : échec"; exit 1; }
+  bash "$ICI/scripts/api.sh" normal >/dev/null || exit 1
+  lancer "41. DÉMONSTRATION : DN DE DÉMONSTRATION SI AUCUN DN RÉEL" api/z_demo_sans_dn.js
+fi
+
 for f in "$E2E_OUT"/logs/*.pid; do [ -f "$f" ] && kill "$(cat "$f")" 2>/dev/null; done
 echo; echo "################ RÉSUMÉ"
 cat "$RESUME"

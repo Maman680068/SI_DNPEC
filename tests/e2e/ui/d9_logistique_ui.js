@@ -173,7 +173,11 @@ const sansDefilement = async (p) => (await p.evaluate(() => document.documentEle
   await g.getByText(`Ramettes pour la note ${S}`).click();
   await pan(g).getByRole('button', { name: 'Prendre en charge' }).click();
   await g.getByText('Demande prise en charge.').waitFor();
-  await g.getByText(`Ramettes pour la note ${S}`).click();
+  // La liste se recharge en arrière-plan : rouvrir la ligne seulement une fois son nouveau statut affiché
+  // (sinon la fiche s'ouvre sur l'état d'avant la prise en charge, sans le bouton « Traiter »).
+  const aTraiter = g.getByTestId('ligne-demande').filter({ hasText: `Ramettes pour la note ${S}` });
+  await aTraiter.getByText('En traitement').waitFor();
+  await aTraiter.click();
   await pan(g).getByRole('button', { name: 'Traiter' }).click();
   await dlg(g).getByLabel('Compte rendu (facultatif)').fill('Remis au bureau');
   await dlg(g).getByRole('button', { name: 'Marquer traitée' }).click();

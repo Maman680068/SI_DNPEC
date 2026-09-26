@@ -1,0 +1,77 @@
+name: Données de démonstration (manuel)
+
+# Déclenchement manuel uniquement. Crée ou retire les données de DÉMONSTRATION
+# (unités « TEST — … », comptes @demo.dnpec.test, contenus « TEST — … », registres
+# TEST-ARR / TEST-DEP) sur la base pointée par le secret DATABASE_URL — voir
+# apps/api/prisma/demo.ts. Ne touche jamais aux unités, comptes ni données réels.
+# « creer » : relancé, ne duplique rien ; comptes suspendus automatiquement après 14 jours.
+# « supprimer » : retire tout ; ce que la base protège (courrier numéroté, biens
+# inventoriés, réservations) est annulé, réformé ou désactivé — liste dans le journal.
+# Refuse de tourner si les migrations ne sont pas à jour (lancer d'abord db-migrate.yml).
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'creer (ajoute la démonstration) ou supprimer (la retire)'
+        required: true
+        type: choice
+        options:
+          - creer
+          - supprimer
+      mot_de_passe:
+        description: 'Mot de passe commun des comptes de démonstration (mode creer ; 10 caractères au moins) — masqué dans les journaux'
+        required: false
+        type: string
+      confirm:
+        description: 'Tapez "demo" pour confirmer'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: db-migrate
+  cancel-in-progress: false
+
+jobs:
+  demo:
+    if: ${{ github.event.inputs.confirm == 'demo' }}
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+    steps:
+      - name: Checkout du dépôt
+        uses: actions/checkout@v4
+
+      - name: Installer pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+
+      - name: Installer Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Installer les dépendances
+        run: pnpm install --frozen-lockfile
+
+      - name: Générer le client Prisma
+        run: pnpm --filter @dnpec/api exec prisma generate
+
+      # Le mot de passe est lu dans l'événement (jamais passé par une variable
+      # d'environnement de l'étape, affichée en clair dans l'en-tête du journal),
+      # masqué, puis transmis au seul script.
+      - name: Données de démonstration — ${{ github.event.inputs.mode }} (journal de ce qui est créé ou retiré)
+        run: |
+          MODE=$(jq -r '.inputs.mode' "$GITHUB_EVENT_PATH")
+          MDP=$(jq -r '.inputs.mot_de_passe // ""' "$GITHUB_EVENT_PATH")
+          if [ -n "$MDP" ]; then echo "::add-mask::$MDP"; fi
+          case "$MODE" in
+            creer) DEMO_PASSWORD="$MDP" pnpm --filter @dnpec/api run db:demo creer ;;
+            supprimer) pnpm --filter @dnpec/api run db:demo supprimer ;;
+            *) echo "Mode inconnu : $MODE"; exit 1 ;;
+          esac

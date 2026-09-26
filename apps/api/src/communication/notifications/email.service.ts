@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
+import { estAdresseDemo } from '../../demo/demo.constantes';
 
 /**
  * Envoi d'email (§7.7 : Nodemailer + Brevo ou SendGrid). Sans SMTP_HOST
@@ -34,6 +35,12 @@ export class EmailService {
   }
 
   async send(to: string, subject: string, text: string, html?: string): Promise<void> {
+    // Comptes de démonstration : aucun envoi, jamais (domaine non livrable, mais
+    // un envoi vers lui consommerait le quota Brevo et produirait des rejets).
+    if (estAdresseDemo(to)) {
+      this.logger.log(`Email non envoyé (compte de démonstration) — destinataire=${to}, sujet="${subject}"`);
+      return;
+    }
     if (!this.configured) {
       // jsonTransport n'envoie réellement rien — journaliser le corps est ce qui rend
       // le docstring ci-dessus ("encodé et journalisé") vrai, et permet de tester en

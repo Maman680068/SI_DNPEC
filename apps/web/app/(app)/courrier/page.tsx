@@ -144,7 +144,8 @@ export default function CourrierPage() {
 
   const libelleUnite = useMemo(() => {
     const m = new Map(unites.map((u) => [u.key, u.code]));
-    return (key: string) => m.get(key) ?? key;
+    // Unité inconnue : supprimée depuis (le courrier ne garde que sa clé) — jamais la clé brute à l'écran.
+    return (key: string) => m.get(key) ?? 'unité supprimée';
   }, [unites]);
 
   const ouvrirArrivee = (id: string) => {
