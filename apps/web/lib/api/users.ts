@@ -20,8 +20,8 @@ export function approveUser(id: string, input: ApproveUserInput): Promise<AdminU
   return apiFetch<AdminUser>(`/users/${id}/approve`, { method: 'POST', body: JSON.stringify(input) });
 }
 
-export function rejectUser(id: string): Promise<void> {
-  return apiFetch<void>(`/users/${id}/reject`, { method: 'POST' });
+export function rejectUser(id: string, motif?: string): Promise<void> {
+  return apiFetch<void>(`/users/${id}/reject`, { method: 'POST', body: JSON.stringify(motif ? { motif } : {}) });
 }
 
 export function setUserStatus(id: string, status: UserStatus): Promise<AdminUser> {

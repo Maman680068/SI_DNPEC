@@ -4,7 +4,7 @@ Une ligne par action, **dans cet ordre**. Chaque action se fait dans l'applicati
 menu **Administration**.
 
 0. **Avant l'annonce :** vérifier que le workflow GitHub « Paramétrage initial (manuel) » a tourné une fois (coche verte). Sans lui, il n'y a ni registres du courrier, ni catégories logistiques.
-1. **Approuver les inscriptions de la Direction et des chefs d'abord :** Utilisateurs → onglet « Inscriptions en attente » → « Approuver l'inscription ». Vérifier le poste et le rattachement déclarés, puis choisir le « Rôle attribué ».
+1. **Approuver les inscriptions de la Direction et des chefs d'abord :** Utilisateurs → onglet « Inscriptions en attente » → « Approuver l'inscription ». Vérifier le poste et le rattachement déclarés, puis choisir le « Rôle attribué ». La personne reçoit aussitôt un email avec le bouton « Se connecter ». Pour une demande à écarter : « Rejeter », motif facultatif (repris dans l'email).
 2. **Nommer le DRH :** Utilisateurs → sur son compte, « Gérer » → « Changer de rôle » → DRH. Saisir un motif, puis cliquer sur « Confirmer le changement ».
 3. **Vérifier les chefs de cellule :** Organisation → chaque cellule a son chef. Les chefs de division et de section viennent de leur rôle et de leur rattachement.
 4. **Saisir les derniers numéros papier, avant tout enregistrement de courrier :** Courrier → onglet « Compteurs » → choisir le registre → « Reprise d'un compteur ». Saisir le dernier numéro papier de l'année pour chaque unité. Ce n'est plus possible une fois qu'un numéro a été attribué dans l'application.

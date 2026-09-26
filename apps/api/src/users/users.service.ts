@@ -11,6 +11,8 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { UpdateStatusDto } from './dto/update-status.dto';
 import { UpdateAssignmentDto } from './dto/update-assignment.dto';
 import { ApproveRegistrationDto } from './dto/approve-registration.dto';
+import { RejectRegistrationDto } from './dto/reject-registration.dto';
+import { ComptesEmailsService } from './comptes-emails.service';
 
 const USER_LIST_SELECT = {
   id: true,
@@ -104,6 +106,7 @@ export class UsersService {
     private readonly passwordService: PasswordService,
     private readonly cascade: CascadeService,
     private readonly personnelHistory: PersonnelHistoryService,
+    private readonly comptesEmails: ComptesEmailsService,
   ) {}
 
   findAllVisibleTo(actor: AuthenticatedUser) {
@@ -217,6 +220,8 @@ export class UsersService {
       metadata: { email: user.email, role: user.role, createdManually: true },
     });
 
+    // Après la création : email « votre compte a été créé » (un échec d'envoi ne l'annule pas, A7).
+    await this.comptesEmails.compteCree(user.id);
     return user;
   }
 
@@ -393,10 +398,12 @@ export class UsersService {
       metadata: { role: dto.role, ...attachment },
     });
 
+    // Après l'approbation : email à la personne (un échec d'envoi ne l'annule pas, A7).
+    await this.comptesEmails.inscriptionApprouvee(updated.id);
     return updated;
   }
 
-  async rejectRegistration(actor: AuthenticatedUser, id: string): Promise<void> {
+  async rejectRegistration(actor: AuthenticatedUser, id: string, dto: RejectRegistrationDto = {}): Promise<void> {
     const target = await this.findOneOrThrow(id);
     if (target.status !== UserStatus.EN_ATTENTE) {
       throw new ConflictException("Ce compte n'est pas en attente de validation.");
@@ -409,8 +416,11 @@ export class UsersService {
       action: AuditAction.REJET,
       entityType: 'User',
       entityId: id,
-      metadata: { email: target.email },
+      metadata: { email: target.email, motif: dto.motif || null },
     });
+
+    // Après la suppression : email sobre (motif seulement s'il est saisi ; un échec d'envoi ne l'annule pas, A7).
+    await this.comptesEmails.inscriptionRejetee({ email: target.email, firstName: target.firstName }, dto.motif || undefined);
   }
 
   private async findOneOrThrow(id: string) {

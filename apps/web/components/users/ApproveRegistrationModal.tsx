@@ -122,6 +122,10 @@ export function ApproveRegistrationModal({
 
         <OrgAttachmentFields role={role} value={attachment} onChange={setAttachment} />
 
+        <p className="mb-4 text-[12px] text-text-muted">
+          La personne recevra un email avec son rôle, son unité et un bouton « Se connecter ».
+        </p>
+
         {error && <div className="mb-4 rounded-md bg-clay-soft px-3 py-2.5 text-[13px] text-clay">{error}</div>}
 
         <div className="flex justify-end gap-2.5">

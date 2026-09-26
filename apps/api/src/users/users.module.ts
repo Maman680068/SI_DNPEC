@@ -1,17 +1,20 @@
 import { Module } from '@nestjs/common';
 import { OrgModule } from '../org/org.module';
+import { CommunicationModule } from '../communication/communication.module';
 import { PersonnelModule } from '../personnel/personnel.module';
 import { UsersController } from './users.controller';
 import { UsersService } from './users.service';
+import { ComptesEmailsService } from './comptes-emails.service';
 
 @Module({
   // PersonnelModule : UsersService.updateAssignment enregistre un événement
   // de carrière (AFFECTATION) via PersonnelHistoryService — voir
   // schema.prisma, PersonnelCareerEvent. Sens unique (PersonnelModule
   // n'importe jamais UsersModule) pour éviter tout cycle avec AuthModule.
-  imports: [OrgModule, PersonnelModule],
+  // CommunicationModule : EmailService, pour les emails de compte (ComptesEmailsService).
+  imports: [OrgModule, PersonnelModule, CommunicationModule],
   controllers: [UsersController],
-  providers: [UsersService],
+  providers: [UsersService, ComptesEmailsService],
   exports: [UsersService],
 })
 export class UsersModule {}
