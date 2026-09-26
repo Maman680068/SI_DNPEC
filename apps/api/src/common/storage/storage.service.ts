@@ -3,6 +3,7 @@ import { randomUUID } from 'crypto';
 import { mkdir, readFile, unlink, writeFile } from 'fs/promises';
 import { createReadStream, existsSync } from 'fs';
 import * as path from 'path';
+import { cheminIntegre, estIntegre } from './fichiers-integres';
 
 /**
  * Stockage des fichiers de la GED (RF-GED-01/02/03). Implémentation disque local —
@@ -82,11 +83,13 @@ export class StorageService {
   }
 
   async delete(fileKey: string): Promise<void> {
+    if (estIntegre(fileKey)) return; // fichier livré avec l'application : jamais supprimé
     const filePath = this.resolvePath(fileKey);
     if (existsSync(filePath)) await unlink(filePath);
   }
 
   private resolvePath(fileKey: string): string {
+    if (estIntegre(fileKey)) return cheminIntegre(fileKey);
     // path.basename empêche toute traversée de répertoire (fileKey vient de la
     // base — généré par cette classe — mais jamais fait confiance sans vérification).
     return path.join(this.root, path.basename(fileKey));

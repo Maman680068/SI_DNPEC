@@ -49,6 +49,7 @@ export function Filtres({
         {registres.map((r) => (
           <option key={r.id} value={r.id}>
             {r.code} — {r.libelle}
+            {r.isActive ? '' : ' (désactivé)'}
           </option>
         ))}
       </select>

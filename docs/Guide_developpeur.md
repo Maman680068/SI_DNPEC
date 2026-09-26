@@ -82,6 +82,14 @@ fonctionnalité ajoute sa suite (`tests/e2e/api/`, `tests/e2e/ui/`) et sa ligne 
   d'audit « Système » (`entityType: 'Parametrage'`) : un élément supprimé à l'écran n'est
   jamais recréé. Tout nouvel élément de paramétrage doit suivre ce modèle et rester
   modifiable à l'écran ; aucun élément ne dépend du compte qui l'a créé.
+- Démonstration : `apps/api/prisma/demo.ts` (workflow manuel `db-demo.yml`, modes
+  « creer » / « supprimer », mot « demo », mot de passe saisi au lancement). Passe par les VRAIS
+  services (contexte Nest) ; marques : unités et contenus « TEST — », comptes
+  `@demo.dnpec.test` (`demo/demo.constantes.ts`), registres TEST-ARR/TEST-DEP, catégories TST/TSF,
+  ids « demo-… ». Garde-fous : `EmailService` n'envoie jamais vers le domaine de démonstration ;
+  le script filtre toute notification vers un compte réel ; fichiers → `integre:` (jamais le
+  stockage). Comptes suspendus 14 jours après le dernier « creer » (`DemoExpirationService`).
+  Un nouveau module doit être ajouté aux deux modes (création, suppression) et au test `z_demo_*`.
 - Logistique (`logistique/`, D9) : numérotation d'inventaire et stock protégés en base (triggers,
   CHECK) ; réservations sans chevauchement (trigger qui verrouille la ressource) ; priorité
   hiérarchique = `ReservationsService.peutEvincer` (cascade ; DN et DNA pairs entre eux) ; une réunion

@@ -68,6 +68,9 @@ Dans `out/` :
 | `sql/` | Triggers d'intégrité du registre, en SQL direct, dans une transaction annulée |
 | `scripts/` | Démarrage de l'API (port 3000, et 3001 avec l'horloge avancée d'un an pour le changement d'année), du web (port 3100), garde « base locale » |
 
+Les phases `z_demo_*` (données de démonstration, `apps/api/prisma/demo.ts`) passent en
+dernier : elles repartent chacune d'une base neuve (avec puis sans le jeu de test).
+
 Les suites s'enchaînent : `c1_setup` crée les registres utilisés ensuite, et plusieurs
 suites C1 réutilisent les courriers créés par `c1_arrivees` et `c1_actes`. Pour lancer
 une suite seule après une relance complète, utilisez `E2E_SUITES` : la base garde les

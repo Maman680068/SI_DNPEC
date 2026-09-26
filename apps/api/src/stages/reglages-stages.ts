@@ -1,4 +1,3 @@
-import * as path from 'path';
 import { ForbiddenException } from '@nestjs/common';
 import { SystemRole } from '@prisma/client';
 import { AuthenticatedUser } from '../common/types/auth-user.type';
@@ -24,11 +23,5 @@ export function assertReglagesStages(actor: Pick<AuthenticatedUser, 'role'>): vo
  * exécuté hors du serveur, ne peut pas écrire dans le stockage de l'API.
  * Un modèle importé à l'écran le remplace (stockage habituel).
  */
-export const PREFIXE_INTEGRE = 'integre:';
+export { PREFIXE_INTEGRE, cheminIntegre } from '../common/storage/fichiers-integres';
 export const MODELE_ATTESTATION_INTEGRE = 'modele-attestation-dnpec.docx';
-
-export function cheminIntegre(fileKey: string): string {
-  const nom = path.basename(fileKey.slice(PREFIXE_INTEGRE.length));
-  // src/stages ou dist/stages → apps/api/assets
-  return path.resolve(__dirname, '../../assets', nom);
-}
