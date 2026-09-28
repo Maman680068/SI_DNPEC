@@ -115,6 +115,11 @@ fonctionnalité ajoute sa suite (`tests/e2e/api/`, `tests/e2e/ui/`) et sa ligne 
   List, Card), `lib/api/<module>.ts` (`apiFetch`), `lib/<module>/types.ts`.
 - Tokens Tailwind (`ink`, `gold`, `sage`, `clay`, `line`, `text-muted`...) issus de la maquette ;
   navigation dans `components/layout/Sidebar.tsx` ; ouverture profonde via `?id=`.
+- Liens vers le web (notifications, emails) : chaque lien de l'API doit viser une page
+  existante qui lit ses paramètres (contrôlé par `tests/e2e/api/i_liens.js`). Renommer ou
+  supprimer une page déjà visée par des liens envoyés : ajouter l'ancien format à
+  `apps/web/anciens-liens.json` (redirection de `next.config.ts`), jamais migrer les
+  notifications stockées. Adresse inconnue : `app/not-found.tsx` (page 404 en français).
 - Chargement d'une page : `.catch` obligatoire, message affiché par `ErreurChargement`
   (`components/ui/ErreurChargement.tsx`). Page visée avant connexion : `lib/auth/suite.ts`.
 

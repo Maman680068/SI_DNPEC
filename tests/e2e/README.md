@@ -68,6 +68,11 @@ Dans `out/` :
 | `sql/` | Triggers d'intégrité du registre, en SQL direct, dans une transaction annulée |
 | `scripts/` | Démarrage de l'API (port 3000, et 3001 avec l'horloge avancée d'un an pour le changement d'année), du web (port 3100), garde « base locale » |
 
+Les suites `i_liens` (API) et `i_liens_ui` (Chromium) passent après toutes les autres :
+elles vérifient que chaque lien produit par l'API (code, notifications enregistrées,
+emails journalisés) mène à une page web existante qui lit ses paramètres, que les anciens
+formats (`apps/web/anciens-liens.json`) sont redirigés, et la page 404 en français.
+
 Les phases `z_demo_*` (données de démonstration, `apps/api/prisma/demo.ts`) passent en
 dernier : elles repartent chacune d'une base neuve (avec puis sans le jeu de test).
 

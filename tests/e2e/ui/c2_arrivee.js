@@ -25,7 +25,9 @@ const optionsDe = (p, label) => champ(p, label).locator('option').allInnerTexts(
   const sec = await loginPage(b, 'secdpe');
   await sec.goto(WEB + '/courrier?onglet=arrivees');
   await sec.getByRole('button', { name: '+ Enregistrer un courrier' }).click();
-  const regs = await optionsDe(sec, 'Registre');
+  // Liste des registres chargée à l'ouverture de la fenêtre : attendre qu'elle ne dise plus « Chargement… ».
+  let regs = [];
+  for (let i = 0; i < 40 && (regs = await optionsDe(sec, 'Registre')).some((t) => /Chargement/.test(t)); i++) await new Promise((r) => setTimeout(r, 250));
   check('registres proposés = habilitations arrivée de secdpe', regs.length === 1 && /^ARRU/.test(regs[0]), regs.join(' | '));
   const unites = await optionsDe(sec, 'Unité');
   check('unités proposées = celles de ses habilitations (DPE, DEE)', unites.length === 2, unites.join(' | '));
