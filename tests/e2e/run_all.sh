@@ -125,6 +125,7 @@ lancer "38. CHROMIUM — H EMAILS DE COMPTE" ui/h_email_comptes_ui.js
 # Liens : après toutes les suites, pour contrôler aussi les notifications et emails réellement produits.
 lancer "39a. LIENS DE L'API VERS LE WEB (CODE, NOTIFICATIONS, EMAILS) ET ANCIENS FORMATS" api/i_liens.js
 lancer "39b. CHROMIUM — ANCIENS LIENS (CONNECTÉ, NON CONNECTÉ) ET PAGE 404" ui/i_liens_ui.js
+lancer "39e. CHROMIUM — ACCUEIL PUBLIC COMPACT (4 ÉCRANS, TÉLÉPHONE, TABLETTE)" ui/k_accueil_ui.js
 
 # Données de démonstration (prisma/demo.ts) : en dernier, car chaque phase repart d'une base neuve.
 demo_voulue() { veut z_demo_creer || veut z_demo_ui || veut z_demo_supprimer || veut z_demo_apres_ui || veut z_demo_sans_dn; }
