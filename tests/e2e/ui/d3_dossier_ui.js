@@ -39,7 +39,7 @@ function espion(page) {
   check('fiche de poste téléchargée', fs.readFileSync(await dl.path(), 'utf8').startsWith('FICHE'), dl.suggestedFilename());
   await p.getByRole('button', { name: 'Confirmer mes informations' }).click();
   await p.getByText('Vos informations sont confirmées.').waitFor();
-  check('après confirmation : plus de bandeau, grade « Confirmé »', (await p.locator('[data-testid=bandeau-a-verifier]').count()) === 0 && /Confirmé/.test(await p.locator('[data-testid="champ-Grade"]').innerText()));
+  check('après confirmation : plus de bandeau, grade « Confirmé »', await attendre(async () => (await p.locator('[data-testid=bandeau-a-verifier]').count()) === 0 && /Confirmé/.test(await p.locator('[data-testid="champ-Grade"]').innerText())));
   await p.getByRole('button', { name: 'Signaler une erreur' }).click();
   await p.getByLabel('Information concernée').selectOption('Grade');
   await p.getByLabel('Ce qui est inexact').fill(`Mon grade est A1 depuis 2024 ${S}`);
