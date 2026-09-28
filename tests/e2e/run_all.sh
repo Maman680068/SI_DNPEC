@@ -130,6 +130,7 @@ lancer "39a. LIENS DE L'API VERS LE WEB (CODE, NOTIFICATIONS, EMAILS) ET ANCIENS
 lancer "39b. CHROMIUM — ANCIENS LIENS (CONNECTÉ, NON CONNECTÉ) ET PAGE 404" ui/i_liens_ui.js
 lancer "39c. CONFIGURATION DE PRODUCTION : CORS STRICT, ORIGINES REFUSÉES, VERSION DÉPLOYÉE" api/j_production.js
 lancer "39d. CHROMIUM — CLOCHE EN CONDITIONS DE PRODUCTION, ORIGINE REFUSÉE, API INJOIGNABLE" ui/j_cloche_production_ui.js
+lancer "39e. CHROMIUM — ACCUEIL PUBLIC COMPACT (4 ÉCRANS, TÉLÉPHONE, TABLETTE)" ui/k_accueil_ui.js
 
 # Données de démonstration (prisma/demo.ts) : en dernier, car chaque phase repart d'une base neuve.
 demo_voulue() { veut z_demo_creer || veut z_demo_ui || veut z_demo_supprimer || veut z_demo_apres_ui || veut z_demo_sans_dn; }

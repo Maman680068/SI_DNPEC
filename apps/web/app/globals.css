@@ -18,6 +18,12 @@
   .flag-stripe {
     @apply flex h-1 w-full;
   }
+  /* Accueil public : --u vaut 1px sur un écran 1920×1080 et diminue avec la plus
+   * contraignante des deux dimensions — la page garde les proportions de la maquette
+   * validée et tient sans défilement sur ordinateur (tailles en clamp(min, n×--u, n)). */
+  .accueil {
+    --u: min(0.052083vw, 0.092593vh);
+  }
   .flag-stripe span {
     @apply flex-1;
   }
