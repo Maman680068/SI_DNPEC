@@ -1,9 +1,9 @@
-import { API_BASE_URL, authHeaders } from './client';
+import { API_BASE_URL, authHeaders, appelApi } from './client';
 
 // Hors apiFetch : la réponse est un flux binaire, pas du JSON — même pattern
 // que downloadAttachment (lib/api/tasks.ts) et downloadVersion (lib/api/documents.ts).
 async function downloadFile(path: string, fileName: string): Promise<void> {
-  const res = await fetch(`${API_BASE_URL}${path}`, {
+  const res = await appelApi(`${API_BASE_URL}${path}`, {
     headers: authHeaders(),
   });
   if (!res.ok) throw new Error('Export impossible');

@@ -1,4 +1,4 @@
-import { apiFetch } from './client';
+import { apiFetch, appelApi } from './client';
 import type { AuthUser, LoginProxyResult, RegistrationOrgOptions, RegistrationSupervisorOption } from '../auth/types';
 
 const PUBLIC_API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:3000';
@@ -32,7 +32,7 @@ export async function registerRequest(input: {
   declaredSupervisorId?: string;
   declaredRole: string;
 }): Promise<{ message: string }> {
-  const res = await fetch(`${PUBLIC_API_BASE_URL}/auth/register`, {
+  const res = await appelApi(`${PUBLIC_API_BASE_URL}/auth/register`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(input),
@@ -43,21 +43,21 @@ export async function registerRequest(input: {
 }
 
 export async function getRegistrationOrgOptionsRequest(): Promise<RegistrationOrgOptions> {
-  const res = await fetch(`${PUBLIC_API_BASE_URL}/auth/register/org-options`);
+  const res = await appelApi(`${PUBLIC_API_BASE_URL}/auth/register/org-options`);
   const body = await parseJson(res);
   await assertOk(res, body);
   return body as RegistrationOrgOptions;
 }
 
 export async function getRegistrationSupervisorOptionsRequest(): Promise<RegistrationSupervisorOption[]> {
-  const res = await fetch(`${PUBLIC_API_BASE_URL}/auth/register/supervisor-options`);
+  const res = await appelApi(`${PUBLIC_API_BASE_URL}/auth/register/supervisor-options`);
   const body = await parseJson(res);
   await assertOk(res, body);
   return body as RegistrationSupervisorOption[];
 }
 
 export async function forgotPasswordRequest(email: string): Promise<{ message: string }> {
-  const res = await fetch(`${PUBLIC_API_BASE_URL}/auth/forgot-password`, {
+  const res = await appelApi(`${PUBLIC_API_BASE_URL}/auth/forgot-password`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email }),
@@ -68,7 +68,7 @@ export async function forgotPasswordRequest(email: string): Promise<{ message: s
 }
 
 export async function resetPasswordRequest(token: string, newPassword: string): Promise<{ message: string }> {
-  const res = await fetch(`${PUBLIC_API_BASE_URL}/auth/reset-password`, {
+  const res = await appelApi(`${PUBLIC_API_BASE_URL}/auth/reset-password`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ token, newPassword }),
@@ -122,7 +122,7 @@ export async function enableTwoFaRequest(
 export async function setupTwoFaRequest(
   bearerToken: string,
 ): Promise<{ secret: string; otpAuthUrl: string; qrCodeDataUrl: string }> {
-  const res = await fetch(`${PUBLIC_API_BASE_URL}/auth/2fa/setup`, {
+  const res = await appelApi(`${PUBLIC_API_BASE_URL}/auth/2fa/setup`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${bearerToken}` },
   });
