@@ -1,4 +1,4 @@
-import { apiFetch, API_BASE_URL, authHeaders } from './client';
+import { apiFetch, API_BASE_URL, authHeaders, appelApi } from './client';
 import type { DnpecDocument, DocumentFilters, DocumentVersionSummary, Folder } from '../documents/types';
 
 export function getFolders(divisionId: string): Promise<Folder[]> {
@@ -67,7 +67,7 @@ export function publishDocument(documentId: string): Promise<DnpecDocument> {
 /** Hors apiFetch : la réponse est un flux binaire, pas du JSON — déclenche un
  * téléchargement navigateur via une URL d'objet temporaire. */
 export async function downloadVersion(documentId: string, versionId: string, fileName: string): Promise<void> {
-  const res = await fetch(`${API_BASE_URL}/documents/${documentId}/versions/${versionId}/download`, {
+  const res = await appelApi(`${API_BASE_URL}/documents/${documentId}/versions/${versionId}/download`, {
     headers: authHeaders(),
   });
   if (!res.ok) throw new Error('Téléchargement impossible');

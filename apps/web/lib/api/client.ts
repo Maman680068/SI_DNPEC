@@ -56,6 +56,22 @@ export function authHeaders(): Record<string, string> {
   return headers;
 }
 
+/** Message affiché quand le navigateur n'obtient aucune réponse lisible de l'API
+ * (serveur arrêté ou en redémarrage, adresse de l'API erronée, origine refusée par
+ * CORS) — au lieu du « Failed to fetch » brut du navigateur. */
+export const MESSAGE_API_INJOIGNABLE =
+  'Le serveur de l’application ne répond pas. Réessayez dans un instant ; si le problème persiste, prévenez l’administrateur système.';
+
+/** fetch vers l'API NestJS : une erreur réseau devient une ApiError (statut 0) au message français. */
+export async function appelApi(url: string, init?: RequestInit): Promise<Response> {
+  try {
+    return await fetch(url, init);
+  } catch (err) {
+    if (err instanceof DOMException && err.name === 'AbortError') throw err;
+    throw new ApiError(0, MESSAGE_API_INJOIGNABLE);
+  }
+}
+
 async function parseBody(res: Response): Promise<unknown> {
   const text = await res.text();
   if (!text) return null;
@@ -90,7 +106,7 @@ export async function apiFetch<T>(path: string, init: ApiInit = {}, isRetry = fa
   if (token) headers.set('Authorization', `Bearer ${token}`);
   if (interimFor) headers.set('X-Interim-For', interimFor);
 
-  const res = await fetch(`${API_BASE_URL}${path}`, { ...requestInit, headers });
+  const res = await appelApi(`${API_BASE_URL}${path}`, { ...requestInit, headers });
 
   if (res.status === 401 && !isRetry) {
     const newToken = await refreshAccessToken();
@@ -113,7 +129,7 @@ export async function apiFetch<T>(path: string, init: ApiInit = {}, isRetry = fa
  * identité que l'écran, via une URL d'objet temporaire ; un refus de l'API
  * remonte avec SON message (ex. 403 d'un contenu réservé). */
 export async function telechargerFichier(path: string, fileName: string | null): Promise<void> {
-  const res = await fetch(`${API_BASE_URL}${path}`, { headers: authHeaders() });
+  const res = await appelApi(`${API_BASE_URL}${path}`, { headers: authHeaders() });
   if (!res.ok) {
     let message = 'Téléchargement impossible';
     try {

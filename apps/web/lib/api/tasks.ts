@@ -1,4 +1,4 @@
-import { apiFetch, API_BASE_URL, authHeaders } from './client';
+import { apiFetch, API_BASE_URL, authHeaders, appelApi } from './client';
 import type { BroadcastTaskInput, CreateTaskInput, Task, TaskAttachment, TaskComment, TaskDashboard } from '../tasks/types';
 
 export function getTasks(): Promise<Task[]> {
@@ -88,7 +88,7 @@ export function removeAttachment(taskId: string, attachmentId: string): Promise<
 /** Hors apiFetch : la réponse est un flux binaire, pas du JSON — même mécanisme
  * que documents.ts (downloadVersion), déclenche un téléchargement navigateur. */
 export async function downloadAttachment(taskId: string, attachmentId: string, fileName: string): Promise<void> {
-  const res = await fetch(`${API_BASE_URL}/tasks/${taskId}/attachments/${attachmentId}/download`, {
+  const res = await appelApi(`${API_BASE_URL}/tasks/${taskId}/attachments/${attachmentId}/download`, {
     headers: authHeaders(),
   });
   if (!res.ok) throw new Error('Téléchargement impossible');

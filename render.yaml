@@ -61,10 +61,11 @@ services:
         sync: false
       - key: SMTP_FROM
         value: "no-reply@dnpec.gov.gn"
-      # Origines autorisées en CORS, séparées par des virgules (ex.
-      # https://dnpec-web.onrender.com). Laissée vide pour l'instant : sans
-      # valeur, l'API autorise toute origine (voir main.ts) — à renseigner
-      # une fois le frontend déployé et son URL Render connue.
+      # Origines autorisées en CORS, séparées par des virgules : l'URL exacte
+      # du web (ex. https://dnpec-web.onrender.com). Sans valeur, toute origine
+      # est autorisée. Une origine refusée est journalisée (« Origine refusée »)
+      # et donne « Le serveur de l'application ne répond pas » dans le
+      # navigateur : voir docs/deploiement-render.md, § 6.
       - key: CORS_ORIGIN
         sync: false
       # URL du frontend déployé — construit le lien envoyé par email pour la

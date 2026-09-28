@@ -12,7 +12,7 @@ pid="$OUT/logs/api-$mode.pid"
 for p in $(lsof -t -i :$port 2>/dev/null || true); do kill "$p" 2>/dev/null || true; done
 sleep 1
 cd "$RACINE/apps/api"
-PORT=$port nohup node $req dist/main.js > "$OUT/logs/api-$mode.log" 2>&1 &
+NODE_ENV=production PORT=$port nohup node $req dist/main.js > "$OUT/logs/api-$mode.log" 2>&1 &
 echo $! > "$pid"
 for i in $(seq 1 60); do curl -sf "localhost:$port/health" >/dev/null && { echo "API ($mode) prête sur le port $port"; exit 0; }; sleep 1; done
 echo "API ($mode) KO — voir $OUT/logs/api-$mode.log"; tail -30 "$OUT/logs/api-$mode.log"; exit 1
