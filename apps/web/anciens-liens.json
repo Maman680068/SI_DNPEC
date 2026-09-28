@@ -1,0 +1,12 @@
+[
+  {
+    "source": "/messages/with/:id",
+    "destination": "/communication?with=:id",
+    "origine": "Message direct : lien des notifications et emails avant le correctif du Lot B"
+  },
+  {
+    "source": "/announcements/:id",
+    "destination": "/communication?announcementId=:id",
+    "origine": "Annonce : lien des notifications et emails avant le correctif du Lot B"
+  }
+]
