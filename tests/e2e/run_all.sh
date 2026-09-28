@@ -18,6 +18,9 @@ bash "$ICI/scripts/garde-locale.sh" || exit 1
 export JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET:-secret-de-test-e2e-uniquement-local}
 export JWT_ACCESS_EXPIRES_IN=${JWT_ACCESS_EXPIRES_IN:-2h}
 export WEB_APP_URL=${WEB_APP_URL:-http://localhost:3100}
+# CORS strict comme en production (jamais « toute origine ») : l'adresse du web saisie avec
+# une barre finale et des espaces, plus une seconde origine — l'API doit la normaliser.
+export CORS_ORIGIN=${CORS_ORIGIN:-" http://localhost:3100/ ,https://preproduction.exemple.invalid"}
 export SMTP_HOST=""   # jamais d'email réel pendant les tests
 export DOCUMENTS_STORAGE_PATH="$E2E_OUT/storage"
 export NODE_PATH="$API/node_modules"
@@ -125,6 +128,8 @@ lancer "38. CHROMIUM — H EMAILS DE COMPTE" ui/h_email_comptes_ui.js
 # Liens : après toutes les suites, pour contrôler aussi les notifications et emails réellement produits.
 lancer "39a. LIENS DE L'API VERS LE WEB (CODE, NOTIFICATIONS, EMAILS) ET ANCIENS FORMATS" api/i_liens.js
 lancer "39b. CHROMIUM — ANCIENS LIENS (CONNECTÉ, NON CONNECTÉ) ET PAGE 404" ui/i_liens_ui.js
+lancer "39c. CONFIGURATION DE PRODUCTION : CORS STRICT, ORIGINES REFUSÉES, VERSION DÉPLOYÉE" api/j_production.js
+lancer "39d. CHROMIUM — CLOCHE EN CONDITIONS DE PRODUCTION, ORIGINE REFUSÉE, API INJOIGNABLE" ui/j_cloche_production_ui.js
 
 # Données de démonstration (prisma/demo.ts) : en dernier, car chaque phase repart d'une base neuve.
 demo_voulue() { veut z_demo_creer || veut z_demo_ui || veut z_demo_supprimer || veut z_demo_apres_ui || veut z_demo_sans_dn; }

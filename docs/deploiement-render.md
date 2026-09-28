@@ -151,6 +151,38 @@ Plusieurs origines séparées par des virgules sont acceptées si besoin
 comportement actuel (permissif) continue — ce n'est pas bloquant pour le
 premier déploiement du frontend, seulement moins strict.
 
+**Symptôme d'une valeur fausse : « Le serveur de l'application ne répond
+pas » (auparavant « Failed to fetch ») dans la cloche et sur les pages,
+alors que la connexion fonctionne** (la connexion passe par le serveur du
+web, pas par le navigateur). L'API compare l'origine du navigateur à cette
+liste ; depuis le 28/09/2026 elle tolère une barre finale, des espaces et
+les majuscules, mais pas une autre adresse (ancien nom du service, `http`
+au lieu de `https`, faute de frappe). Chaque origine refusée est écrite une
+fois dans les **Logs** de `dnpec-api` :
+`Origine refusée : https://… — absente de CORS_ORIGIN (…)`, et la liste
+retenue au démarrage : `Origines autorisées : …`. Les autres causes du même
+message : API arrêtée ou en redémarrage (réponse 502 de Render), ou
+`NEXT_PUBLIC_API_BASE_URL` du web qui ne pointe pas sur l'URL réelle de
+l'API (à corriger puis **redéployer** le web : la valeur est figée au build).
+
+## 6 bis. Vérifier la version réellement en ligne
+
+Après une fusion, chaque service doit afficher le commit fusionné :
+
+- API : `https://dnpec-api.onrender.com/health` →
+  `{"status":"ok","version":{"commit":"…","branche":"…"}}` ;
+- web : `https://dnpec-web.onrender.com/api/version` →
+  `{"commit":"…","branche":"…"}`.
+
+`commit` doit être celui du « Merge pull request » sur la branche par
+défaut (GitHub → onglet **Commits**), et `branche` la branche par défaut
+(`main`). Sinon : service Render →
+**Settings** → **Build & Deploy** → **Branch** (branche par défaut) et
+**Auto-Deploy** (« On Commit »), puis onglet **Events** (dernier déploiement
+« Live » ou en échec) ; au besoin **Manual Deploy** → **Deploy latest
+commit**. `render.yaml` n'impose aucune branche : chaque service garde
+celle choisie à sa création.
+
 ## 7. Vulnérabilité connue et acceptée dans les dépendances
 
 **Constaté le 23/09/2026** : sur les 9 alertes Dependabot ouvertes sur le

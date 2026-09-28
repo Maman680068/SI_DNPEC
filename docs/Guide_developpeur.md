@@ -120,6 +120,10 @@ fonctionnalité ajoute sa suite (`tests/e2e/api/`, `tests/e2e/ui/`) et sa ligne 
   supprimer une page déjà visée par des liens envoyés : ajouter l'ancien format à
   `apps/web/anciens-liens.json` (redirection de `next.config.ts`), jamais migrer les
   notifications stockées. Adresse inconnue : `app/not-found.tsx` (page 404 en français).
+- Appels du navigateur à l'API : `apiFetch`/`appelApi` (`lib/api/client.ts`), jamais `fetch`
+  direct (une erreur réseau devient `MESSAGE_API_INJOIGNABLE`, en français). CORS :
+  `apps/api/src/common/cors.ts` (CORS_ORIGIN normalisée, refus journalisés) ; la suite e2e
+  tourne avec un CORS strict. Version en ligne : API `/health`, web `/api/version`.
 - Chargement d'une page : `.catch` obligatoire, message affiché par `ErreurChargement`
   (`components/ui/ErreurChargement.tsx`). Page visée avant connexion : `lib/auth/suite.ts`.
 

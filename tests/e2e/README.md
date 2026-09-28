@@ -73,6 +73,11 @@ elles vérifient que chaque lien produit par l'API (code, notifications enregist
 emails journalisés) mène à une page web existante qui lit ses paramètres, que les anciens
 formats (`apps/web/anciens-liens.json`) sont redirigés, et la page 404 en français.
 
+L'API de la suite tourne comme en production (`NODE_ENV=production`, `CORS_ORIGIN` strict,
+saisi avec barre finale). `j_production` (API) et `j_cloche_production_ui` (Chromium)
+vérifient le CORS, la journalisation des origines refusées, la version en ligne (`/health`,
+`/api/version`) et la cloche : origine du web, origine refusée, API injoignable.
+
 Les phases `z_demo_*` (données de démonstration, `apps/api/prisma/demo.ts`) passent en
 dernier : elles repartent chacune d'une base neuve (avec puis sans le jeu de test).
 
