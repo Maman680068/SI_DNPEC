@@ -132,8 +132,9 @@ const compte = async () => ({
 
   console.log('— Expiration après 14 jours');
   const reelsActifs = await prisma.user.count({ where: { NOT: demo, status: 'ACTIF' } });
-  await prisma.auditLog.updateMany({ where: { entityType: 'Demo' }, data: { createdAt: new Date(Date.now() - 15 * 864e5) } });
-  await new Promise((resolve, reject) => spawn('bash', [path.join(E.RACINE, 'tests/e2e/scripts/api.sh'), 'normal'], { stdio: 'ignore' }).on('exit', (c) => (c === 0 ? resolve() : reject(new Error('api.sh')))));
+  // Journal d'audit inaltérable (socle N2) : on n'antidate plus la création de la démonstration ;
+  // on démarre l'API avec l'horloge avancée d'un an (port 3001), dont le démarrage fait l'expiration.
+  await new Promise((resolve, reject) => spawn('bash', [path.join(E.RACINE, 'tests/e2e/scripts/api.sh'), 'annee'], { stdio: 'ignore' }).on('exit', (c) => (c === 0 ? resolve() : reject(new Error('api.sh')))));
   check('au démarrage de l’API : comptes de démonstration suspendus', (await prisma.user.count({ where: { ...demo, status: 'ACTIF' } })) === 0);
   check('connexion refusée après expiration', (await D.connexion(D.email('chef.division'))).status >= 400);
   check('comptes réels intacts (tous encore actifs, connexion possible)', (await prisma.user.count({ where: { NOT: demo, status: 'ACTIF' } })) === reelsActifs && (await D.connexion('agent1@test.local', 'Password123!')).status === 200);

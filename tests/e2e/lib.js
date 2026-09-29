@@ -19,7 +19,8 @@ async function preuve(key) {
   preuves[key] = { preuve: b.preuve, exp: new Date(b.expireLe).getTime() };
   return b.preuve;
 }
-const avecPreuve = async (key, path, headers) => (path.startsWith('/personnel-files') && !('X-Reauth' in headers) ? { 'X-Reauth': await preuve(key) } : {});
+// Un compte qui ne peut pas se réauthentifier (stagiaire) n'envoie simplement pas de preuve.
+const avecPreuve = async (key, path, headers) => (path.startsWith('/personnel-files') && !('X-Reauth' in headers) ? { 'X-Reauth': await preuve(key).catch(() => '') } : {});
 async function call(key, method, path, body, headers = {}) {
   const h = { Authorization: 'Bearer ' + (await login(key)), ...(await avecPreuve(key, path, headers)), ...headers };
   if (h['X-Reauth'] === '') delete h['X-Reauth'];

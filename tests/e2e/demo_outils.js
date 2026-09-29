@@ -28,7 +28,9 @@ async function empreinte(prisma) {
   const res = {};
   for (const { t } of tables) {
     if (HORS_EMPREINTE.has(t)) continue;
-    const lignes = await prisma.$queryRawUnsafe(`SELECT md5(x::text) AS h FROM "${t}" x`);
+    // audit_logs : le scellement (socle N2) complète rang et empreintes, sans rien changer d'autre.
+    const expr = t === 'audit_logs' ? "md5((to_jsonb(x) - 'rang' - 'empreinte' - 'empreintePrecedente')::text)" : 'md5(x::text)';
+    const lignes = await prisma.$queryRawUnsafe(`SELECT ${expr} AS h FROM "${t}" x`);
     res[t] = lignes.map((l) => l.h);
   }
   return res;
