@@ -24,6 +24,7 @@ import { PREFIXE_INTEGRE, assertReglagesStages, cheminIntegre } from './reglages
 import { PersonnelHistoryService } from '../personnel/personnel-history.service';
 import { ActesService } from '../courrier/actes.service';
 import { AuthenticatedUser } from '../common/types/auth-user.type';
+import { estDrh } from '../socle/roles-fonctionnels';
 
 /** Champs disponibles dans un modèle d'attestation (Word : {{CLE}} ; PDF :
  * champ de formulaire nommé CLE). Le nom vient toujours du compte à jour. */
@@ -197,7 +198,7 @@ export class AttestationService {
   /** Scan de l'attestation signée : stagiaire, DRH, DN/DNA. */
   async telechargerFinale(actor: AuthenticatedUser, stageId: string) {
     const stage = await this.chargerStage(stageId);
-    const autorise = actor.id === stage.stagiaireId || actor.role === SystemRole.DRH || actor.role === SystemRole.DN || actor.role === SystemRole.DNA;
+    const autorise = actor.id === stage.stagiaireId || estDrh(actor) || actor.role === SystemRole.DN || actor.role === SystemRole.DNA;
     if (!autorise) throw new ForbiddenException('Réservé au stagiaire, au DRH et à la Direction.');
     const piece = stage.attestationActe?.pieces.find((p) => p.nature === PieceCourrierNature.ACTE_SIGNE);
     if (!piece || !this.finaleSignee(stage.attestationActe)) throw new NotFoundException('L’attestation signée n’est pas encore disponible.');
@@ -395,7 +396,7 @@ export class AttestationService {
   }
 
   private assertDrh(actor: AuthenticatedUser) {
-    if (actor.role !== SystemRole.DRH) throw new ForbiddenException('Réservé au DRH.');
+    if (!estDrh(actor)) throw new ForbiddenException('Réservé au DRH.');
   }
 
   private slug(s: string) {

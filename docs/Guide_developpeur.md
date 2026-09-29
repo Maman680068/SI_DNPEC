@@ -2,8 +2,10 @@
 
 Système d'information interne de la DNPEC (Guinée), **en production** sur Render
 (PostgreSQL, API NestJS et frontend Next.js en services distincts, emails réels via Brevo).
-Référence fonctionnelle : cahier des charges v2.3 (§2.2 « besoin d'en connaître », §3.2 changement
-de rôle, §4.10 suppléance, §4.11 courrier et actes, Annexe B = journal des décisions) : `docs/Cahier_des_charges_DNPEC_SI.docx`.
+Référence fonctionnelle : cahier des charges v2.4 (§2.2 « besoin d'en connaître », §3.2 changement
+de rôle, §4.10 suppléance, §4.11 courrier et actes, §4.15 socle NIMBA N1, Annexe B = journal des décisions) : `docs/Cahier_des_charges_DNPEC_SI.docx`.
+Programme en cours : socle NIMBA, lots N1 → N6 (`docs/NIMBA_Cahier_des_charges_v2.2.docx`), une PR par lot,
+déployés dans l'ordre ; conception N1 : `docs/conception_N1_socle_NIMBA.md`.
 
 ## Règles de travail (strictes, non négociables)
 
@@ -72,6 +74,21 @@ fonctionnalité ajoute sa suite (`tests/e2e/api/`, `tests/e2e/ui/`) et sa ligne 
 - Habilitations (pas des rôles) : courrier (`HabilitationCourrier`, par registre et unité) et
   gestionnaire logistique (`GestionnairesLogistiqueService`), personnelles : jugées sur `actor.id`,
   jamais empruntées en intérim.
+- Socle NIMBA (`socle/`, lot N1, module `@Global`) — **pont additif** : les tables historiques
+  (divisions/sections/cellules, `users.role`, habilitations) restent la source des modules ; les tables
+  du socle (`UniteOrganisationnelle`, `Agent`, `AttributionRole`, `AccesRefuse`…) les reflètent.
+  `ReprisesN1Service.reconcilier()` (au démarrage de l'API, idempotent, ne modifie aucune donnée
+  historique) et `synchroniserCompte(userId)` après toute écriture historique d'un compte ou d'une unité.
+  Deux axes : position (`role` + rattachement → périmètre) et rôles fonctionnels (`rolesActifs`,
+  `estDrh`, `detenteursWhere(role)`), portés par `AuthenticatedUser.rolesFonctionnels`, **jamais
+  empruntés en intérim** ; `@RolesFonctionnels(...)` pour le contrôle grossier. Contrôle fin :
+  `AutorisationService.exiger()` (ordre : protégé → périmètre → rôle), 403 journalisé dans
+  `acces_refuses` par `HttpExceptionFilter`. Un « DRH » se teste par `estDrh(actor)`, jamais par
+  `role === DRH`. Aucun nouveau `NotificationType` : `notify(..., { libelleBouton })`.
+  Routes nouvelles sous `api/v1/` : erreur `{ code, message, details, trace_id }`, en-tête `X-Trace-Id`.
+  Agents : cycle de vie DRH seul (`AgentsService`), job quotidien `executer(now)` (fins prévues
+  J-15/J-3/lendemain). Retour arrière d'un lot : `prisma/retour-arriere/<lot>_down.sql` (workflow
+  manuel `db-retour-arriere.yml`), contrôlé par la phase 39g de `run_all.sh`.
 - Stages (`stages/`, D6) : job quotidien `StagesRotationService.executer(now)` (appelable avec une
   date simulée) ; attestation finale = acte du Courrier (`ActesService`).
   Réglages (capacités, modèle d'attestation) : DRH **et** administrateur système
@@ -103,7 +120,8 @@ fonctionnalité ajoute sa suite (`tests/e2e/api/`, `tests/e2e/ui/`) et sa ligne 
   par l'administrateur `POST /users/:id/2fa/reset` (jamais sur soi-même). Écran
   `/compte/securite`.
 - Aide (`aide/`) : `GET /aide/profils` = rôle propre (jamais celui de l'intérim) +
-  habilitations (`SECRETARIAT_COURRIER`, `GESTIONNAIRE_LOGISTIQUE`) ; ouverte aux stagiaires.
+  habilitations (`SECRETARIAT_COURRIER`, `GESTIONNAIRE_LOGISTIQUE`) + guide DRH pour les rôles
+  fonctionnels DRH et gestionnaire RH ; ouverte aux stagiaires.
   Contenu : `apps/web/lib/aide/guides.json`, captures `apps/web/public/aide/` ; toute évolution
   d'écran qui change un libellé cité doit mettre le guide à jour, puis régénérer captures et PDF
   (`tests/e2e/outils/captures_aide.js`, `guide_pdf.js`).

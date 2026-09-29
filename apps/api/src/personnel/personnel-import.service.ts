@@ -13,6 +13,7 @@ import { buildEmailContent } from '../communication/notifications/email-template
 import { creerLienPremierAcces } from '../communication/notifications/lien-premier-acces';
 import { AuthenticatedUser } from '../common/types/auth-user.type';
 import { markFieldsUnverified } from './personnel-field-status.util';
+import { AgentsService } from '../socle/agents.service';
 
 export interface ImportRowResult {
   row: number;
@@ -80,6 +81,7 @@ export class PersonnelImportService {
     private readonly email: EmailService,
     private readonly config: ConfigService,
     private readonly users: UsersService,
+    private readonly agents: AgentsService,
   ) {}
 
   async importFromWorkbook(actor: AuthenticatedUser, buffer: Buffer): Promise<ImportReport> {
@@ -237,6 +239,9 @@ export class PersonnelImportService {
       entityId: user.id,
       metadata: { email: user.email, role: user.role, createdByImport: true },
     });
+
+    // Socle NIMBA : aucun compte sans agent (matricule provisoire, remplacé ensuite par le DRH).
+    await this.agents.rattacherCompte(user.id, {}, actor.id);
 
     await this.sendWelcomeEmail(user);
     return user;

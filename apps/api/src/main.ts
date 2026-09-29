@@ -7,6 +7,7 @@ import { AppModule } from './app.module';
 import { optionsCors } from './common/cors';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter';
+import { PrismaService } from './prisma/prisma.service';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
@@ -32,7 +33,8 @@ async function bootstrap() {
     }),
   );
   app.useGlobalFilters(
-    new HttpExceptionFilter(),
+    // Journalise aussi tout 403 dans acces_refuses (socle NIMBA, §5.5).
+    new HttpExceptionFilter(app.get(PrismaService)),
     // P2002 (unicité) → 409 ; toute autre erreur Prisma reste au comportement
     // par défaut de Nest (voir PrismaExceptionFilter).
     new PrismaExceptionFilter(app.get(HttpAdapterHost).httpAdapter),

@@ -1,6 +1,7 @@
 import { ForbiddenException, Injectable } from '@nestjs/common';
 import { Prisma, SystemRole, TaskConfidentiality } from '@prisma/client';
 import { AuthenticatedUser } from '../../common/types/auth-user.type';
+import { estDrh } from '../../socle/roles-fonctionnels';
 
 type OrgTarget = {
   id: string;
@@ -37,7 +38,11 @@ type TaskScope =
  * déjà le cas d'ADMIN_SYSTEME. Effet de bord accepté (comme pour
  * ADMIN_SYSTEME) : cible aussi le périmètre autorisé pour diffuser une
  * annonce/un sondage (assertCanManageUser, announcements/polls). */
-const TOP_LEVEL_ROLES: SystemRole[] = [SystemRole.DN, SystemRole.DNA, SystemRole.ADMIN_SYSTEME, SystemRole.DRH];
+const TOP_LEVEL_ROLES: SystemRole[] = [SystemRole.DN, SystemRole.DNA, SystemRole.ADMIN_SYSTEME];
+
+/** Socle NIMBA : la vue « tous les comptes » du DRH vient de son RÔLE fonctionnel
+ * DRH (attribution datée), plus de la position `users.role = DRH`. */
+const VUE_COMPTES_DRH = TOP_LEVEL_ROLES;
 
 /**
  * Rôles de direction, sans ADMIN_SYSTEME : utilisé pour tout ce qui touche
@@ -87,6 +92,7 @@ export class CascadeService {
     if (topRoles.includes(effective.role)) {
       return {};
     }
+    if (topRoles === VUE_COMPTES_DRH && estDrh(actor)) return {};
 
     switch (effective.role) {
       case SystemRole.CHEF_DIVISION:
@@ -220,6 +226,7 @@ export class CascadeService {
 
   /** `actor` a-t-il autorité hiérarchique sur `target` (gestion de compte : profil, statut, rattachement) ? */
   canManageUser(actor: AuthenticatedUser, target: OrgTarget): boolean {
+    if (estDrh(actor) && actor.id !== target.id && actor.interimForId !== target.id) return true;
     return this.hasHierarchicalAuthorityOver(actor, target, TOP_LEVEL_ROLES);
   }
 

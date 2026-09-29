@@ -1,0 +1,46 @@
+name: Retour arrière d'un lot NIMBA (manuel)
+
+# Déclenchement manuel uniquement, par le responsable du projet. À n'utiliser que pour ABANDONNER
+# un lot : pour revenir simplement à la version précédente de l'application, redéployer l'ancienne
+# version suffit (chaque migration NIMBA est additive, l'ancienne API l'ignore).
+# Joue apps/api/prisma/retour-arriere/<lot>_down.sql dans une transaction : il retire les tables et
+# colonnes propres au lot, ne touche à aucune donnée antérieure au lot, et retire la migration du
+# journal Prisma (ré-application possible par db-migrate.yml). Contrôlé en CI (tests/e2e, phase 39g).
+# Avant de lancer : sauvegarde de la base (docs/Exploitation.md §2) et ancienne version redéployée.
+
+on:
+  workflow_dispatch:
+    inputs:
+      lot:
+        description: 'Lot à retirer'
+        required: true
+        type: choice
+        options:
+          - n1
+      confirm:
+        description: 'Tapez "retour-arriere" suivi du lot (ex. « retour-arriere n1 ») pour confirmer'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: db-migrate
+  cancel-in-progress: false
+
+jobs:
+  retour:
+    if: ${{ github.event.inputs.confirm == format('retour-arriere {0}', github.event.inputs.lot) }}
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+    steps:
+      - name: Checkout du dépôt
+        uses: actions/checkout@v4
+
+      - name: Installer le client PostgreSQL
+        run: sudo apt-get update -q && sudo apt-get install -y -q postgresql-client
+
+      - name: Jouer le script de retour arrière du lot
+        run: psql "${DATABASE_URL%%\?*}" -v ON_ERROR_STOP=1 -f "apps/api/prisma/retour-arriere/${{ github.event.inputs.lot }}_down.sql"

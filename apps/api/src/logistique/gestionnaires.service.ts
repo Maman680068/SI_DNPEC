@@ -3,6 +3,7 @@ import { AuditAction, SystemRole, UserStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../common/audit/audit.service';
 import { AuthenticatedUser } from '../common/types/auth-user.type';
+import { RolesFonctionnelsService } from '../socle/roles-fonctionnels.service';
 
 const NOM = { select: { id: true, firstName: true, lastName: true, email: true } } as const;
 
@@ -17,6 +18,7 @@ export class GestionnairesLogistiqueService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly rolesFonctionnels: RolesFonctionnelsService,
   ) {}
 
   async estGestionnaire(actor: Pick<AuthenticatedUser, 'id'>): Promise<boolean> {
@@ -79,13 +81,12 @@ export class GestionnairesLogistiqueService {
     }
     const active = await this.prisma.habilitationLogistique.findFirst({ where: { userId, revoqueeAt: null } });
     if (active) throw new ConflictException('Cette personne est déjà gestionnaire logistique.');
-    const created = await this.prisma.habilitationLogistique.create({ data: { userId, accordeeParId: actor.id } });
-    await this.audit.log({
-      actorId: actor.id,
-      action: AuditAction.CREATION,
-      entityType: 'HabilitationLogistique',
-      entityId: created.id,
-      metadata: { userId },
+    // Socle NIMBA : reflet en rôle fonctionnel Gestionnaire logistique, même transaction.
+    const created = await this.prisma.$transaction(async (tx) => {
+      const h = await tx.habilitationLogistique.create({ data: { userId, accordeeParId: actor.id } });
+      await this.rolesFonctionnels.refleterHabilitationLogistique(tx, h);
+      await this.audit.log({ actorId: actor.id, action: AuditAction.CREATION, entityType: 'HabilitationLogistique', entityId: h.id, metadata: { userId } }, tx);
+      return h;
     });
     return created;
   }
@@ -94,16 +95,11 @@ export class GestionnairesLogistiqueService {
     const h = await this.prisma.habilitationLogistique.findUnique({ where: { id } });
     if (!h) throw new NotFoundException('Habilitation introuvable');
     if (h.revoqueeAt) throw new ConflictException('Cette habilitation est déjà révoquée.');
-    const updated = await this.prisma.habilitationLogistique.update({
-      where: { id },
-      data: { revoqueeAt: new Date(), revoqueeParId: actor.id },
-    });
-    await this.audit.log({
-      actorId: actor.id,
-      action: AuditAction.MODIFICATION,
-      entityType: 'HabilitationLogistique',
-      entityId: id,
-      metadata: { event: 'revocation', userId: h.userId },
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const u = await tx.habilitationLogistique.update({ where: { id }, data: { revoqueeAt: new Date(), revoqueeParId: actor.id } });
+      await this.rolesFonctionnels.refleterRevocation(tx, { habilitationLogistiqueId: id }, actor.id);
+      await this.audit.log({ actorId: actor.id, action: AuditAction.MODIFICATION, entityType: 'HabilitationLogistique', entityId: id, metadata: { event: 'revocation', userId: h.userId } }, tx);
+      return u;
     });
     return updated;
   }

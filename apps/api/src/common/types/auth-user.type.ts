@@ -1,4 +1,4 @@
-import { SystemRole, UserStatus } from '@prisma/client';
+import { RoleFonctionnel, SystemRole, UserStatus } from '@prisma/client';
 
 /** Forme de `request.user`, peuplée par JwtAuthGuard après vérification du token. */
 export interface AuthenticatedUser {
@@ -30,4 +30,12 @@ export interface AuthenticatedUser {
   // rôle) et isActingFor (contrôles par identité littérale, ex. organisateur
   // de réunion).
   interimForId: string | null;
+
+  // Socle NIMBA (N1) — agent rattaché au compte (null : compte sans agent,
+  // cas transitoire rattrapé par ReprisesN1Service) et rôles fonctionnels
+  // ACTIFS de la personne réelle (axe 2, §5.2). Jamais empruntés en intérim :
+  // un suppléant garde ses propres rôles, seuls la position et le périmètre
+  // du titulaire s'empruntent (décision validée).
+  agentId: string | null;
+  rolesFonctionnels: RoleFonctionnel[];
 }

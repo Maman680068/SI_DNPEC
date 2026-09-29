@@ -125,12 +125,37 @@ lancer "35. CHROMIUM — D9 LOGISTIQUE" ui/d9_logistique_ui.js
 lancer "36. CHROMIUM — G3 DOUBLE AUTHENTIFICATION" ui/g3_2fa_ui.js
 lancer "37. CHROMIUM — G4 AIDE EN LIGNE" ui/g4_aide_ui.js
 lancer "38. CHROMIUM — H EMAILS DE COMPTE" ui/h_email_comptes_ui.js
+lancer "38b. SOCLE N1 : REPRISE, ORGANIGRAMME, AGENTS, FINS PRÉVUES, RÔLES FONCTIONNELS, REFUS JOURNALISÉS" api/n1_socle.js
+lancer "38c. CHROMIUM — SOCLE N1 : ORGANIGRAMME, AGENTS ET FIN PRÉVUE, RÔLES FONCTIONNELS (BUREAU, TÉLÉPHONE)" ui/n1_socle_ui.js
 # Liens : après toutes les suites, pour contrôler aussi les notifications et emails réellement produits.
 lancer "39a. LIENS DE L'API VERS LE WEB (CODE, NOTIFICATIONS, EMAILS) ET ANCIENS FORMATS" api/i_liens.js
 lancer "39b. CHROMIUM — ANCIENS LIENS (CONNECTÉ, NON CONNECTÉ) ET PAGE 404" ui/i_liens_ui.js
 lancer "39c. CONFIGURATION DE PRODUCTION : CORS STRICT, ORIGINES REFUSÉES, VERSION DÉPLOYÉE" api/j_production.js
 lancer "39d. CHROMIUM — CLOCHE EN CONDITIONS DE PRODUCTION, ORIGINE REFUSÉE, API INJOIGNABLE" ui/j_cloche_production_ui.js
 lancer "39e. CHROMIUM — ACCUEIL PUBLIC COMPACT (4 ÉCRANS, TÉLÉPHONE, TABLETTE)" ui/k_accueil_ui.js
+lancer "39f. MATRICE DES HABILITATIONS (ANNEXE 1) : CASES JOUÉES, ÉCARTS CONSERVÉS, LOTS À VENIR" api/n1_matrice.js
+
+# Reprise N1 sur un jeu réaliste : base d'avant N1, chargement, N1 appliqué (reprise au démarrage de
+# l'API), retour arrière (n1_down.sql), schéma et données comparés, puis ré-application.
+if veut n1_reprise; then
+  echo; echo "################ 39g. REPRISE N1 SUR UN JEU RÉALISTE — AVANT, APRÈS, RETOUR ARRIÈRE, RÉ-APPLICATION"
+  arreter_api() { for f in "$E2E_OUT"/logs/api-*.pid; do [ -f "$f" ] && kill "$(cat "$f")" 2>/dev/null; done; sleep 1; }
+  arreter_api
+  psql -q "$PSQL_URL" -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public;' >/dev/null 2>&1
+  (cd "$API" && pnpm exec prisma migrate deploy >/dev/null 2>&1 && pnpm run -s db:seed >/dev/null) || { echo "Base neuve : échec"; exit 1; }
+  psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/n1_down.sql" >/dev/null || { echo "Retour arrière N1 : échec"; exit 1; }
+  export N1_MODE=charger; lancer "39g-1. ÉTAT D'AVANT N1 : JEU RÉALISTE CHARGÉ, EMPREINTE" api/n1_reprise.js
+  (cd "$API" && pnpm exec prisma migrate deploy >/dev/null 2>&1) || { echo "Migration N1 : échec"; exit 1; }
+  bash "$ICI/scripts/api.sh" normal >/dev/null || exit 1
+  export N1_MODE=apres; lancer "39g-2. N1 APPLIQUÉ : REPRISE CONTRÔLÉE, DONNÉES D'AVANT INTACTES" api/n1_reprise.js
+  arreter_api
+  psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/n1_down.sql" >/dev/null || { echo "Retour arrière N1 : échec"; exit 1; }
+  export N1_MODE=retour; lancer "39g-3. RETOUR ARRIÈRE : SCHÉMA ET DONNÉES D'AVANT RETROUVÉS" api/n1_reprise.js
+  (cd "$API" && pnpm exec prisma migrate deploy >/dev/null 2>&1) || { echo "Ré-application N1 : échec"; exit 1; }
+  bash "$ICI/scripts/api.sh" normal >/dev/null || exit 1
+  export N1_MODE=apres; lancer "39g-4. RÉ-APPLICATION DE N1 : MÊME REPRISE" api/n1_reprise.js
+  unset N1_MODE
+fi
 
 # Données de démonstration (prisma/demo.ts) : en dernier, car chaque phase repart d'une base neuve.
 demo_voulue() { veut z_demo_creer || veut z_demo_ui || veut z_demo_supprimer || veut z_demo_apres_ui || veut z_demo_sans_dn; }

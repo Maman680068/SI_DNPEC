@@ -1,8 +1,8 @@
 import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { SystemRole } from '@prisma/client';
+import { RoleFonctionnel, SystemRole } from '@prisma/client';
 import { Request } from 'express';
-import { ROLES_KEY } from '../decorators/roles.decorator';
+import { ROLES_FONCTIONNELS_KEY, ROLES_KEY } from '../decorators/roles.decorator';
 import { AuthenticatedUser } from '../types/auth-user.type';
 
 /** Contrôle grossier par rôle. S'exécute après JwtAuthGuard (request.user déjà peuplé). */
@@ -15,9 +15,19 @@ export class RolesGuard implements CanActivate {
       context.getHandler(),
       context.getClass(),
     ]);
-    if (!requiredRoles || requiredRoles.length === 0) return true;
+    const requiredFonctionnels = this.reflector.getAllAndOverride<RoleFonctionnel[]>(ROLES_FONCTIONNELS_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+    const aucun = (l?: unknown[]) => !l || l.length === 0;
+    if (aucun(requiredRoles) && aucun(requiredFonctionnels)) return true;
 
     const request = context.switchToHttp().getRequest<Request & { user?: AuthenticatedUser }>();
-    return !!request.user && requiredRoles.includes(request.user.role);
+    const user = request.user;
+    if (!user) return false;
+    return (
+      (!!requiredRoles && requiredRoles.includes(user.role)) ||
+      (!!requiredFonctionnels && requiredFonctionnels.some((r) => user.rolesFonctionnels.includes(r)))
+    );
   }
 }

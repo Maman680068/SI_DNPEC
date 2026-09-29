@@ -7,6 +7,7 @@ import {
   Prisma,
   SystemRole,
   UserStatus,
+  RoleFonctionnel,
 } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../common/audit/audit.service';
@@ -21,6 +22,7 @@ import { CreateDiplomaDto } from './dto/create-diploma.dto';
 import { CreatePersonnelDocumentDto } from './dto/create-personnel-document.dto';
 import { ReportPersonnelErrorDto } from './dto/report-personnel-error.dto';
 import { BASIC_FIELD_KEYS, SENSITIVE_FIELD_KEYS, markAllFieldsVerified, markFieldsUnverified } from './personnel-field-status.util';
+import { estDrh, detenteursWhere } from '../socle/roles-fonctionnels';
 
 type OrgTarget = { id: string; divisionId: string | null; sectionId: string | null; celluleId: string | null };
 
@@ -119,7 +121,7 @@ export class PersonnelFilesService {
       orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
     });
     return {
-      peutImporter: actor.role === SystemRole.DRH,
+      peutImporter: estDrh(actor),
       personnes: personnes.filter((p) => this.peutLireNiveau1(actor, p)),
     };
   }
@@ -127,7 +129,7 @@ export class PersonnelFilesService {
   async getFile(actor: AuthenticatedUser, userId: string) {
     const target = await this.getTargetOrThrow(userId);
     const isSelf = actor.id === userId;
-    const isDrh = actor.role === SystemRole.DRH;
+    const isDrh = estDrh(actor);
 
     if (!this.peutLireNiveau1(actor, target)) {
       throw new ForbiddenException('Ce dossier est hors de votre périmètre.');
@@ -475,7 +477,7 @@ export class PersonnelFilesService {
     }
 
     const drhUsers = await this.prisma.user.findMany({
-      where: { role: SystemRole.DRH, status: UserStatus.ACTIF },
+      where: detenteursWhere(RoleFonctionnel.DRH),
       select: { id: true },
     });
 
@@ -504,7 +506,7 @@ export class PersonnelFilesService {
 
   /** Niveau 1 (lecture) : soi-même, DRH, ou autorité hiérarchique directe. */
   private peutLireNiveau1(actor: AuthenticatedUser, target: OrgTarget): boolean {
-    return actor.id === target.id || actor.role === SystemRole.DRH || this.cascade.hasDirectAuthorityOver(actor, target);
+    return actor.id === target.id || estDrh(actor) || this.cascade.hasDirectAuthorityOver(actor, target);
   }
 
   private statut(renseigne: boolean, verifiedFields: Prisma.JsonValue, key: string): StatutChamp {
@@ -536,7 +538,7 @@ export class PersonnelFilesService {
 
   private assertCanWrite(actor: AuthenticatedUser, userId: string): void {
     if (actor.id === userId) return;
-    if (actor.role === SystemRole.DRH) return;
+    if (estDrh(actor)) return;
     throw new ForbiddenException('Seuls le DRH et la personne concernée peuvent modifier ce dossier.');
   }
 
@@ -546,7 +548,7 @@ export class PersonnelFilesService {
    * d'autres rôles sans toucher au niveau 2. */
   private assertCanAccessSensitive(actor: AuthenticatedUser, userId: string): void {
     if (actor.id === userId) return;
-    if (actor.role === SystemRole.DRH) return;
+    if (estDrh(actor)) return;
     throw new ForbiddenException('Ce contenu est réservé à la personne concernée et au DRH.');
   }
 

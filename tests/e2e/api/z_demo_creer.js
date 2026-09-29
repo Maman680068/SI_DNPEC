@@ -54,6 +54,9 @@ const compte = async () => ({
   check('compte technique (DRH) suspendu : jamais connectable', comptes.find((u) => u.email === D.email('systeme'))?.status === 'SUSPENDU');
   check('aucun administrateur système de démonstration', !comptes.some((u) => u.role === 'ADMIN_SYSTEME'));
   check('chef de la cellule de démonstration', cellule.chefId === comptes.find((u) => u.email === D.email('chef.cellule')).id);
+  const agentsDemo = await prisma.agent.findMany({ where: { compte: { is: demo } }, select: { statut: true, nom: true, unite: { select: { libelle: true } } } });
+  check(`socle : un agent par compte de démonstration (${agentsDemo.length}), rattaché à son unité`, agentsDemo.length === comptes.length && agentsDemo.filter((a) => a.statut === 'EN_ACTIVITE').length === 13);
+  check('socle : unités de démonstration à l’organigramme', (await prisma.uniteOrganisationnelle.count({ where: { libelle: { startsWith: 'TEST — ' } } })) === 4);
   const n = await compte();
   console.log('   ', JSON.stringify(n));
   check('≈ 25 tâches et plus', n.taches >= 25);

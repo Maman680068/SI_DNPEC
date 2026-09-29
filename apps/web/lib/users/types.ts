@@ -43,10 +43,15 @@ export interface CreateUserInput extends OrgAttachment {
   firstName: string;
   lastName: string;
   role: SystemRole;
+  /** Socle NIMBA : agent existant (sans compte) ou matricule du nouvel agent. */
+  agentId?: string;
+  matricule?: string;
 }
 
 export interface ApproveUserInput extends OrgAttachment {
   role: SystemRole;
+  agentId?: string;
+  matricule?: string;
 }
 
 export const SYSTEM_ROLES: SystemRole[] = [
@@ -97,7 +102,7 @@ export const STATUS_LABEL: Record<UserStatus, string> = {
   // Suppression logique (voir schema.prisma, UserStatus.SUPPRIME) : le
   // compte et tout ce qui lui est lié restent intacts, seule la connexion
   // est bloquée.
-  SUPPRIME: 'Supprimé',
+  SUPPRIME: 'Désactivé',
 };
 
 /** Rôles pour lesquels la page Utilisateurs apparaît dans le menu — ADMIN_SYSTEME en

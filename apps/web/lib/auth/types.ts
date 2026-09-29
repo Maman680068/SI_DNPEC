@@ -22,6 +22,9 @@ export interface AuthUser {
   divisionId: string | null;
   sectionId: string | null;
   celluleId: string | null;
+  /** Socle NIMBA : rôles fonctionnels actifs (DRH, AGENT_COURRIER...) — navigation seulement. */
+  rolesFonctionnels?: string[];
+  agentId?: string | null;
 }
 
 /** Réponse de POST /api/auth/login côté proxy Next.js (jamais le refreshToken, posé en cookie httpOnly). */

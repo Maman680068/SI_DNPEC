@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import { useCallback, useState, type FormEvent } from 'react';
 import { approveUser } from '../../lib/api/users';
 import { useOrg } from '../../lib/org/OrgProvider';
 import type { AdminUser, OrgAttachment } from '../../lib/users/types';
 import { ASSIGNABLE_ROLES, ROLE_LABEL } from '../../lib/users/types';
 import { DECLARABLE_ROLE_LABEL, type DeclarableRole, type SystemRole } from '../../lib/auth/types';
 import { OrgAttachmentFields } from './OrgAttachmentFields';
+import { ChoixAgent, type SelectionAgent } from '../socle/ChoixAgent';
 import { Button } from '../ui/Button';
 
 /**
@@ -50,6 +51,8 @@ export function ApproveRegistrationModal({
     celluleId: user.declaredCelluleId,
     supervisorId: user.declaredSupervisorId,
   });
+  const [agent, setAgent] = useState<SelectionAgent>({});
+  const choisirAgent = useCallback((sel: SelectionAgent) => setAgent(sel), []);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -67,7 +70,7 @@ export function ApproveRegistrationModal({
     setSubmitting(true);
     setError(null);
     try {
-      const updated = await approveUser(user.id, { role, ...attachment });
+      const updated = await approveUser(user.id, { role, ...attachment, ...agent });
       onApproved(updated);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Impossible d'approuver cette inscription");
@@ -121,6 +124,7 @@ export function ApproveRegistrationModal({
         </div>
 
         <OrgAttachmentFields role={role} value={attachment} onChange={setAttachment} />
+        <ChoixAgent onChange={choisirAgent} />
 
         <p className="mb-4 text-[12px] text-text-muted">
           La personne recevra un email avec son rôle, son unité et un bouton « Se connecter ».

@@ -9,6 +9,7 @@ import { AuthenticatedUser } from '../types/auth-user.type';
 import { AnyAuthTokenPayload } from '../types/jwt-payload.type';
 import { requestContextStorage } from '../request-context/request-context';
 import { COMPARABLE_RANK_USAGE_MESSAGE, isComparableRank } from '../../suppleances/comparable-rank';
+import { rolesActifs } from '../../socle/roles-fonctionnels';
 
 const INTERIM_HEADER = 'x-interim-for';
 
@@ -62,6 +63,7 @@ export class JwtAuthGuard implements CanActivate {
         divisionId: true,
         sectionId: true,
         celluleId: true,
+        agentId: true,
         supervisor: { select: { role: true, celluleId: true } },
       },
     });
@@ -76,6 +78,9 @@ export class JwtAuthGuard implements CanActivate {
       supervisorRole: supervisor?.role ?? null,
       supervisorCelluleId: supervisor?.celluleId ?? null,
       interimForId: null,
+      // Rôles fonctionnels (axe 2) de la personne RÉELLE — conservés tels quels
+      // si un intérim est appliqué ci-dessous : ils ne s'empruntent jamais.
+      rolesFonctionnels: await rolesActifs(this.prisma, user.id),
     };
 
     authenticatedUser = await this.applyInterimIfRequested(request, authenticatedUser);
@@ -84,7 +89,10 @@ export class JwtAuthGuard implements CanActivate {
     // avant ce Guard) : lu par AuditService.log() pour tamponner
     // AuditLog.onBehalfOfId sans qu'aucun site d'appel n'ait à le savoir.
     const store = requestContextStorage.getStore();
-    if (store) store.onBehalfOfId = authenticatedUser.interimForId;
+    if (store) {
+      store.onBehalfOfId = authenticatedUser.interimForId;
+      store.userId = authenticatedUser.id;
+    }
 
     (request as Request & { user: AuthenticatedUser }).user = authenticatedUser;
     return true;

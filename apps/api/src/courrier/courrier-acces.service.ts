@@ -194,7 +194,7 @@ export class CourrierAccesService {
     for (const { supervisor, ...o } of ouvreurs) {
       if (o.status !== UserStatus.ACTIF) continue;
       contextes.set(o.id, {
-        actor: { ...o, supervisorRole: supervisor?.role ?? null, supervisorCelluleId: supervisor?.celluleId ?? null, interimForId: null },
+        actor: { ...o, supervisorRole: supervisor?.role ?? null, supervisorCelluleId: supervisor?.celluleId ?? null, interimForId: null, agentId: null, rolesFonctionnels: [] },
         habilitations: new Set(habs.filter((h) => h.userId === o.id).map((h) => `${h.registreId}|${h.uniteKey}`)),
         delegationsArrivees: new Set(),
         delegationsActes: new Set(),

@@ -103,6 +103,10 @@ export class NotificationsService {
     body: string,
     link?: string,
     subjectDetail?: string,
+    // Socle NIMBA : libellé du bouton de l'email quand un type existant est
+    // réutilisé pour un événement voisin (pas de nouvelle valeur de type de
+    // notification tant que l'ancienne API peut encore lire la table).
+    options?: { libelleBouton?: string },
   ): Promise<void> {
     await this.prisma.notification.create({
       data: { userId, type, channel: NotificationChannel.IN_APP, title, body, link, sentAt: new Date() },
@@ -121,7 +125,7 @@ export class NotificationsService {
       const { html, text } = buildEmailContent({
         recipientFirstName: user.firstName,
         paragraphs: [title, body],
-        buttonLabel: link ? NOTIFICATION_BUTTON_LABELS[type] : undefined,
+        buttonLabel: link ? options?.libelleBouton ?? NOTIFICATION_BUTTON_LABELS[type] : undefined,
         buttonUrl: link ? `${webAppUrl}${link}` : undefined,
       });
       // Un échec d'envoi (Brevo indisponible, quota, adresse refusée...) ne
@@ -148,8 +152,9 @@ export class NotificationsService {
     body: string,
     link?: string,
     subjectDetail?: string,
+    options?: { libelleBouton?: string },
   ): Promise<void> {
-    await Promise.all(userIds.map((userId) => this.notify(userId, type, title, body, link, subjectDetail)));
+    await Promise.all(userIds.map((userId) => this.notify(userId, type, title, body, link, subjectDetail, options)));
   }
 
   /** Cloche in-app : chaque notification est écrite deux fois (IN_APP et

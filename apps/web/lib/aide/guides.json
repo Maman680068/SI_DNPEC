@@ -24,6 +24,7 @@
             "Le menu de gauche liste les modules auxquels vous avez accès : vous ne voyez que ceux qui vous concernent.",
             "Sur téléphone, le menu s’ouvre avec le bouton ☰ en haut à gauche.",
             "La cloche 🔔 (en haut) affiche vos notifications non lues : cliquez sur l’une d’elles pour ouvrir directement l’élément concerné.",
+            "Personnel → « Organisation » : l’organigramme de la DNPEC (Direction, divisions, sections, cellules), avec le responsable et l’effectif de chaque unité.",
             "L’enveloppe ✉ ouvre la messagerie ; une pastille rouge indique des messages non lus.",
             "Un lien reçu par e-mail ouvre directement la bonne page, même s’il faut d’abord se reconnecter."
           ],
@@ -275,6 +276,25 @@
       "profils": ["DRH"],
       "sections": [
         {
+          "titre": "Organigramme",
+          "etapes": [
+            "Personnel → « Organisation » : sur une unité, « + Sous-unité » crée une division, une section, une cellule ou une instance ; « Modifier » change son code ou son libellé.",
+            "« Fermer » demande un motif ; une unité ne se ferme que lorsqu’aucun agent ni aucune sous-unité ouverte n’y est plus rattaché. Son historique reste consultable (« Historique », case « Afficher les unités fermées »).",
+            "Le responsable de chaque unité est déduit des nominations (changement de rôle, chef de cellule) ; « Pas de responsable désigné » signale un poste à pourvoir."
+          ],
+          "capture": "organigramme.png"
+        },
+        {
+          "titre": "Agents et fins de contrat ou de stage",
+          "etapes": [
+            "Personnel → « Agents » : chaque personne a sa fiche agent (matricule, unité, statut), distincte de son compte de connexion. L’encadré « Reprise : points à traiter » liste ce qu’il reste à compléter, dont les matricules provisoires (P-000001…) à remplacer par « Modifier ».",
+            "Quinze jours puis trois jours avant la fin d’un stage ou d’un contrat, vous recevez une notification et un email : ouvrez la fiche et choisissez « Prolonger le stage » (ou « Prolonger le contrat » : nouvelle date et motif) ou « Confirmer la fin ».",
+            "Sans décision, l’agent passe « Parti » le lendemain de la date de fin et son compte est désactivé ; vous en êtes prévenu le jour même. Le dossier, l’évaluation et l’attestation sont conservés ; « Réactiver » reste possible.",
+            "« Suspendre » bloque la connexion aussitôt ; « Enregistrer le départ » désactive le compte, transfère ses tâches en cours au responsable de l’unité et retire ses suppléances et rôles."
+          ],
+          "capture": "agents.png"
+        },
+        {
           "titre": "Dossier du personnel",
           "etapes": [
             "Personnel → « Dossier du personnel » : tous les dossiers ; ouvrez-en un pour le compléter.",
@@ -363,7 +383,8 @@
         {
           "titre": "Comptes",
           "etapes": [
-            "Administration → « Utilisateurs » : « + Nouveau compte », approbation des inscriptions, suspension.",
+            "Administration → « Utilisateurs » : « + Nouveau compte », approbation des inscriptions, suspension, désactivation (un compte n’est jamais supprimé).",
+            "À la création d’un compte (ou à l’approbation d’une inscription), rattachez-le à son agent : « Agent (dossier RH) » s’il existe déjà, sinon indiquez son matricule s’il est connu ; à défaut, un agent avec un matricule provisoire est créé pour le DRH.",
             "La personne est prévenue par email : inscription approuvée (rôle, unité, bouton « Se connecter »), inscription rejetée (motif facultatif, saisi dans la fenêtre « Rejeter l’inscription »), compte créé par vous (lien pour choisir son mot de passe, valable 7 jours).",
             "Sur un compte : « Changer de rôle » (aperçu des effets, puis confirmation avec un motif), mot de passe temporaire, lien de réinitialisation, « Réinitialiser la double authentification ».",
             "Vous n’avez pas accès au contenu métier des agents (tâches, stages, courrier des autres)."
@@ -371,9 +392,18 @@
           "capture": "utilisateurs.png"
         },
         {
+          "titre": "Rôles fonctionnels",
+          "etapes": [
+            "Administration → « Utilisateurs » → onglet « Rôles fonctionnels » : « + Attribuer un rôle » (personne, rôle, dates et motif facultatifs) ; « Retirer » demande un motif. La personne est prévenue.",
+            "Un rôle (DRH, Gestionnaire RH, Chef du SAF, Validateur…) donne une capacité, jamais une visibilité plus large que celle de la personne ; pendant un intérim, le suppléant n’hérite jamais des rôles du titulaire.",
+            "Agent du courrier et Gestionnaire logistique s’attribuent depuis Courrier et Logistique (administration) : ils apparaissent ici, « géré dans son module »."
+          ],
+          "capture": "roles-fonctionnels.png"
+        },
+        {
           "titre": "Paramétrage",
           "etapes": [
-            "« Organisation » : divisions, sections, cellules et leurs chefs.",
+            "« Organisation » : l’organigramme (création, modification, fermeture d’unités, que vous tenez avec le DRH), et les onglets « Divisions & Sections » et « Cellules » pour leurs chefs.",
             "« Courrier » : registres, habilitations des secrétariats, reprise des numéros papier.",
             "« Logistique » : catégories (validation du chef oui/non) et gestionnaires.",
             "« Stages (réglages) » : capacités d’accueil et modèle d’attestation, que vous tenez avec le DRH (jamais le contenu des stages)."

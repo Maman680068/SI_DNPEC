@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import { useCallback, useState, type FormEvent } from 'react';
 import { createUser } from '../../lib/api/users';
 import type { AdminUser, OrgAttachment } from '../../lib/users/types';
 import { ASSIGNABLE_ROLES, ROLE_LABEL } from '../../lib/users/types';
 import type { SystemRole } from '../../lib/auth/types';
 import { OrgAttachmentFields } from './OrgAttachmentFields';
+import { ChoixAgent, type SelectionAgent } from '../socle/ChoixAgent';
 import { Field } from '../ui/Input';
 import { Button } from '../ui/Button';
 
@@ -18,6 +19,8 @@ export function CreateUserModal({ onClose, onCreated }: { onClose: () => void; o
   const [password, setPassword] = useState('');
   const [role, setRole] = useState<SystemRole>('AGENT');
   const [attachment, setAttachment] = useState<OrgAttachment>(EMPTY_ATTACHMENT);
+  const [agent, setAgent] = useState<SelectionAgent>({});
+  const choisirAgent = useCallback((sel: SelectionAgent) => setAgent(sel), []);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -26,7 +29,7 @@ export function CreateUserModal({ onClose, onCreated }: { onClose: () => void; o
     setSubmitting(true);
     setError(null);
     try {
-      const user = await createUser({ email, firstName, lastName, password, role, ...attachment });
+      const user = await createUser({ email, firstName, lastName, password, role, ...attachment, ...agent });
       onCreated(user);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Impossible de créer le compte');
@@ -44,6 +47,13 @@ export function CreateUserModal({ onClose, onCreated }: { onClose: () => void; o
       >
         <h2 className="mb-5 text-[19px] font-semibold">Nouveau compte</h2>
 
+        <ChoixAgent
+          onChange={choisirAgent}
+          onAgentChoisi={(a) => {
+            setFirstName(a.prenoms);
+            setLastName(a.nom);
+          }}
+        />
         <Field label="Adresse e-mail" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
         <div className="grid grid-cols-2 gap-3">
           <Field label="Prénom" value={firstName} onChange={(e) => setFirstName(e.target.value)} required />

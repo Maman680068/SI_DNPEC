@@ -17,7 +17,7 @@ async function attendre(f) { for (let i = 0; i < 40; i++) { if (await f()) retur
   await a.getByLabel('Prénom').fill('Mariama');
   await a.getByLabel('Nom', { exact: true }).fill(`Stagiaire${S}`);
   await a.getByLabel('Mot de passe', { exact: true }).fill('Password123!');
-  const selRole = a.locator('select').first();
+  const selRole = a.locator('label:text-is("Rôle") + select'); // le premier choix de la fenêtre est l’agent (socle N1)
   check('le rôle « Stagiaire » est proposé', (await selRole.locator('option').allInnerTexts()).includes('Stagiaire'));
   await selRole.selectOption('STAGIAIRE');
   await a.getByText('Facultatif : la rotation du stage').waitFor();
