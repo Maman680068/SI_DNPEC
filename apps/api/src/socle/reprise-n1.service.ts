@@ -83,7 +83,7 @@ export class ReprisesN1Service implements OnApplicationBootstrap {
       await this.audit.log({
         actorId: null,
         action: AuditAction.MODIFICATION,
-        entityType: 'Parametrage',
+        entityType: 'SocleN1',
         entityId: 'reprise-n1',
         metadata: { event: 'reprise_n1', ...r } as unknown as Prisma.InputJsonValue,
       });
@@ -407,6 +407,6 @@ export class ReprisesN1Service implements OnApplicationBootstrap {
       r.attributionsCreees++;
     }
     await this.historique(this.prisma, direction.id, EVENEMENT_REPRISE_INITIALE, null, { roles: aCreer.map((a) => a.role) });
-    await this.audit.log({ actorId: null, action: AuditAction.MODIFICATION, entityType: 'Parametrage', entityId: MARQUE_REPRISE_INITIALE, metadata: { event: 'reprise_initiale_roles', nombre: aCreer.length } });
+    await this.audit.log({ actorId: null, action: AuditAction.MODIFICATION, entityType: 'SocleN1', entityId: MARQUE_REPRISE_INITIALE, metadata: { event: 'reprise_initiale_roles', nombre: aCreer.length } });
   }
 }

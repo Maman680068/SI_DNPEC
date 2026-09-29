@@ -69,7 +69,7 @@ const ligne = (p, u) => p.locator('tr', { hasText: u.email });
   check('v est Chef de Cellule du CNC', await attendre(async () => (await prisma.cellule.findUnique({ where: { id: cnc.id } })).chefId === v.id));
   await ligne(p, v).getByRole('cell', { name: 'Chef de Cellule', exact: true }).waitFor();
   await p.goto(WEB + '/organisation');
-  await p.getByRole('button', { name: 'Cellules' }).click();
+  await p.getByRole('tab', { name: 'Cellules' }).click();
   const carte = p.locator('div', { hasText: 'Comité National de Coordination' }).filter({ has: p.getByRole('button', { name: 'Retirer le chef' }) }).last();
   await carte.waitFor();
   check('Organisation : nom du chef affiché', (await carte.innerText()).includes(`chef : V E3${S}`), (await carte.innerText()).split('\n').slice(0, 2).join(' / '));
