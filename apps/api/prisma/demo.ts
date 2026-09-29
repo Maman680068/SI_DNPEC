@@ -632,7 +632,7 @@ async function stage(ctx: Ctx) {
   const { prisma, app, u } = ctx;
   const svc = app.get(StagesService);
   await bloc(
-    'Stage avec plan de rotation (2 périodes) et évaluation visée',
+    'Stage avec plan de rotation (2 périodes), évaluation visée et encadreur principal',
     async () => (await prisma.stage.count({ where: { stagiaireId: u.stagiaire!.id } })) > 0,
     async () => {
       const drh = await acteur(prisma, u.systeme!.id);
@@ -652,6 +652,8 @@ async function stage(ctx: Ctx) {
       await svc.enregistrerEvaluation(tuteur, s.id, toutes[0]!.id, { criteres: { assiduite: 'TRES_SATISFAISANT', qualite: 'SATISFAISANT', autonomie: 'SATISFAISANT', integration: 'TRES_SATISFAISANT' }, appreciation: 'Stagiaire rigoureux et curieux, bonne maîtrise des outils.' });
       await svc.soumettreEvaluation(tuteur, s.id, toutes[0]!.id);
       await svc.viserEvaluation(await acteur(prisma, u.chefSection1!.id), s.id, toutes[0]!.id);
+      // Encadreur principal (N3) : le premier tuteur ; aucun rapport déposé (la démonstration n'écrit jamais dans le stockage).
+      await svc.designerEncadrant(drh, s.id, u.agent1!.id);
     },
   );
 }

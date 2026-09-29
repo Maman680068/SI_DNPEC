@@ -1,4 +1,4 @@
-# Matrice des habilitations — état N2
+# Matrice des habilitations — état N3
 
 Généré par `tests/e2e/api/n1_matrice.js` (annexe 1 du cahier NIMBA v2.2). « ÉCART » : comportement actuel conservé en N1 et vérifié tel quel.
 
@@ -119,6 +119,33 @@ Généré par `tests/e2e/api/n1_matrice.js` (annexe 1 du cahier NIMBA v2.2). « 
 | Paramétrage | Assistant DN | modifier | — | refus (403) | CONFORME |
 | Paramétrage | Administrateur | lire | CLM(T) | accès | CONFORME |
 | Paramétrage | Administrateur | modifier | CLM(T) | accès | CONFORME |
+| Justificatif médical (motif) | DN | lire | — (existence et durée seulement) | refus (403) | CONFORME |
+| Justificatif médical (motif) | DNA | lire | — (existence et durée seulement) | refus (403) | CONFORME |
+| Justificatif médical (motif) | Chef de division | lire | — (existence et durée seulement) | refus (403) | CONFORME |
+| Justificatif médical (motif) | Chef de section | lire | — (existence et durée seulement) | refus (403) | CONFORME |
+| Justificatif médical (motif) | Agent | lire | C(S) — le demandeur | accès | CONFORME |
+| Justificatif médical (motif) | DRH | lire | L(T) après réauthentification | accès | CONFORME |
+| Justificatif médical (motif) | Chef SAF | lire | — (existence et durée seulement) | refus (403) | CONFORME |
+| Justificatif médical (motif) | Assistant DN | lire | — (existence et durée seulement) | refus (403) | CONFORME |
+| Justificatif médical (motif) | Administrateur | lire | — (existence et durée seulement) | refus (403) | CONFORME |
+| Demande d’absence — avis | DN | donner l’avis | — | refus (403) | CONFORME |
+| Demande d’absence — avis | DNA | donner l’avis | — | refus (403) | CONFORME |
+| Demande d’absence — avis | Chef de division | donner l’avis | — | refus (403) | CONFORME |
+| Demande d’absence — avis | Agent | donner l’avis | — | refus (403) | CONFORME |
+| Demande d’absence — avis | DRH | donner l’avis | — | refus (403) | CONFORME |
+| Demande d’absence — avis | Chef SAF | donner l’avis | — | refus (403) | CONFORME |
+| Demande d’absence — avis | Assistant DN | donner l’avis | — | refus (403) | CONFORME |
+| Demande d’absence — avis | Administrateur | donner l’avis | — | refus (403) | CONFORME |
+| Demande d’absence — avis | Chef de section | donner l’avis | V (chef d’unité le plus proche) | accès | CONFORME |
+| Demande d’absence — décision | DN | approuver | — | refus (403) | CONFORME |
+| Demande d’absence — décision | DNA | approuver | — | refus (403) | CONFORME |
+| Demande d’absence — décision | Chef de division | approuver | — | refus (403) | CONFORME |
+| Demande d’absence — décision | Chef de section | approuver | — | refus (403) | CONFORME |
+| Demande d’absence — décision | Agent | approuver | — | refus (403) | CONFORME |
+| Demande d’absence — décision | Chef SAF | approuver | — | refus (403) | CONFORME |
+| Demande d’absence — décision | Assistant DN | approuver | — | refus (403) | CONFORME |
+| Demande d’absence — décision | Administrateur | approuver | — | refus (403) | CONFORME |
+| Demande d’absence — décision | DRH | approuver | V (DRH) | accès | CONFORME |
 
 ## Écarts conservés en N1
 
@@ -129,10 +156,8 @@ Généré par `tests/e2e/api/n1_matrice.js` (annexe 1 du cahier NIMBA v2.2). « 
 
 ## Objets livrés par un lot ultérieur (non joués en N1)
 
-- Justificatif médical : N3 (motif médical visible du seul DRH)
 - Activité / plan de travail : N5 (plan de travail objectif → activité → tâche)
 - Instruction de la Direction : N5
-- Demande d’absence — avis et décision : N3 (circuit avis du chef 48 h ouvrées, décision DRH)
 - Mouvement de carrière et acte RH, effectifs et alertes RH : N6
 - Document publié — statut de diffusion : N4
 - Campagne et bulletin de paie, élément de rémunération, ordre de paiement : hors périmètre (D5, finances SAF)

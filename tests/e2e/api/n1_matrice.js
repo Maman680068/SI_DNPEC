@@ -9,7 +9,7 @@
 const fs = require('fs');
 const path = require('path');
 const E = require('../config');
-const { call, ids, check, bilan } = require('../lib');
+const { call, ids, check, bilan, preuve } = require('../lib');
 
 const S = Date.now().toString(36).slice(-4).toUpperCase();
 const PROFILS = {
@@ -31,10 +31,8 @@ async function caseMatrice({ objet, profil, action, annexe, appel, attendu, ecar
 }
 
 const LOTS = [
-  ['Justificatif médical', 'N3 (motif médical visible du seul DRH)'],
   ['Activité / plan de travail', 'N5 (plan de travail objectif → activité → tâche)'],
   ['Instruction de la Direction', 'N5'],
-  ['Demande d’absence — avis et décision', 'N3 (circuit avis du chef 48 h ouvrées, décision DRH)'],
   ['Mouvement de carrière et acte RH, effectifs et alertes RH', 'N6'],
   ['Document publié — statut de diffusion', 'N4'],
   ['Campagne et bulletin de paie, élément de rémunération, ordre de paiement', 'hors périmètre (D5, finances SAF)'],
@@ -156,9 +154,29 @@ const LOTS = [
     await caseMatrice({ objet: 'Paramétrage', profil, action: 'modifier', annexe: profil === 'admin' ? 'CLM(T)' : lit ? 'L(T)' : '—', attendu: profil === 'admin', appel: () => call(profil, 'PATCH', '/api/v1/parametres/session.expirationJours', { valeur: 30 }) });
   }
 
+  console.log('— Congés (N3) : motif médical au DRH seul, avis du chef, décision du DRH');
+  let types = (await call('agent1', 'GET', '/leave-types')).body;
+  for (const [code, name] of [['CONGE_ANNUEL', 'Congé annuel'], ['CONGE_MALADIE', 'Congé maladie']]) if (!types.some((x) => x.code === code)) await call('admin', 'POST', '/leave-types', { code, name });
+  types = (await call('agent1', 'GET', '/leave-types')).body;
+  const jourM = (n) => new Date(Date.now() + n * 864e5).toISOString().slice(0, 10);
+  const med = (await call('agent1', 'POST', '/leaves', { leaveTypeId: types.find((t) => t.code === 'CONGE_MALADIE').id, startDate: jourM(120), endDate: jourM(121), reason: `Motif matrice ${S}` })).body;
+  // « Accès » = motif transmis (avec une réauthentification valide) ; sinon la demande est lue sans son motif.
+  for (const profil of Object.keys(PROFILS)) {
+    await caseMatrice({ objet: 'Justificatif médical (motif)', profil, action: 'lire', annexe: profil === 'drh' ? 'L(T) après réauthentification' : profil === 'agent1' ? 'C(S) — le demandeur' : '— (existence et durée seulement)', attendu: ['drh', 'agent1'].includes(profil),
+      appel: async () => { const h = { 'X-Reauth': await preuve(profil).catch(() => '') }; const r = await call(profil, 'GET', `/leaves/${med.id}`, undefined, h); return { status: r.status === 200 && r.body.reason ? 200 : 403 }; } });
+  }
+  const ordre = [...Object.keys(PROFILS).filter((p) => p !== 'chefssr'), 'chefssr'];
+  for (const profil of ordre) {
+    await caseMatrice({ objet: 'Demande d’absence — avis', profil, action: 'donner l’avis', annexe: profil === 'chefssr' ? 'V (chef d’unité le plus proche)' : '—', attendu: profil === 'chefssr', appel: () => call(profil, 'POST', `/leaves/${med.id}/avis`, { avis: 'FAVORABLE' }) });
+  }
+  for (const profil of [...Object.keys(PROFILS).filter((p) => p !== 'drh'), 'drh']) {
+    await caseMatrice({ objet: 'Demande d’absence — décision', profil, action: 'approuver', annexe: profil === 'drh' ? 'V (DRH)' : '—', attendu: profil === 'drh', appel: () => call(profil, 'POST', `/leaves/${med.id}/approve`, {}) });
+  }
+  await call('agent1', 'POST', `/leaves/${med.id}/cancel`);
+
   // Rapport lisible : tableau des cases jouées + objets renvoyés à un lot ultérieur.
   const md = [
-    '# Matrice des habilitations — état N2',
+    '# Matrice des habilitations — état N3',
     '',
     'Généré par `tests/e2e/api/n1_matrice.js` (annexe 1 du cahier NIMBA v2.2). « ÉCART » : comportement actuel conservé en N1 et vérifié tel quel.',
     '',

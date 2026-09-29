@@ -57,6 +57,8 @@ const d = (n) => new Date(BASE.getTime() + n * J).toISOString().slice(0, 10);
   const vueChef = (await call('chefssr', 'GET', `/leaves/${c.id}`)).body;
   const vueDrh = (await call('drh', 'GET', `/leaves/${c.id}`)).body;
   check('chef : peut donner son avis, pas décider', vueChef.droits.peutDonnerAvis && !vueChef.droits.peutDecider);
+  expect('le chef de division ne donne pas l’avis (le chef de section, plus proche, existe)', await call('chefdpe', 'POST', `/leaves/${c.id}/avis`, { avis: 'FAVORABLE' }), 403);
+  expect('le DN non plus', await call('dn', 'POST', `/leaves/${c.id}/avis`, { avis: 'FAVORABLE' }), 403);
   check('DRH : ni avis ni décision avant l’avis', !vueDrh.droits.peutDonnerAvis && !vueDrh.droits.peutDecider);
   check('le DRH voit toutes les demandes (liste)', (await call('drh', 'GET', '/leaves')).body.some((r) => r.id === c.id));
   check('un autre agent ne la voit pas', !(await call('agent2', 'GET', '/leaves')).body.some((r) => r.id === c.id));

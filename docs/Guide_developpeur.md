@@ -3,7 +3,7 @@
 Système d'information interne de la DNPEC (Guinée), **en production** sur Render
 (PostgreSQL, API NestJS et frontend Next.js en services distincts, emails réels via Brevo).
 Référence fonctionnelle : cahier des charges v2.5 (§2.2 « besoin d'en connaître », §3.2 changement
-de rôle, §4.10 suppléance, §4.11 courrier et actes, §4.15 socle NIMBA N1, §4.16 N2, Annexe B = journal des décisions) : `docs/Cahier_des_charges_DNPEC_SI.docx`.
+de rôle, §4.10 suppléance, §4.11 courrier et actes, §4.15 socle NIMBA N1, §4.16 N2, §4.17 N3, Annexe B = journal des décisions) : `docs/Cahier_des_charges_DNPEC_SI.docx`.
 Programme en cours : socle NIMBA, lots N1 → N6 (`docs/NIMBA_Cahier_des_charges_v2.2.docx`), une PR par lot,
 déployés dans l'ordre ; conception N1 : `docs/conception_N1_socle_NIMBA.md`.
 
@@ -99,6 +99,14 @@ fonctionnalité ajoute sa suite (`tests/e2e/api/`, `tests/e2e/ui/`) et sa ligne 
   enveloppées par `TachesPlanifieesService.suivre(nom, fn)` (supervision). « Aucun compte sans
   agent » en base : un compte actif reçoit d'office un agent provisoire (déclencheur), que
   `AgentsService.rattacherCompte` remplace par l'agent choisi.
+- Socle N3 (règles métier) : congés à **avis du chef le plus proche** (`avisants`, supérieur désigné →
+  cellule/section → division → DN/DNA) dans `conges.delaiAvisHeures` heures ouvrées
+  (`socle/heures-ouvrees.ts`), rappel 12 h avant, avis tacite ensuite (job `executer(now)` toutes les
+  15 min, tâche `avis-conges`), **décision du DRH** (`estDrh`) ; demande d'un DRH décidée par DN/DNA.
+  Motif médical : demandeur et DRH seuls, motif derrière `PreuveIdentiteService` (lecture tracée).
+  Avancement des tâches **calculé en base** (déclencheurs ; `PATCH /tasks/:id/progress` → 409).
+  Stage : encadreur principal (DRH) et rapport (stagiaire dépose, encadreur valide/renvoie).
+  Messages directs purgés après 3 ans (`ConservationService`, tâche `purge-messages`).
 - Stages (`stages/`, D6) : job quotidien `StagesRotationService.executer(now)` (appelable avec une
   date simulée) ; attestation finale = acte du Courrier (`ActesService`).
   Réglages (capacités, modèle d'attestation) : DRH **et** administrateur système

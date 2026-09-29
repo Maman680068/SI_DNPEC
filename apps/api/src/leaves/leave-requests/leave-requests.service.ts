@@ -86,20 +86,28 @@ export class LeaveRequestsService {
 
   // ------------------------------------------------------------------ acteurs du circuit
 
-  /** Chef(s) d'unité qui donnent l'avis : le chef le plus proche ; DN/DNA seulement à défaut. */
+  /**
+   * Chef(s) qui donnent l'avis : le plus proche seulement — supérieur désigné (assistant), puis chef de
+   * la cellule ou de la section, puis chef de la division, enfin DN ou DNA. Le premier niveau pourvu
+   * d'un compte actif (autre que le demandeur) donne l'avis ; les niveaux au-dessus ne le donnent pas.
+   */
   private async avisants(target: LeaveRequestWithUser['user']): Promise<string[]> {
-    const validateurs = await this.prisma.user.findMany({
-      where: { AND: [this.cascade.getUsersWithDirectAuthorityOverWhere(target), { status: UserStatus.ACTIF }] },
-      select: { id: true, role: true },
-    });
-    const proches = validateurs.filter((v) => !this.cascade.isLeadershipRole(v.role) && v.id !== target.id);
-    return (proches.length ? proches : validateurs.filter((v) => v.id !== target.id)).map((v) => v.id);
+    const niveaux: Prisma.UserWhereInput[] = [];
+    if (target.supervisorId) niveaux.push({ id: target.supervisorId });
+    if (target.celluleId) niveaux.push({ role: SystemRole.CHEF_CELLULE, celluleId: target.celluleId });
+    if (target.divisionId && target.sectionId) niveaux.push({ role: SystemRole.CHEF_SECTION, divisionId: target.divisionId, sectionId: target.sectionId });
+    if (target.divisionId) niveaux.push({ role: SystemRole.CHEF_DIVISION, divisionId: target.divisionId });
+    niveaux.push({ role: { in: [SystemRole.DN, SystemRole.DNA] } });
+    for (const niveau of niveaux) {
+      const ids = (await this.prisma.user.findMany({ where: { AND: [niveau, { status: UserStatus.ACTIF, id: { not: target.id } }] }, select: { id: true } })).map((u) => u.id);
+      if (ids.length) return ids;
+    }
+    return [];
   }
 
   private async peutDonnerAvis(actor: AuthenticatedUser, r: LeaveRequestWithUser): Promise<boolean> {
-    if (r.userId === actor.id || !this.cascade.hasDirectAuthorityOver(actor, r.user)) return false;
-    if (!this.cascade.isLeadershipRole(actor.role)) return true;
-    return !(await this.medicalPrivacy.hasCloserValidator(r.user));
+    if (r.userId === actor.id) return false;
+    return (await this.avisants(r.user)).some((id) => this.cascade.isActingFor(actor, id));
   }
 
   /** Décideur : le DRH ; pour la demande d'un titulaire du rôle DRH, le DN ou la DNA. */
