@@ -20,6 +20,7 @@ export const CODE_SECRETARIAT = 'SECDIR';
 export const LIBELLE_SECRETARIAT = 'Secrétariat de direction';
 /** Marque de la reprise initiale des rôles (journal d'audit, entityType Parametrage). */
 const MARQUE_REPRISE_INITIALE = 'reprise-n1-roles';
+const EVENEMENT_REPRISE_INITIALE = 'REPRISE_INITIALE';
 
 export interface RapportReprise {
   unitesCreees: number;
@@ -283,7 +284,8 @@ export class ReprisesN1Service implements OnApplicationBootstrap {
               ...(statut === StatutAgent.PARTI ? { dateDepart: c.updatedAt, motifDepart: 'Reprise : compte désactivé avant N1' } : {}),
             },
           });
-          await tx.user.update({ where: { id: c.id }, data: { agentId: agent.id } });
+          // SQL direct : le lien vers l'agent ne doit pas toucher users.updatedAt (données d'avant N1 intactes).
+          await tx.$executeRaw`UPDATE "users" SET "agentId" = ${agent.id} WHERE "id" = ${c.id}`;
           await tx.mouvementAgent.create({ data: { agentId: agent.id, type: 'ENTREE', apres: { matricule, uniteId, statut }, motif: 'Reprise automatique (socle NIMBA, lot N1)' } });
         });
         r.agentsCrees++;
@@ -377,7 +379,11 @@ export class ReprisesN1Service implements OnApplicationBootstrap {
 
     // Reprise INITIALE seulement (décision validée) : DN et DNA → Validateur ;
     // chef de la cellule SAF → Chef SAF ; tuteurs des stages en cours → Encadreur.
-    const dejaFaite = await this.prisma.auditLog.findFirst({ where: { entityType: 'Parametrage', entityId: MARQUE_REPRISE_INITIALE }, select: { id: true } });
+    // Marque : un événement de l'historique de la Direction (table N1), et non le journal d'audit, pour
+    // qu'après un retour arrière (n1_down.sql) puis une ré-application la reprise initiale soit refaite.
+    const direction = await this.prisma.uniteOrganisationnelle.findFirst({ where: { type: TypeUnite.DIRECTION }, select: { id: true } });
+    if (!direction) return;
+    const dejaFaite = await this.prisma.historiqueUnite.findFirst({ where: { uniteId: direction.id, evenement: EVENEMENT_REPRISE_INITIALE }, select: { id: true } });
     if (dejaFaite) return;
     const dirigeants = await this.prisma.user.findMany({
       where: { role: { in: [SystemRole.DN, SystemRole.DNA] }, status: UserStatus.ACTIF, attributionsRoles: { none: { role: RoleFonctionnel.VALIDATEUR } } },
@@ -400,6 +406,7 @@ export class ReprisesN1Service implements OnApplicationBootstrap {
       await this.prisma.attributionRole.create({ data: { ...a, motif: 'Reprise initiale (socle NIMBA, lot N1)' } });
       r.attributionsCreees++;
     }
+    await this.historique(this.prisma, direction.id, EVENEMENT_REPRISE_INITIALE, null, { roles: aCreer.map((a) => a.role) });
     await this.audit.log({ actorId: null, action: AuditAction.MODIFICATION, entityType: 'Parametrage', entityId: MARQUE_REPRISE_INITIALE, metadata: { event: 'reprise_initiale_roles', nombre: aCreer.length } });
   }
 }

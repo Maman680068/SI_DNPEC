@@ -163,4 +163,5 @@ export const LIBELLE_EVENEMENT_UNITE: Record<string, string> = {
   MODIFICATION: 'Modification',
   RESPONSABLE: 'Responsable',
   FERMETURE: 'Fermeture',
+  REPRISE_INITIALE: 'Reprise initiale des rôles (N1)',
 };
