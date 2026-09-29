@@ -45,6 +45,8 @@ const demo = { email: { endsWith: `@${D.DOMAINE}` } };
   check('réservations de démonstration annulées', (await prisma.reservation.count({ where: { titulaire: demo, statut: { in: ['CONFIRMEE', 'EN_ATTENTE'] } } })) === 0);
   check('catégories, articles, ressources de démonstration désactivés', (await prisma.categorieLogistique.count({ where: { code: { in: ['TST', 'TSF'] }, actif: true } })) === 0 && (await prisma.articleFourniture.count({ where: { id: { startsWith: 'demo-' }, actif: true } })) === 0 && (await prisma.ressourceReservable.count({ where: { id: { startsWith: 'demo-' }, actif: true } })) === 0);
   check('unités de démonstration supprimées (aucun compte réel n’y était rattaché)', (await prisma.division.count({ where: { code: 'TESTDEMO' } })) === 0 && (await prisma.section.count({ where: { name: { startsWith: 'TEST — ' } } })) === 0 && (await prisma.cellule.count({ where: { code: 'TESTCEL' } })) === 0);
+  check('socle : unités miroir de démonstration retirées de l’organigramme', (await prisma.uniteOrganisationnelle.count({ where: { libelle: { startsWith: 'TEST — ' } } })) === 0);
+  check('socle : agents de démonstration « Parti » (conservés comme les comptes), aucun rôle fonctionnel', (await prisma.agent.count({ where: { compte: { is: demo }, statut: { not: 'PARTI' } } })) === 0 && (await prisma.agent.count({ where: { compte: { is: demo } } })) > 0 && (await prisma.attributionRole.count({ where: { user: demo } })) === 0);
 
   console.log('— Données réelles');
   const disparues = D.lignesDisparues(avant, await D.empreinte(prisma));
@@ -56,6 +58,7 @@ const demo = { email: { endsWith: `@${D.DOMAINE}` } };
   check('re-création après suppression : sans erreur', r3.code === 0 && !/ÉCHEC/.test(r3.sortie), r3.sortie.slice(-400));
   check('comptes réactivés et rattachés aux unités recréées', (await prisma.user.count({ where: { ...demo, status: 'ACTIF', role: { in: ['AGENT', 'CHEF_SECTION', 'CHEF_DIVISION', 'CHEF_CELLULE'] }, divisionId: null, celluleId: null } })) === 0 && (await prisma.user.count({ where: { ...demo, status: 'ACTIF' } })) === 13);
   check('contenus recréés (tâches, courrier non annulé, stage)', (await prisma.task.count({ where: { createdBy: demo } })) >= 25 && (await prisma.courrierArrivee.count({ where: { registre: { code: 'TEST-ARR' }, statut: { not: 'ANNULE' } } })) === 4 && (await prisma.stage.count({ where: { stagiaire: demo } })) === 1);
+  check('socle : agents de démonstration remis en activité, unités de nouveau à l’organigramme', (await prisma.agent.count({ where: { compte: { is: { ...demo, status: 'ACTIF' } }, statut: 'EN_ACTIVITE' } })) === 13 && (await prisma.uniteOrganisationnelle.count({ where: { libelle: { startsWith: 'TEST — ' } } })) === 4);
   const r4 = D.lancerDemo('supprimer');
   check('nouvelle suppression : sans erreur', r4.code === 0 && !/ÉCHEC/.test(r4.sortie), r4.sortie.slice(-400));
   check('toujours aucune ligne réelle modifiée', D.lignesDisparues(avant, await D.empreinte(prisma)).length === 0);

@@ -34,6 +34,7 @@ import {
   PrismaClient,
   RegistreNature,
   RegistrePortee,
+  StatutAgent,
   StatutReservation,
   SystemRole,
   TaskPriority,
@@ -74,6 +75,7 @@ import { ReservationsService } from '../src/logistique/reservations.service';
 import { DOMAINE_DEMO, DUREE_DEMO_JOURS, ENTITE_AUDIT_DEMO, PREFIXE_DEMO, estAdresseDemo } from '../src/demo/demo.constantes';
 import { verifierMigrations } from './verifier-migrations';
 import { rolesActifs } from '../src/socle/roles-fonctionnels';
+import { ReprisesN1Service } from '../src/socle/reprise-n1.service';
 
 const T = PREFIXE_DEMO; // « TEST — »
 const FICHIER_DEMO = 'demo-document-dnpec.pdf';
@@ -286,6 +288,24 @@ async function comptes(ctx: Omit<Ctx, 'u' | 'directionReelle'>, motDePasse: stri
     }
   }
   return { u, directionReelle: reel };
+}
+
+/**
+ * Socle N1 : unités miroir et agents des comptes de démonstration, par la reprise du socle (vrai service).
+ * Un compte de démonstration réactivé (relance après « supprimer ») retrouve un agent en activité.
+ */
+async function socle(prisma: PrismaClient, app: Ctx['app'], demoIds: string[]) {
+  // Unités, responsables, agents et rôles de position (DRH, assistant).
+  const r = await app.get(ReprisesN1Service).reconcilier();
+  const repris = await prisma.agent.updateMany({
+    where: { statut: StatutAgent.PARTI, compte: { is: { id: { in: demoIds }, status: UserStatus.ACTIF } } },
+    data: { statut: StatutAgent.EN_ACTIVITE, dateDepart: null, motifDepart: null },
+  });
+  const agents = await prisma.agent.count({ where: { compte: { is: { id: { in: demoIds } } } } });
+  const unites = await prisma.uniteOrganisationnelle.count({ where: { libelle: { startsWith: T } } });
+  const quoi = `Socle : ${unites} unité(s) à l’organigramme, ${agents} agent(s)${repris.count ? ` (dont ${repris.count} remis en activité)` : ''}`;
+  if (r.unitesCreees + r.agentsCrees + r.attributionsCreees + repris.count > 0) cree(quoi);
+  else present(quoi);
 }
 
 // ---------------------------------------------------------------------------
@@ -821,6 +841,14 @@ async function supprimer(prisma: PrismaClient) {
     conserve('Registres TEST-ARR, TEST-DEP', 'désactivés (les courriers annulés y restent rattachés)');
   }
   n('Habilitations courrier', await prisma.habilitationCourrier.deleteMany({ where: { userId: { in: U } } }));
+  // Socle N1 : rôles fonctionnels retirés (recréés par la reprise à la relance) ; agents « Parti »,
+  // conservés comme les comptes (la reprise recrée un agent pour tout compte non en attente).
+  n('Rôles fonctionnels', await prisma.attributionRole.deleteMany({ where: { userId: { in: U } } }));
+  const partis = await prisma.agent.updateMany({
+    where: { compte: { is: { id: { in: U } } }, statut: { not: StatutAgent.PARTI } },
+    data: { statut: StatutAgent.PARTI, dateDepart: new Date(), motifDepart: 'Démonstration supprimée' },
+  });
+  if (partis.count) conserve(`Agents de démonstration : ${partis.count}`, 'passés « Parti » (dossier conservé, comme le compte)');
   // Comptes : SUPPRIME, sessions fermées, jetons retirés.
   await prisma.userSession.updateMany({ where: { userId: { in: U }, revokedAt: null }, data: { revokedAt: new Date() } });
   await prisma.passwordResetToken.deleteMany({ where: { userId: { in: U } } });
@@ -840,6 +868,13 @@ async function supprimer(prisma: PrismaClient) {
     });
     await prisma.capaciteAccueil.deleteMany({ where: { uniteKey: { in: [...cles, ...sections.map((x) => `SEC:${x.id}`)] } } });
     if (rattachesReels === 0 && affectations === 0) {
+      // Socle N1 : unités miroir (et leur historique) retirées avant leurs unités d'origine.
+      const miroirs = await prisma.uniteOrganisationnelle.findMany({
+        where: { OR: [...(division ? [{ divisionId: division.id }] : []), ...(sections.length ? [{ sectionId: { in: sections.map((x) => x.id) } }] : []), ...(cellule ? [{ celluleId: cellule.id }] : [])] },
+        select: { id: true },
+      });
+      await prisma.historiqueUnite.deleteMany({ where: { uniteId: { in: miroirs.map((m) => m.id) } } });
+      await prisma.uniteOrganisationnelle.deleteMany({ where: { id: { in: miroirs.map((m) => m.id) } } });
       if (division) await prisma.division.delete({ where: { id: division.id } });
       if (cellule) await prisma.cellule.delete({ where: { id: cellule.id } });
       supprime('Unités « TEST — Division Démo » (2 sections) et « TEST — Cellule Démo »');
@@ -893,6 +928,7 @@ async function main() {
         const base = { prisma, app, ...(await unites(prisma)) };
         const { u, directionReelle } = await comptes(base, motDePasse);
         for (const v of Object.values(u)) if (v && estAdresseDemo(v.email)) demoIds.add(v.id);
+        await socle(prisma, app, [...demoIds]);
         const ctx: Ctx = { ...base, u, directionReelle };
         await logistique(ctx); // la salle de démonstration sert aux réunions
         await taches(ctx);

@@ -1,6 +1,6 @@
 // Z — démonstration sous Chromium, après « supprimer » : plus aucun contenu « TEST — » dans les
 // écrans des comptes réels ; seuls apparaissent, là où ils sont listés, les éléments annulés,
-// supprimés ou désactivés (courrier annulé, comptes supprimés, unités désactivées).
+// supprimés ou désactivés (courrier annulé, comptes désactivés — « Supprimé » avant N1 —, unités désactivées).
 const { browser, loginPage, check, bilan, WEB } = require('./helpers');
 const E = require('../config');
 
@@ -14,8 +14,8 @@ const SANS_TEST = [
 const MARQUES = [
   ['dn', '/courrier', /annul|désactivé/i, 'Arrivées'],
   ['dn', '/courrier', /annul|désactivé/i, 'Départs et actes'],
-  ['admin', '/users', /supprim/i],
-  ['dn', '/personnel', /supprim/i],
+  ['admin', '/users', /supprim|désactiv/i],
+  ['dn', '/personnel', /supprim|désactiv/i],
 ];
 
 (async () => {
