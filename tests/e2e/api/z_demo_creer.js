@@ -27,7 +27,9 @@ const compte = async () => ({
 });
 
 (async () => {
-  const notifReelles = () => prisma.notification.count({ where: { user: { NOT: demo } } });
+  // Hors alertes de supervision (socle N2) : l'API en service peut prévenir l'administrateur réel
+  // pendant la démonstration (emails non configurés en test), indépendamment du script.
+  const notifReelles = () => prisma.notification.count({ where: { user: { NOT: demo }, NOT: { title: 'Supervision : service en difficulté' } } });
   const avant = await D.empreinte(prisma);
   fs.writeFileSync(E.etat('demo_empreinte.json'), JSON.stringify(avant));
   const notifAvant = await notifReelles();
