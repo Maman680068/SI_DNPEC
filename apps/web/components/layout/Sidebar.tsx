@@ -83,6 +83,16 @@ function navGroupsFor(role: string | undefined, rolesFonctionnels: string[] = []
   if (USERS_PAGE_VISIBLE_ROLES.includes(role ?? '')) {
     adminItems.push({ icon: '👤', label: 'Utilisateurs', href: '/users' });
   }
+  // Socle N2 : paramétrage et supervision (administrateur ; DN et DNA en lecture) ; journal d'audit
+  // pour tous, dans sa portée (toute la Direction ici, son périmètre ou ses actions ailleurs).
+  const direction = ['ADMIN_SYSTEME', 'DN', 'DNA'].includes(role ?? '');
+  if (direction) {
+    adminItems.push({ icon: '⚙', label: 'Paramétrage et supervision', href: '/parametrage' });
+    adminItems.push({ icon: '🧾', label: 'Journal d’audit', href: '/journal-audit' });
+  } else {
+    const perso = groups.find((g) => g.label === 'Personnel');
+    if (perso) perso.items.push({ icon: '🧾', label: 'Journal d’audit', href: '/journal-audit' });
+  }
   if (role === 'ADMIN_SYSTEME') {
     adminItems.push({ icon: '📨', label: 'Courrier', href: '/courrier/administration' });
     adminItems.push({ icon: '🧰', label: 'Logistique', href: '/logistique/administration' });

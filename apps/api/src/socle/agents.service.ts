@@ -18,6 +18,8 @@ import { NotificationsService } from '../communication/notifications/notificatio
 import { AutorisationService } from './autorisation.service';
 import { UnitesArbreService } from './unites-arbre.service';
 import { ReprisesN1Service } from './reprise-n1.service';
+import { ParametresService } from './parametres.service';
+import { TachesPlanifieesService } from './taches-planifiees.service';
 import { detenteursWhere } from './roles-fonctionnels';
 import {
   CreerAgentDto,
@@ -77,6 +79,9 @@ function dateFr(d: Date): string {
  * stage ou de contrat : alertes au DRH à J-15 puis J-3, décision du DRH
  * (prolonger ou confirmer), sinon passage automatique à « Parti » à l'échéance.
  */
+/** Motif posé par le déclencheur de la base (socle N2) sur l'agent qu'il crée d'office. */
+export const MOTIF_AGENT_CREE_PAR_LA_BASE = 'Compte sans agent : agent créé par la base';
+
 @Injectable()
 export class AgentsService {
   private readonly logger = new Logger('Agents');
@@ -88,6 +93,8 @@ export class AgentsService {
     private readonly autorisation: AutorisationService,
     private readonly arbres: UnitesArbreService,
     private readonly reprise: ReprisesN1Service,
+    private readonly parametres: ParametresService,
+    private readonly taches: TachesPlanifieesService,
   ) {}
 
   private estDrh(actor: AuthenticatedUser): boolean {
@@ -244,7 +251,14 @@ export class AgentsService {
 
   async rattacherCompte(userId: string, opts: { agentId?: string; matricule?: string }, auteurId: string): Promise<void> {
     const u = await this.prisma.user.findUnique({ where: { id: userId }, select: { firstName: true, lastName: true, jobTitle: true, agentId: true } });
-    if (!u || u.agentId) return;
+    if (!u) return;
+    if (u.agentId) {
+      // Socle N2 : la base donne d'office un agent provisoire à tout compte actif (aucun compte sans
+      // agent). S'il vient d'être créé ainsi, il cède la place à l'agent choisi ou reçoit le matricule.
+      await this.remplacerAgentProvisoire(userId, u.agentId, opts, auteurId);
+      await this.reprise.synchroniserCompte(userId);
+      return;
+    }
     if (opts.agentId) {
       await this.prisma.$transaction([
         this.prisma.user.update({ where: { id: userId }, data: { agentId: opts.agentId } }),
@@ -261,6 +275,24 @@ export class AgentsService {
       });
     }
     await this.reprise.synchroniserCompte(userId);
+  }
+
+  private async remplacerAgentProvisoire(userId: string, agentId: string, opts: { agentId?: string; matricule?: string }, auteurId: string): Promise<void> {
+    if (!opts.agentId && !opts.matricule) return;
+    const mouvements = await this.prisma.mouvementAgent.findMany({ where: { agentId }, select: { motif: true } });
+    const creeParLaBase = mouvements.length === 1 && mouvements[0]!.motif === MOTIF_AGENT_CREE_PAR_LA_BASE;
+    if (!creeParLaBase || opts.agentId === agentId) return;
+    await this.prisma.$transaction(async (tx) => {
+      if (opts.agentId) {
+        await tx.user.update({ where: { id: userId }, data: { agentId: opts.agentId } });
+        await tx.mouvementAgent.create({ data: { agentId: opts.agentId, type: 'COMPTE', apres: { compteId: userId }, motif: 'Compte rattaché', auteurId } });
+        await tx.mouvementAgent.deleteMany({ where: { agentId } });
+        await tx.agent.delete({ where: { id: agentId } });
+      } else if (opts.matricule) {
+        await tx.agent.update({ where: { id: agentId }, data: { matricule: opts.matricule, matriculeProvisoire: false } });
+        await tx.mouvementAgent.create({ data: { agentId, type: 'MATRICULE', apres: { matricule: opts.matricule }, motif: 'Matricule donné à la création du compte', auteurId } });
+      }
+    });
   }
 
   async creer(actor: AuthenticatedUser, dto: CreerAgentDto) {
@@ -548,7 +580,7 @@ export class AgentsService {
   @Cron('15 0 * * *')
   async executerQuotidien(): Promise<void> {
     try {
-      await this.executer(new Date());
+      await this.taches.suivre('fins-prevues', () => this.executer(new Date()));
     } catch (e) {
       this.logger.error(`Fins prévues : ${e instanceof Error ? e.message : String(e)}`);
     }
@@ -564,6 +596,8 @@ export class AgentsService {
    */
   async executer(maintenant: Date) {
     const bilan = { alertesJ15: 0, rappelsJ3: 0, departs: 0 };
+    // Première alerte : paramètre (socle N2, 15 jours par défaut) ; le rappel reste à J-3.
+    const joursAlerte = await this.parametres.valeur('finPrevue.alerteJours');
     const aujourdhui = jourUtc(maintenant);
     const agents = await this.prisma.agent.findMany({
       where: { statut: { not: StatutAgent.PARTI }, dateFinPrevue: { not: null } },
@@ -591,7 +625,7 @@ export class AgentsService {
         bilan.rappelsJ3++;
         continue;
       }
-      if (jours <= 15 && !a.alerteJ15At) {
+      if (jours <= joursAlerte && !a.alerteJ15At) {
         await this.prisma.agent.update({ where: { id: a.id }, data: { alerteJ15At: maintenant } });
         await this.notifications.notifyMany(drh, type, `${quoi} de ${nom} le ${dateFr(a.dateFinPrevue!)}`, `Dans ${jours} jour(s). Vous pouvez prolonger ${stage ? 'le stage' : 'le contrat'} (nouvelle date, motif) ou confirmer la fin. Sans décision, le passage à « Parti » sera automatique à l’échéance.`, lien, nom, { libelleBouton: stage ? 'Décider de la fin du stage' : 'Décider de la fin du contrat' });
         bilan.alertesJ15++;

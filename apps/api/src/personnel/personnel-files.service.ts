@@ -15,6 +15,7 @@ import { StorageService } from '../common/storage/storage.service';
 import { CascadeService } from '../org/cascade/cascade.service';
 import { NotificationsService } from '../communication/notifications/notifications.service';
 import { AuthenticatedUser } from '../common/types/auth-user.type';
+import { PreuveIdentiteService } from '../socle/preuve-identite.service';
 import { PersonnelHistoryService } from './personnel-history.service';
 import { UpdatePersonnelBasicDto } from './dto/update-personnel-basic.dto';
 import { UpdatePersonnelSensitiveDto } from './dto/update-personnel-sensitive.dto';
@@ -109,6 +110,7 @@ export class PersonnelFilesService {
     private readonly cascade: CascadeService,
     private readonly notifications: NotificationsService,
     private readonly history: PersonnelHistoryService,
+    private readonly preuves: PreuveIdentiteService,
   ) {}
 
   /** Personnes dont l'acteur peut lire le niveau 1 : exactement celles que
@@ -153,9 +155,27 @@ export class PersonnelFilesService {
         diplomas: [],
         documents: [],
         careerHistory: [],
+        niveau2Verrouille: false,
         droits: { modifier: false, niveau2: false, confirmer: false, signaler: false },
       };
     }
+
+    // Niveau 2 = objet protégé (socle N2, §4.4) : réauthentification avant de l'ouvrir.
+    if (!(await this.preuves.estValide(actor))) {
+      return {
+        userId,
+        identite,
+        basic,
+        statuts: statutsNiveau1,
+        sensitive: null,
+        diplomas: [],
+        documents: [],
+        careerHistory: [],
+        niveau2Verrouille: true,
+        droits: { modifier: true, niveau2: true, confirmer: false, signaler: isSelf },
+      };
+    }
+    await this.preuves.tracerAcces(actor, 'DossierPersonnel', userId, 'Niveau 2 du dossier du personnel');
 
     const [sensitiveRow, diplomas, documents, careerHistory] = await Promise.all([
       this.prisma.personnelFileSensitive.findUnique({ where: { userId } }),
@@ -189,6 +209,7 @@ export class PersonnelFilesService {
       diplomas,
       documents,
       careerHistory,
+      niveau2Verrouille: false,
       droits: { modifier: true, niveau2: true, confirmer: isSelf && aConfirmer, signaler: isSelf },
     };
   }
@@ -205,6 +226,7 @@ export class PersonnelFilesService {
   }
 
   async downloadDiploma(actor: AuthenticatedUser, userId: string, diplomaId: string) {
+    await this.preuves.exiger(actor); // niveau 2 : objet protégé (réauthentification)
     await this.getTargetOrThrow(userId);
     this.assertCanAccessSensitive(actor, userId);
     const diploma = await this.prisma.personnelDiploma.findUnique({ where: { id: diplomaId } });
@@ -291,6 +313,7 @@ export class PersonnelFilesService {
   }
 
   async updateSensitive(actor: AuthenticatedUser, userId: string, dto: UpdatePersonnelSensitiveDto) {
+    await this.preuves.exiger(actor); // niveau 2 : objet protégé (réauthentification)
     await this.getTargetOrThrow(userId);
     this.assertCanAccessSensitive(actor, userId);
 
@@ -322,6 +345,7 @@ export class PersonnelFilesService {
   }
 
   async addDiploma(actor: AuthenticatedUser, userId: string, dto: CreateDiplomaDto, file?: Express.Multer.File) {
+    await this.preuves.exiger(actor); // niveau 2 : objet protégé (réauthentification)
     await this.getTargetOrThrow(userId);
     this.assertCanAccessSensitive(actor, userId);
 
@@ -353,6 +377,7 @@ export class PersonnelFilesService {
   }
 
   async removeDiploma(actor: AuthenticatedUser, userId: string, diplomaId: string): Promise<void> {
+    await this.preuves.exiger(actor); // niveau 2 : objet protégé (réauthentification)
     await this.getTargetOrThrow(userId);
     this.assertCanAccessSensitive(actor, userId);
 
@@ -372,6 +397,7 @@ export class PersonnelFilesService {
   }
 
   async addDocument(actor: AuthenticatedUser, userId: string, dto: CreatePersonnelDocumentDto, file: Express.Multer.File) {
+    await this.preuves.exiger(actor); // niveau 2 : objet protégé (réauthentification)
     await this.getTargetOrThrow(userId);
     this.assertCanAccessSensitive(actor, userId);
 
@@ -394,6 +420,7 @@ export class PersonnelFilesService {
   }
 
   async removeDocument(actor: AuthenticatedUser, userId: string, documentId: string): Promise<void> {
+    await this.preuves.exiger(actor); // niveau 2 : objet protégé (réauthentification)
     await this.getTargetOrThrow(userId);
     this.assertCanAccessSensitive(actor, userId);
 
@@ -413,6 +440,7 @@ export class PersonnelFilesService {
   }
 
   async downloadDocument(actor: AuthenticatedUser, userId: string, documentId: string) {
+    await this.preuves.exiger(actor); // niveau 2 : objet protégé (réauthentification)
     await this.getTargetOrThrow(userId);
     this.assertCanAccessSensitive(actor, userId);
 
@@ -423,6 +451,7 @@ export class PersonnelFilesService {
   }
 
   async getCareerHistory(actor: AuthenticatedUser, userId: string) {
+    await this.preuves.exiger(actor); // niveau 2 : objet protégé (réauthentification)
     await this.getTargetOrThrow(userId);
     this.assertCanAccessSensitive(actor, userId);
     return this.prisma.personnelCareerEvent.findMany({ where: { userId }, orderBy: { effectiveDate: 'desc' } });
@@ -431,6 +460,7 @@ export class PersonnelFilesService {
   /** "Confirmer mes informations" — action réservée à la personne concernée, jamais
    * au DRH à sa place : c'est elle qui atteste que les données sont exactes. */
   async confirmMyInformation(actor: AuthenticatedUser, userId: string): Promise<void> {
+    await this.preuves.exiger(actor); // niveau 2 : objet protégé (réauthentification)
     if (actor.id !== userId) {
       throw new ForbiddenException('Seule la personne concernée peut confirmer ses propres informations.');
     }

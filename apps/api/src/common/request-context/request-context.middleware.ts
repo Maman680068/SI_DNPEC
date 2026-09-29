@@ -16,6 +16,7 @@ export class RequestContextMiddleware implements NestMiddleware {
   use(req: Request, res: Response, next: NextFunction): void {
     const traceId = randomUUID();
     res.setHeader('X-Trace-Id', traceId);
-    requestContextStorage.run({ onBehalfOfId: null, traceId, userId: null }, next);
+    const reauth = req.headers['x-reauth'];
+    requestContextStorage.run({ onBehalfOfId: null, traceId, userId: null, reauth: typeof reauth === 'string' && reauth ? reauth : null }, next);
   }
 }

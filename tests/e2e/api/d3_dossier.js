@@ -1,6 +1,9 @@
 // Lot D3 — dossier du personnel : liste = dossiers lisibles (force brute), niveau 2 jamais
 // transmis hors personne/DRH (y compris en intérim), statuts « à vérifier », fichiers.
-const { call, login, ids, check, expect, bilan } = require('../lib');
+const { call, login, preuve, ids, check, expect, bilan } = require('../lib');
+// Socle N2 : le niveau 2 exige une réauthentification ; la preuve est ajoutée aux appels bruts
+// (sans effet pour ceux qui n'ont pas accès : le refus de périmètre reste le même).
+const avecPreuve = async (key, headers) => ('X-Reauth' in headers ? {} : { 'X-Reauth': await preuve(key).catch(() => '') });
 const { PrismaClient } = require('@prisma/client'); const prisma = new PrismaClient();
 const BASE = 'http://localhost:3000';
 const J = 864e5, iso = (ms) => new Date(Date.now() + ms).toISOString();
@@ -11,11 +14,11 @@ async function envoyer(key, path, fields, nom, contenu, headers = {}) {
   const fd = new FormData();
   for (const [k, v] of Object.entries(fields)) fd.append(k, String(v));
   if (nom) fd.append('file', new Blob([contenu]), nom);
-  const r = await fetch(BASE + path, { method: 'POST', headers: { Authorization: 'Bearer ' + (await login(key)), ...headers }, body: fd });
+  const r = await fetch(BASE + path, { method: 'POST', headers: { Authorization: 'Bearer ' + (await login(key)), ...(await avecPreuve(key, headers)), ...headers }, body: fd });
   return { status: r.status, body: await r.json().catch(() => null) };
 }
 async function brut(key, path, headers = {}) {
-  const r = await fetch(BASE + path, { headers: { Authorization: 'Bearer ' + (await login(key)), ...headers } });
+  const r = await fetch(BASE + path, { headers: { Authorization: 'Bearer ' + (await login(key)), ...(await avecPreuve(key, headers)), ...headers } });
   return { status: r.status, text: await r.text() };
 }
 async function suppleance(titulaire, suppleant) {

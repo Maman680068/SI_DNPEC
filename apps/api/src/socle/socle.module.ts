@@ -1,5 +1,6 @@
 import { Global, Module } from '@nestjs/common';
 import { CommunicationModule } from '../communication/communication.module';
+import { OrgModule } from '../org/org.module';
 import { UnitesArbreService } from './unites-arbre.service';
 import { AutorisationService } from './autorisation.service';
 import { ReprisesN1Service } from './reprise-n1.service';
@@ -7,6 +8,15 @@ import { RolesFonctionnelsService } from './roles-fonctionnels.service';
 import { UnitesService } from './unites.service';
 import { AgentsService } from './agents.service';
 import { SocleController } from './socle.controller';
+import { ParametresService } from './parametres.service';
+import { TachesPlanifieesService } from './taches-planifiees.service';
+import { JournalConnexionsService } from './journal-connexions.service';
+import { JournalAuditService } from './journal-audit.service';
+import { PreuveIdentiteService } from './preuve-identite.service';
+import { SupervisionService } from './supervision.service';
+
+/** Lot N2 : paramètres, tâches planifiées, connexions, journal d'audit, réauthentification, supervision. */
+const SERVICES_N2 = [ParametresService, TachesPlanifieesService, JournalConnexionsService, JournalAuditService, PreuveIdentiteService, SupervisionService];
 
 /**
  * Socle NIMBA : organigramme, agents, habilitation à deux axes. Global : la
@@ -15,9 +25,9 @@ import { SocleController } from './socle.controller';
  */
 @Global()
 @Module({
-  imports: [CommunicationModule],
+  imports: [CommunicationModule, OrgModule],
   controllers: [SocleController],
-  providers: [UnitesArbreService, AutorisationService, ReprisesN1Service, RolesFonctionnelsService, UnitesService, AgentsService],
-  exports: [UnitesArbreService, AutorisationService, ReprisesN1Service, RolesFonctionnelsService, UnitesService, AgentsService],
+  providers: [UnitesArbreService, AutorisationService, ReprisesN1Service, RolesFonctionnelsService, UnitesService, AgentsService, ...SERVICES_N2],
+  exports: [UnitesArbreService, AutorisationService, ReprisesN1Service, RolesFonctionnelsService, UnitesService, AgentsService, ...SERVICES_N2],
 })
 export class SocleModule {}

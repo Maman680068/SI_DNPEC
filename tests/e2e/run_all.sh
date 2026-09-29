@@ -127,6 +127,7 @@ lancer "37. CHROMIUM — G4 AIDE EN LIGNE" ui/g4_aide_ui.js
 lancer "38. CHROMIUM — H EMAILS DE COMPTE" ui/h_email_comptes_ui.js
 lancer "38b. SOCLE N1 : REPRISE, ORGANIGRAMME, AGENTS, FINS PRÉVUES, RÔLES FONCTIONNELS, REFUS JOURNALISÉS" api/n1_socle.js
 lancer "38c. CHROMIUM — SOCLE N1 : ORGANIGRAMME, AGENTS ET FIN PRÉVUE, RÔLES FONCTIONNELS (BUREAU, TÉLÉPHONE)" ui/n1_socle_ui.js
+lancer "38d. SOCLE N2 : RÉAUTHENTIFICATION, JOURNAL INALTÉRABLE, CONNEXIONS, PARAMÈTRES, SUPERVISION, COMPTE ↔ AGENT" api/n2_securite.js
 # Liens : après toutes les suites, pour contrôler aussi les notifications et emails réellement produits.
 lancer "39a. LIENS DE L'API VERS LE WEB (CODE, NOTIFICATIONS, EMAILS) ET ANCIENS FORMATS" api/i_liens.js
 lancer "39b. CHROMIUM — ANCIENS LIENS (CONNECTÉ, NON CONNECTÉ) ET PAGE 404" ui/i_liens_ui.js

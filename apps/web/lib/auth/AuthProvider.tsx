@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { registerAuthHooks } from '../api/client';
+import { effacerPreuve, registerAuthHooks } from '../api/client';
 import { loginRequest, loginTwoFaRequest, enableTwoFaRequest, refreshRequest, logoutRequest } from '../api/auth';
 import type { AuthUser, LoginProxyResult } from './types';
 import { consommerSuite, marquerDeconnexionVolontaire } from './suite';
@@ -42,6 +42,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const clearSession = useCallback(() => {
     accessTokenRef.current = null;
+    effacerPreuve();
     setUser(null);
     setStatus('unauthenticated');
   }, []);

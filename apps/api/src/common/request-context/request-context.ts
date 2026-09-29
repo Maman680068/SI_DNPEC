@@ -14,6 +14,9 @@ export interface RequestContextStore {
   traceId: string;
   /** Compte connecté (posé par JwtAuthGuard) — lu par le journal des refus. */
   userId: string | null;
+  /** Preuve de réauthentification (en-tête X-Reauth, socle N2) : vérifiée par ReauthService
+   * avant l'ouverture d'un objet protégé, jamais utilisée ailleurs. */
+  reauth: string | null;
 }
 
 export const requestContextStorage = new AsyncLocalStorage<RequestContextStore>();
@@ -24,4 +27,8 @@ export function getOnBehalfOfId(): string | null {
 
 export function getTraceId(): string | null {
   return requestContextStorage.getStore()?.traceId ?? null;
+}
+
+export function getReauth(): string | null {
+  return requestContextStorage.getStore()?.reauth ?? null;
 }

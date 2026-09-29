@@ -21,7 +21,7 @@ function espion(page) {
   const a1 = ids.agent1;
   await call('agent1', 'PATCH', `/personnel-files/${a1}/sensitive`, { personalPhone: TEL, personalAddress: ADR, emergencyContactName: URG, emergencyContactRelation: 'Sœur' });
   const fd = new FormData(); fd.append('title', `Licence ${S}`); fd.append('file', new Blob([`LICENCE ${S}`]), 'licence.pdf');
-  await fetch('http://localhost:3000/personnel-files/' + a1 + '/diplomas', { method: 'POST', headers: { Authorization: 'Bearer ' + (await require('../lib').login('agent1')) }, body: fd });
+  await fetch('http://localhost:3000/personnel-files/' + a1 + '/diplomas', { method: 'POST', headers: { Authorization: 'Bearer ' + (await require('../lib').login('agent1')), 'X-Reauth': await require('../lib').preuve('agent1') }, body: fd });
   await call('drh', 'PATCH', `/personnel-files/${a1}/basic`, { grade: `B${S}`, serviceStartDate: '2012-03-01' });
   const b = await browser();
 

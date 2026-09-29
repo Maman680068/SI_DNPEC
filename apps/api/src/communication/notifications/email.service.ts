@@ -17,6 +17,8 @@ export class EmailService {
   private readonly transporter: nodemailer.Transporter;
   private readonly from: string;
   private readonly configured: boolean;
+  private dernierEnvoi: Date | null = null;
+  private derniereErreur: { date: Date; message: string } | null = null;
 
   constructor(config: ConfigService) {
     const host = config.get<string>('SMTP_HOST');
@@ -49,6 +51,18 @@ export class EmailService {
         `Email non envoyé (SMTP non configuré) — destinataire=${to}, sujet="${subject}"\n${text}`,
       );
     }
-    await this.transporter.sendMail({ from: this.from, to, subject, text, html });
+    try {
+      await this.transporter.sendMail({ from: this.from, to, subject, text, html });
+      this.dernierEnvoi = new Date();
+    } catch (e) {
+      // Supervision (socle N2) : dernier envoi en erreur, sans destinataire ni contenu.
+      this.derniereErreur = { date: new Date(), message: (e instanceof Error ? e.message : String(e)).slice(0, 300) };
+      throw e;
+    }
+  }
+
+  /** État pour la supervision : configuration, dernier envoi réussi, dernière erreur (processus courant). */
+  etat(): { configure: boolean; dernierEnvoi: Date | null; derniereErreur: { date: Date; message: string } | null } {
+    return { configure: this.configured, dernierEnvoi: this.dernierEnvoi, derniereErreur: this.derniereErreur };
   }
 }

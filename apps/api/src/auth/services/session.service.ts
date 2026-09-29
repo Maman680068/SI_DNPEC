@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { createHash, randomBytes } from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
+import { ParametresService } from '../../socle/parametres.service';
 
 /**
  * Gère les UserSession (RF-SEC-05 : déconnexion à distance / partout).
@@ -13,7 +14,10 @@ import { PrismaService } from '../../prisma/prisma.service';
  */
 @Injectable()
 export class SessionService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly parametres: ParametresService,
+  ) {}
 
   private hashToken(token: string): string {
     return createHash('sha256').update(token).digest('hex');
@@ -91,6 +95,12 @@ export class SessionService {
       where: { refreshTokenHash: this.hashToken(plainRefreshToken), revokedAt: null },
     });
     if (!session) throw new UnauthorizedException('Session invalide ou révoquée');
+    // Expiration après inactivité (paramètre, 30 jours par défaut — socle N2, §4.4).
+    const jours = await this.parametres.valeur('session.expirationJours');
+    if (session.lastUsedAt.getTime() < Date.now() - jours * 864e5) {
+      await this.prisma.userSession.update({ where: { id: session.id }, data: { revokedAt: new Date() } });
+      throw new UnauthorizedException('Session expirée après inactivité : reconnectez-vous.');
+    }
     return session;
   }
 }
