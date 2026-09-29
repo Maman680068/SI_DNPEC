@@ -76,7 +76,7 @@ export function Organigramme() {
       <li key={u.id} data-testid="unite" data-code={u.code}>
         <div
           className={`mb-2 flex flex-wrap items-start gap-3 rounded-md border border-line bg-surface px-3.5 py-3 ${u.fermee ? 'opacity-60' : ''}`}
-          style={{ marginLeft: Math.min(niveau, 4) * 18 }}
+          style={{ marginLeft: `min(${Math.min(niveau, 4) * 18}px, ${Math.min(niveau, 4) * 3}vw)` }}
         >
           {sous.length > 0 ? (
             <button
@@ -114,7 +114,7 @@ export function Organigramme() {
               {u.effectif} agent{u.effectif > 1 ? 's' : ''}
             </div>
           </div>
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex w-full flex-wrap gap-1.5 pl-9 sm:w-auto sm:pl-0">
             {u.droits.typesEnfants.length > 0 && (
               <Button className="!px-2.5 !py-1.5 !text-[12px]" onClick={() => setAction({ nature: 'creer', parent: u })}>
                 + Sous-unité
