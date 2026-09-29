@@ -48,7 +48,7 @@ function routes() {
   const liste = routes();
   let ouvertes = 0, refusees = 0; const anomalies = [];
   for (const { methode, chemin } of liste) {
-    if (['/health'].includes(chemin) || chemin.startsWith('/auth')) continue; // publiques ou session (déconnexion) : vérifiées à part
+    if (['/health', '/health/dependances'].includes(chemin) || chemin.startsWith('/auth')) continue; // publiques ou session (déconnexion) : vérifiées à part
     const url = chemin.replace(/:[A-Za-z]+/g, 'inexistant');
     const r = await call(K, methode, url, methode === 'GET' || methode === 'DELETE' ? undefined : {});
     const refus = r.status === 403 && (JSON.stringify(r.body).includes(REFUS) || r.body.message === 'Forbidden resource'); // liste blanche, ou @Roles déjà refusé
