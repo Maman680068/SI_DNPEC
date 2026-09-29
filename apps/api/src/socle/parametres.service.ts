@@ -53,6 +53,16 @@ export const PARAMETRES: DefinitionParametre[] = [
     reference: '§4.4',
   },
   {
+    cle: 'conges.delaiAvisHeures',
+    libelle: 'Délai d’avis du chef sur une demande de congé',
+    unite: 'heures ouvrées',
+    defaut: 48,
+    min: 12,
+    max: 120,
+    effet: 'Passé ce délai, l’avis est réputé favorable et la demande va au DRH ; alerte au chef 12 heures ouvrées avant.',
+    reference: '§13.6, circuit A6.1',
+  },
+  {
     cle: 'finPrevue.alerteJours',
     libelle: 'Alerte avant une fin de stage ou de contrat',
     unite: 'jours',

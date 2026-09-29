@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { cancelLeaveRequest } from '../../lib/api/leaves';
 import type { LeaveRequest, LeaveRequestStatus } from '../../lib/leaves/types';
-import { STATUS_LABEL } from '../../lib/leaves/types';
+import { LIBELLE_AVIS, LIBELLE_ETAPE, STATUS_LABEL } from '../../lib/leaves/types';
 import { Badge } from '../ui/Badge';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
@@ -57,13 +57,23 @@ export function LeaveRequestList({
           <Card className={`p-[18px] ${request.id === highlightId ? 'ring-2 ring-gold' : ''}`}>
             <div className="mb-2 flex items-center justify-between gap-2">
               <div className="text-[14px] font-bold">{request.leaveType.name}</div>
-              <Badge tone={STATUS_TONE[request.status]}>{STATUS_LABEL[request.status]}</Badge>
+              <Badge tone={STATUS_TONE[request.status]}>{request.etape ? LIBELLE_ETAPE[request.etape].toUpperCase() : STATUS_LABEL[request.status]}</Badge>
             </div>
             <div className="text-[13px] text-text-muted">
               Du {formatDate(request.startDate)} au {formatDate(request.endDate)} · {request.daysCount} jour
               {request.daysCount > 1 ? 's' : ''}
             </div>
             {request.reason && <p className="mt-1.5 text-[12.5px] text-text-faint">{request.reason}</p>}
+            {request.etape === 'AVIS_ATTENDU' && request.avisEcheance && (
+              <p className="mt-1.5 text-[12px] text-text-muted" data-testid="etape-conge">
+                Votre chef donne son avis avant le {new Date(request.avisEcheance).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })} ; sans avis, il sera réputé favorable. Le DRH décide ensuite.
+              </p>
+            )}
+            {request.avisEtat && request.status === 'EN_ATTENTE' && (
+              <p className="mt-1.5 text-[12px] text-text-muted" data-testid="etape-conge">
+                {LIBELLE_AVIS[request.avisEtat]}{request.avisPar ? ` (${request.avisPar.nom})` : ''}. Décision du DRH attendue.
+              </p>
+            )}
 
             {request.status === 'REJETEE' && request.decisionComment && (
               <div className="mt-2.5 rounded-md bg-clay-soft px-3 py-2 text-[12.5px] text-clay">

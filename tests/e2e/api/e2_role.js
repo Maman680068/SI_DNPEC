@@ -165,9 +165,10 @@ async function aperçuPuisAction(label, id, body) {
   const vb = await call(k('b'), 'POST', `/tasks/${tache.id}/validate`, {});
   check('… le nouveau Chef de Section (b) la valide', vb.status === 201 || vb.status === 200, `${vb.status} ${JSON.stringify(vb.body).slice(0, 120)}`);
   if (conge.status === 201) {
-    expect('… x ne décide plus du congé de a', await call(k('x'), 'POST', `/leaves/${conge.body.id}/approve`, {}), 403);
-    const cb = await call(k('b'), 'POST', `/leaves/${conge.body.id}/approve`, {});
-    check('… b tranche le congé en attente', cb.status === 201 || cb.status === 200, `${cb.status} ${JSON.stringify(cb.body).slice(0, 120)}`);
+    // Circuit N3 : l'avis revient au chef d'unité du moment.
+    expect('… x ne donne plus d’avis sur le congé de a', await call(k('x'), 'POST', `/leaves/${conge.body.id}/avis`, { avis: 'FAVORABLE' }), 403);
+    const cb = await call(k('b'), 'POST', `/leaves/${conge.body.id}/avis`, { avis: 'FAVORABLE' });
+    check('… b donne l’avis sur le congé en attente', cb.status === 201 || cb.status === 200, `${cb.status} ${JSON.stringify(cb.body).slice(0, 120)}`);
   } else console.log(`--- congé non créé (${conge.status} ${JSON.stringify(conge.body).slice(0, 100)})`);
 
   console.log('— Chef de Cellule : nommer, retirer (écran Organisation), historique');

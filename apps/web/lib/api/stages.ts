@@ -1,5 +1,5 @@
 import { apiFetch, telechargerFichier } from './client';
-import type { Capacites, Candidat, FormatEvaluation, ListeStages, ModeleAttestation, PeriodeInput, Planning, Stage } from '../stages/types';
+import type { Capacites, Candidat, FormatEvaluation, ListeStages, ModeleAttestation, PeriodeInput, Personne, Planning, Stage } from '../stages/types';
 
 const j = (body: unknown) => ({ body: JSON.stringify(body) });
 
@@ -49,3 +49,14 @@ export const telechargerModele = () => telechargerFichier('/stages/modele-attest
 export const telechargerProvisoire = (id: string) => telechargerFichier(`/stages/${id}/attestation/provisoire`, 'attestation-provisoire.pdf');
 export const telechargerDocument = (id: string) => telechargerFichier(`/stages/${id}/attestation/document`, null);
 export const telechargerFinale = (id: string) => telechargerFichier(`/stages/${id}/attestation/finale`, 'attestation-signee.pdf');
+
+export const getEncadrantsPossibles = (id: string) => apiFetch<Personne[]>(`/stages/${id}/encadrants-possibles`);
+export const designerEncadrant = (id: string, userId: string) => apiFetch<Stage>(`/stages/${id}/encadrant-principal`, { method: 'POST', ...j({ userId }) });
+export function deposerRapport(id: string, fichier: File) {
+  const fd = new FormData();
+  fd.append('file', fichier);
+  return apiFetch<Stage>(`/stages/${id}/rapport`, { method: 'POST', body: fd });
+}
+export const telechargerRapport = (id: string) => telechargerFichier(`/stages/${id}/rapport`, null);
+export const validerRapport = (id: string) => apiFetch<Stage>(`/stages/${id}/rapport/valider`, { method: 'POST' });
+export const renvoyerRapport = (id: string, motif: string) => apiFetch<Stage>(`/stages/${id}/rapport/renvoyer`, { method: 'POST', ...j({ motif }) });

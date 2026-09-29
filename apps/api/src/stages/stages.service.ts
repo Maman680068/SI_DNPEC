@@ -43,6 +43,7 @@ import {
 } from './unites-stage';
 import { estDrh, detenteursWhere } from '../socle/roles-fonctionnels';
 import { ReprisesN1Service } from '../socle/reprise-n1.service';
+import { StorageService } from '../common/storage/storage.service';
 
 const NOM = { select: { id: true, firstName: true, lastName: true } } as const;
 
@@ -92,6 +93,13 @@ const STAGE_SELECT = {
   motifInterruption: true,
   clotureAt: true,
   createdAt: true,
+  encadrantPrincipalId: true,
+  rapportFileName: true,
+  rapportDeposeLe: true,
+  rapportStatut: true,
+  rapportMotif: true,
+  rapportValideLe: true,
+  rapportValideParId: true,
   periodes: { select: PERIODE_SELECT, orderBy: { dateDebut: 'asc' } },
 } satisfies Prisma.StageSelect;
 
@@ -132,6 +140,7 @@ export class StagesService {
     private readonly users: UsersService,
     private readonly attestation: AttestationService,
     private readonly reprise: ReprisesN1Service,
+    private readonly storage: StorageService,
   ) {}
 
   // --------------------------------------------------------------------
@@ -697,6 +706,7 @@ export class StagesService {
     if (actor.id === s.stagiaireId) return 'STAGIAIRE';
     if (estDrh(actor)) return 'DRH';
     if (actor.role === SystemRole.DN || actor.role === SystemRole.DNA) return 'DIRECTION';
+    if (s.encadrantPrincipalId && this.cascade.isActingFor(actor, s.encadrantPrincipalId)) return 'UNITE';
     for (const p of s.periodes) {
       if (p.tuteurId && this.cascade.isActingFor(actor, p.tuteurId)) return 'UNITE';
       // Toute la chaîne des chefs de l'unité d'accueil lit le plan (seul le
@@ -709,6 +719,7 @@ export class StagesService {
 
   private async aTraiter(actor: AuthenticatedUser, s: StageCharge, cache: Map<string, Niveaux>): Promise<number> {
     let n = 0;
+    if (s.rapportStatut === 'DEPOSE' && s.encadrantPrincipalId && this.cascade.isActingFor(actor, s.encadrantPrincipalId)) n++;
     for (const p of s.periodes) {
       if (p.statut === PeriodeStageStatut.PROPOSEE && (await this.estResponsable(actor, p, cache))) n++;
       const ev = p.evaluation;
@@ -779,6 +790,7 @@ export class StagesService {
       clotureAt: s.clotureAt,
       periodes,
       attestation: await this.attestation.etat(actor, s.id, vue),
+      ...(await this.presenterRapport(actor, s, vue)),
       droits: {
         modifier: drh && ouvert,
         ajouterPeriode: drh && ouvert,
@@ -786,6 +798,102 @@ export class StagesService {
         interrompre: drh && ouvert,
       },
     };
+  }
+
+  // ------------------------------------------------------------------ encadreur principal et rapport (N3)
+
+  private estEncadrant(actor: AuthenticatedUser, s: { encadrantPrincipalId: string | null }): boolean {
+    return !!s.encadrantPrincipalId && this.cascade.isActingFor(actor, s.encadrantPrincipalId);
+  }
+
+  private async presenterRapport(actor: AuthenticatedUser, s: StageCharge, vue: Vue) {
+    const drh = vue === 'DRH';
+    const encadrant = this.estEncadrant(actor, s);
+    const stagiaire = vue === 'STAGIAIRE';
+    const [principal] = s.encadrantPrincipalId ? await this.noms([s.encadrantPrincipalId]) : [];
+    const lecteur = drh || encadrant || stagiaire;
+    const depot = s.statut === StageStatut.EN_COURS || s.statut === StageStatut.TERMINE;
+    return {
+      encadrantPrincipal: principal ?? null,
+      rapport: {
+        statut: s.rapportStatut,
+        fichier: lecteur ? s.rapportFileName : null,
+        deposeLe: s.rapportDeposeLe,
+        motif: lecteur ? s.rapportMotif : null,
+        valideLe: s.rapportValideLe,
+        droits: {
+          designerEncadrant: drh && s.statut !== StageStatut.INTERROMPU && s.rapportStatut !== 'VALIDE',
+          deposer: stagiaire && depot && (!s.rapportStatut || s.rapportStatut === 'A_REPRENDRE'),
+          telecharger: lecteur && !!s.rapportStatut,
+          valider: encadrant && s.rapportStatut === 'DEPOSE',
+        },
+      },
+    };
+  }
+
+  /** Encadreurs possibles : les tuteurs des périodes du stage (le DRH peut en désigner un autre par son identifiant). */
+  async encadrantsPossibles(actor: AuthenticatedUser, id: string) {
+    if (!estDrh(actor)) throw new ForbiddenException('Seul le DRH désigne l’encadreur principal.');
+    const s = await this.charger(id);
+    const ids = [...new Set(s.periodes.map((p) => p.tuteurId).filter((x): x is string => !!x))];
+    return this.noms(ids);
+  }
+
+  async designerEncadrant(actor: AuthenticatedUser, id: string, userId: string) {
+    if (!estDrh(actor)) throw new ForbiddenException('Seul le DRH désigne l’encadreur principal.');
+    const s = await this.charger(id);
+    if (s.statut === StageStatut.INTERROMPU) throw new ConflictException('Ce stage est interrompu.');
+    if (s.rapportStatut === 'VALIDE') throw new ConflictException('Le rapport est déjà validé.');
+    const u = await this.prisma.user.findUnique({ where: { id: userId }, select: { id: true, status: true, role: true } });
+    if (!u || u.status !== UserStatus.ACTIF) throw new BadRequestException('Encadreur introuvable ou inactif.');
+    if (u.role === SystemRole.STAGIAIRE || u.id === s.stagiaireId) throw new BadRequestException('Un stagiaire ne peut pas être encadreur.');
+    await this.prisma.stage.update({ where: { id }, data: { encadrantPrincipalId: userId } });
+    await this.audit.log({ actorId: actor.id, action: AuditAction.MODIFICATION, entityType: 'Stage', entityId: id, metadata: { event: 'encadrant_principal', avant: s.encadrantPrincipalId, apres: userId } });
+    await this.notifications.notify(userId, NotificationType.STAGE_PLAN_MODIFIE, 'Vous êtes encadreur principal d’un stage', `${this.nom(s.stagiaire)} : vous validerez son rapport de stage.`, LIEN(id));
+    return this.findOne(actor, id);
+  }
+
+  async deposerRapport(actor: AuthenticatedUser, id: string, file: Express.Multer.File | undefined) {
+    const s = await this.charger(id);
+    if (s.stagiaireId !== actor.id) throw new ForbiddenException('Seul le stagiaire dépose son rapport.');
+    if (s.statut !== StageStatut.EN_COURS && s.statut !== StageStatut.TERMINE) throw new ConflictException('Le rapport se dépose pendant le stage ou à sa fin.');
+    if (s.rapportStatut === 'DEPOSE' || s.rapportStatut === 'VALIDE') throw new ConflictException('Le rapport a déjà été déposé.');
+    if (!file) throw new BadRequestException('Le fichier du rapport est obligatoire.');
+    if (!s.encadrantPrincipalId) throw new ConflictException('Le DRH n’a pas encore désigné d’encadreur principal.');
+    const { fileKey } = await this.storage.save(file.buffer, file.originalname);
+    await this.prisma.stage.update({ where: { id }, data: { rapportFileKey: fileKey, rapportFileName: file.originalname, rapportDeposeLe: new Date(), rapportStatut: 'DEPOSE', rapportMotif: null } });
+    await this.audit.log({ actorId: actor.id, action: AuditAction.CREATION, entityType: 'Stage', entityId: id, metadata: { event: 'rapport_depose', fichier: file.originalname } });
+    await this.notifications.notify(s.encadrantPrincipalId, NotificationType.STAGE_EVALUATION_A_VISER, 'Rapport de stage à valider', `${this.nom(s.stagiaire)} a déposé son rapport de stage.`, LIEN(id), undefined, { libelleBouton: 'Valider le rapport' });
+    return this.findOne(actor, id);
+  }
+
+  async telechargerRapport(actor: AuthenticatedUser, id: string) {
+    const s = await this.prisma.stage.findUnique({ where: { id }, select: { stagiaireId: true, encadrantPrincipalId: true, rapportFileKey: true, rapportFileName: true } });
+    if (!s) throw new NotFoundException('Stage introuvable');
+    if (!(s.stagiaireId === actor.id || estDrh(actor) || this.estEncadrant(actor, s))) throw new ForbiddenException('Rapport réservé au stagiaire, à son encadreur principal et au DRH.');
+    if (!s.rapportFileKey) throw new NotFoundException('Aucun rapport déposé.');
+    return { fileName: s.rapportFileName ?? 'rapport', stream: this.storage.createReadStream(s.rapportFileKey) };
+  }
+
+  async validerRapport(actor: AuthenticatedUser, id: string) {
+    const s = await this.charger(id);
+    if (!this.estEncadrant(actor, s)) throw new ForbiddenException('Seul l’encadreur principal valide le rapport.');
+    if (s.rapportStatut !== 'DEPOSE') throw new ConflictException('Aucun rapport en attente de validation.');
+    await this.prisma.stage.update({ where: { id }, data: { rapportStatut: 'VALIDE', rapportValideLe: new Date(), rapportValideParId: actor.id } });
+    await this.audit.log({ actorId: actor.id, action: AuditAction.VALIDATION, entityType: 'Stage', entityId: id, metadata: { event: 'rapport_valide' } });
+    await this.notifications.notify(s.stagiaireId, NotificationType.STAGE_EVALUATION_VISEE, 'Rapport de stage validé', 'Votre encadreur principal a validé votre rapport ; il est transmis au DRH.', LIEN(id));
+    await this.notifierDrh(NotificationType.STAGE_EVALUATION_VISEE, 'Rapport de stage validé', `${this.nom(s.stagiaire)} : rapport validé par l’encadreur principal. L’attestation peut être préparée.`, id);
+    return this.findOne(actor, id);
+  }
+
+  async renvoyerRapport(actor: AuthenticatedUser, id: string, motif: string) {
+    const s = await this.charger(id);
+    if (!this.estEncadrant(actor, s)) throw new ForbiddenException('Seul l’encadreur principal renvoie le rapport.');
+    if (s.rapportStatut !== 'DEPOSE') throw new ConflictException('Aucun rapport en attente de validation.');
+    await this.prisma.stage.update({ where: { id }, data: { rapportStatut: 'A_REPRENDRE', rapportMotif: motif.trim() } });
+    await this.audit.log({ actorId: actor.id, action: AuditAction.REJET, entityType: 'Stage', entityId: id, metadata: { event: 'rapport_renvoye', motif: motif.trim() } });
+    await this.notifications.notify(s.stagiaireId, NotificationType.STAGE_EVALUATION_RENVOYEE, 'Rapport de stage à reprendre', motif.trim(), LIEN(id));
+    return this.findOne(actor, id);
   }
 
   private resumePeriode(p: Pick<PeriodeChargee, 'id' | 'ordre' | 'divisionId' | 'sectionId' | 'celluleId' | 'dateDebut' | 'dateFin' | 'formatEvaluation' | 'statut'>) {

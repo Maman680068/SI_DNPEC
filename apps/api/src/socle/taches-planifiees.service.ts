@@ -9,6 +9,8 @@ export const TACHES_SUIVIES: Record<string, { libelle: string; periodeMinutes: n
   'purge-connexions': { libelle: 'Purge des journaux de connexion', periodeMinutes: 24 * 60 },
   'scellement-audit': { libelle: 'Scellement du journal d’audit', periodeMinutes: 60 },
   supervision: { libelle: 'Surveillance des services', periodeMinutes: 10 },
+  'avis-conges': { libelle: 'Congés : avis attendus, rappels, avis tacites', periodeMinutes: 15 },
+  'purge-messages': { libelle: 'Purge des messages de plus de 3 ans', periodeMinutes: 24 * 60 },
 };
 
 /**

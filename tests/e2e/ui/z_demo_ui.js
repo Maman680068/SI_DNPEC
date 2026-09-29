@@ -25,7 +25,7 @@ const ECRANS = [
   ['chef.division', '/dashboard', null, 'TEST — Rapport mensuel de conjoncture — août', 'tableau_de_bord_chef_division'],
   ['agent.conde', '/tasks', null, 'TEST — Mise à jour du cadrage macroéconomique 2027', 'mes_taches'],
   ['chef.division', '/reunions', null, 'TEST — Séminaire de validation du cadrage', 'reunions'],
-  ['chef.section.syntheses', '/leaves', 'À valider', /Touré/, 'conges_a_valider'],
+  ['chef.section.syntheses', '/leaves', 'À traiter', /Touré/, 'conges_a_traiter'],
   ['agent.conde', '/communication', 'Annonces', 'TEST — Séminaire de validation du cadrage', 'annonces'],
   ['agent.conde', '/documents', null, 'TEST — Note sur l’exécution budgétaire', 'documents'],
   ['secretariat', '/courrier', 'Arrivées', 'TEST — Banque centrale — note de politique monétaire', 'courrier_secretariat'],
@@ -71,7 +71,7 @@ const ECRANS = [
   check('le DN réel voit l’activité de la démonstration sur son tableau de bord', await attendreTexte(dn, 'TEST — Rapport mensuel de conjoncture — août'));
   await dn.screenshot({ path: `${E.SHOTS}/demo_vue_direction_tableau_de_bord.png`, fullPage: true });
   await dn.goto(WEB + '/leaves');
-  await dn.getByRole('button', { name: /^À valider/ }).first().click();
+  await dn.getByRole('button', { name: /^Suivi/ }).first().click();
   await attendreTexte(dn, /Touré|Barry|Sylla/);
   const texte = await dn.locator('body').innerText();
   const ligne = texte.split('\n').findIndex((l) => l.includes('Touré'));
@@ -81,9 +81,10 @@ const ECRANS = [
   await dn.context().close();
   const cs = await connecter(b, 'chef.section.syntheses', BUREAU);
   await cs.goto(WEB + '/leaves');
-  await cs.getByRole('button', { name: /^À valider/ }).first().click();
+  await cs.getByRole('button', { name: /^À traiter/ }).first().click();
   await attendreTexte(cs, /Touré/);
-  check('le chef direct, lui, voit le motif (congé maladie)', /maladie/i.test(await cs.locator('body').innerText()));
+  const texteChef = await cs.locator('body').innerText();
+  check('N3 : le chef direct donne son avis sans voir le motif médical (réservé au DRH)', /motif protégé/i.test(texteChef) && !/maladie/i.test(texteChef) && /Votre avis est attendu/.test(texteChef));
   await cs.context().close();
 
   await b.close();

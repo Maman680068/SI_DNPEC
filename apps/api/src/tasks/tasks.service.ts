@@ -482,44 +482,16 @@ export class TasksService {
   }
 
   /**
-   * Avancement manuel (RF-TAC) — uniquement pour une tâche SANS sous-tâche :
-   * dès qu'il en existe au moins une, progressPercent est recalculé
-   * automatiquement (recomputeParentProgress) et n'est plus modifiable ici.
-   * Si toutes les sous-tâches sont ensuite supprimées, l'édition manuelle
-   * redevient possible — les deux mécanismes ne coexistent jamais, l'un
-   * prend le relais de l'autre selon l'effectif de sous-tâches à l'instant
-   * considéré. Réservé au créateur ou à un Responsable assigné (pas un
-   * simple Collaborateur) — même périmètre que la soumission pour
-   * validation (assertIsCreatorOrResponsable) : les deux sont des
-   * déclarations sur l'état d'avancement de la tâche, pas de simples
-   * contributions.
+   * Avancement (socle N3, SIG-RF-TAC-04) : toujours CALCULÉ, jamais saisi. La base le tient à jour
+   * (déclencheur tache_avancement) : proportion de sous-tâches terminées s'il y en a, sinon selon le
+   * statut (à faire 0 %, en cours ou renvoyée 50 %, soumise 90 %, validée ou terminée 100 %). La
+   * route est conservée pour répondre clairement aux anciens écrans.
    */
-  async updateProgress(actor: AuthenticatedUser, id: string, dto: UpdateProgressDto): Promise<TaskWithAssignees> {
-    const task = await this.getTaskOrThrow(id);
-    this.assertIsCreatorOrResponsable(actor, task);
-
-    const subtaskCount = await this.prisma.task.count({ where: { parentTaskId: id } });
-    if (subtaskCount > 0) {
-      throw new ConflictException(
-        'Le pourcentage se calcule automatiquement à partir des sous-tâches — retirez-les toutes pour le modifier manuellement.',
-      );
-    }
-
-    const updated = await this.prisma.task.update({
-      where: { id },
-      data: { progressPercent: dto.progressPercent },
-      select: TASK_SELECT,
-    });
-
-    await this.audit.log({
-      actorId: actor.id,
-      action: AuditAction.MODIFICATION,
-      entityType: 'Task',
-      entityId: id,
-      metadata: { event: 'manual_progress', progressPercent: dto.progressPercent },
-    });
-
-    return updated;
+  async updateProgress(actor: AuthenticatedUser, id: string, _dto: UpdateProgressDto): Promise<TaskWithAssignees> {
+    await this.getTaskOrThrow(id);
+    throw new ConflictException(
+      'L’avancement se calcule automatiquement : à partir des sous-tâches, ou du statut de la tâche (démarrer, soumettre, valider).',
+    );
   }
 
   /** Soumise → Terminée (§4.1 : traité comme un événement, pas un état de repos "Validée" — cf. maquette à 4 colonnes). */

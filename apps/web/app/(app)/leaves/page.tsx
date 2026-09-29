@@ -13,11 +13,13 @@ import { LeaveDecisionDrawer } from '../../../components/leaves/LeaveDecisionDra
 import { Button } from '../../../components/ui/Button';
 import { Chargement, ErreurChargement, messageChargement } from '../../../components/ui/ErreurChargement';
 
-type Tab = 'mine' | 'validation';
+type Tab = 'mine' | 'validation' | 'suivi';
 
 export default function LeavesPage() {
   const { user: currentUser } = useAuth();
-  const canValidate = LEADERSHIP_ROLES_FOR_LEAVES.includes(currentUser?.role ?? '');
+  // Onglet « À traiter » : chefs (avis), DRH (décision) ; les droits par demande viennent de l'API.
+  // Onglet « Suivi » : les autres demandes de son périmètre, en lecture (circuit, étape).
+  const canValidate = LEADERSHIP_ROLES_FOR_LEAVES.includes(currentUser?.role ?? '') || (currentUser?.rolesFonctionnels ?? []).includes('DRH');
   const [tab, setTab] = useState<Tab>('mine');
   const [erreurChargement, setErreurChargement] = useState<string | null>(null);
 
@@ -55,13 +57,14 @@ export default function LeavesPage() {
     } else if (request.userId === currentUser.id) {
       setTab('mine');
       setHighlightId(id);
-    } else if (request.status === 'EN_ATTENTE' && canValidate) {
+    } else if (request.droits?.peutDonnerAvis || request.droits?.peutDecider) {
       setTab('validation');
       setSelectedValidation(request);
     } else {
-      setLinkNotice('Cette demande de congé a déjà été traitée.');
+      setTab('suivi');
+      setSelectedValidation(request);
     }
-  }, [linkHandled, requests, currentUser, canValidate]);
+  }, [linkHandled, requests, currentUser]);
 
   const availableYears = useMemo(() => {
     const years = new Set(balances?.map((b) => b.year) ?? []);
@@ -76,7 +79,11 @@ export default function LeavesPage() {
     [requests, currentUser?.id],
   );
   const pendingForValidation = useMemo(
-    () => (requests ?? []).filter((r) => r.status === 'EN_ATTENTE' && r.userId !== currentUser?.id),
+    () => (requests ?? []).filter((r) => r.droits?.peutDonnerAvis || r.droits?.peutDecider),
+    [requests],
+  );
+  const suivi = useMemo(
+    () => (requests ?? []).filter((r) => r.userId !== currentUser?.id && !r.droits?.peutDonnerAvis && !r.droits?.peutDecider),
     [requests, currentUser?.id],
   );
 
@@ -122,7 +129,8 @@ export default function LeavesPage() {
           {(
             [
               { key: 'mine', label: 'Mes congés' },
-              { key: 'validation', label: 'À valider' },
+              { key: 'validation', label: 'À traiter' },
+              { key: 'suivi', label: 'Suivi' },
             ] as const
           ).map((option) => (
             <button
@@ -175,7 +183,7 @@ export default function LeavesPage() {
       ) : requests === null ? (
         <Chargement erreur={erreurChargement} />
       ) : (
-        <ValidationQueue requests={pendingForValidation} onSelect={setSelectedValidation} />
+        <ValidationQueue requests={tab === 'suivi' ? suivi : pendingForValidation} onSelect={setSelectedValidation} suivi={tab === 'suivi'} />
       )}
 
       {showCreateModal && (

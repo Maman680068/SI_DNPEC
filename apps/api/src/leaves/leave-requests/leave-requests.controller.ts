@@ -6,6 +6,7 @@ import { CreateLeaveRequestDto } from '../dto/create-leave-request.dto';
 import { DecideLeaveRequestDto } from '../dto/decide-leave-request.dto';
 import { RejectLeaveRequestDto } from '../dto/reject-leave-request.dto';
 import { LeaveRequestFiltersDto } from '../dto/leave-request-filters.dto';
+import { AvisLeaveRequestDto } from '../dto/avis-leave-request.dto';
 
 @Controller('leaves')
 export class LeaveRequestsController {
@@ -24,6 +25,12 @@ export class LeaveRequestsController {
   @Get(':id')
   findOne(@Param('id') id: string, @CurrentUser() actor: AuthenticatedUser) {
     return this.leaveRequestsService.findOneVisibleTo(actor, id);
+  }
+
+  /** Avis du chef d'unité (socle N3, circuit A6.1). */
+  @Post(':id/avis')
+  avis(@Param('id') id: string, @Body() dto: AvisLeaveRequestDto, @CurrentUser() actor: AuthenticatedUser) {
+    return this.leaveRequestsService.donnerAvis(actor, id, dto);
   }
 
   @Post(':id/approve')

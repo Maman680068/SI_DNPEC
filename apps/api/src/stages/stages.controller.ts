@@ -20,6 +20,11 @@ import {
   PeriodeDto,
 } from './dto/stage.dto';
 
+class EncadrantDto {
+  @IsString()
+  userId!: string;
+}
+
 class ActeAttestationDto {
   @IsString()
   registreId!: string;
@@ -89,6 +94,40 @@ export class StagesController {
   @Post()
   creer(@CurrentUser() actor: AuthenticatedUser, @Body() dto: CreerStageDto) {
     return this.stages.creer(actor, dto);
+  }
+
+  // Encadreur principal et rapport de stage (socle N3, SIG-RF-STG-05/11).
+  @Get(':id/encadrants-possibles')
+  encadrantsPossibles(@CurrentUser() actor: AuthenticatedUser, @Param('id') id: string) {
+    return this.stages.encadrantsPossibles(actor, id);
+  }
+
+  @Post(':id/encadrant-principal')
+  designerEncadrant(@CurrentUser() actor: AuthenticatedUser, @Param('id') id: string, @Body() dto: EncadrantDto) {
+    return this.stages.designerEncadrant(actor, id, dto.userId);
+  }
+
+  @Post(':id/rapport')
+  @UseInterceptors(FileInterceptor('file', fichierOptions))
+  deposerRapport(@CurrentUser() actor: AuthenticatedUser, @Param('id') id: string, @UploadedFile() file: Express.Multer.File | undefined) {
+    return this.stages.deposerRapport(actor, id, file);
+  }
+
+  @Get(':id/rapport')
+  async telechargerRapport(@CurrentUser() actor: AuthenticatedUser, @Param('id') id: string, @Res({ passthrough: true }) res: Response) {
+    const { fileName, stream } = await this.stages.telechargerRapport(actor, id);
+    this.entetes(res, fileName, 'application/octet-stream');
+    return new StreamableFile(stream);
+  }
+
+  @Post(':id/rapport/valider')
+  validerRapport(@CurrentUser() actor: AuthenticatedUser, @Param('id') id: string) {
+    return this.stages.validerRapport(actor, id);
+  }
+
+  @Post(':id/rapport/renvoyer')
+  renvoyerRapport(@CurrentUser() actor: AuthenticatedUser, @Param('id') id: string, @Body() dto: MotifDto) {
+    return this.stages.renvoyerRapport(actor, id, dto.motif);
   }
 
   @Get(':id')

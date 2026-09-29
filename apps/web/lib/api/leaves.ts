@@ -13,6 +13,14 @@ export function createLeaveRequest(input: CreateLeaveRequestInput): Promise<Leav
   return apiFetch<LeaveRequest>('/leaves', { method: 'POST', body: JSON.stringify(input) });
 }
 
+export function donnerAvisConge(id: string, avis: 'FAVORABLE' | 'DEFAVORABLE', motif?: string): Promise<LeaveRequest> {
+  return apiFetch<LeaveRequest>(`/leaves/${id}/avis`, { method: 'POST', body: JSON.stringify({ avis, ...(motif ? { motif } : {}) }) });
+}
+
+export function getLeaveRequest(id: string): Promise<LeaveRequest> {
+  return apiFetch<LeaveRequest>(`/leaves/${id}`);
+}
+
 export function approveLeaveRequest(id: string, comment?: string): Promise<LeaveRequest> {
   return apiFetch<LeaveRequest>(`/leaves/${id}/approve`, { method: 'POST', body: JSON.stringify({ comment }) });
 }

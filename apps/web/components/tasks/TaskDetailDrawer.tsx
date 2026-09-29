@@ -319,38 +319,17 @@ export function TaskDetailDrawer({
 
             <div className="mb-[22px]">
               <div className="mb-2.5 text-xs font-bold uppercase tracking-wide text-text-muted">Avancement</div>
-              {canEditProgress ? (
-                <div className="flex items-center gap-2.5">
-                  <input
-                    type="range"
-                    min={0}
-                    max={100}
-                    value={progressDraft}
-                    onChange={(e) => setProgressDraft(Number(e.target.value))}
-                    className="flex-1"
-                  />
-                  <span className="w-10 text-right text-[13px] font-semibold">{progressDraft}%</span>
-                  <Button
-                    variant="outline"
-                    disabled={savingProgress || progressDraft === (task.progressPercent ?? 0)}
-                    onClick={handleSaveProgress}
-                  >
-                    {savingProgress ? 'Enregistrement…' : 'Enregistrer'}
-                  </Button>
+              <div className="flex items-center gap-2.5">
+                <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-line">
+                  <div className="h-full rounded-full bg-sage" style={{ width: `${task.progressPercent ?? 0}%` }} />
                 </div>
-              ) : (
-                <div className="flex items-center gap-2.5">
-                  <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-line">
-                    <div className="h-full rounded-full bg-sage" style={{ width: `${task.progressPercent ?? 0}%` }} />
-                  </div>
-                  <span className="text-[13px] font-semibold">{task.progressPercent ?? 0}%</span>
-                </div>
-              )}
-              {subtasks.length > 0 && (
-                <p className="mt-1.5 text-[11.5px] text-text-faint">
-                  Calculé automatiquement à partir de l&apos;avancement des sous-tâches.
-                </p>
-              )}
+                <span className="text-[13px] font-semibold">{task.progressPercent ?? 0}%</span>
+              </div>
+              <p className="mt-1.5 text-[11.5px] text-text-faint" data-testid="avancement-calcule">
+                {subtasks.length > 0
+                  ? 'Calculé automatiquement à partir des sous-tâches terminées.'
+                  : 'Calculé automatiquement selon le statut : à faire 0 %, en cours 50 %, soumise 90 %, terminée 100 %.'}
+              </p>
             </div>
 
             {task.description && (

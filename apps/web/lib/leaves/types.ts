@@ -25,7 +25,33 @@ export interface LeaveRequest {
   updatedAt: string;
   leaveType: { code: string | null; name: string };
   user: { id: string; firstName: string; lastName: string; divisionId: string | null; sectionId: string | null; celluleId: string | null };
+  /** Circuit A6.1 (socle N3) : avis du chef d'unité, puis décision du DRH. */
+  etape: EtapeConge;
+  avisEtat: 'FAVORABLE' | 'DEFAVORABLE' | 'TACITE' | null;
+  avisMotif: string | null;
+  avisLe: string | null;
+  avisEcheance: string | null;
+  avisPar: { id: string; nom: string } | null;
+  /** Motif médical réservé au DRH, visible après réauthentification. */
+  motifVerrouille: boolean;
+  droits: { peutDonnerAvis: boolean; peutDecider: boolean; peutAnnuler: boolean };
 }
+
+export type EtapeConge = 'AVIS_ATTENDU' | 'DECISION_ATTENDUE' | 'APPROUVEE' | 'REFUSEE' | 'ANNULEE';
+
+export const LIBELLE_ETAPE: Record<EtapeConge, string> = {
+  AVIS_ATTENDU: 'Avis du chef attendu',
+  DECISION_ATTENDUE: 'Décision du DRH attendue',
+  APPROUVEE: 'Approuvée',
+  REFUSEE: 'Refusée',
+  ANNULEE: 'Annulée',
+};
+
+export const LIBELLE_AVIS: Record<'FAVORABLE' | 'DEFAVORABLE' | 'TACITE', string> = {
+  FAVORABLE: 'Avis favorable',
+  DEFAVORABLE: 'Avis défavorable',
+  TACITE: 'Avis réputé favorable (délai dépassé)',
+};
 
 export interface LeaveBalanceView {
   id: string;

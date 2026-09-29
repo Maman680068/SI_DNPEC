@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   cloturerStage,
+  deposerRapport,
   getStage,
   interrompreStage,
   prendreConnaissanceAttestation,
@@ -14,13 +15,17 @@ import {
   telechargerDocument,
   telechargerFinale,
   telechargerProvisoire,
+  telechargerRapport,
+  validerRapport,
+  renvoyerRapport,
 } from '../../../../lib/api/stages';
 import type { Periode, Stage } from '../../../../lib/stages/types';
-import { FORMAT_LABEL, PERIODE_STATUT_LABEL, STAGE_STATUT_LABEL } from '../../../../lib/stages/types';
+import { FORMAT_LABEL, PERIODE_STATUT_LABEL, RAPPORT_STATUT_LABEL, STAGE_STATUT_LABEL } from '../../../../lib/stages/types';
 import { Erreur, messageErreur } from '../../../../components/courrier/ui';
 import { BlocEvaluation } from '../../../../components/stages/BlocEvaluation';
 import {
   FenetreActeAttestation,
+  FenetreEncadrant,
   FenetreModifierStage,
   FenetreMotif,
   FenetrePeriode,
@@ -39,6 +44,8 @@ type Fenetre =
   | { t: 'refuser' | 'renvoyer'; periode: Periode }
   | { t: 'interrompre' }
   | { t: 'acte' }
+  | { t: 'encadrant' }
+  | { t: 'renvoyerRapport' }
   | null;
 
 function tonPeriode(p: Periode): 'gold' | 'sage' | 'clay' | 'muted' | 'accent' {
@@ -102,7 +109,7 @@ export default function StagePage() {
       </div>
     );
   }
-  const { droits, attestation } = stage;
+  const { droits, attestation, rapport } = stage;
   const moi = stage.vue === 'STAGIAIRE';
 
   return (
@@ -218,6 +225,74 @@ export default function StagePage() {
         )}
       </section>
 
+      {(stage.encadrantPrincipal || rapport.statut || Object.values(rapport.droits).some(Boolean)) && (
+        <section className="mb-6 rounded-lg border border-line bg-surface p-4" data-testid="rapport-stage">
+          <h2 className="mb-2 text-[15px] font-bold">Rapport de stage</h2>
+          <p className="mb-1 text-[13px]" data-testid="encadrant-principal">
+            Encadreur principal :{' '}
+            {stage.encadrantPrincipal ? (
+              <strong>
+                {stage.encadrantPrincipal.firstName} {stage.encadrantPrincipal.lastName}
+              </strong>
+            ) : (
+              <span className="text-text-muted">non désigné</span>
+            )}
+          </p>
+          <p className="mb-2 text-[13px]" data-testid="statut-rapport">
+            {rapport.statut ? (
+              <>
+                <Badge tone={rapport.statut === 'VALIDE' ? 'sage' : rapport.statut === 'A_REPRENDRE' ? 'clay' : 'gold'}>{RAPPORT_STATUT_LABEL[rapport.statut]}</Badge>
+                {rapport.fichier ? ` ${rapport.fichier}` : ''}
+                {rapport.deposeLe ? ` — déposé le ${date(rapport.deposeLe)}` : ''}
+                {rapport.valideLe ? `, validé le ${date(rapport.valideLe)}` : ''}
+              </>
+            ) : (
+              <span className="text-text-muted">Aucun rapport déposé.</span>
+            )}
+          </p>
+          {rapport.statut === 'A_REPRENDRE' && rapport.motif && <p className="mb-2 rounded bg-clay/10 px-3 py-2 text-[12.5px]">Motif : {rapport.motif}</p>}
+          {moi && rapport.droits.deposer && !stage.encadrantPrincipal && <p className="mb-2 text-[12.5px] text-text-muted">Le DRH doit d’abord désigner votre encadreur principal.</p>}
+          <div className="flex flex-wrap gap-2">
+            {rapport.droits.designerEncadrant && (
+              <Button className={petit} onClick={() => setFenetre({ t: 'encadrant' })}>
+                {stage.encadrantPrincipal ? 'Changer d’encadreur' : 'Désigner l’encadreur'}
+              </Button>
+            )}
+            {rapport.droits.deposer && stage.encadrantPrincipal && (
+              <label className={`${petit} relative cursor-pointer rounded-md bg-gold font-semibold text-ink`}>
+                {rapport.statut ? 'Déposer une nouvelle version' : 'Déposer mon rapport'}
+                <input
+                  type="file"
+                  className="sr-only"
+                  aria-label="Fichier du rapport"
+                  disabled={enCours}
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    e.target.value = '';
+                    if (f) agir(() => deposerRapport(stage.id, f), 'Rapport déposé : votre encadreur est prévenu.');
+                  }}
+                />
+              </label>
+            )}
+            {rapport.droits.telecharger && (
+              <Button className={petit} onClick={() => agir(() => telechargerRapport(stage.id))}>
+                Télécharger le rapport
+              </Button>
+            )}
+            {rapport.droits.valider && (
+              <>
+                <Button variant="gold" className={petit} disabled={enCours} onClick={() => agir(() => validerRapport(stage.id), 'Rapport validé.')}>
+                  Valider le rapport
+                </Button>
+                <Button className={petit} onClick={() => setFenetre({ t: 'renvoyerRapport' })}>
+                  Demander une reprise
+                </Button>
+              </>
+            )}
+          </div>
+        </section>
+      )}
+
       {(attestation.acte || Object.values(attestation.droits).some(Boolean)) && (
         <section className="mb-6 rounded-lg border border-line bg-surface p-4" data-testid="attestation">
           <h2 className="mb-2 text-[15px] font-bold">Attestation de fin de stage</h2>
@@ -293,6 +368,10 @@ export default function StagePage() {
           onClose={() => setFenetre(null)}
           onDone={fermer}
         />
+      )}
+      {fenetre?.t === 'encadrant' && <FenetreEncadrant stage={stage} onClose={() => setFenetre(null)} onDone={fermer} />}
+      {fenetre?.t === 'renvoyerRapport' && (
+        <FenetreMotif titre="Demander une reprise du rapport" sousTitre="Le stagiaire est prévenu et dépose une nouvelle version." valider="Renvoyer" action={(m) => renvoyerRapport(stage.id, m)} onClose={() => setFenetre(null)} onDone={fermer} />
       )}
       {fenetre?.t === 'acte' && <FenetreActeAttestation stage={stage} onClose={() => setFenetre(null)} onDone={() => fermer()} />}
     </div>
