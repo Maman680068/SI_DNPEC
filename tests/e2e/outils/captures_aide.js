@@ -49,6 +49,8 @@ async function capture(b, compte, url, fichier, attendre) {
     await p.getByRole('button', { name: 'Rôles fonctionnels' }).click();
     await p.locator('[data-testid=attribution]').first().waitFor();
   });
+  await capture(b, 'dn', '/parametrage', 'parametres.png', async (p) => p.locator('[data-testid=parametre]').first().waitFor());
+  await capture(b, 'admin', '/parametrage?onglet=supervision', 'supervision.png', async (p) => p.locator('[data-testid=service]').first().waitFor());
   await capture(b, 'admin', '/logistique/administration', 'administration.png', titre('Administration de la logistique'));
   await capture(b, 'agent1', '/compte/securite', 'securite.png', titre('Sécurité du compte'));
   if (stagiaire) await capture(b, stagiaire.email.replace('@test.local', ''), '/stages', 'mon-stage.png', async (p) => p.waitForURL('**/stages/**'));

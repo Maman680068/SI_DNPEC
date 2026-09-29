@@ -34,8 +34,6 @@ const LOTS = [
   ['Justificatif médical', 'N3 (motif médical visible du seul DRH)'],
   ['Activité / plan de travail', 'N5 (plan de travail objectif → activité → tâche)'],
   ['Instruction de la Direction', 'N5'],
-  ['Journal d’audit', 'N2 (lecture de l’audit)'],
-  ['Paramétrage', 'N2 (écran « Paramétrage et supervision »)'],
   ['Demande d’absence — avis et décision', 'N3 (circuit avis du chef 48 h ouvrées, décision DRH)'],
   ['Mouvement de carrière et acte RH, effectifs et alertes RH', 'N6'],
   ['Document publié — statut de diffusion', 'N4'],
@@ -140,9 +138,27 @@ const LOTS = [
     appel: async () => ({ status: vueDn.body.attributions.every((a) => a.user.id === ids.dn) ? 403 : 200 }),
   });
 
+  console.log('— Journal d’audit (N2) : L(T) DN/DNA et administrateur, L(P) chefs, L(S) agent');
+  const porteeJournal = async (profil) => (await call(profil, 'GET', '/api/v1/journal-audit?taille=1')).body.portee;
+  for (const [profil, attendu, annexe] of [['dn', 'Toute la Direction', 'L(T)'], ['dna', 'Toute la Direction', 'L(T)'], ['admin', 'Toute la Direction', 'L(T)'], ['chefdpe', 'Votre périmètre', 'L(P)'], ['chefssr', 'Votre périmètre', 'L(P)'], ['agent1', 'Vos propres actions', 'L(S)']]) {
+    await caseMatrice({ objet: 'Journal d’audit', profil, action: `lire (${attendu.toLowerCase()})`, annexe, attendu: true, appel: async () => ({ status: (await porteeJournal(profil)) === attendu ? 200 : 599 }) });
+  }
+  await caseMatrice({
+    objet: 'Journal d’audit', profil: 'drh', action: 'lire (ses propres actions)', annexe: 'L(P)', attendu: true,
+    ecart: 'Le DRH n’a pas de périmètre hiérarchique propre en N1/N2 : il lit ses propres actions ; l’accès aux traces RH passera par les écrans RH (N6).',
+    appel: async () => ({ status: (await porteeJournal('drh')) === 'Vos propres actions' ? 200 : 599 }),
+  });
+
+  console.log('— Paramétrage (N2) : L(T) DN/DNA, CLM(T) administrateur, — autres');
+  for (const profil of Object.keys(PROFILS)) {
+    const lit = ['dn', 'dna', 'admin'].includes(profil);
+    await caseMatrice({ objet: 'Paramétrage', profil, action: 'lire', annexe: profil === 'admin' ? 'CLM(T)' : lit ? 'L(T)' : profil === 'drh' ? 'M(D4, D6) — réglages des stages dans leur écran' : '—', attendu: lit, appel: () => call(profil, 'GET', '/api/v1/parametres') });
+    await caseMatrice({ objet: 'Paramétrage', profil, action: 'modifier', annexe: profil === 'admin' ? 'CLM(T)' : lit ? 'L(T)' : '—', attendu: profil === 'admin', appel: () => call(profil, 'PATCH', '/api/v1/parametres/session.expirationJours', { valeur: 30 }) });
+  }
+
   // Rapport lisible : tableau des cases jouées + objets renvoyés à un lot ultérieur.
   const md = [
-    '# Matrice des habilitations — état N1',
+    '# Matrice des habilitations — état N2',
     '',
     'Généré par `tests/e2e/api/n1_matrice.js` (annexe 1 du cahier NIMBA v2.2). « ÉCART » : comportement actuel conservé en N1 et vérifié tel quel.',
     '',
