@@ -209,9 +209,11 @@ const agentDe = async (userId) => (await prisma.user.findUnique({ where: { id: u
   expect('… en double sur la même période', await call('admin', 'POST', '/api/v1/attributions-roles', { userId: ids.agent2, role: 'GESTIONNAIRE_RH' }), 409);
   check('… le gestionnaire RH lit la liste des agents', (await call('agent2', 'GET', '/api/v1/agents')).status === 200);
   check('… mais n’agit pas sur leur cycle de vie', (await call('agent2', 'POST', `/api/v1/agents/${aAgent1.id}/suspension`, { motif: 'x' })).status === 403);
+  check('… et voit le guide DRH dans l’aide', (await call('agent2', 'GET', '/aide/profils')).body.profils.includes('DRH'));
   expect('retrait sans motif', await call('admin', 'POST', `/api/v1/attributions-roles/${grh.body.id}/retrait`, {}), 400);
   expect('l’administrateur retire le rôle', await call('admin', 'POST', `/api/v1/attributions-roles/${grh.body.id}/retrait`, { motif: 'Fin de mission' }), 201);
   check('… retrait immédiat (liste des agents refusée)', (await call('agent2', 'GET', '/api/v1/agents')).status === 403);
+  check('… et plus de guide DRH', !(await call('agent2', 'GET', '/aide/profils')).body.profils.includes('DRH'));
   expect('… retirer deux fois', await call('admin', 'POST', `/api/v1/attributions-roles/${grh.body.id}/retrait`, { motif: 'x' }), 409);
   check('… l’attribution reste dans l’historique', !!(await prisma.attributionRole.findUnique({ where: { id: grh.body.id } })).retireLe);
   const drhDonne = await call('admin', 'POST', '/api/v1/attributions-roles', { userId: ids.agentdee, role: 'DRH', motif: 'Intérim de la fonction RH' });
