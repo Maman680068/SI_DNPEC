@@ -324,6 +324,9 @@ model Division {
   periodesStage    PeriodeStage[]
   affectationsBien AffectationBien[] @relation("AffectationBienDivision")
 
+  // Socle NIMBA (N1) : unité organisationnelle correspondante.
+  unite UniteOrganisationnelle?
+
   @@map("divisions")
 }
 
@@ -347,6 +350,9 @@ model Section {
 
   periodesStage    PeriodeStage[]
   affectationsBien AffectationBien[] @relation("AffectationBienSection")
+
+  // Socle NIMBA (N1) : unité organisationnelle correspondante.
+  unite UniteOrganisationnelle?
 
   @@unique([divisionId, code])
   @@map("sections")
@@ -384,6 +390,9 @@ model Cellule {
 
   periodesStage    PeriodeStage[]
   affectationsBien AffectationBien[] @relation("AffectationBienCellule")
+
+  // Socle NIMBA (N1) : unité organisationnelle correspondante (Cellule ou Instance).
+  unite UniteOrganisationnelle?
 
   @@map("cellules")
 }
@@ -606,6 +615,20 @@ model User {
   reservationsDecidees             Reservation[]            @relation("ReservationDecideePar")
   reservationsAnnulees             Reservation[]            @relation("ReservationAnnuleePar")
   reservationsPrioritaires         Reservation[]            @relation("ReservationPrioritaire")
+
+  // Socle NIMBA (N1) — agent (personne physique) auquel ce compte est rattaché.
+  // Facultatif en base (compte en attente d'approbation, rétrocompatibilité) ;
+  // « aucun compte actif sans agent » est garanti par l'application en N1,
+  // par une contrainte en base à partir de N2.
+  agentId                   String?                  @unique
+  agent                     Agent?                   @relation("AgentCompte", fields: [agentId], references: [id])
+  unitesDirigees            UniteOrganisationnelle[] @relation("UniteResponsable")
+  unitesFermees             UniteOrganisationnelle[] @relation("UniteFermeePar")
+  historiqueUnitesAuteur    HistoriqueUnite[]        @relation("HistoriqueUniteAuteur")
+  mouvementsAgentAuteur     MouvementAgent[]         @relation("MouvementAgentAuteur")
+  attributionsRoles         AttributionRole[]        @relation("AttributionRoleCompte")
+  attributionsRolesDonnees  AttributionRole[]        @relation("AttributionRoleAttribuePar")
+  attributionsRolesRetirees AttributionRole[]        @relation("AttributionRoleRetirePar")
 
   @@map("users")
 }
@@ -2402,4 +2425,203 @@ model Reservation {
   @@index([ressourceId, debut])
   @@index([titulaireId])
   @@map("reservations")
+}
+
+// ============================================================================
+// Socle NIMBA — lot N1 : organigramme, agents, habilitation à deux axes
+// (cahier NIMBA v2.2, Partie 0 §3 à §6). Tout est ADDITIF : les tables
+// historiques (divisions, sections, cellules, users.role, habilitations
+// courrier et logistique) restent en place et à jour — voir
+// docs/conception_N1_socle_NIMBA.md.
+// ============================================================================
+
+enum TypeUnite {
+  DIRECTION
+  DIVISION
+  SECTION
+  CELLULE
+  INSTANCE
+
+  @@map("type_unite")
+}
+
+// Unité organisationnelle récursive (§3). En N1, les parentés autorisées sont
+// celles que les modules savent exploiter : Direction → Division → Section,
+// Direction → Cellule, Direction → Instance ; chaque unité autre que la
+// Direction a sa ligne historique (divisionId, sectionId ou celluleId).
+model UniteOrganisationnelle {
+  id             String                   @id @default(cuid())
+  code           String
+  libelle        String
+  type           TypeUnite
+  parentId       String?
+  parent         UniteOrganisationnelle?  @relation("UniteParent", fields: [parentId], references: [id])
+  enfants        UniteOrganisationnelle[] @relation("UniteParent")
+  responsableId  String?
+  responsable    User?                    @relation("UniteResponsable", fields: [responsableId], references: [id])
+  dateCreation   DateTime                 @default(now())
+  dateFermeture  DateTime?
+  motifFermeture String?
+  fermeeParId    String?
+  fermeePar      User?                    @relation("UniteFermeePar", fields: [fermeeParId], references: [id])
+  divisionId     String?                  @unique
+  division       Division?                @relation(fields: [divisionId], references: [id])
+  sectionId      String?                  @unique
+  section        Section?                 @relation(fields: [sectionId], references: [id])
+  celluleId      String?                  @unique
+  cellule        Cellule?                 @relation(fields: [celluleId], references: [id])
+  createdAt      DateTime                 @default(now())
+  updatedAt      DateTime                 @updatedAt
+
+  historique HistoriqueUnite[]
+  agents     Agent[]
+
+  @@unique([parentId, code])
+  @@index([parentId])
+  @@map("unites_organisationnelles")
+}
+
+// Historique d'une unité : une ligne par événement (CREATION, MODIFICATION,
+// RESPONSABLE, FERMETURE), valeurs avant/après. auteurId nul = le système.
+model HistoriqueUnite {
+  id        String                 @id @default(cuid())
+  uniteId   String
+  unite     UniteOrganisationnelle @relation(fields: [uniteId], references: [id])
+  evenement String
+  avant     Json?
+  apres     Json?
+  dateEffet DateTime               @default(now())
+  auteurId  String?
+  auteur    User?                  @relation("HistoriqueUniteAuteur", fields: [auteurId], references: [id])
+  createdAt DateTime               @default(now())
+
+  @@index([uniteId])
+  @@map("historique_unites")
+}
+
+enum StatutAgent {
+  EN_ACTIVITE
+  SUSPENDU
+  PARTI
+
+  @@map("statut_agent")
+}
+
+// Agent (§4, §6) : la personne physique, distincte du compte, qui survit au
+// départ. Matricule unique ; « provisoire » tant que le DRH ne l'a pas
+// remplacé par le matricule de la Fonction publique.
+model Agent {
+  id                  String                  @id @default(cuid())
+  matricule           String                  @unique
+  matriculeProvisoire Boolean                 @default(false)
+  nom                 String
+  prenoms             String
+  genre               String? // 'F' | 'M' — effectifs (N6)
+  uniteId             String?
+  unite               UniteOrganisationnelle? @relation(fields: [uniteId], references: [id])
+  fonction            String?
+  statut              StatutAgent             @default(EN_ACTIVITE)
+  // Fin prévue (stage ou contrat) : alerte au DRH à J-15 et J-3, passage
+  // automatique à « Parti » à l'échéance sauf prolongation.
+  dateFinPrevue       DateTime?               @db.Date
+  natureFinPrevue     String? // 'STAGE' | 'CONTRAT'
+  alerteJ15At         DateTime?
+  alerteJ3At          DateTime?
+  finConfirmeeAt      DateTime?
+  dateDepart          DateTime?
+  motifDepart         String?
+  createdAt           DateTime                @default(now())
+  updatedAt           DateTime                @updatedAt
+
+  compte     User?            @relation("AgentCompte")
+  mouvements MouvementAgent[]
+
+  @@index([statut])
+  @@map("agents")
+}
+
+// Cycle de vie daté d'un agent : ENTREE, MUTATION, SUSPENSION, REACTIVATION,
+// DEPART, PROLONGATION, FIN_CONFIRMEE, MATRICULE, IDENTITE. auteurId nul = le système.
+model MouvementAgent {
+  id        String   @id @default(cuid())
+  agentId   String
+  agent     Agent    @relation(fields: [agentId], references: [id])
+  type      String
+  avant     Json?
+  apres     Json?
+  motif     String?
+  dateEffet DateTime @default(now())
+  auteurId  String?
+  auteur    User?    @relation("MouvementAgentAuteur", fields: [auteurId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@index([agentId])
+  @@map("mouvements_agents")
+}
+
+// Axe 2 de l'habilitation (§5.2) : ce que l'agent peut faire. Les trois
+// derniers rôles (domaine B) sont prévus sans écran.
+enum RoleFonctionnel {
+  DRH
+  GESTIONNAIRE_RH
+  CHEF_SAF
+  GESTIONNAIRE_PAIE
+  ENCADREUR_STAGE
+  AGENT_COURRIER
+  ASSISTANT
+  VALIDATEUR
+  GESTIONNAIRE_LOGISTIQUE
+  RESPONSABLE_MODELE
+  ANALYSTE
+  DECIDEUR
+
+  @@map("role_fonctionnel")
+}
+
+// Attribution datée d'un rôle fonctionnel à un compte, cumulable, retirée
+// sans jamais être supprimée. AGENT_COURRIER porte sa portée (registre +
+// unité) ; les attributions AGENT_COURRIER et GESTIONNAIRE_LOGISTIQUE sont le
+// reflet exact des habilitations historiques (liens uniques ci-dessous).
+model AttributionRole {
+  id                       String          @id @default(cuid())
+  userId                   String
+  user                     User            @relation("AttributionRoleCompte", fields: [userId], references: [id])
+  role                     RoleFonctionnel
+  registreId               String?
+  uniteKey                 String?
+  dateDebut                DateTime        @default(now())
+  dateFin                  DateTime?
+  motif                    String?
+  attribueParId            String?
+  attribuePar              User?           @relation("AttributionRoleAttribuePar", fields: [attribueParId], references: [id])
+  retireLe                 DateTime?
+  retireParId              String?
+  retirePar                User?           @relation("AttributionRoleRetirePar", fields: [retireParId], references: [id])
+  motifRetrait             String?
+  habilitationCourrierId   String?         @unique
+  habilitationLogistiqueId String?         @unique
+  createdAt                DateTime        @default(now())
+
+  @@index([userId, role])
+  @@map("attributions_roles")
+}
+
+// Refus d'accès journalisés (§5.5) : tout 403, ancien ou nouveau. Table dédiée
+// plutôt qu'une nouvelle valeur du journal d'audit (lu par l'ancien code).
+model AccesRefuse {
+  id           String   @id @default(cuid())
+  userId       String?
+  interimForId String?
+  methode      String
+  route        String
+  objetType    String?
+  objetId      String?
+  etape        String? // PROTEGE | EXTERNE | PERIMETRE | ROLE | AUTRE
+  motif        String
+  traceId      String?
+  createdAt    DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([userId])
+  @@map("acces_refuses")
 }

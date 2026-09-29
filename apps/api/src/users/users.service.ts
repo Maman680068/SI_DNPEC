@@ -13,6 +13,9 @@ import { UpdateAssignmentDto } from './dto/update-assignment.dto';
 import { ApproveRegistrationDto } from './dto/approve-registration.dto';
 import { RejectRegistrationDto } from './dto/reject-registration.dto';
 import { ComptesEmailsService } from './comptes-emails.service';
+import { AgentsService } from '../socle/agents.service';
+import { ReprisesN1Service } from '../socle/reprise-n1.service';
+import { RolesFonctionnelsService } from '../socle/roles-fonctionnels.service';
 
 const USER_LIST_SELECT = {
   id: true,
@@ -107,6 +110,9 @@ export class UsersService {
     private readonly cascade: CascadeService,
     private readonly personnelHistory: PersonnelHistoryService,
     private readonly comptesEmails: ComptesEmailsService,
+    private readonly agents: AgentsService,
+    private readonly reprise: ReprisesN1Service,
+    private readonly rolesFonctionnels: RolesFonctionnelsService,
   ) {}
 
   findAllVisibleTo(actor: AuthenticatedUser) {
@@ -192,6 +198,7 @@ export class UsersService {
     const existing = await this.prisma.user.findUnique({ where: { email: dto.email } });
     if (existing) throw new ConflictException('Un compte existe déjà avec cet email');
 
+    await this.agents.verifierRattachement(dto);
     const passwordHash = await this.passwordService.hash(dto.password);
 
     const user = await this.prisma.user.create({
@@ -219,6 +226,10 @@ export class UsersService {
       entityId: user.id,
       metadata: { email: user.email, role: user.role, createdManually: true },
     });
+
+    // Socle NIMBA : aucun compte sans agent (rattaché ou créé).
+    await this.agents.rattacherCompte(user.id, dto, actor.id);
+    await this.rolesFonctionnels.alignerSurPosition(user.id, null, user.role, actor.id);
 
     // Après la création : email « votre compte a été créé » (un échec d'envoi ne l'annule pas, A7).
     await this.comptesEmails.compteCree(user.id);
@@ -342,6 +353,9 @@ export class UsersService {
       },
     });
 
+    // Socle NIMBA : l'unité de l'agent suit le rattachement.
+    await this.reprise.synchroniserCompte(target.id);
+
     // Historique de carrière (Dossier du personnel, niveau 2) — AFFECTATION.
     // No-op si rien n'a réellement changé (voir PersonnelHistoryService).
     await this.personnelHistory.recordAffectationChange(
@@ -378,6 +392,7 @@ export class UsersService {
     await this.assertOrgAttachmentValid(attachment);
     await this.assertUnitsActiveForNewAttachment(attachment);
     await this.assertNoActiveChiefConflict(dto.role, attachment);
+    await this.agents.verifierRattachement(dto);
 
     const updated = await this.prisma.user.update({
       where: { id: target.id },
@@ -397,6 +412,9 @@ export class UsersService {
       entityId: id,
       metadata: { role: dto.role, ...attachment },
     });
+
+    await this.agents.rattacherCompte(updated.id, dto, actor.id);
+    await this.rolesFonctionnels.alignerSurPosition(updated.id, null, dto.role, actor.id);
 
     // Après l'approbation : email à la personne (un échec d'envoi ne l'annule pas, A7).
     await this.comptesEmails.inscriptionApprouvee(updated.id);

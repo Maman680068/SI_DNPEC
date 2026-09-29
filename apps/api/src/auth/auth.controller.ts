@@ -150,7 +150,10 @@ export class AuthController {
   }
 
   @Get('me')
-  me(@CurrentUser() user: AuthenticatedUser) {
-    return this.usersService.findOneVisibleTo(user, user.id);
+  async me(@CurrentUser() user: AuthenticatedUser) {
+    // Socle NIMBA : rôles fonctionnels actifs (identité réelle) et agent du compte —
+    // le web s'en sert pour sa navigation, jamais pour décider d'un droit.
+    const compte = await this.usersService.findOneVisibleTo(user, user.id);
+    return { ...compte, agentId: user.agentId, rolesFonctionnels: user.rolesFonctionnels };
   }
 }

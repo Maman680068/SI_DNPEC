@@ -1,6 +1,7 @@
 import { ForbiddenException } from '@nestjs/common';
 import { SystemRole } from '@prisma/client';
 import { AuthenticatedUser } from '../common/types/auth-user.type';
+import { estDrh } from '../socle/roles-fonctionnels';
 
 /**
  * Réglages des stages (capacités d'accueil, modèle d'attestation) : le DRH,
@@ -8,11 +9,11 @@ import { AuthenticatedUser } from '../common/types/auth-user.type';
  * n'est nommé. L'administrateur n'accède jamais au CONTENU des stages (plan,
  * stagiaires, évaluations) : ces routes-là restent réservées au DRH.
  */
-export function peutReglerStages(actor: Pick<AuthenticatedUser, 'role'>): boolean {
-  return actor.role === SystemRole.DRH || actor.role === SystemRole.ADMIN_SYSTEME;
+export function peutReglerStages(actor: Pick<AuthenticatedUser, 'role' | 'rolesFonctionnels'>): boolean {
+  return estDrh(actor) || actor.role === SystemRole.ADMIN_SYSTEME;
 }
 
-export function assertReglagesStages(actor: Pick<AuthenticatedUser, 'role'>): void {
+export function assertReglagesStages(actor: Pick<AuthenticatedUser, 'role' | 'rolesFonctionnels'>): void {
   if (!peutReglerStages(actor)) throw new ForbiddenException('Réservé au DRH et à l’administrateur système.');
 }
 

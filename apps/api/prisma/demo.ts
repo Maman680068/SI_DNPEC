@@ -73,6 +73,7 @@ import { DemandesLogistiqueService } from '../src/logistique/demandes.service';
 import { ReservationsService } from '../src/logistique/reservations.service';
 import { DOMAINE_DEMO, DUREE_DEMO_JOURS, ENTITE_AUDIT_DEMO, PREFIXE_DEMO, estAdresseDemo } from '../src/demo/demo.constantes';
 import { verifierMigrations } from './verifier-migrations';
+import { rolesActifs } from '../src/socle/roles-fonctionnels';
 
 const T = PREFIXE_DEMO; // « TEST — »
 const FICHIER_DEMO = 'demo-document-dnpec.pdf';
@@ -174,6 +175,8 @@ async function acteur(prisma: PrismaClient, id: string): Promise<AuthenticatedUs
     supervisorRole: u.role === SystemRole.ASSISTANT_DIRECTION ? (u.supervisor?.role ?? null) : null,
     supervisorCelluleId: u.role === SystemRole.ASSISTANT_DIRECTION ? (u.supervisor?.celluleId ?? null) : null,
     interimForId: null,
+    agentId: u.agentId,
+    rolesFonctionnels: await rolesActifs(prisma, u.id),
   };
 }
 

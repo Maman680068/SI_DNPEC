@@ -41,4 +41,14 @@ export class CreateUserDto {
   @IsOptional()
   @IsString()
   supervisorId?: string;
+
+  // Socle NIMBA : rapprochement avec un agent existant (sans compte), ou
+  // matricule du nouvel agent (sinon matricule provisoire).
+  @IsOptional()
+  @IsString()
+  agentId?: string;
+
+  @IsOptional()
+  @IsString()
+  matricule?: string;
 }

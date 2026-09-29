@@ -27,6 +27,7 @@ import { RoleChangeModule } from './role-change/role-change.module';
 import { LogistiqueModule } from './logistique/logistique.module';
 import { AideModule } from './aide/aide.module';
 import { DemoModule } from './demo/demo.module';
+import { SocleModule } from './socle/socle.module';
 import { AppController } from './app.controller';
 
 @Module({
@@ -38,6 +39,8 @@ import { AppController } from './app.controller';
     ScheduleModule.forRoot(),
     PrismaModule,
     CommonModule,
+    // Socle NIMBA (lot N1) : organigramme, agents, rôles fonctionnels.
+    SocleModule,
     OrgModule,
     UsersModule,
     AuthModule,

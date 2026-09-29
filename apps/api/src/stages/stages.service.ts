@@ -9,6 +9,7 @@ import {
   StageStatut,
   SystemRole,
   UserStatus,
+  RoleFonctionnel,
 } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../common/audit/audit.service';
@@ -40,6 +41,8 @@ import {
   periodesDeLaCle,
   uniteDeCle,
 } from './unites-stage';
+import { estDrh, detenteursWhere } from '../socle/roles-fonctionnels';
+import { ReprisesN1Service } from '../socle/reprise-n1.service';
 
 const NOM = { select: { id: true, firstName: true, lastName: true } } as const;
 
@@ -128,6 +131,7 @@ export class StagesService {
     private readonly history: PersonnelHistoryService,
     private readonly users: UsersService,
     private readonly attestation: AttestationService,
+    private readonly reprise: ReprisesN1Service,
   ) {}
 
   // --------------------------------------------------------------------
@@ -152,7 +156,7 @@ export class StagesService {
         aTraiter: await this.aTraiter(actor, s, niveaux),
       });
     }
-    return { peutCreer: actor.role === SystemRole.DRH, stages: out.map((s) => ({ ...s, periodeEnCours: s.periodeEnCours && this.resumePeriode(s.periodeEnCours) })) };
+    return { peutCreer: estDrh(actor), stages: out.map((s) => ({ ...s, periodeEnCours: s.periodeEnCours && this.resumePeriode(s.periodeEnCours) })) };
   }
 
   async findOne(actor: AuthenticatedUser, id: string) {
@@ -251,6 +255,8 @@ export class StagesService {
       select: { id: true },
     });
     await this.audit.log({ actorId: actor.id, action: AuditAction.CREATION, entityType: 'Stage', entityId: stage.id, metadata: { stagiaireId: stagiaire.id, dateDebut, dateFin } });
+    // Socle NIMBA : la fin prévue de l'agent stagiaire suit le stage (alertes J-15 / J-3).
+    await this.reprise.synchroniserCompte(stagiaire.id);
     return this.findOne(actor, stage.id);
   }
 
@@ -484,7 +490,7 @@ export class StagesService {
     const { stage, periode } = await this.chargerPeriode(stageId, periodeId);
     this.assertStageOuvert(stage);
     const tuteur = !!periode.tuteurId && this.cascade.isActingFor(actor, periode.tuteurId);
-    if (!tuteur && actor.role !== SystemRole.DRH) throw new ForbiddenException('Seuls le tuteur et le DRH choisissent le format de l’évaluation.');
+    if (!tuteur && !estDrh(actor)) throw new ForbiddenException('Seuls le tuteur et le DRH choisissent le format de l’évaluation.');
     if (periode.evaluation) throw new ConflictException('L’évaluation est commencée : son format ne change plus.');
     if (periode.statut === PeriodeStageStatut.TERMINEE || periode.statut === PeriodeStageStatut.ANNULEE || periode.statut === PeriodeStageStatut.REFUSEE) {
       throw new ConflictException('Cette période est close.');
@@ -689,7 +695,7 @@ export class StagesService {
 
   private async vue(actor: AuthenticatedUser, s: StageCharge, cache: Map<string, Niveaux>): Promise<Vue | null> {
     if (actor.id === s.stagiaireId) return 'STAGIAIRE';
-    if (actor.role === SystemRole.DRH) return 'DRH';
+    if (estDrh(actor)) return 'DRH';
     if (actor.role === SystemRole.DN || actor.role === SystemRole.DNA) return 'DIRECTION';
     for (const p of s.periodes) {
       if (p.tuteurId && this.cascade.isActingFor(actor, p.tuteurId)) return 'UNITE';
@@ -911,11 +917,11 @@ export class StagesService {
   }
 
   private assertDrh(actor: AuthenticatedUser) {
-    if (actor.role !== SystemRole.DRH) throw new ForbiddenException('Réservé au DRH.');
+    if (!estDrh(actor)) throw new ForbiddenException('Réservé au DRH.');
   }
 
   private assertDrhOuDirection(actor: AuthenticatedUser) {
-    if (actor.role !== SystemRole.DRH && actor.role !== SystemRole.DN && actor.role !== SystemRole.DNA) {
+    if (!estDrh(actor) && actor.role !== SystemRole.DN && actor.role !== SystemRole.DNA) {
       throw new ForbiddenException('Réservé au DRH et à la Direction.');
     }
   }
@@ -935,7 +941,7 @@ export class StagesService {
   }
 
   private async notifierDrh(type: NotificationType, titre: string, corps: string, stageId: string) {
-    const drh = await this.prisma.user.findMany({ where: { role: SystemRole.DRH, status: UserStatus.ACTIF }, select: { id: true } });
+    const drh = await this.prisma.user.findMany({ where: detenteursWhere(RoleFonctionnel.DRH), select: { id: true } });
     await this.notifications.notifyMany(drh.map((d) => d.id), type, titre, corps, LIEN(stageId));
   }
 

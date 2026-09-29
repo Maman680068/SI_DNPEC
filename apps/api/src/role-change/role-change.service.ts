@@ -1,5 +1,5 @@
 import { ConflictException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { ActeStatut, ArriveeStatut, AuditAction, ImputationStatut, NotificationType, Prisma, SystemRole, TaskStatus, UserStatus, VisaStatut } from '@prisma/client';
+import { ActeStatut, ArriveeStatut, AuditAction, ImputationStatut, NotificationType, Prisma, SystemRole, TaskStatus, UserStatus, VisaStatut, RoleFonctionnel } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../common/audit/audit.service';
 import { AuthenticatedUser } from '../common/types/auth-user.type';
@@ -12,6 +12,9 @@ import { viseurOccupeLePoste } from '../courrier/actes.service';
 import { ChangerRoleDto } from './dto/changer-role.dto';
 import { ROLE_LIBELLE, RattachementRole, rattachementPourRole } from './roles';
 import { StagesService } from '../stages/stages.service';
+import { detenteursWhere } from '../socle/roles-fonctionnels';
+import { ReprisesN1Service } from '../socle/reprise-n1.service';
+import { RolesFonctionnelsService } from '../socle/roles-fonctionnels.service';
 
 type Cible = Prisma.UserGetPayload<{
   select: typeof CIBLE_SELECT;
@@ -69,6 +72,8 @@ export class RoleChangeService {
     private readonly sessions: SessionService,
     private readonly users: UsersService,
     private readonly stages: StagesService,
+    private readonly reprise: ReprisesN1Service,
+    private readonly rolesFonctionnels: RolesFonctionnelsService,
   ) {}
 
   /** Aperçu : mêmes contrôles et mêmes effets que changer(), sans rien écrire. */
@@ -162,6 +167,10 @@ export class RoleChangeService {
         tx,
       );
     });
+
+    // Socle NIMBA : unité de l'agent et responsables d'unité suivent la nomination.
+    await this.reprise.synchroniserCompte(cible.id);
+    await this.rolesFonctionnels.alignerSurPosition(cible.id, cible.role, apres.role, actor.id);
 
     // Après le commit : sessions et notifications (un échec d'email ne défait rien, A7).
     await this.sessions.revokeAllSessions(cible.id);
@@ -356,7 +365,7 @@ export class RoleChangeService {
         `Votre fonction est désormais : ${libApres}. Vos sessions ont été fermées : reconnectez-vous pour retrouver votre espace à jour.`,
         '/dashboard',
       );
-      const drh = await this.prisma.user.findMany({ where: { role: SystemRole.DRH, status: UserStatus.ACTIF, id: { not: cible.id } }, select: { id: true } });
+      const drh = await this.prisma.user.findMany({ where: { ...detenteursWhere(RoleFonctionnel.DRH), id: { not: cible.id } }, select: { id: true } });
       await this.notifications.notifyMany(
         drh.map((d) => d.id),
         NotificationType.ROLE_MODIFIE,

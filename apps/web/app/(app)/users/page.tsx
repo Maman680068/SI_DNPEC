@@ -10,9 +10,10 @@ import { PendingRegistrationsList } from '../../../components/users/PendingRegis
 import { CreateUserModal } from '../../../components/users/CreateUserModal';
 import { ApproveRegistrationModal } from '../../../components/users/ApproveRegistrationModal';
 import { Button } from '../../../components/ui/Button';
+import { RolesFonctionnels } from '../../../components/socle/RolesFonctionnels';
 import { Chargement, ErreurChargement, messageChargement } from '../../../components/ui/ErreurChargement';
 
-type Tab = 'all' | 'pending';
+type Tab = 'all' | 'pending' | 'roles';
 
 export default function UsersPage() {
   const { user: currentUser } = useAuth();
@@ -81,11 +82,12 @@ export default function UsersPage() {
       </div>
 
       {isAdmin && (
-        <div className="mb-4 flex gap-0.5 rounded-md border border-line bg-bg p-0.5" style={{ width: 'fit-content' }}>
+        <div className="mb-4 flex max-w-full flex-wrap gap-0.5 rounded-md border border-line bg-bg p-0.5" style={{ width: 'fit-content' }}>
           {(
             [
               { key: 'all', label: 'Tous les comptes' },
               { key: 'pending', label: 'Inscriptions en attente' },
+              { key: 'roles', label: 'Rôles fonctionnels' },
             ] as const
           ).map((option) => (
             <button
@@ -106,7 +108,9 @@ export default function UsersPage() {
         </div>
       )}
 
-      {tab === 'all' || !isAdmin ? (
+      {tab === 'roles' && isAdmin ? (
+        <RolesFonctionnels />
+      ) : tab === 'all' || !isAdmin ? (
         allUsers === null ? (
           <Chargement erreur={erreurChargement} />
         ) : (

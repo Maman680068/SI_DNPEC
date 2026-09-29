@@ -1,12 +1,14 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
-import { AuditAction, EvaluationFormat, EvaluationStageStatut, NotificationType, PeriodeStageStatut, StageStatut, SystemRole, UserStatus } from '@prisma/client';
+import { AuditAction, EvaluationFormat, EvaluationStageStatut, NotificationType, PeriodeStageStatut, StageStatut, SystemRole, UserStatus, RoleFonctionnel } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../common/audit/audit.service';
 import { NotificationsService } from '../communication/notifications/notifications.service';
 import { PersonnelHistoryService } from '../personnel/personnel-history.service';
 import { StagesService } from './stages.service';
 import { JOUR_MS, jour } from './unites-stage';
+import { detenteursWhere } from '../socle/roles-fonctionnels';
+import { ReprisesN1Service } from '../socle/reprise-n1.service';
 
 const LIEN = (id: string) => `/stages/${id}`;
 const STAGIAIRE = { select: { id: true, firstName: true, lastName: true, role: true, status: true, divisionId: true, sectionId: true, celluleId: true } } as const;
@@ -34,6 +36,7 @@ export class StagesRotationService {
     private readonly notifications: NotificationsService,
     private readonly history: PersonnelHistoryService,
     private readonly stages: StagesService,
+    private readonly reprise: ReprisesN1Service,
   ) {}
 
   @Cron('5 0 * * *')
@@ -123,6 +126,7 @@ export class StagesRotationService {
       });
       if (!fait) continue;
       bilan.appliquees++;
+      await this.reprise.synchroniserCompte(st.id);
       await this.audit.log({ actorId: null, action: AuditAction.MODIFICATION, entityType: 'PeriodeStage', entityId: p.id, metadata: { event: 'rattachement_applique', userId: st.id, avant: { divisionId: st.divisionId, sectionId: st.sectionId, celluleId: st.celluleId }, apres: vers } });
       const unite = await this.history.describeAttachment(vers);
       await this.notifications.notifyMany([st.id, ...(p.tuteurId ? [p.tuteurId] : [])], NotificationType.STAGE_PERIODE_DEBUT, 'Début de période de stage', `${nom} rejoint ${unite} aujourd’hui.`, LIEN(p.stageId));
@@ -163,7 +167,7 @@ export class StagesRotationService {
   }
 
   private async alerterDrh(stageId: string, message: string) {
-    const drh = await this.prisma.user.findMany({ where: { role: SystemRole.DRH, status: UserStatus.ACTIF }, select: { id: true } });
+    const drh = await this.prisma.user.findMany({ where: detenteursWhere(RoleFonctionnel.DRH), select: { id: true } });
     await this.notifications.notifyMany(drh.map((d) => d.id), NotificationType.STAGE_ALERTE, 'Alerte — rotation des stagiaires', message, LIEN(stageId));
   }
 }

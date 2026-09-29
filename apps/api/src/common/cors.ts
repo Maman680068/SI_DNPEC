@@ -40,6 +40,6 @@ export function optionsCors(valeur: string | undefined, logger = new Logger('COR
         }
       : true,
     // Nom des fichiers générés (attestation Word ou PDF selon le modèle) lisible par le frontend.
-    exposedHeaders: ['Content-Disposition'],
+    exposedHeaders: ['Content-Disposition', 'X-Trace-Id'],
   };
 }

@@ -1,8 +1,8 @@
 import { BadRequestException, Controller, Post, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
-import { SystemRole } from '@prisma/client';
-import { Roles } from '../common/decorators/roles.decorator';
+import { RoleFonctionnel } from '@prisma/client';
+import { RolesFonctionnels } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { AuthenticatedUser } from '../common/types/auth-user.type';
 import { PersonnelImportService } from './personnel-import.service';
@@ -13,7 +13,7 @@ const MAX_FILE_SIZE_BYTES = 25 * 1024 * 1024;
 export class PersonnelImportController {
   constructor(private readonly importService: PersonnelImportService) {}
 
-  @Roles(SystemRole.DRH)
+  @RolesFonctionnels(RoleFonctionnel.DRH)
   @Post('import')
   @UseInterceptors(FileInterceptor('file', { storage: memoryStorage(), limits: { fileSize: MAX_FILE_SIZE_BYTES } }))
   importExcel(@UploadedFile() file: Express.Multer.File | undefined, @CurrentUser() actor: AuthenticatedUser) {

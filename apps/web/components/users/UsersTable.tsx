@@ -21,7 +21,7 @@ const STATUS_BADGE_LABEL: Record<UserStatus, string> = {
   EN_ATTENTE: 'En attente',
   ACTIF: 'Actif',
   SUSPENDU: 'Suspendu',
-  SUPPRIME: 'Supprimé',
+  SUPPRIME: 'Désactivé',
 };
 
 /** Raccourci « Nommer chef de cellule » pour un Agent ou un Chef de Cellule (réaffectation) ;

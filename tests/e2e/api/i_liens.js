@@ -106,7 +106,8 @@ function probleme(lien, { redirectionPermise = false } = {}) {
       // Chaîne ou gabarit commençant par « /mot » (jamais un chemin système).
       for (const m of l.matchAll(/`(\/[a-z][^`\s]*)`|'(\/[a-z][^'\s]*)'/g)) {
         const brut = m[1] || m[2];
-        if (/^\/(var|tmp|etc|usr|home|opt|app|proc|dev)\b/.test(brut)) continue;
+        // Chemins système et routes de l’API elle-même (/api/v1/…) : jamais des liens vers le web.
+        if (/^\/(var|tmp|etc|usr|home|opt|app|proc|dev|api)\b/.test(brut)) continue;
         statiques.push({ lien: brut.replace(/\$\{[^}]*\}/g, VAR), ou });
       }
       // Adresse complète d'un email : `${…webAppUrl…}/chemin…`.

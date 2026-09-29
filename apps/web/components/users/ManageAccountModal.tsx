@@ -18,7 +18,7 @@ const STATUS_BADGE_LABEL: Record<UserStatus, string> = {
   EN_ATTENTE: 'En attente',
   ACTIF: 'Actif',
   SUSPENDU: 'Suspendu',
-  SUPPRIME: 'Supprimé',
+  SUPPRIME: 'Désactivé',
 };
 
 /**
@@ -144,11 +144,11 @@ export function ManageAccountModal({
                   onClick={() =>
                     changeStatus(
                       'SUPPRIME',
-                      `Confirmer : supprimer le compte de ${user.firstName} ${user.lastName} ? Le compte ne pourra plus se connecter, mais rien de ce qui lui est lié (tâches, messages, historique) ne sera supprimé ni réattribué.`,
+                      `Confirmer : désactiver le compte de ${user.firstName} ${user.lastName} ? Le compte ne pourra plus se connecter, mais rien de ce qui lui est lié (tâches, messages, historique) ne sera supprimé ni réattribué.`,
                     )
                   }
                 >
-                  Supprimer
+                  Désactiver
                 </Button>
               </>
             )}
@@ -168,11 +168,11 @@ export function ManageAccountModal({
                   onClick={() =>
                     changeStatus(
                       'SUPPRIME',
-                      `Confirmer : supprimer le compte de ${user.firstName} ${user.lastName} ? Le compte ne pourra plus se connecter, mais rien de ce qui lui est lié (tâches, messages, historique) ne sera supprimé ni réattribué.`,
+                      `Confirmer : désactiver le compte de ${user.firstName} ${user.lastName} ? Le compte ne pourra plus se connecter, mais rien de ce qui lui est lié (tâches, messages, historique) ne sera supprimé ni réattribué.`,
                     )
                   }
                 >
-                  Supprimer
+                  Désactiver
                 </Button>
               </>
             )}

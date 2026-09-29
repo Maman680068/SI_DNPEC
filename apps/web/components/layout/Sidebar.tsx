@@ -38,6 +38,8 @@ const NAV_GROUPS: NavGroup[] = [
       { icon: '🎓', label: 'Stagiaires', href: '/stages' },
       { icon: '🌴', label: 'Congés & absences', href: '/leaves' },
       { icon: '☰', label: 'Annuaire', href: '/annuaire' },
+      // Organigramme (socle NIMBA) : lisible par tous, géré par le DRH et l'administrateur.
+      { icon: '🏛', label: 'Organisation', href: '/organisation' },
       { icon: '✦', label: 'Boîte à suggestions', href: '/suggestions' },
     ],
   },
@@ -46,23 +48,32 @@ const NAV_GROUPS: NavGroup[] = [
 /** Rôles qui voient l'entrée « Stagiaires » (D6). */
 const STAGES_NAV_ROLES = ['DRH', 'DN', 'DNA', 'CHEF_DIVISION', 'CHEF_SECTION', 'CHEF_CELLULE'];
 
+/** Rôles fonctionnels (socle NIMBA) qui ouvrent l'écran « Agents ». */
+const AGENTS_NAV_ROLES_FONCTIONNELS = ['DRH', 'GESTIONNAIRE_RH'];
+
 /** Rôles pouvant être titulaire ou suppléant (§4.10, API CHEF_TIER_ROLES) —
  * rôle PROPRE de la personne, jamais le rôle emprunté pendant un intérim. */
 const SUPPLEANCE_NAV_ROLES = ['DN', 'DNA', 'CHEF_DIVISION', 'CHEF_SECTION', 'CHEF_CELLULE'];
 
 /** "Utilisateurs" n'apparaît que pour ADMIN_SYSTEME (gestion complète) et DN/DNA
- * (lecture seule — voir app/(app)/users/page.tsx). "Organisation" est réservée à
- * ADMIN_SYSTEME uniquement (voir app/(app)/organisation/page.tsx). */
-function navGroupsFor(role: string | undefined): NavGroup[] {
+ * (lecture seule — voir app/(app)/users/page.tsx). "Organisation" (organigramme) est
+ * dans le groupe Personnel, pour tous ; « Agents » pour le DRH et le gestionnaire RH. */
+function navGroupsFor(role: string | undefined, rolesFonctionnels: string[] = []): NavGroup[] {
   if (estStagiaire(role)) {
     return NAV_GROUPS.map((g) => ({
       ...g,
       items: g.items.filter((i) => NAVIGATION_STAGIAIRE.includes(i.href ?? '')).map((i) => (i.href === '/stages' ? { ...i, label: 'Mon stage' } : i)),
     })).filter((g) => g.items.length > 0);
   }
-  const base = STAGES_NAV_ROLES.includes(role ?? '')
-    ? NAV_GROUPS
-    : NAV_GROUPS.map((g) => ({ ...g, items: g.items.filter((i) => i.href !== '/stages') }));
+  const voitStages = STAGES_NAV_ROLES.includes(role ?? '') || rolesFonctionnels.includes('DRH');
+  const voitAgents = rolesFonctionnels.some((r) => AGENTS_NAV_ROLES_FONCTIONNELS.includes(r));
+  const base = NAV_GROUPS.map((g) => ({
+    ...g,
+    items: [
+      ...g.items.filter((i) => voitStages || i.href !== '/stages'),
+      ...(g.label === 'Personnel' && voitAgents ? [{ icon: '🪪', label: 'Agents', href: '/agents' }] : []),
+    ],
+  }));
   const groups = SUPPLEANCE_NAV_ROLES.includes(role ?? '')
     ? base.map((g) =>
         g.label === 'Personnel' ? { ...g, items: [...g.items, { icon: '⇄', label: 'Suppléances', href: '/suppleances' }] } : g,
@@ -73,7 +84,6 @@ function navGroupsFor(role: string | undefined): NavGroup[] {
     adminItems.push({ icon: '👤', label: 'Utilisateurs', href: '/users' });
   }
   if (role === 'ADMIN_SYSTEME') {
-    adminItems.push({ icon: '🏛', label: 'Organisation', href: '/organisation' });
     adminItems.push({ icon: '📨', label: 'Courrier', href: '/courrier/administration' });
     adminItems.push({ icon: '🧰', label: 'Logistique', href: '/logistique/administration' });
     // Réglages des stages (capacités, modèle d'attestation), jamais leur contenu.
@@ -90,7 +100,7 @@ function initials(firstName: string, lastName: string): string {
 export function Sidebar({ open = false, onClose }: { open?: boolean; onClose?: () => void }) {
   const { user, logout } = useAuth();
   const pathname = usePathname();
-  const navGroups = navGroupsFor(user?.role);
+  const navGroups = navGroupsFor(user?.role, user?.rolesFonctionnels);
   // Entrée active : le lien le plus précis qui contient la page (Courrier et
   // Administration → Courrier ne s'allument jamais ensemble).
   const activeHref = navGroups

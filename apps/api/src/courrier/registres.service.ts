@@ -5,6 +5,7 @@ import { AuditService } from '../common/audit/audit.service';
 import { AuthenticatedUser } from '../common/types/auth-user.type';
 import { NumerotationService, TRANSACTION_NUMEROTATION } from './numerotation.service';
 import { UNITE_DIRECTION, assertUnitePourPortee } from './unites';
+import { RolesFonctionnelsService } from '../socle/roles-fonctionnels.service';
 import { CreateHabilitationDto, CreateRegistreDto, InitialiserCompteurDto, UpdateRegistreDto } from './dto/registre.dto';
 
 /**
@@ -19,6 +20,7 @@ export class RegistresService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly numerotation: NumerotationService,
+    private readonly rolesFonctionnels: RolesFonctionnelsService,
   ) {}
 
   findAll() {
@@ -113,15 +115,24 @@ export class RegistresService {
     });
     if (active) throw new ConflictException('Cette personne est déjà habilitée sur ce registre pour cette unité.');
 
-    const created = await this.prisma.habilitationCourrier.create({
-      data: { userId: dto.userId, registreId: registre.id, uniteKey, accordeeParId: actor.id },
-    });
-    await this.audit.log({
-      actorId: actor.id,
-      action: AuditAction.CREATION,
-      entityType: 'HabilitationCourrier',
-      entityId: created.id,
-      metadata: { userId: dto.userId, registre: registre.code, uniteKey },
+    // Socle NIMBA : l'habilitation EST le rôle fonctionnel Agent du courrier
+    // (registre + unité) — reflet écrit dans la même transaction.
+    const created = await this.prisma.$transaction(async (tx) => {
+      const h = await tx.habilitationCourrier.create({
+        data: { userId: dto.userId, registreId: registre.id, uniteKey, accordeeParId: actor.id },
+      });
+      await this.rolesFonctionnels.refleterHabilitationCourrier(tx, h);
+      await this.audit.log(
+        {
+          actorId: actor.id,
+          action: AuditAction.CREATION,
+          entityType: 'HabilitationCourrier',
+          entityId: h.id,
+          metadata: { userId: dto.userId, registre: registre.code, uniteKey },
+        },
+        tx,
+      );
+      return h;
     });
     return created;
   }
@@ -130,16 +141,14 @@ export class RegistresService {
     const h = await this.prisma.habilitationCourrier.findUnique({ where: { id } });
     if (!h) throw new NotFoundException('Habilitation introuvable');
     if (h.revoqueeAt) throw new ConflictException('Cette habilitation est déjà révoquée.');
-    const updated = await this.prisma.habilitationCourrier.update({
-      where: { id },
-      data: { revoqueeAt: new Date(), revoqueeParId: actor.id },
-    });
-    await this.audit.log({
-      actorId: actor.id,
-      action: AuditAction.MODIFICATION,
-      entityType: 'HabilitationCourrier',
-      entityId: id,
-      metadata: { event: 'revocation' },
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const u = await tx.habilitationCourrier.update({
+        where: { id },
+        data: { revoqueeAt: new Date(), revoqueeParId: actor.id },
+      });
+      await this.rolesFonctionnels.refleterRevocation(tx, { habilitationCourrierId: id }, actor.id);
+      await this.audit.log({ actorId: actor.id, action: AuditAction.MODIFICATION, entityType: 'HabilitationCourrier', entityId: id, metadata: { event: 'revocation' } }, tx);
+      return u;
     });
     return updated;
   }

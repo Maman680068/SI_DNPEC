@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import { Injectable, NestMiddleware } from '@nestjs/common';
 import { NextFunction, Request, Response } from 'express';
 import { requestContextStorage } from './request-context';
@@ -13,6 +14,8 @@ import { requestContextStorage } from './request-context';
 @Injectable()
 export class RequestContextMiddleware implements NestMiddleware {
   use(req: Request, res: Response, next: NextFunction): void {
-    requestContextStorage.run({ onBehalfOfId: null }, next);
+    const traceId = randomUUID();
+    res.setHeader('X-Trace-Id', traceId);
+    requestContextStorage.run({ onBehalfOfId: null, traceId, userId: null }, next);
   }
 }
