@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Injectable,
@@ -488,8 +489,9 @@ export class AuthService {
     if (!motDePasseOk || !codeOk) {
       this.loginAttempts.recordFailure(user.email, ip);
       await this.journalConnexions.enregistrer({ userId: user.id, email: user.email, resultat: 'ECHEC', motif: 'réauthentification', ip, navigateur });
-      if (motDePasseOk && user.twoFactorEnabled && !dto.code) throw new UnauthorizedException({ message: 'Saisissez aussi le code de votre application d’authentification.', code: 'CODE_2FA_REQUIS' });
-      throw new UnauthorizedException(motDePasseOk ? 'Code de vérification invalide' : 'Mot de passe incorrect');
+      // 400 et non 401 : la session reste valide (un 401 déclencherait un rafraîchissement inutile).
+      if (motDePasseOk && user.twoFactorEnabled && !dto.code) throw new BadRequestException({ message: 'Saisissez aussi le code de votre application d’authentification.', code: 'CODE_2FA_REQUIS' });
+      throw new BadRequestException(motDePasseOk ? 'Code de vérification invalide' : 'Mot de passe incorrect');
     }
     this.loginAttempts.recordSuccess(user.email, ip);
     await this.journalConnexions.enregistrer({ userId: user.id, email: user.email, resultat: 'SUCCES', motif: 'réauthentification', ip, navigateur });

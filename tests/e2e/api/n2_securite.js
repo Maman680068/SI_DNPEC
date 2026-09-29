@@ -42,7 +42,7 @@ async function code(secret) {
   check('… une réauthentification demandée n’est pas journalisée comme un refus', (await prisma.accesRefuse.count()) === refusAvant);
   const dn = await call('dn', 'GET', `/personnel-files/${a1}`, undefined, SANS);
   check('DN : niveau 1 seulement, sans proposition de déverrouillage (besoin d’en connaître)', dn.status === 200 && dn.body.niveau2Verrouille === false && dn.body.droits.niveau2 === false);
-  expect('mot de passe faux', await call('agent1', 'POST', '/api/v1/reauthentification', { motDePasse: 'mauvais' }), 401);
+  expect('mot de passe faux (la session reste valide)', await call('agent1', 'POST', '/api/v1/reauthentification', { motDePasse: 'mauvais' }), 400);
   expect('sans mot de passe', await call('agent1', 'POST', '/api/v1/reauthentification', {}), 400);
   const r = await call('agent1', 'POST', '/api/v1/reauthentification', { motDePasse: 'Password123!' });
   check('mot de passe juste : preuve valable 10 minutes', r.status === 200 && typeof r.body.preuve === 'string' && Math.abs(new Date(r.body.expireLe) - Date.now() - 10 * 60e3) < 60e3);
@@ -58,7 +58,7 @@ async function code(secret) {
   const secret = authenticator.generateSecret();
   await prisma.user.update({ where: { id: ids.agentdee }, data: { twoFactorEnabled: true, twoFactorSecret: secret } });
   const sansCode = await call('agentdee', 'POST', '/api/v1/reauthentification', { motDePasse: 'Password123!' });
-  check('2FA active : mot de passe seul refusé, code demandé (CODE_2FA_REQUIS)', sansCode.status === 401 && sansCode.body.code === 'CODE_2FA_REQUIS');
+  check('2FA active : mot de passe seul refusé, code demandé (CODE_2FA_REQUIS)', sansCode.status === 400 && sansCode.body.code === 'CODE_2FA_REQUIS');
   check('… avec le code : preuve', (await call('agentdee', 'POST', '/api/v1/reauthentification', { motDePasse: 'Password123!', code: await code(secret) })).status === 200);
   await prisma.user.update({ where: { id: ids.agentdee }, data: { twoFactorEnabled: false, twoFactorSecret: null } });
 

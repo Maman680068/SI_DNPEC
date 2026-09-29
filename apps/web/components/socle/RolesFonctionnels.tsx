@@ -54,7 +54,7 @@ export function RolesFonctionnels() {
           )}
         </div>
       </div>
-      <div className="overflow-x-auto rounded-md border border-line bg-surface">
+      <div className="relative overflow-x-auto rounded-md border border-line bg-surface">
         <table className="w-full min-w-[680px] text-left text-[13px]">
           <thead className="border-b border-line bg-bg text-[11.5px] uppercase tracking-wide text-text-faint">
             <tr>
