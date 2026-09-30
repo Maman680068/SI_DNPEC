@@ -635,6 +635,14 @@ model User {
   // Socle N4 — ordres de mission.
   ordresMission             OrdreMission[]           @relation("OrdreMissionAgent")
   ordresMissionCrees        OrdreMission[]           @relation("OrdreMissionCreePar")
+  // Socle N5 — plan de travail, messagerie en fils, préférences, instructions.
+  activitesResponsable      Activite[]               @relation("ActiviteResponsable")
+  participationsFils        ParticipantFil[]         @relation("ParticipantFilCompte")
+  messagesFil               MessageFil[]             @relation("MessageFilAuteur")
+  preferenceNotification    PreferenceNotification?  @relation("PreferenceNotificationCompte")
+  instructionsEmises        Instruction[]            @relation("InstructionEmetteur")
+  instructionsRecues        Instruction[]            @relation("InstructionDestinataire")
+  instructionsConcernant    Instruction[]            @relation("InstructionAgentConcerne")
 
   @@map("users")
 }
@@ -771,10 +779,15 @@ model Task {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  assignees   TaskAssignee[]
-  comments    TaskComment[]
-  attachments TaskAttachment[]
-  documents   Document[]       @relation("DocumentSourceTask")
+  assignees      TaskAssignee[]
+  comments       TaskComment[]
+  attachments    TaskAttachment[]
+  documents      Document[]       @relation("DocumentSourceTask")
+  // Socle N5 — activité du plan de travail et alertes d'échéance (envoyées une fois).
+  activiteId     String?
+  activite       Activite?        @relation(fields: [activiteId], references: [id], onDelete: SetNull)
+  alerteVeilleAt DateTime?
+  alerteRetardAt DateTime?
 
   @@map("tasks")
 }
@@ -1370,6 +1383,9 @@ model Notification {
   isRead    Boolean             @default(false)
   sentAt    DateTime?
   createdAt DateTime            @default(now())
+
+  // Socle N5 — email regroupé dans le résumé quotidien : date d'envoi prévue (null = immédiat ou déjà parti).
+  aEnvoyerLe DateTime?
 
   @@index([userId, isRead])
   @@map("notifications")
@@ -2553,6 +2569,7 @@ model UniteOrganisationnelle {
 
   historique HistoriqueUnite[]
   agents     Agent[]
+  objectifs  Objectif[]
 
   @@unique([parentId, code])
   @@index([parentId])
@@ -2839,4 +2856,151 @@ model AttestationTravail {
 
   @@index([agentId])
   @@map("attestations_travail")
+}
+
+// ============================================================================
+// Socle NIMBA — lot N5 : plan de travail, messagerie en fils, notifications, instructions
+// ============================================================================
+
+/// Objectif du plan de travail (SIG-RF-PTA), rattaché à une unité du socle.
+model Objectif {
+  id          String                 @id @default(cuid())
+  annee       Int
+  uniteId     String
+  unite       UniteOrganisationnelle @relation(fields: [uniteId], references: [id])
+  libelle     String
+  description String?
+  creeParId   String
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
+  activites   Activite[]
+
+  @@index([annee, uniteId])
+  @@map("objectifs")
+}
+
+/// Activité datée d'un objectif : responsable, indicateur ; avancement calculé depuis ses tâches.
+model Activite {
+  id            String   @id @default(cuid())
+  objectifId    String
+  objectif      Objectif @relation(fields: [objectifId], references: [id], onDelete: Cascade)
+  libelle       String
+  responsableId String
+  responsable   User     @relation("ActiviteResponsable", fields: [responsableId], references: [id])
+  dateDebut     DateTime @db.Date
+  dateFin       DateTime @db.Date
+  indicateur    String
+  cible         String?
+  creeParId     String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  taches        Task[]
+
+  @@index([objectifId])
+  @@index([responsableId])
+  @@map("activites")
+}
+
+/// Fil de discussion (SIG-RF-MSG) : objet, plusieurs participants, messages successifs.
+model FilMessages {
+  id               String           @id @default(cuid())
+  objet            String
+  creeParId        String
+  createdAt        DateTime         @default(now())
+  dernierMessageLe DateTime         @default(now())
+  participants     ParticipantFil[]
+  messages         MessageFil[]
+
+  @@index([dernierMessageLe])
+  @@map("fils_messages")
+}
+
+model ParticipantFil {
+  filId    String
+  fil      FilMessages @relation(fields: [filId], references: [id], onDelete: Cascade)
+  userId   String
+  user     User        @relation("ParticipantFilCompte", fields: [userId], references: [id], onDelete: Cascade)
+  ajouteLe DateTime    @default(now())
+
+  @@id([filId, userId])
+  @@index([userId])
+  @@map("participants_fil")
+}
+
+/// Message d'un fil ; la pièce jointe est un renvoi vers un objet de la plateforme (jamais un fichier).
+model MessageFil {
+  id        String           @id @default(cuid())
+  filId     String
+  fil       FilMessages      @relation(fields: [filId], references: [id], onDelete: Cascade)
+  auteurId  String
+  auteur    User             @relation("MessageFilAuteur", fields: [auteurId], references: [id])
+  corps     String
+  lienType  String? // TACHE | DOCUMENT | REUNION | ARRIVEE | ACTE
+  lienId    String?
+  createdAt DateTime         @default(now())
+  lectures  LectureMessage[]
+
+  @@index([filId, createdAt])
+  @@map("messages_fil")
+}
+
+/// Accusé de lecture par destinataire.
+model LectureMessage {
+  messageId String
+  message   MessageFil @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  userId    String
+  luLe      DateTime   @default(now())
+
+  @@id([messageId, userId])
+  @@map("lectures_message")
+}
+
+/// Préférences de notification (§9) : résumé quotidien des emails non urgents, heure de Conakry.
+model PreferenceNotification {
+  userId          String   @id
+  user            User     @relation("PreferenceNotificationCompte", fields: [userId], references: [id], onDelete: Cascade)
+  resumeQuotidien Boolean  @default(true)
+  heureResume     Int      @default(7)
+  updatedAt       DateTime @updatedAt
+
+  @@map("preferences_notification")
+}
+
+enum StatutInstruction {
+  EMISE
+  RECUE
+  PRISE_EN_COMPTE
+  EXECUTEE
+  REJETEE
+
+  @@map("statut_instruction")
+}
+
+/// Instruction de la Direction (SIG-RF-INS) : émise par le DN ou la DNA, invisible pour l'agent
+/// concerné avant son exécution, relancée tous les 7 jours tant qu'elle n'est pas close.
+model Instruction {
+  id              String            @id @default(cuid())
+  objet           String
+  texte           String
+  emetteurId      String
+  emetteur        User              @relation("InstructionEmetteur", fields: [emetteurId], references: [id])
+  destinataireId  String
+  destinataire    User              @relation("InstructionDestinataire", fields: [destinataireId], references: [id])
+  agentConcerneId String?
+  agentConcerne   User?             @relation("InstructionAgentConcerne", fields: [agentConcerneId], references: [id])
+  echeance        DateTime?         @db.Date
+  statut          StatutInstruction @default(EMISE)
+  emiseLe         DateTime          @default(now())
+  recueLe         DateTime?
+  priseEnCompteLe DateTime?
+  executeeLe      DateTime?
+  rejeteeLe       DateTime?
+  motifRejet      String?
+  compteRendu     String?
+  acteId          String?
+  relanceLe       DateTime?
+
+  @@index([destinataireId, statut])
+  @@index([emetteurId])
+  @@map("instructions")
 }
