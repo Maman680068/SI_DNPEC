@@ -28,16 +28,19 @@ export class ConservationService {
   }
 
   /** `maintenant` simulable pour les tests. */
-  async purgerMessages(maintenant: Date): Promise<{ messages: number; piecesJointes: number }> {
+  async purgerMessages(maintenant: Date): Promise<{ messages: number; piecesJointes: number; messagesFils: number }> {
     const limite = new Date(maintenant);
     limite.setUTCFullYear(limite.getUTCFullYear() - CONSERVATION_MESSAGES_ANS);
     const avecPiece = await this.prisma.directMessage.findMany({ where: { createdAt: { lt: limite }, attachmentKey: { not: null } }, select: { attachmentKey: true } });
     const { count } = await this.prisma.directMessage.deleteMany({ where: { createdAt: { lt: limite } } });
+    // Fils de discussion (N5) : même règle ; un fil sans message restant disparaît.
+    const fils = await this.prisma.messageFil.deleteMany({ where: { createdAt: { lt: limite } } });
+    await this.prisma.filMessages.deleteMany({ where: { messages: { none: {} } } });
     let piecesJointes = 0;
     for (const m of avecPiece) {
       // Une pièce effacée ne bloque jamais la purge (fichier déjà absent, stockage indisponible).
       await this.storage.delete(m.attachmentKey!).then(() => piecesJointes++, () => undefined);
     }
-    return { messages: count, piecesJointes };
+    return { messages: count, piecesJointes, messagesFils: fils.count };
   }
 }

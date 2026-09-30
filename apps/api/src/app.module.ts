@@ -22,6 +22,9 @@ import { PersonnelModule } from './personnel/personnel.module';
 import { PersonnelImportModule } from './personnel/personnel-import.module';
 import { StagesModule } from './stages/stages.module';
 import { GenerateurModule } from './generateur/generateur.module';
+import { PlanTravailModule } from './plan-travail/plan-travail.module';
+import { CollaborationModule } from './collaboration/collaboration.module';
+import { InstructionsModule } from './instructions/instructions.module';
 import { SuppleancesModule } from './suppleances/suppleances.module';
 import { CourrierModule } from './courrier/courrier.module';
 import { RoleChangeModule } from './role-change/role-change.module';
@@ -54,6 +57,9 @@ import { AppController } from './app.controller';
     SuggestionsModule,
     PersonnelModule,
     GenerateurModule,
+    PlanTravailModule,
+    InstructionsModule,
+    CollaborationModule,
     PersonnelImportModule,
     StagesModule,
     SuppleancesModule,

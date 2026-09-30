@@ -67,6 +67,39 @@ const NOTIFICATION_BUTTON_LABELS: Record<NotificationType, string> = {
 };
 
 /**
+ * Socle N5 (§9) : événements dont l'email part immédiatement, quelle que soit la préférence de
+ * l'agent (liste fermée : sécurité, décision sur une demande, acte à signer, retard, rappel daté).
+ * Les autres partent dans le résumé quotidien (voir `ResumeQuotidienService`), sauf si l'agent a
+ * choisi « Tout immédiatement ». Un appelant peut aussi forcer l'immédiat (`urgent: true` :
+ * instruction de la Direction, alerte de supervision).
+ */
+export const NOTIFICATIONS_IMMEDIATES: ReadonlySet<NotificationType> = new Set<NotificationType>([
+  NotificationType.ROLE_MODIFIE,
+  NotificationType.SUPPLEANCE_DESIGNEE,
+  NotificationType.SUPPLEANCE_REVOQUEE,
+  NotificationType.CONGE_VALIDE,
+  NotificationType.CONGE_REJETE,
+  NotificationType.LOGISTIQUE_DEMANDE_TRAITEE,
+  NotificationType.LOGISTIQUE_DEMANDE_REFUSEE,
+  NotificationType.RESERVATION_CONFIRMEE,
+  NotificationType.RESERVATION_REFUSEE,
+  NotificationType.RESERVATION_ANNULEE_PRIORITE,
+  NotificationType.STAGE_PERIODE_REFUSEE,
+  NotificationType.ACTE_A_SIGNER,
+  NotificationType.TACHE_EN_RETARD,
+  NotificationType.IMPUTATION_EN_RETARD,
+  NotificationType.REUNION_RAPPEL,
+  NotificationType.REUNION_ANNULEE,
+]);
+
+/** Prochaine heure pleine `heure` (heure de Conakry = UTC) strictement après `apres`. */
+export function prochainResume(apres: Date, heure: number): Date {
+  const d = new Date(Date.UTC(apres.getUTCFullYear(), apres.getUTCMonth(), apres.getUTCDate(), heure));
+  if (d <= apres) d.setUTCDate(d.getUTCDate() + 1);
+  return d;
+}
+
+/**
  * Point d'entrée unique des notifications (in-app + email — SMS différé,
  * SHOULD, RF-COM-04). Utilisée par messages/annonces de ce module, et par
  * TasksService pour les événements liés aux tâches (assignation, mention,
@@ -106,7 +139,7 @@ export class NotificationsService {
     // Socle NIMBA : libellé du bouton de l'email quand un type existant est
     // réutilisé pour un événement voisin (pas de nouvelle valeur de type de
     // notification tant que l'ancienne API peut encore lire la table).
-    options?: { libelleBouton?: string },
+    options?: { libelleBouton?: string; urgent?: boolean },
   ): Promise<void> {
     await this.prisma.notification.create({
       data: { userId, type, channel: NotificationChannel.IN_APP, title, body, link, sentAt: new Date() },
@@ -114,12 +147,20 @@ export class NotificationsService {
 
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { email: true, firstName: true },
+      select: { email: true, firstName: true, preferenceNotification: { select: { resumeQuotidien: true, heureResume: true } } },
     });
+    const pref = user?.preferenceNotification ?? { resumeQuotidien: true, heureResume: 7 };
+    const immediat = options?.urgent || NOTIFICATIONS_IMMEDIATES.has(type) || !pref.resumeQuotidien;
+    const maintenant = new Date();
     await this.prisma.notification.create({
-      data: { userId, type, channel: NotificationChannel.EMAIL, title, body, link, sentAt: new Date() },
+      data: {
+        userId, type, channel: NotificationChannel.EMAIL, title, body, link,
+        // Email regroupé : envoyé par le résumé quotidien (sentAt posé à l'envoi).
+        sentAt: immediat ? maintenant : null,
+        aEnvoyerLe: immediat ? null : prochainResume(maintenant, pref.heureResume),
+      },
     });
-    if (user) {
+    if (user && immediat) {
       const webAppUrl = this.config.get<string>('WEB_APP_URL', 'http://localhost:3100');
       const subject = subjectDetail ? `${title} : ${subjectDetail}` : title;
       const { html, text } = buildEmailContent({
@@ -152,7 +193,7 @@ export class NotificationsService {
     body: string,
     link?: string,
     subjectDetail?: string,
-    options?: { libelleBouton?: string },
+    options?: { libelleBouton?: string; urgent?: boolean },
   ): Promise<void> {
     await Promise.all(userIds.map((userId) => this.notify(userId, type, title, body, link, subjectDetail, options)));
   }

@@ -17,6 +17,7 @@ import { montantEnLettres } from '../socle/montant-en-lettres';
 import { Bloc, MIME_DOCX, MIME_PDF, PageDocument, dateFr, renduDocx, renduPdf, slug } from './mise-en-page';
 import { Perimetre, ProduireDto, TransmettreDto, TypeGenere } from './dto/produire.dto';
 import { OrdreMissionDto } from './dto/actes-generes.dto';
+import { PlanTravailService } from '../plan-travail/plan-travail.service';
 
 export interface FichierGenere {
   buffer: Buffer;
@@ -58,6 +59,7 @@ export class GenerateurService {
     private readonly storage: StorageService,
     private readonly cascade: CascadeService,
     private readonly actes: ActesService,
+    private readonly plan: PlanTravailService,
     private readonly tasks: TasksService,
     private readonly documents: DocumentsService,
     private readonly messages: MessagesService,
@@ -430,6 +432,20 @@ export class GenerateurService {
       { type: 'intertitre', texte: `Tâches en cours (${enCours.length})` },
       enCours.length ? { type: 'tableau', entetes, lignes: enCours.map(ligne), largeurs: [4, 3, 2, 1.5, 1.5] } : { type: 'paragraphe', texte: 'Aucune tâche en cours.' },
     ];
+    // Socle N5 : activités du plan de travail du périmètre qui chevauchent la période (avancement calculé).
+    const cible = perimetre === 'DIRECTION' ? {} : perimetre === 'AGENT' ? { responsableId: dto.cibleId ?? actor.id } : perimetre === 'DIVISION' ? { divisionId: dto.cibleId! } : perimetre === 'SECTION' ? { sectionId: dto.cibleId! } : { celluleId: dto.cibleId! };
+    const activites = await this.plan.activitesDuPerimetre(cible, debut, fin);
+    corps.push(
+      { type: 'intertitre', texte: `Activités du plan de travail (${activites.length})` },
+      activites.length
+        ? {
+            type: 'tableau',
+            entetes: ['Activité', 'Responsable', 'Échéance', 'Indicateur', 'Avancement'],
+            lignes: activites.map((a) => [`${a.libelle} (${a.objectif})`, a.responsable.nom, dateFr(a.dateFin), [a.indicateur, a.cible].filter(Boolean).join(' — '), `${a.avancement} %${a.enRetard ? ' — en retard' : ''}`]),
+            largeurs: [4, 2.5, 2, 2.5, 1.5],
+          }
+        : { type: 'paragraphe', texte: 'Aucune activité du plan de travail sur la période.' },
+    );
     return {
       page: { titre: 'Rapport d’activité', numero: null, mentions: [], corps, lieuDate },
       base: `rapport-activite-${slug(libelle)}-${dto.debut.slice(0, 10)}-${dto.fin.slice(0, 10)}`,

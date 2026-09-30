@@ -46,4 +46,9 @@ export class TaskFiltersDto {
   @Type(() => String)
   @IsBooleanString()
   includeSubtasks?: string;
+
+  // Socle N5 — tâches d'une activité du plan de travail.
+  @IsOptional()
+  @IsString()
+  activiteId?: string;
 }

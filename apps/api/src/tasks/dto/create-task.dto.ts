@@ -50,6 +50,11 @@ export class CreateTaskDto {
   @IsString()
   projectId?: string;
 
+  // Socle N5 — activité du plan de travail (null à la modification : détacher).
+  @IsOptional()
+  @IsString()
+  activiteId?: string | null;
+
   // Bloque le passage à SOUMISE_VALIDATION tant qu'aucune pièce jointe n'est
   // présente (voir TasksService.submit). Sans effet sur une sous-tâche — voir
   // le commentaire de Task.documentRequired dans schema.prisma.

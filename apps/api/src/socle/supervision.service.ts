@@ -209,7 +209,7 @@ export class SupervisionService {
         degrades.map((s) => `${s.libelle} : ${s.etat === 'INDISPONIBLE' ? 'indisponible' : 'dégradé'} — ${s.detail}`).join(' ; '),
         LIEN_SUPERVISION,
         undefined,
-        { libelleBouton: 'Voir la supervision' },
+        { libelleBouton: 'Voir la supervision', urgent: true },
       );
     }
     return { alertes: degrades.length, etats };

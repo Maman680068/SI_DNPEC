@@ -17,6 +17,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../common/audit/audit.service';
 import { StorageService } from '../common/storage/storage.service';
 import { CascadeService } from '../org/cascade/cascade.service';
+import { PlanTravailService } from '../plan-travail/plan-travail.service';
 import { NotificationsService } from '../communication/notifications/notifications.service';
 import { AuthenticatedUser } from '../common/types/auth-user.type';
 import { CreateTaskDto } from './dto/create-task.dto';
@@ -43,6 +44,7 @@ const TASK_SELECT = {
   sectionId: true,
   celluleId: true,
   projectId: true,
+  activiteId: true,
   parentTaskId: true,
   progressPercent: true,
   isRecurring: true,
@@ -79,6 +81,7 @@ export class TasksService {
     private readonly storage: StorageService,
     private readonly cascade: CascadeService,
     private readonly notifications: NotificationsService,
+    private readonly plan: PlanTravailService,
   ) {}
 
   // --------------------------------------------------------------------
@@ -96,6 +99,7 @@ export class TasksService {
     };
     await this.assertOrgAttachmentValid(orgAttachment);
     if (dto.projectId) await this.assertProjectExists(dto.projectId);
+    if (dto.activiteId) await this.plan.assertActiviteVisible(actor, dto.activiteId);
 
     const assignees = dto.assignees ?? [];
     if (assignees.length > 0) {
@@ -112,6 +116,7 @@ export class TasksService {
         documentRequired: dto.documentRequired ?? false,
         ...orgAttachment,
         projectId: dto.projectId,
+        activiteId: dto.activiteId === undefined ? undefined : dto.activiteId || null,
         isRecurring: !!dto.recurrenceFrequency,
         recurrenceFrequency: dto.recurrenceFrequency,
         recurrenceEndDate: dto.recurrenceEndDate ? new Date(dto.recurrenceEndDate) : undefined,
@@ -216,6 +221,7 @@ export class TasksService {
       sectionId: filters.sectionId,
       celluleId: filters.celluleId,
       projectId: filters.projectId,
+      activiteId: filters.activiteId,
       dueDate,
       assignees: filters.assigneeId ? { some: { userId: filters.assigneeId } } : undefined,
       parentTaskId: filters.includeSubtasks === 'true' ? undefined : null,
@@ -225,6 +231,16 @@ export class TasksService {
       where,
       select: TASK_SELECT,
       orderBy: [{ dueDate: 'asc' }, { createdAt: 'desc' }],
+    });
+  }
+
+  /** Recherche transverse (socle N5) : mêmes règles de visibilité que l'écran des tâches. */
+  rechercher(actor: AuthenticatedUser, q: string, take: number) {
+    return this.prisma.task.findMany({
+      where: this.scopedWhere(actor, { title: { contains: q, mode: 'insensitive' } }),
+      select: { id: true, title: true, status: true, dueDate: true },
+      orderBy: { updatedAt: 'desc' },
+      take,
     });
   }
 
@@ -251,6 +267,7 @@ export class TasksService {
     };
     if (orgFieldsChanged) await this.assertOrgAttachmentValid(nextOrgAttachment);
     if (dto.projectId) await this.assertProjectExists(dto.projectId);
+    if (dto.activiteId) await this.plan.assertActiviteVisible(actor, dto.activiteId);
 
     const updated = await this.prisma.task.update({
       where: { id },
@@ -261,6 +278,7 @@ export class TasksService {
         confidentiality: dto.confidentiality,
         dueDate: dto.dueDate !== undefined ? (dto.dueDate ? new Date(dto.dueDate) : null) : undefined,
         projectId: dto.projectId,
+        activiteId: dto.activiteId === undefined ? undefined : dto.activiteId || null,
         ...(orgFieldsChanged ? nextOrgAttachment : {}),
       },
       select: TASK_SELECT,
