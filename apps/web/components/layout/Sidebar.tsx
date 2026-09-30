@@ -15,6 +15,9 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { icon: '▦', label: 'Tableau de bord', href: '/dashboard' },
       { icon: '✎', label: 'Mes tâches', href: '/tasks' },
+      // Socle N5 : plan de travail (objectifs, activités) et instructions de la Direction ; fermés aux stagiaires.
+      { icon: '◎', label: 'Plan de travail', href: '/plan-travail' },
+      { icon: '⚑', label: 'Instructions', href: '/instructions' },
       { icon: '✉', label: 'Communication', href: '/communication' },
       { icon: '🗂', label: 'Archives & documents', href: '/documents' },
       { icon: '🗓', label: 'Réunions', href: '/reunions' },
@@ -200,12 +203,16 @@ export function Sidebar({ open = false, onClose }: { open?: boolean; onClose?: (
             </div>
             <div className="truncate text-[11px] text-text-faint">{user.jobTitle ?? user.role}</div>
           </div>
+          <Link href="/compte/notifications" title="Préférences de notification" aria-label="Préférences de notification" className="text-text-faint hover:text-ink">
+            🔔
+          </Link>
           <Link href="/compte/securite" title="Sécurité du compte" aria-label="Sécurité du compte" className="text-text-faint hover:text-ink">
             🔒
           </Link>
           <button
             onClick={() => logout()}
             title="Se déconnecter"
+            aria-label="Se déconnecter"
             className="text-text-faint hover:text-clay"
           >
             ⏻

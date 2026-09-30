@@ -47,6 +47,9 @@ export default function AnnuairePage() {
 
   useEffect(() => {
     getDirectory().then(setPeople).catch((err) => setErreurChargement(messageChargement(err)));
+    // Lien de la recherche transverse (socle N5) : « /annuaire?q=<nom> ».
+    const q = new URLSearchParams(window.location.search).get('q');
+    if (q) setQuery(q);
   }, []);
 
   const filtered = useMemo(() => {

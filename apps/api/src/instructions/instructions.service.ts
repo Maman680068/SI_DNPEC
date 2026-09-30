@@ -129,8 +129,13 @@ export class InstructionsService {
       // Invisible pour l'agent concerné avant l'exécution.
       this.prisma.instruction.findMany({ where: { agentConcerneId: actor.id, statut: StatutInstruction.EXECUTEE }, select: SELECT, orderBy: { executeeLe: 'desc' } }),
     ]);
+    const peutEmettre = this.direction(actor);
     return {
-      peutEmettre: this.direction(actor),
+      peutEmettre,
+      // Choix de l'écran d'émission : comptes actifs hors stagiaires, sauf soi-même.
+      personnesPossibles: peutEmettre
+        ? (await this.prisma.user.findMany({ where: { status: UserStatus.ACTIF, role: { not: SystemRole.STAGIAIRE }, id: { not: actor.id } }, select: { id: true, firstName: true, lastName: true }, orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }] })).map((u) => ({ id: u.id, nom: nom(u)! }))
+        : [],
       emises: emises.map((i) => this.vue(actor, i)),
       recues: recues.map((i) => this.vue(actor, i)),
       meConcernant: meConcernant.map((i) => this.vue(actor, i)),
@@ -146,7 +151,20 @@ export class InstructionsService {
       await this.audit.log({ actorId: actor.id, action: AuditAction.MODIFICATION, entityType: 'Instruction', entityId: id, metadata: { event: 'recue' } });
       i = await this.charger(id);
     }
-    return this.vue(actor, i);
+    const vue = this.vue(actor, i);
+    // Exécution d'une instruction RH : actes signés dont l'agent concerné est bénéficiaire, rédigés par le destinataire.
+    const actesPossibles =
+      vue.droits.executer && i.agentConcerneId
+        ? (
+            await this.prisma.acteCourrier.findMany({
+              where: { beneficiaireId: i.agentConcerneId, redacteurId: actor.id, statut: { in: [ActeStatut.SIGNE, ActeStatut.EXPEDIE] } },
+              select: { id: true, numero: true, objet: true },
+              orderBy: { updatedAt: 'desc' },
+              take: 50,
+            })
+          ).map((a) => ({ id: a.id, libelle: `${a.numero ?? ''} — ${a.objet}` }))
+        : [];
+    return { ...vue, actesPossibles };
   }
 
   async prendreEnCompte(actor: AuthenticatedUser, id: string) {

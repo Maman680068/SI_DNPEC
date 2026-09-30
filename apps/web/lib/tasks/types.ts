@@ -27,6 +27,8 @@ export interface Task {
   sectionId: string | null;
   celluleId: string | null;
   projectId: string | null;
+  /** Socle N5 : activité du plan de travail à laquelle la tâche contribue. */
+  activiteId?: string | null;
   parentTaskId: string | null;
   progressPercent: number | null;
   isRecurring: boolean;
@@ -102,6 +104,7 @@ export interface CreateTaskInput {
   sectionId?: string;
   celluleId?: string;
   assignees?: { userId: string; roleOnTask?: TaskAssigneeRole }[];
+  activiteId?: string;
 }
 
 /** Voir TasksService.broadcastToDivision : COLLECTIVE = une tâche, tous les

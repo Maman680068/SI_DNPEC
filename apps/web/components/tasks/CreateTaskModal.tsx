@@ -1,6 +1,8 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
+import { getActivitesDisponibles } from '../../lib/api/pilotage';
+import type { ActiviteDisponible } from '../../lib/pilotage/types';
 import { useAuth } from '../../lib/auth/AuthProvider';
 import { useOrg } from '../../lib/org/OrgProvider';
 import { addAttachments, createTask } from '../../lib/api/tasks';
@@ -24,10 +26,13 @@ export function CreateTaskModal({
   onClose,
   onCreated,
   presetAssignee,
+  presetActiviteId,
 }: {
   onClose: () => void;
   onCreated: (task: Task) => void;
   presetAssignee?: PresetAssignee;
+  /** Socle N5 : création depuis une activité du plan de travail. */
+  presetActiviteId?: string;
 }) {
   const { user: currentUser } = useAuth();
   const { users } = useOrg();
@@ -38,6 +43,8 @@ export function CreateTaskModal({
   const [documentRequired, setDocumentRequired] = useState(false);
   const [files, setFiles] = useState<File[]>([]);
   const [assigneeIds, setAssigneeIds] = useState<string[]>(presetAssignee ? [presetAssignee.id] : []);
+  const [activiteId, setActiviteId] = useState(presetActiviteId ?? '');
+  const [activites, setActivites] = useState<ActiviteDisponible[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -46,6 +53,13 @@ export function CreateTaskModal({
     presetAssignee && !cascadeAssignable.some((u) => u.id === presetAssignee.id)
       ? [presetAssignee, ...cascadeAssignable]
       : cascadeAssignable;
+
+  // Activités proposées par l'API (plans visibles) ; une liste vide masque le champ.
+  useEffect(() => {
+    getActivitesDisponibles()
+      .then(setActivites)
+      .catch(() => setActivites([]));
+  }, []);
 
   function toggleAssignee(userId: string) {
     setAssigneeIds((prev) => (prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]));
@@ -66,6 +80,7 @@ export function CreateTaskModal({
         sectionId: currentUser?.sectionId ?? undefined,
         celluleId: currentUser?.celluleId ?? undefined,
         assignees: assigneeIds.map((userId) => ({ userId })),
+        activiteId: activiteId || undefined,
       });
       // La tâche existe déjà à ce stade — un échec d'upload n'annule pas sa
       // création. La fenêtre se ferme via onCreated juste après, donc un
@@ -126,6 +141,27 @@ export function CreateTaskModal({
           </div>
           <Field label="Échéance" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
         </div>
+
+        {activites.length > 0 && (
+          <div className="mb-4">
+            <label htmlFor="tache-activite" className="mb-1.5 block text-[12.5px] font-semibold text-text">
+              Activité du plan de travail <span className="font-normal text-text-faint">(facultatif)</span>
+            </label>
+            <select
+              id="tache-activite"
+              value={activiteId}
+              onChange={(e) => setActiviteId(e.target.value)}
+              className="w-full rounded-md border border-line bg-surface px-3 py-2.5 text-sm"
+            >
+              <option value="">Aucune</option>
+              {activites.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.libelle} — {a.objectif} ({a.unite})
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         <div className="mb-4">
           <label className="mb-1.5 block text-[12.5px] font-semibold text-text">
