@@ -20,7 +20,8 @@ libre, sans changement.
   principales (avancement N3, déjà calculé en base) ; 0 % sans tâche. Avancement d'un objectif :
   moyenne de ses activités. Activité « en retard » si sa fin est passée et l'avancement < 100 %.
 - Visibilité : plan de son unité et des unités au-dessus ; un chef voit les plans des unités de son
-  périmètre ; DN, DNA : toute la Direction.
+  périmètre ; DN, DNA : toute la Direction ; l'assistant de direction lit comme son supérieur
+  (`CascadeService.getVisibilityActor`), sans rien gérer.
 - Rapport d'activité (N4) enrichi : section « Activités du plan de travail » (avancement, indicateur,
   retard) pour le périmètre et la période ; toujours exportable en PDF et Word.
 - Écran « Plan de travail » (menu Général) : arbre objectif → activités → tâches, filtres année et unité.
@@ -61,7 +62,8 @@ libre, sans changement.
 - **Strictement limitée aux droits** : chaque catégorie réutilise la requête de son module (mêmes
   filtres de visibilité que l'écran) ; aucun objet protégé ; l'administrateur n'obtient que ce que ses
   droits lui ouvrent. Les filtres de recherche de chaque module sont conservés.
-- Page « Résultats » (`/recherche?q=`) pour tout voir.
+- Page « Résultats » (`/recherche?q=`) pour tout voir ; « Voir tout dans le module » ouvre l'écran
+  avec son propre filtre. Fermée aux stagiaires (comme les modules interrogés).
 
 ## 6. Instructions de la Direction (SIG-RF-INS)
 
@@ -90,8 +92,9 @@ libre, sans changement.
 
 ## Reprise, retour arrière
 
-- Reprise : aucune donnée à transformer ; toutes les tâches gardent `activiteId` nul ; préférences
-  par défaut (résumé quotidien à 7 h) créées à la première lecture ; les emails d'avant N5 restent
-  « envoyés ».
+- Reprise : toutes les tâches gardent `activiteId` nul ; les tâches non terminées **déjà en retard**
+  au passage de N5 reçoivent `alerteRetardAt` (réputées signalées : pas d'avalanche d'alertes sur des
+  retards anciens) ; préférences par défaut (résumé quotidien à 7 h) à la première lecture ; les
+  emails d'avant N5 restent « envoyés ».
 - Retour arrière : `prisma/retour-arriere/n5_down.sql` ; phase 39k de `run_all.sh` ; ordre inverse
   des lots (N5 avant N4).

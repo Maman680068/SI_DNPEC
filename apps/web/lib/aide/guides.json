@@ -52,6 +52,16 @@
             "Une idée d’amélioration ? Menu Personnel → « Boîte à suggestions ».",
             "Un problème technique ? Contactez l’administrateur système (CSID)."
           ]
+        },
+        {
+          "titre": "Rechercher et être prévenu",
+          "etapes": [
+            "Barre du haut : tapez au moins 3 caractères puis Entrée ; les résultats sont groupés par tâches, documents, courrier, annuaire et réunions, et ne montrent que ce que vous avez le droit de voir.",
+            "« Voir tout dans le module » ouvre l’écran concerné avec ses propres filtres.",
+            "La cloche affiche toujours vos notifications immédiatement. Par email, vous recevez chaque jour un « Résumé quotidien » ; les alertes urgentes (sécurité, décision sur une demande, acte à signer, instruction de la Direction, tâche en retard, réunion) partent tout de suite.",
+            "Icône 🔔 en bas du menu → « Préférences de notification » : heure du résumé, ou « Tout immédiatement »."
+          ],
+          "capture": "recherche.png"
         }
       ]
     },
@@ -122,6 +132,17 @@
             "Vos attestations de travail et ordres de mission signés s’y trouvent aussi ; une réimpression porte la mention « DUPLICATA »."
           ],
           "capture": "documents-generes.png"
+        },
+        {
+          "titre": "Plan de travail et fils de discussion",
+          "etapes": [
+            "Général → « Plan de travail » : les objectifs de l’année de votre unité et des unités au-dessus, leurs activités (responsable, période, indicateur) et leur avancement, calculé à partir des tâches.",
+            "En créant une tâche, choisissez l’« Activité du plan de travail » à laquelle elle contribue.",
+            "Mes tâches : bouton « Kanban » ou « Calendrier » pour changer de vue. La veille d’une échéance, vous êtes prévenu ; en cas de retard, votre chef l’est.",
+            "Communication → « Fils de discussion » : « + Nouveau fil » (objet, plusieurs destinataires, message) ; « Joindre un objet » renvoie vers une tâche, un document, un courrier ou une réunion — seuls ceux qui y ont droit peuvent l’ouvrir.",
+            "Sous chaque message : « Lu par … le … » pour chaque destinataire."
+          ],
+          "capture": "fils.png"
         }
       ]
     },
@@ -177,6 +198,16 @@
             "Un document déposé porte le statut « Brouillon » ; c’est le chef de division qui le valide."
           ],
           "capture": "documents-generes.png"
+        },
+        {
+          "titre": "Plan de travail de la section",
+          "etapes": [
+            "Général → « Plan de travail » → « + Nouvel objectif » : l’objectif de l’année pour votre section.",
+            "« + Activité » : libellé, responsable (un membre de la section), début, fin, indicateur et cible.",
+            "Cliquez sur une activité : ses tâches en Kanban ou en Calendrier, « + Nouvelle tâche » pour en rattacher une. L’avancement se calcule tout seul ; « En retard » s’affiche si la fin est passée avant 100 %.",
+            "Vous êtes prévenu quand une tâche d’un agent de la section dépasse son échéance. Le rapport d’activité (Documents générés) reprend les activités du plan."
+          ],
+          "capture": "plan-travail.png"
         }
       ]
     },
@@ -229,6 +260,15 @@
             "Documents générés : ordres de mission de vos agents et rapport d’activité de votre division ou de ses sections."
           ],
           "capture": "documents-generes.png"
+        },
+        {
+          "titre": "Plan de travail",
+          "etapes": [
+            "Général → « Plan de travail » : le chef de division gère le plan de sa division et de ses sections ; le chef de cellule celui de sa cellule.",
+            "Filtre « Unité » pour ne voir qu’une section ; filtre « Année » pour les plans passés ou à venir.",
+            "Les tâches en retard de vos agents directs vous sont signalées une fois, le lendemain de l’échéance."
+          ],
+          "capture": "plan-travail.png"
         }
       ]
     },
@@ -281,6 +321,17 @@
             "Documents générés : rapport d’activité de toute la Direction ; ordres de mission ; les attestations et ordres préparés vous arrivent à signer par le module Courrier."
           ],
           "capture": "documents-generes.png"
+        },
+        {
+          "titre": "Instructions de la Direction",
+          "etapes": [
+            "Général → « Instructions » → « + Nouvelle instruction » : objet, texte, destinataire, échéance ; « Agent concerné » pour une instruction RH (l’agent ne la voit qu’une fois exécutée).",
+            "Suivi : Émise → Reçue (à l’ouverture par le destinataire) → Prise en compte → Exécutée ou Rejetée (avec un motif). Vous êtes prévenu à chaque étape.",
+            "Sans réponse, le destinataire est relancé tous les 7 jours et vous en êtes informé.",
+            "Une instruction RH s’exécute par un acte signé du Courrier (par exemple une attestation préparée par le DRH).",
+            "Plan de travail : vous gérez les objectifs de toute la Direction et de chaque unité."
+          ],
+          "capture": "instructions.png"
         }
       ]
     },
@@ -307,6 +358,14 @@
             "Communication : messagerie avec tous les agents."
           ],
           "capture": "reunions.png"
+        },
+        {
+          "titre": "Plan de travail et recherche",
+          "etapes": [
+            "Général → « Plan de travail » : vous lisez les mêmes plans que votre supérieur, sans pouvoir les modifier.",
+            "La barre de recherche du haut ne montre que ce que vous avez le droit de voir."
+          ],
+          "capture": "plan-travail.png"
         }
       ]
     },
@@ -400,7 +459,8 @@
           "etapes": [
             "Personnel → « Documents générés » → « Attestations de travail » : choisissez l’agent, « Nouvelle attestation de travail ».",
             "« Aperçu » montre exactement le document imprimé (mention « PROJET — non signé ») ; « PDF » ou « Word » pour le télécharger.",
-            "« Préparer l’acte » : l’attestation part dans le module Courrier (visa, signature du DN ou de la DNA, numéro). Une fois signée, l’agent la retrouve dans son écran ; « Transmettre » la lui envoie par la messagerie."
+            "« Préparer l’acte » : l’attestation part dans le module Courrier (visa, signature du DN ou de la DNA, numéro). Une fois signée, l’agent la retrouve dans son écran ; « Transmettre » la lui envoie par la messagerie.",
+            "Instruction RH de la Direction : Général → « Instructions » → « Prendre en compte », préparez puis faites signer l’acte, enfin « Marquer exécutée » en choisissant l’acte signé."
           ],
           "capture": "documents-generes.png"
         }
