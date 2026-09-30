@@ -4,6 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../common/audit/audit.service';
 import { NotificationsService } from '../communication/notifications/notifications.service';
 import { AuthenticatedUser } from '../common/types/auth-user.type';
+import { CascadeService } from '../org/cascade/cascade.service';
 import { ActiviteDto, ModifierActiviteDto, ModifierObjectifDto, ObjectifDto, PlanFiltresDto } from './dto/plan-travail.dto';
 
 type Unite = { id: string; type: TypeUnite; parentId: string | null; libelle: string; code: string; divisionId: string | null; sectionId: string | null; celluleId: string | null; dateFermeture: Date | null };
@@ -37,6 +38,7 @@ export class PlanTravailService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly notifications: NotificationsService,
+    private readonly cascade: CascadeService,
   ) {}
 
   // ------------------------------------------------------------------ périmètres
@@ -73,8 +75,10 @@ export class PlanTravailService {
     return [];
   }
 
-  /** Unités dont l'acteur lit le plan : les siennes et celles au-dessus, et celles qu'il gère. */
-  private visibles(actor: AuthenticatedUser, toutes: Unite[]): Set<string> {
+  /** Unités dont l'acteur lit le plan : les siennes et celles au-dessus, et celles qu'il gère.
+   * L'assistant de direction lit comme son superviseur (visibilité seulement, jamais la gestion). */
+  private visibles(acteur: AuthenticatedUser, toutes: Unite[]): Set<string> {
+    const actor = this.cascade.getVisibilityActor(acteur);
     if (this.direction(actor)) return new Set(toutes.map((u) => u.id));
     const ids = new Set(this.gerees(actor, toutes).map((u) => u.id));
     let u = this.uniteDe(toutes, actor) ?? toutes.find((x) => x.type === TypeUnite.DIRECTION);

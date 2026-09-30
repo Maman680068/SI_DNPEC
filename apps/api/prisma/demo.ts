@@ -75,6 +75,8 @@ import { ReferentielLogistiqueService } from '../src/logistique/referentiel.serv
 import { InventaireService } from '../src/logistique/inventaire.service';
 import { DemandesLogistiqueService } from '../src/logistique/demandes.service';
 import { ReservationsService } from '../src/logistique/reservations.service';
+import { PlanTravailService } from '../src/plan-travail/plan-travail.service';
+import { FilsService } from '../src/collaboration/fils.service';
 import { DOMAINE_DEMO, DUREE_DEMO_JOURS, ENTITE_AUDIT_DEMO, PREFIXE_DEMO, estAdresseDemo } from '../src/demo/demo.constantes';
 import { verifierMigrations } from './verifier-migrations';
 import { rolesActifs } from '../src/socle/roles-fonctionnels';
@@ -565,6 +567,30 @@ async function documents(ctx: Ctx) {
   );
 }
 
+async function pilotage(ctx: Ctx) {
+  const { prisma, app, u } = ctx;
+  await bloc(
+    'Plan de travail (N5 : objectif de la division, 2 activités, tâches rattachées) et fil de discussion',
+    async () => (await prisma.objectif.count({ where: { creeParId: u.chefDivision!.id, libelle: { startsWith: T } } })) > 0,
+    async () => {
+      const plan = app.get(PlanTravailService);
+      const tasks = app.get(TasksService);
+      const unite = await prisma.uniteOrganisationnelle.findFirstOrThrow({ where: { divisionId: ctx.division.id, sectionId: null, celluleId: null } });
+      const chefD = await acteur(prisma, u.chefDivision!.id);
+      const annee = new Date().getUTCFullYear();
+      const o = await plan.creerObjectif(chefD, { annee, uniteId: unite.id, libelle: `${T}Produire les notes de conjoncture de l’année`, description: 'Une note par trimestre, validée par la Direction.' });
+      const a1 = await plan.creerActivite(chefD, o.id, { libelle: `${T}Note de conjoncture du troisième trimestre`, responsableId: u.chefSection1!.id, dateDebut: dateSeule(-20), dateFin: dateSeule(15), indicateur: 'Note validée', cible: '1 note' });
+      await plan.creerActivite(chefD, o.id, { libelle: `${T}Enquête auprès des entreprises`, responsableId: u.agent3!.id, dateDebut: dateSeule(5), dateFin: dateSeule(60), indicateur: 'Questionnaires collectés', cible: '120' });
+      const chefS1 = await acteur(prisma, u.chefSection1!.id);
+      const t1 = await tasks.create(chefS1, { title: `${T}Collecte des indicateurs du trimestre`, priority: TaskPriority.NORMAL, dueDate: iso(6, 17), divisionId: ctx.division.id, sectionId: ctx.s1.id, activiteId: a1.id, assignees: [{ userId: u.agent1!.id }] } as never);
+      await tasks.create(chefS1, { title: `${T}Rédaction de la note de conjoncture`, priority: TaskPriority.NORMAL, dueDate: iso(12, 17), divisionId: ctx.division.id, sectionId: ctx.s1.id, activiteId: a1.id, assignees: [{ userId: u.agent2!.id }] } as never);
+      const fils = app.get(FilsService);
+      const fil = await fils.creer(chefS1, { objet: `${T}Préparation de la note de conjoncture`, destinataires: [u.agent1!.id, u.agent2!.id], corps: 'Bonjour à tous, voici la tâche de collecte : merci de compléter les indicateurs avant vendredi.', lien: { type: 'TACHE', id: t1.id } });
+      await fils.repondre(await acteur(prisma, u.agent1!.id), fil.id, { corps: 'Bien reçu, je m’en occupe dès aujourd’hui.' });
+    },
+  );
+}
+
 async function suppleance(ctx: Ctx) {
   const { prisma, app, u } = ctx;
   await bloc(
@@ -789,6 +815,13 @@ async function supprimer(prisma: PrismaClient) {
   // Tâches (sous-tâches, assignations, commentaires, pièces : suppression en cascade).
   n('Sous-tâches', await prisma.task.deleteMany({ where: { createdById: { in: U }, parentTaskId: { not: null } } }));
   n('Tâches', await prisma.task.deleteMany({ where: { createdById: { in: U } } }));
+  // Socle N5 : plan de travail (activités : cascade), fils de discussion, préférences, instructions.
+  n('Objectifs du plan de travail', await prisma.objectif.deleteMany({ where: { OR: [{ creeParId: { in: U } }, ...(division ? [{ unite: { divisionId: division.id } }] : [])] } }));
+  n('Activités (responsable de démonstration)', await prisma.activite.deleteMany({ where: { responsableId: { in: U } } }));
+  // Fils ouverts par un compte de démonstration (messages, participants, lectures : cascade).
+  n('Fils de discussion', await prisma.filMessages.deleteMany({ where: { creeParId: { in: U } } }));
+  await prisma.preferenceNotification.deleteMany({ where: { userId: { in: U } } });
+  n('Instructions', await prisma.instruction.deleteMany({ where: { OR: [{ emetteurId: { in: U } }, { destinataireId: { in: U } }, { agentConcerneId: { in: U } }] } }));
   // Réunions (participants, décisions : cascade).
   n('Réunions', await prisma.meeting.deleteMany({ where: { createdById: { in: U } } }));
   // Congés et soldes.
@@ -976,6 +1009,7 @@ async function main() {
         await conges(ctx);
         await communication(ctx);
         await documents(ctx);
+        await pilotage(ctx);
         await suppleance(ctx);
         await dossiers(ctx);
         await courrier(ctx);

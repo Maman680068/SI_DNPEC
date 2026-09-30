@@ -18,7 +18,7 @@ const DOSSIER = path.join(E.OUT, 'n3_reprise');
 fs.mkdirSync(DOSSIER, { recursive: true });
 const PSQL_URL = (process.env.DATABASE_URL || '').split('?')[0];
 // Colonnes ajoutées par N3, et l'avancement (recalculé par la migration, contrôlé à part).
-const COLONNES_N3 = ['avisEtat', 'avisParId', 'avisMotif', 'avisLe', 'avisEcheance', 'alerteAvisAt', 'encadrantPrincipalId', 'rapportFileKey', 'rapportFileName', 'rapportDeposeLe', 'rapportStatut', 'rapportMotif', 'rapportValideLe', 'rapportValideParId', 'progressPercent', 'certificatFileKey', 'certificatFileName', 'certificatDeposeLe', 'statutDiffusion', 'typeDocument', 'dateDocument', 'periodeDebut', 'periodeFin', 'sourceMeetingId'];
+const COLONNES_N3 = ['avisEtat', 'avisParId', 'avisMotif', 'avisLe', 'avisEcheance', 'alerteAvisAt', 'encadrantPrincipalId', 'rapportFileKey', 'rapportFileName', 'rapportDeposeLe', 'rapportStatut', 'rapportMotif', 'rapportValideLe', 'rapportValideParId', 'progressPercent', 'certificatFileKey', 'certificatFileName', 'certificatDeposeLe', 'statutDiffusion', 'typeDocument', 'dateDocument', 'periodeDebut', 'periodeFin', 'sourceMeetingId', 'activiteId', 'alerteVeilleAt', 'alerteRetardAt', 'aEnvoyerLe'];
 
 const tables = async () =>
   (await prisma.$queryRawUnsafe(`SELECT table_name AS t FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE' AND table_name NOT IN ('_prisma_migrations', 'journal_connexions', 'executions_taches', 'etat_supervision') ORDER BY 1`)).map((r) => r.t);

@@ -1,6 +1,7 @@
 -- Socle NIMBA, lot N5 : plan de travail, alertes d'échéance des tâches, messagerie en fils,
--- notifications regroupées (résumé quotidien), instructions de la Direction. Additive, sans reprise de
--- données. Retour arrière : prisma/retour-arriere/n5_down.sql.
+-- notifications regroupées (résumé quotidien), instructions de la Direction. Additive. Seule reprise :
+-- les tâches déjà en retard au passage de N5 sont réputées signalées (pas d'avalanche d'alertes sur des
+-- retards anciens) ; tout le reste est intact. Retour arrière : prisma/retour-arriere/n5_down.sql.
 
 -- CreateEnum
 CREATE TYPE "statut_instruction" AS ENUM ('EMISE', 'RECUE', 'PRISE_EN_COMPTE', 'EXECUTEE', 'REJETEE');
@@ -182,3 +183,7 @@ ALTER TABLE "instructions" ADD CONSTRAINT "instructions_destinataireId_fkey" FOR
 -- AddForeignKey
 ALTER TABLE "instructions" ADD CONSTRAINT "instructions_agentConcerneId_fkey" FOREIGN KEY ("agentConcerneId") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
+-- Reprise N5 : tâches non terminées dont l'échéance est déjà dépassée → alerte de retard réputée
+-- envoyée (le job quotidien ne signale que les retards postérieurs à N5).
+UPDATE "tasks" SET "alerteRetardAt" = now()
+WHERE "dueDate" < date_trunc('day', now()) AND "status" NOT IN ('TERMINEE', 'VALIDEE');

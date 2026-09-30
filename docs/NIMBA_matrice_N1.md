@@ -1,4 +1,4 @@
-# Matrice des habilitations — état N4
+# Matrice des habilitations — état N5
 
 Généré par `tests/e2e/api/n1_matrice.js` (annexe 1 du cahier NIMBA v2.2). « ÉCART » : comportement actuel conservé en N1 et vérifié tel quel.
 
@@ -164,6 +164,42 @@ Généré par `tests/e2e/api/n1_matrice.js` (annexe 1 du cahier NIMBA v2.2). « 
 | Document — statut de diffusion | Chef SAF | rendre diffusable | — | refus (403) | CONFORME |
 | Document — statut de diffusion | Assistant DN | rendre diffusable | — | refus (403) | CONFORME |
 | Document — statut de diffusion | Administrateur | rendre diffusable | — | refus (403) | CONFORME |
+| Activité / plan de travail | DN | lire le plan de la section | L(P) — unité, unités au-dessus, périmètre | accès | CONFORME |
+| Activité / plan de travail | DNA | lire le plan de la section | L(P) — unité, unités au-dessus, périmètre | accès | CONFORME |
+| Activité / plan de travail | Chef de division | lire le plan de la section | L(P) — unité, unités au-dessus, périmètre | accès | CONFORME |
+| Activité / plan de travail | Chef de section | lire le plan de la section | L(P) — unité, unités au-dessus, périmètre | accès | CONFORME |
+| Activité / plan de travail | Agent | lire le plan de la section | L(P) — unité, unités au-dessus, périmètre | accès | CONFORME |
+| Activité / plan de travail | DRH | lire le plan de la section | — | refus (403) | CONFORME |
+| Activité / plan de travail | Chef SAF | lire le plan de la section | — | refus (403) | CONFORME |
+| Activité / plan de travail | Assistant DN | lire le plan de la section | L(P) — unité, unités au-dessus, périmètre | accès | CONFORME |
+| Activité / plan de travail | Administrateur | lire le plan de la section | — | refus (403) | CONFORME |
+| Activité / plan de travail | DN | créer un objectif de la section | CLM(P) — chef de l’unité, Direction | accès | CONFORME |
+| Activité / plan de travail | DNA | créer un objectif de la section | CLM(P) — chef de l’unité, Direction | accès | CONFORME |
+| Activité / plan de travail | Chef de division | créer un objectif de la section | CLM(P) — chef de l’unité, Direction | accès | CONFORME |
+| Activité / plan de travail | Chef de section | créer un objectif de la section | CLM(P) — chef de l’unité, Direction | accès | CONFORME |
+| Activité / plan de travail | Agent | créer un objectif de la section | L(P) ou — | refus (403) | CONFORME |
+| Activité / plan de travail | DRH | créer un objectif de la section | L(P) ou — | refus (403) | CONFORME |
+| Activité / plan de travail | Chef SAF | créer un objectif de la section | L(P) ou — | refus (403) | CONFORME |
+| Activité / plan de travail | Assistant DN | créer un objectif de la section | L(P) ou — | refus (403) | CONFORME |
+| Activité / plan de travail | Administrateur | créer un objectif de la section | L(P) ou — | refus (403) | CONFORME |
+| Instruction de la Direction | DN | émettre | C (DN, DNA) | accès | CONFORME |
+| Instruction de la Direction | DNA | émettre | C (DN, DNA) | accès | CONFORME |
+| Instruction de la Direction | Chef de division | émettre | — | refus (403) | CONFORME |
+| Instruction de la Direction | Chef de section | émettre | — | refus (403) | CONFORME |
+| Instruction de la Direction | Agent | émettre | — | refus (403) | CONFORME |
+| Instruction de la Direction | DRH | émettre | — | refus (403) | CONFORME |
+| Instruction de la Direction | Chef SAF | émettre | — | refus (403) | CONFORME |
+| Instruction de la Direction | Assistant DN | émettre | — | refus (403) | CONFORME |
+| Instruction de la Direction | Administrateur | émettre | — | refus (403) | CONFORME |
+| Instruction de la Direction | DN | lire (agent concerné : pas avant l’exécution) | L (émetteur, destinataire, Direction) | accès | CONFORME |
+| Instruction de la Direction | DNA | lire (agent concerné : pas avant l’exécution) | L (émetteur, destinataire, Direction) | accès | CONFORME |
+| Instruction de la Direction | Chef de division | lire (agent concerné : pas avant l’exécution) | — (inexistante pour lui : 404) | refus (403) | CONFORME |
+| Instruction de la Direction | Chef de section | lire (agent concerné : pas avant l’exécution) | L (émetteur, destinataire, Direction) | accès | CONFORME |
+| Instruction de la Direction | Agent | lire (agent concerné : pas avant l’exécution) | — (inexistante pour lui : 404) | refus (403) | CONFORME |
+| Instruction de la Direction | DRH | lire (agent concerné : pas avant l’exécution) | — (inexistante pour lui : 404) | refus (403) | CONFORME |
+| Instruction de la Direction | Chef SAF | lire (agent concerné : pas avant l’exécution) | — (inexistante pour lui : 404) | refus (403) | CONFORME |
+| Instruction de la Direction | Assistant DN | lire (agent concerné : pas avant l’exécution) | — (inexistante pour lui : 404) | refus (403) | CONFORME |
+| Instruction de la Direction | Administrateur | lire (agent concerné : pas avant l’exécution) | — (inexistante pour lui : 404) | refus (403) | CONFORME |
 
 ## Écarts conservés en N1
 
@@ -174,8 +210,6 @@ Généré par `tests/e2e/api/n1_matrice.js` (annexe 1 du cahier NIMBA v2.2). « 
 
 ## Objets livrés par un lot ultérieur (non joués en N1)
 
-- Activité / plan de travail : N5 (plan de travail objectif → activité → tâche)
-- Instruction de la Direction : N5
 - Mouvement de carrière et acte RH, effectifs et alertes RH : N6
 - Campagne et bulletin de paie, élément de rémunération, ordre de paiement : hors périmètre (D5, finances SAF)
 - Objets du domaine modélisation (annexe 1.3) : hors périmètre (domaine B)
