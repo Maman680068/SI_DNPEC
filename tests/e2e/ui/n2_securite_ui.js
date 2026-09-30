@@ -42,7 +42,7 @@ const sansDefilementHorizontal = (p) => p.evaluate(() => document.documentElemen
   check('menu Administration : « Paramétrage et supervision » et « Journal d’audit »', (await p.locator('a[href="/parametrage"]').count()) === 1 && (await p.locator('a[href="/journal-audit"]').count()) === 1);
   await p.goto(`${WEB}/parametrage`);
   await p.locator('[data-testid=parametre]').first().waitFor();
-  check('4 paramètres affichés avec leurs bornes', (await p.locator('[data-testid=parametre]').count()) === 4 && /Bornes : 6 à 36 mois/.test(await p.locator('[data-cle="connexions.conservationMois"]').innerText()));
+  check('5 paramètres affichés avec leurs bornes', (await p.locator('[data-testid=parametre]').count()) === 5 && /Bornes : 6 à 36 mois/.test(await p.locator('[data-cle="connexions.conservationMois"]').innerText()));
   await p.locator('[data-cle="connexions.conservationMois"]').getByRole('button', { name: 'Modifier' }).click();
   const fp = p.getByRole('dialog', { name: 'Conservation des journaux de connexion' });
   await fp.getByLabel(/Valeur/).fill('40');
