@@ -203,7 +203,7 @@ export function Sidebar({ open = false, onClose }: { open?: boolean; onClose?: (
             </div>
             <div className="truncate text-[11px] text-text-faint">{user.jobTitle ?? user.role}</div>
           </div>
-          <Link href="/compte/notifications" title="Préférences de notification" aria-label="Préférences de notification" className="text-text-faint hover:text-ink">
+          <Link href="/compte/notifications" title="Préférences de notification" aria-label="Mes notifications (préférences)" className="text-text-faint hover:text-ink">
             🔔
           </Link>
           <Link href="/compte/securite" title="Sécurité du compte" aria-label="Sécurité du compte" className="text-text-faint hover:text-ink">

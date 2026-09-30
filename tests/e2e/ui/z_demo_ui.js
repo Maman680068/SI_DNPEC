@@ -46,7 +46,7 @@ const ECRANS = [
       pages[compte] = pages[compte] || (await connecter(b, compte, taille));
       const p = pages[compte];
       await p.goto(WEB + url);
-      if (onglet) await p.getByRole(url === '/courrier' || url === '/leaves' ? 'tab' : 'button', { name: new RegExp(`^${onglet}`) }).first().click();
+      if (onglet) await p.getByRole(url === '/courrier' || url === '/leaves' || url === '/communication' ? 'tab' : 'button', { name: new RegExp(`^${onglet}`) }).first().click();
       const vu = await attendreTexte(p, texte);
       await p.waitForTimeout(300);
       check(`${compte} ${url} : rempli`, vu);

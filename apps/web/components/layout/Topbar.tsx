@@ -46,7 +46,7 @@ export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
             </span>
             <input
               type="search"
-              aria-label="Rechercher dans la plateforme"
+              aria-label="Recherche transverse"
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="Rechercher (3 caractères au moins)…"

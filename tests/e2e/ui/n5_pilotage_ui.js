@@ -70,7 +70,7 @@ const sansDefilementHorizontal = (p) => p.evaluate(() => document.documentElemen
 
   console.log('— Recherche de la barre du haut (bureau)');
   p = await loginPage(b, 'agent1');
-  const barre = p.getByRole('searchbox', { name: 'Rechercher dans la plateforme' });
+  const barre = p.getByRole('searchbox', { name: 'Recherche transverse' });
   await barre.fill(S);
   await barre.press('Enter');
   await p.waitForURL(/\/recherche\?q=/);
