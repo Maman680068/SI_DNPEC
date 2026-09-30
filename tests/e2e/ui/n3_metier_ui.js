@@ -51,6 +51,9 @@ async function ouvrirDemande(p, onglet, nom) {
   console.log('— Congé : décision du DRH (bureau)');
   p = await loginPage(b, 'drh');
   await ouvrirDemande(p, 'À traiter', nom);
+  await p.getByText(/SOLDE/i).first().waitFor();
+  await p.waitForTimeout(500);
+  check('DRH : le solde du demandeur s’affiche (aucun refus)', (await p.getByText('pas accès au solde').count()) === 0);
   check('DRH : avis favorable du chef affiché, boutons de décision', /favorable/i.test(await p.locator('[data-testid=circuit-conge]').innerText()) && (await p.getByRole('button', { name: 'Approuver' }).count()) === 1);
   await p.screenshot({ path: `${E.SHOTS}/n3_decision_drh_bureau.png` });
   await p.getByRole('button', { name: 'Approuver' }).click();

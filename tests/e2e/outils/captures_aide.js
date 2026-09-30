@@ -27,7 +27,18 @@ async function capture(b, compte, url, fichier, attendre) {
   if (!(await prisma.habilitationLogistique.findFirst({ where: { user: { email: 'agentsaf@test.local' }, revoqueeAt: null } }))) {
     await call('admin', 'POST', '/logistique/habilitations', { userId: (await prisma.user.findUnique({ where: { email: 'agentsaf@test.local' } })).id });
   }
-  const stagiaire = await prisma.user.findFirst({ where: { role: 'STAGIAIRE', status: 'ACTIF', email: { endsWith: '@test.local' }, stagesSuivis: { some: { periodes: { some: {} } } } }, orderBy: { createdAt: 'desc' } });
+  const stagiaire = await prisma.user.findFirst({ where: { role: 'STAGIAIRE', status: 'ACTIF', email: { endsWith: '@test.local' }, stagesSuivis: { some: { statut: { not: 'INTERROMPU' }, periodes: { some: {} } } } }, orderBy: { createdAt: 'desc' } });
+  // Congés d'agent1 : solde annuel provisionné et une demande en attente d'avis (circuit visible).
+  const annuel = await prisma.leaveType.findUnique({ where: { code: 'CONGE_ANNUEL' } });
+  if (annuel) {
+    const a1 = await prisma.user.findUnique({ where: { email: 'agent1@test.local' } });
+    await call('admin', 'PUT', `/leaves/balances/${a1.id}`, { leaveTypeId: annuel.id, year: new Date().getUTCFullYear(), totalDays: 30 });
+    if (!(await prisma.leaveRequest.count({ where: { userId: a1.id, status: 'EN_ATTENTE' } }))) {
+      const debut = new Date(Date.now() + 45 * 864e5).toISOString().slice(0, 10);
+      const fin = new Date(Date.now() + 49 * 864e5).toISOString().slice(0, 10);
+      await call('agent1', 'POST', '/leaves', { leaveTypeId: annuel.id, startDate: debut, endDate: fin, reason: 'Congé annuel' });
+    }
+  }
   const b = await browser();
   const titre = (t) => async (p) => p.getByRole('heading', { name: t }).first().waitFor();
   await capture(b, null, '/login', 'connexion.png', async (p) => p.getByLabel('Adresse e-mail').waitFor());

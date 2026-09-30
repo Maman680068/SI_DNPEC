@@ -4,7 +4,8 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CascadeService } from '../../org/cascade/cascade.service';
 import { AuthenticatedUser } from '../../common/types/auth-user.type';
 import { SetLeaveBalanceDto } from '../dto/set-leave-balance.dto';
-import { LeaveMedicalPrivacyService, MASKED_LEAVE_TYPE_LABEL, SENSITIVE_LEAVE_TYPE_CODE } from '../leave-medical-privacy.service';
+import { MASKED_LEAVE_TYPE_LABEL, SENSITIVE_LEAVE_TYPE_CODE } from '../leave-medical-privacy.service';
+import { estDrh } from '../../socle/roles-fonctionnels';
 
 type OrgTarget = { id: string; divisionId: string | null; sectionId: string | null; celluleId: string | null };
 
@@ -19,30 +20,22 @@ export class LeaveBalancesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly cascade: CascadeService,
-    private readonly medicalPrivacy: LeaveMedicalPrivacyService,
   ) {}
 
   /**
-   * Vue passive/agrégée (pas une décision précise à prendre sur une demande) : ici le
-   * masquage congé maladie s'applique dès que l'acteur est DN/DNA regardant le solde
-   * d'un tiers dont l'unité a un chef plus proche — sans exception "validateur réel",
-   * contrairement à LeaveRequestsService (voir LeaveMedicalPrivacyService pour la
-   * distinction). Un DN/DNA amené à décider d'une demande précise sans chef plus
-   * proche verra le vrai solde via ce même calcul, car il est alors le seul validateur.
+   * Soldes d'un agent : lui-même, le DRH (qui décide des congés, N3) et ses responsables en cascade.
+   * Congé maladie (§2.2, N3) : sa ligne n'est nommée que pour l'agent et le DRH ; les responsables,
+   * DN et DNA compris, voient « Absence — motif protégé ».
    */
   async listForUser(actor: AuthenticatedUser, userId: string) {
-    const target = await this.assertCanView(actor, userId);
+    await this.assertCanView(actor, userId);
     const balances = await this.prisma.leaveBalance.findMany({
       where: { userId },
       include: { leaveType: true },
       orderBy: [{ year: 'desc' }, { leaveType: { code: 'asc' } }],
     });
-
-    const mustCheckMasking = actor.id !== userId && this.cascade.isLeadershipRole(actor.role);
-    const hasCloserValidator = mustCheckMasking ? await this.medicalPrivacy.hasCloserValidator(target) : false;
-    return balances.map((b) =>
-      this.toView(b, mustCheckMasking && hasCloserValidator && b.leaveType.code === SENSITIVE_LEAVE_TYPE_CODE),
-    );
+    const masquer = actor.id !== userId && !estDrh(actor);
+    return balances.map((b) => this.toView(b, masquer && b.leaveType.code === SENSITIVE_LEAVE_TYPE_CODE));
   }
 
   /** Provisionne/ajuste totalDays pour (userId, leaveTypeId, year) — paramétrage RH, ADMIN_SYSTEME uniquement (cf. controller). */
@@ -72,7 +65,7 @@ export class LeaveBalancesService {
       select: { id: true, divisionId: true, sectionId: true, celluleId: true },
     });
     if (!target) throw new NotFoundException('Utilisateur introuvable');
-    if (!this.cascade.hasDirectAuthorityOver(actor, target)) {
+    if (!estDrh(actor) && !this.cascade.hasDirectAuthorityOver(actor, target)) {
       throw new ForbiddenException("Vous n'avez pas accès au solde de congés de cet utilisateur.");
     }
     return target;

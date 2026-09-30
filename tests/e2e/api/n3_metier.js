@@ -123,6 +123,17 @@ const d = (n) => new Date(BASE.getTime() + n * J).toISOString().slice(0, 10);
   check('une preuve ne donne rien au chef (besoin d’en connaître)', (await call('chefssr', 'GET', `/leaves/${m.id}`, undefined, { 'X-Reauth': preuveChef })).body.reason === null);
   await call('agent1', 'POST', `/leaves/${m.id}/cancel`);
 
+  console.log('— Soldes : le DRH (qui décide) les lit ; congé maladie nommé pour l’agent et le DRH seuls');
+  const annee = new Date().getUTCFullYear();
+  await call('admin', 'PUT', `/leaves/balances/${ids.agent1}`, { leaveTypeId: maladie.id, year: annee, totalDays: 10 });
+  const soldeDrh = await call('drh', 'GET', `/leaves/balances/${ids.agent1}`);
+  check('DRH : soldes lisibles, congé maladie nommé', soldeDrh.status === 200 && soldeDrh.body.some((b) => b.leaveTypeCode === 'CONGE_MALADIE'));
+  const soldeChef = await call('chefssr', 'GET', `/leaves/balances/${ids.agent1}`);
+  check('chef : soldes lisibles, ligne maladie masquée', soldeChef.status === 200 && soldeChef.body.length > 0 && !soldeChef.body.some((b) => b.leaveTypeCode === 'CONGE_MALADIE') && soldeChef.body.some((b) => /protégé/.test(b.leaveTypeName)));
+  check('DN : ligne maladie masquée aussi', !(await call('dn', 'GET', `/leaves/balances/${ids.agent1}`)).body.some((b) => b.leaveTypeCode === 'CONGE_MALADIE'));
+  check('agent : sa propre ligne maladie visible', (await call('agent1', 'GET', '/leaves/balances/me')).body.some((b) => b.leaveTypeCode === 'CONGE_MALADIE'));
+  expect('un autre agent ne lit pas les soldes', await call('agent2', 'GET', `/leaves/balances/${ids.agent1}`), 403);
+
   console.log('— Messages directs : conservation 3 ans');
   const vieux = await storage.save(Buffer.from('pièce ancienne'), 'ancienne.txt');
   const m1 = await prisma.directMessage.create({ data: { senderId: ids.agent1, recipientId: ids.agent2, body: `Ancien ${S}`, attachmentKey: vieux.fileKey, attachmentName: 'ancienne.txt', createdAt: new Date(Date.now() - (3 * 365 + 2) * J) } });
