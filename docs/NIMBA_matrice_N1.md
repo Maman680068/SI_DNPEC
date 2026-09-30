@@ -1,4 +1,4 @@
-# Matrice des habilitations — état N3
+# Matrice des habilitations — état N4
 
 Généré par `tests/e2e/api/n1_matrice.js` (annexe 1 du cahier NIMBA v2.2). « ÉCART » : comportement actuel conservé en N1 et vérifié tel quel.
 
@@ -146,6 +146,24 @@ Généré par `tests/e2e/api/n1_matrice.js` (annexe 1 du cahier NIMBA v2.2). « 
 | Demande d’absence — décision | Assistant DN | approuver | — | refus (403) | CONFORME |
 | Demande d’absence — décision | Administrateur | approuver | — | refus (403) | CONFORME |
 | Demande d’absence — décision | DRH | approuver | V (DRH) | accès | CONFORME |
+| Document — statut de diffusion | DN | valider | V (responsable métier / Direction) | accès | CONFORME |
+| Document — statut de diffusion | DNA | valider | V (responsable métier / Direction) | accès | CONFORME |
+| Document — statut de diffusion | Chef de division | valider | V (responsable métier / Direction) | accès | CONFORME |
+| Document — statut de diffusion | Chef de section | valider | — | refus (403) | CONFORME |
+| Document — statut de diffusion | Agent | valider | — | refus (403) | CONFORME |
+| Document — statut de diffusion | DRH | valider | — | refus (403) | CONFORME |
+| Document — statut de diffusion | Chef SAF | valider | — | refus (403) | CONFORME |
+| Document — statut de diffusion | Assistant DN | valider | — | refus (403) | CONFORME |
+| Document — statut de diffusion | Administrateur | valider | — | refus (403) | CONFORME |
+| Document — statut de diffusion | DN | rendre diffusable | V (DN, DNA) | accès | CONFORME |
+| Document — statut de diffusion | DNA | rendre diffusable | V (DN, DNA) | accès | CONFORME |
+| Document — statut de diffusion | Chef de division | rendre diffusable | — | refus (403) | CONFORME |
+| Document — statut de diffusion | Chef de section | rendre diffusable | — | refus (403) | CONFORME |
+| Document — statut de diffusion | Agent | rendre diffusable | — | refus (403) | CONFORME |
+| Document — statut de diffusion | DRH | rendre diffusable | — | refus (403) | CONFORME |
+| Document — statut de diffusion | Chef SAF | rendre diffusable | — | refus (403) | CONFORME |
+| Document — statut de diffusion | Assistant DN | rendre diffusable | — | refus (403) | CONFORME |
+| Document — statut de diffusion | Administrateur | rendre diffusable | — | refus (403) | CONFORME |
 
 ## Écarts conservés en N1
 
@@ -159,7 +177,6 @@ Généré par `tests/e2e/api/n1_matrice.js` (annexe 1 du cahier NIMBA v2.2). « 
 - Activité / plan de travail : N5 (plan de travail objectif → activité → tâche)
 - Instruction de la Direction : N5
 - Mouvement de carrière et acte RH, effectifs et alertes RH : N6
-- Document publié — statut de diffusion : N4
 - Campagne et bulletin de paie, élément de rémunération, ordre de paiement : hors périmètre (D5, finances SAF)
 - Objets du domaine modélisation (annexe 1.3) : hors périmètre (domaine B)
 
