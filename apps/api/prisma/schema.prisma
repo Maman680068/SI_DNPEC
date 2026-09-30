@@ -629,6 +629,9 @@ model User {
   attributionsRoles         AttributionRole[]        @relation("AttributionRoleCompte")
   attributionsRolesDonnees  AttributionRole[]        @relation("AttributionRoleAttribuePar")
   attributionsRolesRetirees AttributionRole[]        @relation("AttributionRoleRetirePar")
+  // Socle N4 — ordres de mission.
+  ordresMission             OrdreMission[]           @relation("OrdreMissionAgent")
+  ordresMissionCrees        OrdreMission[]           @relation("OrdreMissionCreePar")
 
   @@map("users")
 }
@@ -884,8 +887,18 @@ model Document {
 
   // Document issu d'une tâche (§4.3 : "le document peut être lié
   // directement à la tâche dont il est issu")
-  sourceTaskId String?
-  sourceTask   Task?   @relation("DocumentSourceTask", fields: [sourceTaskId], references: [id])
+  sourceTaskId    String?
+  sourceTask      Task?    @relation("DocumentSourceTask", fields: [sourceTaskId], references: [id])
+  // Socle N4 — ou de la réunion (SIG-RF-GED-08).
+  sourceMeetingId String?
+  sourceMeeting   Meeting? @relation("DocumentSourceMeeting", fields: [sourceMeetingId], references: [id], onDelete: SetNull)
+
+  // Socle N4 — statut de diffusion (§7.1) et métadonnées obligatoires (§8, SIG-RF-GED-07).
+  statutDiffusion StatutDiffusion @default(BROUILLON)
+  typeDocument    TypeDocument    @default(AUTRE)
+  dateDocument    DateTime        @default(now()) @db.Date
+  periodeDebut    DateTime?       @db.Date
+  periodeFin      DateTime?       @db.Date
 
   // Pointeur vers la version courante ; l'historique complet vit dans
   // DocumentVersion (RF-GED-03 : conservation de l'historique des versions).
@@ -1256,6 +1269,9 @@ model Meeting {
 
   // D9 — salle réservée depuis la réunion (au plus une réservation liée).
   reservation Reservation?
+
+  // Socle N4 — documents de la GED issus de la réunion (SIG-RF-GED-08).
+  documentsIssus Document[] @relation("DocumentSourceMeeting")
 
   @@map("meetings")
 }
@@ -1874,6 +1890,8 @@ model ActeCourrier {
   imputationsReponse ImputationCourrier[]   @relation("ImputationReponse")
 
   stageAttestation Stage?
+  // Socle N4 — ordre de mission dont l'acte est la version signée.
+  ordreMission     OrdreMission?
 
   @@unique([registreId, uniteKey, annee, sequence])
   @@index([redacteurId])
@@ -2722,4 +2740,96 @@ model ExecutionTache {
 
   @@index([tache, debut])
   @@map("executions_taches")
+}
+
+// ============================================================================
+// Socle NIMBA — lot N4 : statut de diffusion, documents générés
+// ============================================================================
+
+/// Statut de diffusion commun (§7.1) : décidé par un rôle et journalisé.
+enum StatutDiffusion {
+  BROUILLON
+  VALIDE
+  DIFFUSABLE
+
+  @@map("statut_diffusion")
+}
+
+/// Typologie documentaire (§8, métadonnées obligatoires).
+enum TypeDocument {
+  ETUDE
+  RAPPORT
+  NOTE_TECHNIQUE
+  PROCES_VERBAL
+  ACTE
+  RPEF
+  NOTE_CONJONCTURE
+  AUTRE
+
+  @@map("type_document")
+}
+
+/// Journal des changements de statut de diffusion, pour tout objet (document aujourd'hui,
+/// simulation et rapport du domaine B demain). `parId` nul = reprise automatique.
+model ChangementStatut {
+  id        String           @id @default(cuid())
+  objetType String
+  objetId   String
+  de        StatutDiffusion?
+  vers      StatutDiffusion
+  motif     String?
+  parId     String?
+  le        DateTime         @default(now())
+
+  @@index([objetType, objetId])
+  @@map("changements_statut")
+}
+
+/// Ordre de mission (SIG-RF-DOC) : saisi une fois, puis généré et signé comme un acte.
+model OrdreMission {
+  id           String        @id @default(cuid())
+  agentId      String
+  agent        User          @relation("OrdreMissionAgent", fields: [agentId], references: [id])
+  objet        String
+  destination  String
+  dateDepart   DateTime      @db.Date
+  dateRetour   DateTime      @db.Date
+  transport    String?
+  fraisMontant Int?
+  creeParId    String
+  creePar      User          @relation("OrdreMissionCreePar", fields: [creeParId], references: [id])
+  acteId       String?       @unique
+  acte         ActeCourrier? @relation(fields: [acteId], references: [id])
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@index([agentId])
+  @@map("ordres_mission")
+}
+
+/// Éditions d'un document généré signé : la première est l'original, les suivantes des duplicatas.
+model DocumentGenere {
+  id      String   @id @default(cuid())
+  type    String // ATTESTATION_TRAVAIL | ORDRE_MISSION | ATTESTATION_STAGE
+  objetId String
+  acteId  String?
+  edition Int
+  format  String // PDF | DOCX
+  parId   String
+  le      DateTime @default(now())
+
+  @@unique([type, objetId, edition])
+  @@map("documents_generes")
+}
+
+/// Attestation de travail demandée pour un agent : une par demande, signée comme un acte.
+model AttestationTravail {
+  id        String   @id @default(cuid())
+  agentId   String
+  acteId    String?  @unique
+  creeParId String
+  createdAt DateTime @default(now())
+
+  @@index([agentId])
+  @@map("attestations_travail")
 }
