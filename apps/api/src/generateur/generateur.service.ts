@@ -88,6 +88,8 @@ export class GenerateurService {
       rapportActivite: { perimetres: await this.perimetres(actor) },
       registres: drh || direction || missionnables.length ? registres : [],
       peutDeposerEnGed: !!actor.divisionId,
+      // Transmission par la messagerie : tout compte actif (comme la messagerie elle-même).
+      destinataires: (await this.prisma.user.findMany({ where: { status: UserStatus.ACTIF, id: { not: actor.id } }, select: { id: true, firstName: true, lastName: true }, orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }] })).map(personne),
     };
   }
 

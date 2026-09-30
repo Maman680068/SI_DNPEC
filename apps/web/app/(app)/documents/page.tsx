@@ -3,9 +3,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../../../lib/auth/AuthProvider';
 import { useOrg } from '../../../lib/org/OrgProvider';
-import { getDocuments } from '../../../lib/api/documents';
-import type { DnpecDocument, DocumentCategory } from '../../../lib/documents/types';
-import { CATEGORY_LABEL } from '../../../lib/documents/types';
+import { getDocument, getDocuments } from '../../../lib/api/documents';
+import type { DnpecDocument, DocumentCategory, StatutDiffusion, TypeDocument } from '../../../lib/documents/types';
+import { CATEGORY_LABEL, STATUT_LABEL, TYPE_DOCUMENT_LABEL } from '../../../lib/documents/types';
 import { FolderNav } from '../../../components/documents/FolderNav';
 import { DocumentList } from '../../../components/documents/DocumentList';
 import { UploadDocumentModal } from '../../../components/documents/UploadDocumentModal';
@@ -32,6 +32,8 @@ export default function DocumentsPage() {
 
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
   const [category, setCategory] = useState<DocumentCategory | ''>('');
+  const [typeDocument, setTypeDocument] = useState<TypeDocument | ''>('');
+  const [statut, setStatut] = useState<StatutDiffusion | ''>('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [q, setQ] = useState('');
@@ -48,15 +50,23 @@ export default function DocumentsPage() {
       divisionId: tab === 'division' ? selectedDivisionId : undefined,
       folderId: tab === 'division' ? currentFolderId ?? undefined : undefined,
       category: category || undefined,
+      typeDocument: typeDocument || undefined,
+      statutDiffusion: statut || undefined,
       dateFrom: dateFrom || undefined,
       dateTo: dateTo || undefined,
       q: q || undefined,
     }).then(setDocuments).catch((err) => setErreurChargement(messageChargement(err)));
-  }, [tab, selectedDivisionId, currentFolderId, category, dateFrom, dateTo, q]);
+  }, [tab, selectedDivisionId, currentFolderId, category, typeDocument, statut, dateFrom, dateTo, q]);
 
   useEffect(() => {
     load();
   }, [load]);
+
+  // Ouverture profonde « /documents?id=<id> » (dépôt depuis un document généré, liens).
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get('id');
+    if (id) getDocument(id).then(setSelectedDoc).catch((err) => setErreurChargement(messageChargement(err)));
+  }, []);
 
   function handleTabChange(next: Tab) {
     setTab(next);
@@ -153,6 +163,32 @@ export default function DocumentsPage() {
           {(Object.keys(CATEGORY_LABEL) as DocumentCategory[]).map((c) => (
             <option key={c} value={c}>
               {CATEGORY_LABEL[c]}
+            </option>
+          ))}
+        </select>
+        <select
+          aria-label="Type"
+          value={typeDocument}
+          onChange={(e) => setTypeDocument(e.target.value as TypeDocument | '')}
+          className="rounded-md border border-line bg-surface px-3 py-1.5 text-[13px]"
+        >
+          <option value="">Tous types</option>
+          {(Object.keys(TYPE_DOCUMENT_LABEL) as TypeDocument[]).map((t) => (
+            <option key={t} value={t}>
+              {TYPE_DOCUMENT_LABEL[t]}
+            </option>
+          ))}
+        </select>
+        <select
+          aria-label="Statut"
+          value={statut}
+          onChange={(e) => setStatut(e.target.value as StatutDiffusion | '')}
+          className="rounded-md border border-line bg-surface px-3 py-1.5 text-[13px]"
+        >
+          <option value="">Tous statuts</option>
+          {(Object.keys(STATUT_LABEL) as StatutDiffusion[]).map((t) => (
+            <option key={t} value={t}>
+              {STATUT_LABEL[t]}
             </option>
           ))}
         </select>

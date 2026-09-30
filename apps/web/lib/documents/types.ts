@@ -1,5 +1,38 @@
 export type DocumentCategory = 'ETUDE' | 'RAPPORT' | 'NOTE_TECHNIQUE' | 'AUTRE';
 export type DocumentVisibility = 'PRIVE_DIVISION' | 'PUBLIE_DNPEC';
+export type StatutDiffusion = 'BROUILLON' | 'VALIDE' | 'DIFFUSABLE';
+export type TypeDocument = 'ETUDE' | 'RAPPORT' | 'NOTE_TECHNIQUE' | 'PROCES_VERBAL' | 'ACTE' | 'RPEF' | 'NOTE_CONJONCTURE' | 'AUTRE';
+
+/** Statut de diffusion (socle N4, §7.1). */
+export const STATUT_LABEL: Record<StatutDiffusion, string> = { BROUILLON: 'Brouillon', VALIDE: 'Validé', DIFFUSABLE: 'Diffusable' };
+export const STATUT_TON: Record<StatutDiffusion, 'muted' | 'accent' | 'sage'> = { BROUILLON: 'muted', VALIDE: 'accent', DIFFUSABLE: 'sage' };
+
+export const TYPE_DOCUMENT_LABEL: Record<TypeDocument, string> = {
+  ETUDE: 'Étude',
+  RAPPORT: 'Rapport',
+  NOTE_TECHNIQUE: 'Note technique',
+  PROCES_VERBAL: 'Procès-verbal',
+  ACTE: 'Acte',
+  RPEF: 'RPEF',
+  NOTE_CONJONCTURE: 'Note de conjoncture',
+  AUTRE: 'Autre',
+};
+
+/** Objet d'origine d'un document (tâche ou réunion) ; titre nul si le lecteur ne le voit pas. */
+export interface SourceDocument {
+  type: 'TACHE' | 'REUNION';
+  id: string;
+  titre: string | null;
+}
+
+export interface ChangementStatut {
+  id: string;
+  de: StatutDiffusion | null;
+  vers: StatutDiffusion;
+  motif: string | null;
+  le: string;
+  par: string | null;
+}
 
 export interface Folder {
   id: string;
@@ -30,6 +63,15 @@ export interface DnpecDocument {
   divisionId: string;
   folderId: string | null;
   sourceTaskId: string | null;
+  sourceMeetingId: string | null;
+  statutDiffusion: StatutDiffusion;
+  typeDocument: TypeDocument;
+  dateDocument: string;
+  periodeDebut: string | null;
+  periodeFin: string | null;
+  metadonneesCompletes: boolean;
+  source: SourceDocument | null;
+  droits: { modifier: boolean; marquerFinal: boolean; publier: boolean; valider: boolean; rendreDiffusable: boolean; retirer: boolean };
   currentVersionId: string | null;
   currentVersion: DocumentVersionSummary | null;
   publishedAt: string | null;
@@ -47,6 +89,10 @@ export interface DocumentFilters {
   dateFrom?: string;
   dateTo?: string;
   q?: string;
+  typeDocument?: TypeDocument;
+  statutDiffusion?: StatutDiffusion;
+  sourceTaskId?: string;
+  sourceMeetingId?: string;
 }
 
 export const CATEGORY_LABEL: Record<DocumentCategory, string> = {
