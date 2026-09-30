@@ -14,8 +14,8 @@ import {
 } from '@prisma/client';
 import PizZip from 'pizzip';
 import Docxtemplater from 'docxtemplater';
+import { Bloc, renduPdf } from '../generateur/mise-en-page';
 import { PDFDocument, StandardFonts, degrees, rgb } from 'pdf-lib';
-import PDFKit from 'pdfkit';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../common/audit/audit.service';
 import * as fs from 'fs';
@@ -363,31 +363,27 @@ export class AttestationService {
     return Buffer.from(await pdf.save());
   }
 
-  /** Mise en page standard (sans modèle importé), PDF A4. */
+  /** Mise en page standard (sans modèle importé) : modèle de page commun des documents générés (socle N4). */
   private pdfStandard(v: Record<string, string>, provisoire: boolean): Promise<Buffer> {
-    return new Promise((resolve) => {
-      const doc = new PDFKit({ size: 'A4', margin: 60 });
-      const chunks: Buffer[] = [];
-      doc.on('data', (c: Buffer) => chunks.push(c));
-      doc.on('end', () => resolve(Buffer.concat(chunks)));
-      doc.fontSize(10).text('RÉPUBLIQUE DE GUINÉE', { align: 'center' }).text('Travail — Justice — Solidarité', { align: 'center' });
-      doc.moveDown(0.5).text('Ministère de l’Économie, des Finances et du Budget', { align: 'center' });
-      doc.text('Direction Nationale des Prévisions Économiques et de la Conjoncture (DNPEC)', { align: 'center' });
-      if (provisoire) doc.moveDown().fillColor('#b22222').fontSize(14).text(PROVISOIRE, { align: 'center' }).fillColor('black');
-      doc.moveDown(2).fontSize(18).text('ATTESTATION DE STAGE', { align: 'center' });
-      doc.moveDown(0.3).fontSize(11).text(v.NUMERO ? `N° ${v.NUMERO}` : 'N° —', { align: 'center' });
-      doc.moveDown(2).fontSize(12).text(
-        `Le Directeur National des Prévisions Économiques et de la Conjoncture atteste que ${v.NOM_COMPLET}` +
+    const corps: Bloc[] = [
+      {
+        type: 'paragraphe',
+        texte:
+          `Le Directeur National des Prévisions Économiques et de la Conjoncture atteste que ${v.NOM_COMPLET}` +
           `${v.ETABLISSEMENT ? `, de ${v.ETABLISSEMENT}` : ''}${v.DIPLOME ? ` (${v.DIPLOME})` : ''}, a effectué un stage à la DNPEC ` +
           `du ${v.DATE_DEBUT} au ${v.DATE_FIN} (${v.DUREE}).`,
-        { align: 'justify' },
-      );
-      if (v.UNITES) doc.moveDown().text(`Unités d’accueil : ${v.UNITES}.`, { align: 'justify' });
-      if (v.TUTEURS) doc.moveDown().text(`Tuteurs : ${v.TUTEURS}.`);
-      doc.moveDown().text('En foi de quoi, la présente attestation lui est délivrée pour servir et valoir ce que de droit.', { align: 'justify' });
-      doc.moveDown(2).text(`Conakry, le ${v.DATE_DU_JOUR}`, { align: 'right' });
-      doc.moveDown(3).text(v.SIGNATAIRE || (provisoire ? PROVISOIRE : ''), { align: 'right' });
-      doc.end();
+      },
+    ];
+    if (v.UNITES) corps.push({ type: 'paragraphe', texte: `Unités d’accueil : ${v.UNITES}.` });
+    if (v.TUTEURS) corps.push({ type: 'paragraphe', texte: `Tuteurs : ${v.TUTEURS}.` });
+    corps.push({ type: 'paragraphe', texte: 'En foi de quoi, la présente attestation lui est délivrée pour servir et valoir ce que de droit.' });
+    return renduPdf({
+      titre: 'Attestation de stage',
+      numero: v.NUMERO || null,
+      mentions: provisoire ? [PROVISOIRE] : [],
+      corps,
+      lieuDate: `Conakry, le ${v.DATE_DU_JOUR}`,
+      signature: { qualite: 'Le Directeur National', nom: v.SIGNATAIRE || null },
     });
   }
 

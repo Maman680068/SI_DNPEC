@@ -24,6 +24,8 @@ import {
   AuditAction,
   CourrierConfidentialite,
   DocumentCategory,
+  StatutDiffusion,
+  TypeDocument,
   EtatBien,
   EvaluationFormat,
   ImputationNature,
@@ -60,6 +62,7 @@ import { DecisionsService } from '../src/meetings/decisions.service';
 import { LeaveRequestsService } from '../src/leaves/leave-requests/leave-requests.service';
 import { SuggestionsService } from '../src/suggestions/suggestions.service';
 import { DocumentsService } from '../src/documents/documents.service';
+import { GenerateurService } from '../src/generateur/generateur.service';
 import { SuppleancesService } from '../src/suppleances/suppleances.service';
 import { PersonnelFilesService } from '../src/personnel/personnel-files.service';
 import { ArriveesService } from '../src/courrier/arrivees.service';
@@ -518,17 +521,36 @@ async function communication(ctx: Ctx) {
 async function documents(ctx: Ctx) {
   const { prisma, app, u } = ctx;
   const svc = app.get(DocumentsService);
+  // Métadonnées obligatoires (N4) : type, période couverte ; la note de conjoncture publiée est validée.
+  const meta = (typeDocument: TypeDocument, debut: number, fin: number) => ({ typeDocument, periodeDebut: dateSeule(debut), periodeFin: dateSeule(fin) });
   await bloc(
-    'Documents GED (privé, final, publié)',
+    'Documents GED (privé, final, publié et validé)',
     async () => (await prisma.document.count({ where: { divisionId: ctx.division.id, title: { startsWith: T } } })) > 0,
     async () => {
       const a1 = await acteur(prisma, u.agent1!.id);
-      await svc.create(a1, { title: `${T}Projections du PIB — version de travail`, category: DocumentCategory.ETUDE, divisionId: ctx.division.id }, fichier('projections.pdf'));
-      const d2 = await svc.create(await acteur(prisma, u.agent3!.id), { title: `${T}Note sur l’exécution budgétaire`, category: DocumentCategory.NOTE_TECHNIQUE, divisionId: ctx.division.id }, fichier('execution.pdf'));
+      await svc.create(a1, { title: `${T}Projections du PIB — version de travail`, category: DocumentCategory.ETUDE, divisionId: ctx.division.id, ...meta(TypeDocument.ETUDE, -90, 0) }, fichier('projections.pdf'));
+      const d2 = await svc.create(await acteur(prisma, u.agent3!.id), { title: `${T}Note sur l’exécution budgétaire`, category: DocumentCategory.NOTE_TECHNIQUE, divisionId: ctx.division.id, ...meta(TypeDocument.NOTE_TECHNIQUE, -60, -30) }, fichier('execution.pdf'));
       await svc.markFinal(await acteur(prisma, u.agent3!.id), d2.id);
-      const d3 = await svc.create(await acteur(prisma, u.chefSection1!.id), { title: `${T}Note de conjoncture — deuxième trimestre`, category: DocumentCategory.RAPPORT, divisionId: ctx.division.id }, fichier('conjoncture.pdf'));
+      const d3 = await svc.create(await acteur(prisma, u.chefSection1!.id), { title: `${T}Note de conjoncture — deuxième trimestre`, category: DocumentCategory.RAPPORT, divisionId: ctx.division.id, ...meta(TypeDocument.NOTE_CONJONCTURE, -180, -90) }, fichier('conjoncture.pdf'));
       await svc.markFinal(await acteur(prisma, u.chefSection1!.id), d3.id);
-      await svc.publish(await acteur(prisma, u.chefDivision!.id), d3.id);
+      const chef = await acteur(prisma, u.chefDivision!.id);
+      await svc.publish(chef, d3.id);
+      await svc.changerStatut(chef, d3.id, { vers: StatutDiffusion.VALIDE });
+    },
+  );
+  await bloc(
+    'Ordre de mission (N4 : à préparer en acte par le chef de division)',
+    async () => (await prisma.ordreMission.count({ where: { agentId: u.agent1!.id } })) > 0,
+    async () => {
+      await app.get(GenerateurService).creerOrdre(await acteur(prisma, u.chefDivision!.id), {
+        agentId: u.agent1!.id,
+        objet: `${T}Collecte des données de conjoncture auprès des services régionaux`,
+        destination: 'Kankan',
+        dateDepart: dateSeule(10),
+        dateRetour: dateSeule(14),
+        transport: 'Véhicule de service',
+        fraisMontant: 1500000,
+      });
     },
   );
 }
@@ -782,7 +804,14 @@ async function supprimer(prisma: PrismaClient) {
   const docs = await prisma.document.findMany({ where: { OR: [{ createdById: { in: U } }, ...(division ? [{ divisionId: division.id }] : [])] }, select: { id: true } });
   await prisma.document.updateMany({ where: { id: { in: docs.map((d) => d.id) } }, data: { currentVersionId: null } });
   await prisma.documentVersion.deleteMany({ where: { documentId: { in: docs.map((d) => d.id) } } });
+  await prisma.changementStatut.deleteMany({ where: { objetType: 'Document', objetId: { in: docs.map((d) => d.id) } } });
   n('Documents', await prisma.document.deleteMany({ where: { id: { in: docs.map((d) => d.id) } } }));
+  // Documents générés (N4) : ordres de mission et attestations de travail des comptes de démonstration.
+  const ordres = await prisma.ordreMission.findMany({ where: { OR: [{ agentId: { in: U } }, { creeParId: { in: U } }] }, select: { id: true } });
+  const attestations = await prisma.attestationTravail.findMany({ where: { OR: [{ agentId: { in: U } }, { creeParId: { in: U } }] }, select: { id: true } });
+  await prisma.documentGenere.deleteMany({ where: { objetId: { in: [...ordres, ...attestations].map((o) => o.id) } } });
+  n('Ordres de mission', await prisma.ordreMission.deleteMany({ where: { id: { in: ordres.map((o) => o.id) } } }));
+  n('Attestations de travail', await prisma.attestationTravail.deleteMany({ where: { id: { in: attestations.map((o) => o.id) } } }));
   await prisma.folder.deleteMany({ where: { createdById: { in: U } } });
   // Suppléances (les accès délégués qui y renvoient perdent ce lien).
   n('Suppléances', await prisma.suppleance.deleteMany({ where: { OR: [{ titulaireId: { in: U } }, { suppleantId: { in: U } }, { createdById: { in: U } }] } }));
