@@ -89,7 +89,7 @@
           "etapes": [
             "« Communication » : messagerie directe avec n’importe quel collègue, annonces et sondages qui vous sont adressés.",
             "« Réunions » : vos invitations ; répondez « Confirmer ma présence » ou « Décliner ». Vous pouvez aussi créer une réunion et réserver une salle.",
-            "« Archives & documents » : les documents de votre division et les documents publiés."
+            "« Archives & documents » : les documents de votre division et les documents publiés. Au dépôt, indiquez le type, la date et la période couverte ; chaque document porte un statut (Brouillon, Validé, Diffusable) repris sur le fichier téléchargé."
           ],
           "capture": "reunions.png"
         },
@@ -111,6 +111,16 @@
             "Vos informations personnelles ne sont visibles que de vous et du DRH — jamais de votre chef ni de la Direction."
           ],
           "capture": "dossier.png"
+        },
+        {
+          "titre": "Documents",
+          "etapes": [
+            "Depuis une tâche ou une réunion : « Déposer un document » ; le document est lié à son origine et reste dans la GED de votre division.",
+            "« Marquer comme final » quand le document est achevé : votre chef de division peut alors le valider.",
+            "Personnel → « Documents générés » → « Rapport d’activité » : votre rapport sur une période, construit depuis vos tâches (aperçu, PDF, Word, dépôt en GED).",
+            "Vos attestations de travail et ordres de mission signés s’y trouvent aussi ; une réimpression porte la mention « DUPLICATA »."
+          ],
+          "capture": "documents-generes.png"
         }
       ]
     },
@@ -157,6 +167,15 @@
             "Pendant la période, votre suppléant choisit « Agir en intérim pour… » en haut de l’écran ; tout ce qu’il fait est tracé « au nom de » vous."
           ],
           "capture": "suppleances.png"
+        },
+        {
+          "titre": "Documents et rapports",
+          "etapes": [
+            "Documents générés → « Ordres de mission » : « + Nouvel ordre de mission » pour un agent de votre section (destination, objet, dates, frais en francs guinéens, écrits aussi en toutes lettres), puis « Préparer l’acte » pour la signature de la Direction.",
+            "« Rapport d’activité » : choisissez votre section et la période ; le rapport reprend les tâches, jamais ressaisi.",
+            "Un document déposé porte le statut « Brouillon » ; c’est le chef de division qui le valide."
+          ],
+          "capture": "documents-generes.png"
         }
       ]
     },
@@ -200,6 +219,15 @@
             "La personne est prévenue avec votre nom ; ce n’est jamais possible entre pairs ni vers un supérieur."
           ],
           "capture": "reservations.png"
+        },
+        {
+          "titre": "Statut des documents",
+          "etapes": [
+            "Archives & documents : ouvrez un document « Final » de votre division, puis « Valider » (les métadonnées doivent être complètes). « Retirer le statut » exige un motif.",
+            "Le DN ou la DNA seuls le rendent « Diffusable » (usage hors de la Direction).",
+            "Documents générés : ordres de mission de vos agents et rapport d’activité de votre division ou de ses sections."
+          ],
+          "capture": "documents-generes.png"
         }
       ]
     },
@@ -244,6 +272,14 @@
             "Administration → « Journal d’audit » : toutes les actions de la Direction, sans jamais le contenu des éléments protégés."
           ],
           "capture": "parametres.png"
+        },
+        {
+          "titre": "Diffusion et documents générés",
+          "etapes": [
+            "Archives & documents : un document validé et publié peut être rendu « Diffusable » ; tout fichier téléchargé porte la mention de son statut.",
+            "Documents générés : rapport d’activité de toute la Direction ; ordres de mission ; les attestations et ordres préparés vous arrivent à signer par le module Courrier."
+          ],
+          "capture": "documents-generes.png"
         }
       ]
     },
@@ -357,6 +393,15 @@
             "Onglet « Jours fériés » : saisissez chaque année les fêtes religieuses (Tabaski, fin du Ramadan, Maouloud, lundi de Pâques…) ; « Ajouter les fêtes fixes » reprend les fêtes nationales. Une alerte vous prévient en début d’année si l’année suivante est vide."
           ],
           "capture": "jours-feries.png"
+        },
+        {
+          "titre": "Attestations de travail",
+          "etapes": [
+            "Personnel → « Documents générés » → « Attestations de travail » : choisissez l’agent, « Nouvelle attestation de travail ».",
+            "« Aperçu » montre exactement le document imprimé (mention « PROJET — non signé ») ; « PDF » ou « Word » pour le télécharger.",
+            "« Préparer l’acte » : l’attestation part dans le module Courrier (visa, signature du DN ou de la DNA, numéro). Une fois signée, l’agent la retrouve dans son écran ; « Transmettre » la lui envoie par la messagerie."
+          ],
+          "capture": "documents-generes.png"
         }
       ]
     },
