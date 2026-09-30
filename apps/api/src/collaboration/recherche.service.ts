@@ -76,6 +76,9 @@ export class RechercheService {
       orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
       take,
     });
-    return l.map((u) => ({ id: u.id, libelle: `${u.firstName} ${u.lastName}`, detail: u.jobTitle, lien: `/annuaire?q=${encodeURIComponent(`${u.firstName} ${u.lastName}`)}` }));
+    return l.map((u) => {
+      const nom = encodeURIComponent(`${u.firstName} ${u.lastName}`);
+      return { id: u.id, libelle: `${u.firstName} ${u.lastName}`, detail: u.jobTitle, lien: `/annuaire?q=${nom}` };
+    });
   }
 }
