@@ -76,9 +76,11 @@ const sansDefilementHorizontal = (p) => p.evaluate(() => document.documentElemen
   await p.goto(`${WEB}/documents-generes`);
   await p.getByRole('tab', { name: 'Attestations de travail' }).waitFor();
   await p.getByLabel('Agent').selectOption(ids.agent1);
+  await p.getByText('Créée le', { exact: false }).first().waitFor({ timeout: 5000 }).catch(() => {});
+  const avant = await p.locator('[data-testid=attestation-travail]').count();
   await p.getByRole('button', { name: 'Nouvelle attestation de travail' }).click();
+  await p.waitForFunction((n) => document.querySelectorAll('[data-testid=attestation-travail]').length > n, avant);
   const att = p.locator('[data-testid=attestation-travail]').first();
-  await att.waitFor();
   check('attestation créée : « Projet — acte non préparé »', /Projet/.test(await att.innerText()));
   await att.getByRole('button', { name: 'Aperçu' }).click();
   await p.locator('[data-testid=apercu-document]').waitFor();
