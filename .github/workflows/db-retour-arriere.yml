@@ -17,6 +17,7 @@ on:
         type: choice
         options:
           - n1
+          - n2
       confirm:
         description: 'Tapez "retour-arriere" suivi du lot (ex. « retour-arriere n1 ») pour confirmer'
         required: true

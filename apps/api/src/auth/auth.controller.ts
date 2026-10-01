@@ -77,14 +77,14 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @Post('login')
   login(@Body() dto: LoginDto, @Req() req: Request) {
-    return this.authService.login(dto, clientIp(req));
+    return this.authService.login(dto, clientIp(req), req.headers['user-agent']);
   }
 
   @Public()
   @HttpCode(HttpStatus.OK)
   @Post('login/2fa')
   loginTwoFa(@Body() dto: LoginTwoFaDto, @Req() req: Request) {
-    return this.authService.loginTwoFa(dto, clientIp(req));
+    return this.authService.loginTwoFa(dto, clientIp(req), req.headers['user-agent']);
   }
 
   // @Public() : accepte un access token normal (opt-in) ou un jeton "2FA

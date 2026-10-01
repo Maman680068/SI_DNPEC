@@ -39,7 +39,8 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const body = exception.getResponse();
     const corps: CorpsErreur = typeof body === 'string' ? { message: body } : (body as CorpsErreur);
 
-    if (status === HttpStatus.FORBIDDEN) this.journaliserRefus(request, corps);
+    // Une réauthentification demandée n'est pas un refus (l'accès suivra la preuve d'identité).
+    if (status === HttpStatus.FORBIDDEN && corps.code !== 'REAUTH_REQUISE') this.journaliserRefus(request, corps);
 
     if (request.originalUrl?.startsWith(PREFIXE_API_V1)) {
       const messages = Array.isArray(corps.message) ? corps.message : corps.message ? [corps.message] : [];

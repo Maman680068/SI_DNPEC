@@ -2,8 +2,8 @@
 
 Système d'information interne de la DNPEC (Guinée), **en production** sur Render
 (PostgreSQL, API NestJS et frontend Next.js en services distincts, emails réels via Brevo).
-Référence fonctionnelle : cahier des charges v2.4 (§2.2 « besoin d'en connaître », §3.2 changement
-de rôle, §4.10 suppléance, §4.11 courrier et actes, §4.15 socle NIMBA N1, Annexe B = journal des décisions) : `docs/Cahier_des_charges_DNPEC_SI.docx`.
+Référence fonctionnelle : cahier des charges v2.5 (§2.2 « besoin d'en connaître », §3.2 changement
+de rôle, §4.10 suppléance, §4.11 courrier et actes, §4.15 socle NIMBA N1, §4.16 N2, Annexe B = journal des décisions) : `docs/Cahier_des_charges_DNPEC_SI.docx`.
 Programme en cours : socle NIMBA, lots N1 → N6 (`docs/NIMBA_Cahier_des_charges_v2.2.docx`), une PR par lot,
 déployés dans l'ordre ; conception N1 : `docs/conception_N1_socle_NIMBA.md`.
 
@@ -89,6 +89,16 @@ fonctionnalité ajoute sa suite (`tests/e2e/api/`, `tests/e2e/ui/`) et sa ligne 
   Agents : cycle de vie DRH seul (`AgentsService`), job quotidien `executer(now)` (fins prévues
   J-15/J-3/lendemain). Retour arrière d'un lot : `prisma/retour-arriere/<lot>_down.sql` (workflow
   manuel `db-retour-arriere.yml`), contrôlé par la phase 39g de `run_all.sh`.
+- Socle N2 (`socle/`) : réauthentification avant un objet protégé (`PreuveIdentiteService.exiger/
+  estValide`, en-tête `X-Reauth`, `POST /api/v1/reauthentification`, 403 `REAUTH_REQUISE` non
+  journalisé ; le web rejoue la requête après la fenêtre `ReauthProvider`) — niveau 2 du dossier du
+  personnel aujourd'hui, tout futur objet protégé ensuite. Journal d'audit **en écriture seule en
+  base** (déclencheurs), scellé et chaîné chaque minute (`audit_sceller`, `audit_verifier`) : ne
+  jamais écrire d'UPDATE/DELETE sur `audit_logs`. Connexions dans `journal_connexions` (purgées),
+  plus dans l'audit. Paramètres bornés (`ParametresService.valeur(cle)`, §13.6) ; tâches planifiées
+  enveloppées par `TachesPlanifieesService.suivre(nom, fn)` (supervision). « Aucun compte sans
+  agent » en base : un compte actif reçoit d'office un agent provisoire (déclencheur), que
+  `AgentsService.rattacherCompte` remplace par l'agent choisi.
 - Stages (`stages/`, D6) : job quotidien `StagesRotationService.executer(now)` (appelable avec une
   date simulée) ; attestation finale = acte du Courrier (`ActesService`).
   Réglages (capacités, modèle d'attestation) : DRH **et** administrateur système

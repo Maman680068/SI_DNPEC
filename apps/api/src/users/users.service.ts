@@ -16,6 +16,7 @@ import { ComptesEmailsService } from './comptes-emails.service';
 import { AgentsService } from '../socle/agents.service';
 import { ReprisesN1Service } from '../socle/reprise-n1.service';
 import { RolesFonctionnelsService } from '../socle/roles-fonctionnels.service';
+import { ParametresService } from '../socle/parametres.service';
 
 const USER_LIST_SELECT = {
   id: true,
@@ -113,6 +114,7 @@ export class UsersService {
     private readonly agents: AgentsService,
     private readonly reprise: ReprisesN1Service,
     private readonly rolesFonctionnels: RolesFonctionnelsService,
+    private readonly parametres: ParametresService,
   ) {}
 
   findAllVisibleTo(actor: AuthenticatedUser) {
@@ -199,6 +201,7 @@ export class UsersService {
     if (existing) throw new ConflictException('Un compte existe déjà avec cet email');
 
     await this.agents.verifierRattachement(dto);
+    await this.parametres.exigerLongueurMotDePasse(dto.password);
     const passwordHash = await this.passwordService.hash(dto.password);
 
     const user = await this.prisma.user.create({

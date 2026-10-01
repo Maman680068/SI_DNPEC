@@ -1,5 +1,6 @@
 'use client';
 
+import { demanderReauthentification } from '../../../../lib/api/client';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
@@ -327,6 +328,15 @@ export default function DossierPage() {
             )}
           </Section>
         </>
+      ) : dossier.niveau2Verrouille ? (
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-dashed border-gold bg-gold-soft px-4 py-3" data-testid="niveau-2-verrouille">
+          <p className="text-[12.5px] text-ink">
+            🔒 Informations personnelles, diplômes, pièces et historique de carrière : éléments protégés. Confirmez votre identité pour les afficher.
+          </p>
+          <Button variant="solid" className={petit} onClick={() => demanderReauthentification().then((ok) => ok && charger())}>
+            Afficher les données protégées
+          </Button>
+        </div>
       ) : (
         <p className="mb-5 rounded-lg border border-dashed border-line px-4 py-3 text-[12.5px] text-text-muted" data-testid="niveau-2-reserve">
           Les informations personnelles, diplômes, pièces administratives et l’historique de carrière sont réservés à la personne concernée et au DRH.

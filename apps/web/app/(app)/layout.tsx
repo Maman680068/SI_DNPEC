@@ -9,6 +9,7 @@ import { InterimProvider, useInterim } from '../../lib/interim/InterimProvider';
 import { InterimBanner } from '../../components/interim/InterimBanner';
 import { Sidebar } from '../../components/layout/Sidebar';
 import { Topbar } from '../../components/layout/Topbar';
+import { ReauthProvider } from '../../lib/securite/ReauthProvider';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -29,6 +30,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <OrgProvider>
       <InterimProvider>
+       <ReauthProvider>
         <div className="flex h-screen overflow-hidden">
           <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
           <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
@@ -42,6 +44,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <InterimScopedContent>{children}</InterimScopedContent>
           </div>
         </div>
+       </ReauthProvider>
       </InterimProvider>
     </OrgProvider>
   );

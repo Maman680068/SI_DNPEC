@@ -36,6 +36,8 @@
             "Cliquez sur le cadenas 🔒 en bas du menu, à côté de votre nom : page « Sécurité du compte ».",
             "Cliquez sur « Activer la double authentification », scannez le QR code avec une application (Google Authenticator, Microsoft Authenticator, FreeOTP…), saisissez le code affiché et cliquez sur « Confirmer l’activation ».",
             "Pour la désactiver, saisissez un code actuel de l’application et cliquez sur « Désactiver ».",
+            "Éléments protégés (informations personnelles de votre dossier, diplômes, pièces) : cliquez sur « Afficher les données protégées » et confirmez votre mot de passe (et le code de l’application si la double authentification est active). La confirmation vaut 10 minutes.",
+            "Menu « Journal d’audit » : la liste de vos propres actions dans l’application (un responsable voit celles de son périmètre). Personne ne peut modifier ni effacer ce journal.",
             "Téléphone perdu ou changé : demandez à l’administrateur système de réinitialiser votre double authentification.",
             "Pour vous déconnecter, cliquez sur ⏻ en bas du menu."
           ],
@@ -217,6 +219,14 @@
             "Réservations : vous avez la priorité sur toute la DNPEC, sauf entre le DN et la DNA, qui sont pairs."
           ],
           "capture": "suppleances.png"
+        },
+        {
+          "titre": "Paramétrage, supervision et journal d’audit",
+          "etapes": [
+            "Administration → « Paramétrage et supervision » : vous consultez les paramètres et l’état des services (lecture seule ; l’administrateur système les modifie).",
+            "Administration → « Journal d’audit » : toutes les actions de la Direction, sans jamais le contenu des éléments protégés."
+          ],
+          "capture": "parametres.png"
         }
       ]
     },
@@ -399,6 +409,16 @@
             "Agent du courrier et Gestionnaire logistique s’attribuent depuis Courrier et Logistique (administration) : ils apparaissent ici, « géré dans son module »."
           ],
           "capture": "roles-fonctionnels.png"
+        },
+        {
+          "titre": "Paramétrage et supervision",
+          "etapes": [
+            "Administration → « Paramétrage et supervision », onglet « Paramètres » : longueur minimale du mot de passe, conservation des journaux de connexion, expiration de session, alerte avant une fin de stage ou de contrat. « Modifier » : la valeur reste dans ses bornes et s’applique aussitôt ; chaque changement est tracé.",
+            "Onglet « Supervision » : état de la base, du stockage des fichiers, des emails, des tâches planifiées et du journal d’audit (nominal, dégradé, indisponible), sessions ouvertes, connexions, comptes à surveiller, accès refusés. Vous êtes prévenu (notification et email) dès qu’un service se dégrade.",
+            "Après chaque essai de restauration d’une sauvegarde : « Déclarer un test de restauration » (date, résultat). Un test tous les 6 mois est recommandé.",
+            "Administration → « Journal d’audit » : toutes les actions, filtrables ; « Vérifier l’intégrité » contrôle que personne n’a altéré le journal."
+          ],
+          "capture": "supervision.png"
         },
         {
           "titre": "Paramétrage",

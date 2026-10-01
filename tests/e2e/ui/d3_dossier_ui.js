@@ -21,9 +21,16 @@ function espion(page) {
   const a1 = ids.agent1;
   await call('agent1', 'PATCH', `/personnel-files/${a1}/sensitive`, { personalPhone: TEL, personalAddress: ADR, emergencyContactName: URG, emergencyContactRelation: 'Sœur' });
   const fd = new FormData(); fd.append('title', `Licence ${S}`); fd.append('file', new Blob([`LICENCE ${S}`]), 'licence.pdf');
-  await fetch('http://localhost:3000/personnel-files/' + a1 + '/diplomas', { method: 'POST', headers: { Authorization: 'Bearer ' + (await require('../lib').login('agent1')) }, body: fd });
+  await fetch('http://localhost:3000/personnel-files/' + a1 + '/diplomas', { method: 'POST', headers: { Authorization: 'Bearer ' + (await require('../lib').login('agent1')), 'X-Reauth': await require('../lib').preuve('agent1') }, body: fd });
   await call('drh', 'PATCH', `/personnel-files/${a1}/basic`, { grade: `B${S}`, serviceStartDate: '2012-03-01' });
   const b = await browser();
+  // Socle N2 : le niveau 2 s'ouvre après confirmation de l'identité (mot de passe).
+  const deverrouiller = async (page) => {
+    await page.locator('[data-testid=niveau-2-verrouille]').getByRole('button', { name: 'Afficher les données protégées' }).click();
+    const f = page.getByRole('dialog', { name: 'Confirmez votre identité' });
+    await f.getByLabel('Votre mot de passe').fill('Password123!');
+    await f.getByRole('button', { name: 'Confirmer' }).click();
+  };
 
   console.log('— La personne (bureau)');
   const p = await loginPage(b, 'agent1');
@@ -31,6 +38,7 @@ function espion(page) {
   await p.getByRole('link', { name: 'Dossier du personnel' }).click();
   await p.getByRole('button', { name: 'Mon dossier' }).click();
   await p.waitForURL(`**/personnel/${a1}`);
+  await deverrouiller(p);
   await p.locator('[data-testid=niveau-2]').waitFor();
   check('niveau 2 affiché à la personne', (await p.locator('[data-testid=niveau-2]').innerText()).includes(TEL));
   check('bandeau « à vérifier » et grade « À vérifier »', (await p.locator('[data-testid=bandeau-a-verifier]').count()) === 1 && /À vérifier/.test(await p.locator('[data-testid="champ-Grade"]').innerText()));
@@ -58,6 +66,7 @@ function espion(page) {
   const d = await loginPage(b, 'drh');
   d.on('dialog', (x) => x.accept());
   await d.goto(`${WEB}/personnel/${a1}`);
+  await deverrouiller(d);
   await d.locator('[data-testid=niveau-2]').waitFor();
   check('lien direct : dossier ouvert avec le niveau 2 pour le DRH', (await d.locator('[data-testid=niveau-2]').innerText()).includes(`${TEL}9`));
   check('DRH : ni bandeau de confirmation, ni « Signaler »', (await d.locator('[data-testid=bandeau-a-verifier]').count()) === 0 && (await d.getByRole('button', { name: 'Signaler une erreur' }).count()) === 0);

@@ -1347,6 +1347,17 @@ model AuditLog {
 
   createdAt DateTime @default(now())
 
+  // Socle N2 — journal inaltérable (SOC-SEC-04). Colonnes tenues par la base : numéro d'ordre,
+  // acteur figé à l'écriture (actorId peut passer à NULL si un compte en attente est supprimé),
+  // scellement chaîné (rang, empreinte SHA-256 de la ligne et de la précédente) par audit_sceller().
+  // Déclencheurs : aucune modification ni suppression (voir la migration socle_nimba_n2).
+  numero              Int     @default(autoincrement())
+  acteurInitial       String?
+  auNomDeInitial      String?
+  rang                Int?
+  empreintePrecedente String?
+  empreinte           String?
+
   @@index([entityType, entityId])
   @@index([actorId])
   @@index([onBehalfOfId])
@@ -2624,4 +2635,49 @@ model AccesRefuse {
   @@index([createdAt])
   @@index([userId])
   @@map("acces_refuses")
+}
+
+// ----------------------------------------------------------------------------
+// Socle NIMBA — lot N2 : connexions, paramètres, tâches planifiées
+// ----------------------------------------------------------------------------
+
+/// Journal technique des connexions (SOC-SEC-05) : conservé N mois (paramètre), puis purgé.
+/// Pas de clé étrangère : la purge et la suppression d'une inscription restent indépendantes.
+model JournalConnexion {
+  id         String   @id @default(cuid())
+  userId     String?
+  email      String
+  resultat   String // SUCCES | ECHEC
+  motif      String?
+  ip         String?
+  navigateur String?
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([userId, createdAt])
+  @@map("journal_connexions")
+}
+
+/// Paramètres de fonctionnement (§13.6) : valeur bornée par le serveur, chaque changement audité.
+model Parametre {
+  cle          String   @id
+  valeur       Json
+  modifieParId String?
+  modifieLe    DateTime @updatedAt
+
+  @@map("parametres")
+}
+
+/// Exécutions des tâches planifiées (supervision) : dernière exécution, durée, résultat.
+model ExecutionTache {
+  id      String    @id @default(cuid())
+  tache   String
+  debut   DateTime  @default(now())
+  fin     DateTime?
+  statut  String // EN_COURS | SUCCES | ECHEC
+  message String?
+  details Json?
+
+  @@index([tache, debut])
+  @@map("executions_taches")
 }

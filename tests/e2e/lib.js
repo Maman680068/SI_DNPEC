@@ -9,21 +9,34 @@ async function login(key) {
   const b = await r.json(); if (!b.accessToken) throw new Error('login ' + key + ' ' + JSON.stringify(b));
   return (tokens[key] = b.accessToken);
 }
+// Socle N2 : le niveau 2 du dossier du personnel exige une réauthentification. Les suites qui ne
+// testent pas ce point reçoivent une preuve automatiquement ; passer { 'X-Reauth': '' } pour s'en passer.
+const preuves = {};
+async function preuve(key) {
+  if (preuves[key] && preuves[key].exp > Date.now() + 30e3) return preuves[key].preuve;
+  const r = await fetch(BASE + '/api/v1/reauthentification', { method: 'POST', headers: { Authorization: 'Bearer ' + (await login(key)), 'Content-Type': 'application/json' }, body: JSON.stringify({ motDePasse: 'Password123!' }) });
+  const b = await r.json(); if (!b.preuve) throw new Error('réauthentification ' + key + ' ' + JSON.stringify(b));
+  preuves[key] = { preuve: b.preuve, exp: new Date(b.expireLe).getTime() };
+  return b.preuve;
+}
+// Un compte qui ne peut pas se réauthentifier (stagiaire) n'envoie simplement pas de preuve.
+const avecPreuve = async (key, path, headers) => (path.startsWith('/personnel-files') && !('X-Reauth' in headers) ? { 'X-Reauth': await preuve(key).catch(() => '') } : {});
 async function call(key, method, path, body, headers = {}) {
-  const h = { Authorization: 'Bearer ' + (await login(key)), ...headers };
+  const h = { Authorization: 'Bearer ' + (await login(key)), ...(await avecPreuve(key, path, headers)), ...headers };
+  if (h['X-Reauth'] === '') delete h['X-Reauth'];
   if (body !== undefined) h['Content-Type'] = 'application/json';
   const r = await fetch(BASE + path, { method, headers: h, body: body !== undefined ? JSON.stringify(body) : undefined });
   const t = await r.text(); let j; try { j = JSON.parse(t); } catch { j = t; }
   return { status: r.status, body: j };
 }
-module.exports = { call, ids, login };
+module.exports = { call, ids, login, preuve };
 
 // Envoi multipart (fichiers en mémoire) — ajouté pour D7.
 async function upload(key, path, fields = {}, files = [], headers = {}) {
   const fd = new FormData();
   for (const [k, v] of Object.entries(fields)) if (v !== undefined) fd.append(k, String(v));
   for (const f of files) fd.append(f.field || 'files', new Blob([f.content || 'contenu ' + Math.random()], { type: 'text/plain' }), f.name);
-  const r = await fetch((process.env.BASE || 'http://localhost:3000') + path, { method: 'POST', headers: { Authorization: 'Bearer ' + (await login(key)), ...headers }, body: fd });
+  const r = await fetch((process.env.BASE || 'http://localhost:3000') + path, { method: 'POST', headers: { Authorization: 'Bearer ' + (await login(key)), ...(await avecPreuve(key, path, headers)), ...headers }, body: fd });
   const t = await r.text(); let j; try { j = JSON.parse(t); } catch { j = t; }
   return { status: r.status, body: j };
 }

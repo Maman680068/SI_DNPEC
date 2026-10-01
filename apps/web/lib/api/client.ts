@@ -6,10 +6,39 @@ export class ApiError extends Error {
   constructor(
     public readonly status: number,
     message: string,
+    /** Code métier stable renvoyé par l'API (ex. REAUTH_REQUISE, CODE_2FA_REQUIS). */
+    public readonly code?: string,
   ) {
     super(message);
   }
 }
+
+/**
+ * Réauthentification avant un objet protégé (socle N2) : la preuve renvoyée par l'API vit en
+ * mémoire seulement (jamais en stockage), le temps de sa validité, et part dans l'en-tête X-Reauth.
+ * Sur un refus « REAUTH_REQUISE », la fenêtre « Confirmez votre identité » s'ouvre (ReauthProvider),
+ * puis la requête est rejouée une fois.
+ */
+let preuve: { jeton: string; expire: number } | null = null;
+let demanderReauth: () => Promise<boolean> = async () => false;
+
+export function registerReauthHook(demander: () => Promise<boolean>): void {
+  demanderReauth = demander;
+}
+export function definirPreuve(jeton: string, expireLe: string): void {
+  preuve = { jeton, expire: new Date(expireLe).getTime() };
+}
+export function effacerPreuve(): void {
+  preuve = null;
+}
+function preuveValide(): string | null {
+  return preuve && preuve.expire > Date.now() + 5000 ? preuve.jeton : null;
+}
+/** Ouvre la fenêtre de réauthentification (bouton « Afficher les données protégées »). */
+export function demanderReauthentification(): Promise<boolean> {
+  return demanderReauth();
+}
+export const CODE_REAUTH_REQUISE = 'REAUTH_REQUISE';
 
 type TokenGetter = () => string | null;
 type Refresher = () => Promise<string | null>;
@@ -53,6 +82,8 @@ export function authHeaders(): Record<string, string> {
   if (token) headers.Authorization = `Bearer ${token}`;
   const interimFor = getInterimFor();
   if (interimFor) headers['X-Interim-For'] = interimFor;
+  const p = preuveValide();
+  if (p) headers['X-Reauth'] = p;
   return headers;
 }
 
@@ -93,7 +124,7 @@ export type ApiInit = RequestInit & {
   skipInterim?: boolean;
 };
 
-export async function apiFetch<T>(path: string, init: ApiInit = {}, isRetry = false): Promise<T> {
+export async function apiFetch<T>(path: string, init: ApiInit = {}, isRetry = false, reauthRejouee = false): Promise<T> {
   const token = getAccessToken();
   const { skipInterim, ...requestInit } = init;
   const interimFor = skipInterim ? null : getInterimFor();
@@ -105,22 +136,29 @@ export async function apiFetch<T>(path: string, init: ApiInit = {}, isRetry = fa
   }
   if (token) headers.set('Authorization', `Bearer ${token}`);
   if (interimFor) headers.set('X-Interim-For', interimFor);
+  const p = preuveValide();
+  if (p) headers.set('X-Reauth', p);
 
   const res = await appelApi(`${API_BASE_URL}${path}`, { ...requestInit, headers });
 
   if (res.status === 401 && !isRetry) {
     const newToken = await refreshAccessToken();
-    if (newToken) return apiFetch<T>(path, init, true);
+    if (newToken) return apiFetch<T>(path, init, true, reauthRejouee);
   }
 
   const body = await parseBody(res);
   if (!res.ok) {
     const raw = (body as { message?: string | string[] })?.message;
     const message = Array.isArray(raw) ? raw.join(', ') : raw ?? res.statusText;
+    const code = (body as { code?: string })?.code;
+    if (res.status === 403 && code === CODE_REAUTH_REQUISE && !reauthRejouee) {
+      effacerPreuve();
+      if (await demanderReauth()) return apiFetch<T>(path, init, isRetry, true);
+    }
     if (res.status === 403 && interimFor && INTERIM_REJECTION_PATTERNS.some((p) => message.includes(p))) {
       onInterimRejected(message);
     }
-    throw new ApiError(res.status, message);
+    throw new ApiError(res.status, message, code);
   }
   return body as T;
 }
@@ -128,17 +166,23 @@ export async function apiFetch<T>(path: string, init: ApiInit = {}, isRetry = fa
 /** Télécharge un flux binaire (hors apiFetch : pas du JSON) avec la même
  * identité que l'écran, via une URL d'objet temporaire ; un refus de l'API
  * remonte avec SON message (ex. 403 d'un contenu réservé). */
-export async function telechargerFichier(path: string, fileName: string | null): Promise<void> {
+export async function telechargerFichier(path: string, fileName: string | null, reauthRejouee = false): Promise<void> {
   const res = await appelApi(`${API_BASE_URL}${path}`, { headers: authHeaders() });
   if (!res.ok) {
     let message = 'Téléchargement impossible';
+    let code: string | undefined;
     try {
-      const body = (await res.json()) as { message?: string | string[] };
+      const body = (await res.json()) as { message?: string | string[]; code?: string };
       if (body.message) message = Array.isArray(body.message) ? body.message.join(', ') : body.message;
+      code = body.code;
     } catch {
       // corps non JSON : message générique
     }
-    throw new ApiError(res.status, message);
+    if (res.status === 403 && code === CODE_REAUTH_REQUISE && !reauthRejouee) {
+      effacerPreuve();
+      if (await demanderReauth()) return telechargerFichier(path, fileName, true);
+    }
+    throw new ApiError(res.status, message, code);
   }
   const blob = await res.blob();
   const url = URL.createObjectURL(blob);

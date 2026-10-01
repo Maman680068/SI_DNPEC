@@ -85,6 +85,8 @@ export interface DossierPersonnel {
   diplomas: Diplome[];
   documents: PieceAdministrative[];
   careerHistory: EvenementCarriere[];
+  /** Niveau 2 accessible mais non transmis : réauthentification requise (socle N2). */
+  niveau2Verrouille?: boolean;
   droits: DroitsDossier;
 }
 

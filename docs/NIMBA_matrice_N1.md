@@ -1,4 +1,4 @@
-# Matrice des habilitations — état N1
+# Matrice des habilitations — état N2
 
 Généré par `tests/e2e/api/n1_matrice.js` (annexe 1 du cahier NIMBA v2.2). « ÉCART » : comportement actuel conservé en N1 et vérifié tel quel.
 
@@ -94,20 +94,44 @@ Généré par `tests/e2e/api/n1_matrice.js` (annexe 1 du cahier NIMBA v2.2). « 
 | Rôle fonctionnel | Assistant DN | attribuer | — | refus (403) | CONFORME |
 | Rôle fonctionnel | Administrateur | attribuer | CLMV(T) | accès | CONFORME |
 | Rôle fonctionnel | DN | lire toutes les attributions | L(T) | refus (403) | ÉCART |
+| Journal d’audit | DN | lire (toute la direction) | L(T) | accès | CONFORME |
+| Journal d’audit | DNA | lire (toute la direction) | L(T) | accès | CONFORME |
+| Journal d’audit | Administrateur | lire (toute la direction) | L(T) | accès | CONFORME |
+| Journal d’audit | Chef de division | lire (votre périmètre) | L(P) | accès | CONFORME |
+| Journal d’audit | Chef de section | lire (votre périmètre) | L(P) | accès | CONFORME |
+| Journal d’audit | Agent | lire (vos propres actions) | L(S) | accès | CONFORME |
+| Journal d’audit | DRH | lire (ses propres actions) | L(P) | accès | ÉCART |
+| Paramétrage | DN | lire | L(T) | accès | CONFORME |
+| Paramétrage | DN | modifier | L(T) | refus (403) | CONFORME |
+| Paramétrage | DNA | lire | L(T) | accès | CONFORME |
+| Paramétrage | DNA | modifier | L(T) | refus (403) | CONFORME |
+| Paramétrage | Chef de division | lire | — | refus (403) | CONFORME |
+| Paramétrage | Chef de division | modifier | — | refus (403) | CONFORME |
+| Paramétrage | Chef de section | lire | — | refus (403) | CONFORME |
+| Paramétrage | Chef de section | modifier | — | refus (403) | CONFORME |
+| Paramétrage | Agent | lire | — | refus (403) | CONFORME |
+| Paramétrage | Agent | modifier | — | refus (403) | CONFORME |
+| Paramétrage | DRH | lire | M(D4, D6) — réglages des stages dans leur écran | refus (403) | CONFORME |
+| Paramétrage | DRH | modifier | — | refus (403) | CONFORME |
+| Paramétrage | Chef SAF | lire | — | refus (403) | CONFORME |
+| Paramétrage | Chef SAF | modifier | — | refus (403) | CONFORME |
+| Paramétrage | Assistant DN | lire | — | refus (403) | CONFORME |
+| Paramétrage | Assistant DN | modifier | — | refus (403) | CONFORME |
+| Paramétrage | Administrateur | lire | CLM(T) | accès | CONFORME |
+| Paramétrage | Administrateur | modifier | CLM(T) | accès | CONFORME |
 
 ## Écarts conservés en N1
 
 - **Compte utilisateur — Assistant DN** : L’assistant hérite de la visibilité de la liste de son superviseur (règle v2.3 de la DNPEC) ; la fiche détaillée reste refusée. À aligner avec l’annexe 1.4.
 - **Dossier agent — Chef SAF** : La lecture par le SAF sert la paie (D5), hors périmètre ; le chef SAF garde la portée de chef de cellule.
 - **Rôle fonctionnel — DN** : En N1, seuls l’administrateur et le DRH voient toutes les attributions ; le DN voit les siennes. La lecture DN/DNA arrive avec l’écran de supervision (N2).
+- **Journal d’audit — DRH** : Le DRH n’a pas de périmètre hiérarchique propre en N1/N2 : il lit ses propres actions ; l’accès aux traces RH passera par les écrans RH (N6).
 
 ## Objets livrés par un lot ultérieur (non joués en N1)
 
 - Justificatif médical : N3 (motif médical visible du seul DRH)
 - Activité / plan de travail : N5 (plan de travail objectif → activité → tâche)
 - Instruction de la Direction : N5
-- Journal d’audit : N2 (lecture de l’audit)
-- Paramétrage : N2 (écran « Paramétrage et supervision »)
 - Demande d’absence — avis et décision : N3 (circuit avis du chef 48 h ouvrées, décision DRH)
 - Mouvement de carrière et acte RH, effectifs et alertes RH : N6
 - Document publié — statut de diffusion : N4

@@ -9,6 +9,7 @@ import { StagesService } from './stages.service';
 import { JOUR_MS, jour } from './unites-stage';
 import { detenteursWhere } from '../socle/roles-fonctionnels';
 import { ReprisesN1Service } from '../socle/reprise-n1.service';
+import { TachesPlanifieesService } from '../socle/taches-planifiees.service';
 
 const LIEN = (id: string) => `/stages/${id}`;
 const STAGIAIRE = { select: { id: true, firstName: true, lastName: true, role: true, status: true, divisionId: true, sectionId: true, celluleId: true } } as const;
@@ -37,12 +38,13 @@ export class StagesRotationService {
     private readonly history: PersonnelHistoryService,
     private readonly stages: StagesService,
     private readonly reprise: ReprisesN1Service,
+    private readonly taches: TachesPlanifieesService,
   ) {}
 
   @Cron('5 0 * * *')
   async tick(): Promise<void> {
     try {
-      await this.executer();
+      await this.taches.suivre('rotation-stages', () => this.executer());
     } catch (e) {
       this.logger.error(`Rotation des stagiaires : ${(e as Error).message}`);
     }

@@ -7,6 +7,10 @@ import { RolesFonctionnelsService } from './roles-fonctionnels.service';
 import { CreerUniteDto, FermerUniteDto, ModifierUniteDto } from './dto/unites.dto';
 import { CreerAgentDto, DepartDto, ListerAgentsDto, ModifierAgentDto, MotifDto, ProlongerDto, ReactiverDto } from './dto/agents.dto';
 import { AttribuerRoleDto, ListerAttributionsDto, RetirerRoleDto } from './dto/attributions.dto';
+import { FiltresAuditDto, ModifierParametreDto, TestRestaurationDto } from './dto/securite.dto';
+import { ParametresService } from './parametres.service';
+import { SupervisionService } from './supervision.service';
+import { JournalAuditService } from './journal-audit.service';
 
 /**
  * Socle NIMBA (lot N1) — nouvelles routes aux conventions NIMBA (§11.4) :
@@ -19,7 +23,42 @@ export class SocleController {
     private readonly unites: UnitesService,
     private readonly agents: AgentsService,
     private readonly roles: RolesFonctionnelsService,
+    private readonly parametres: ParametresService,
+    private readonly supervision: SupervisionService,
+    private readonly journalAudit: JournalAuditService,
   ) {}
+
+  // Paramétrage et supervision (lot N2, §13.6, SOC-SUP)
+  @Get('parametres')
+  listerParametres(@CurrentUser() u: AuthenticatedUser) {
+    return this.parametres.lister(u);
+  }
+
+  @Patch('parametres/:cle')
+  modifierParametre(@CurrentUser() u: AuthenticatedUser, @Param('cle') cle: string, @Body() dto: ModifierParametreDto) {
+    return this.parametres.modifier(u, cle, dto.valeur);
+  }
+
+  @Get('supervision')
+  supervisionTableau(@CurrentUser() u: AuthenticatedUser) {
+    return this.supervision.tableau(u);
+  }
+
+  @Post('supervision/test-restauration')
+  declarerTestRestauration(@CurrentUser() u: AuthenticatedUser, @Body() dto: TestRestaurationDto) {
+    return this.parametres.declarerTestRestauration(u, dto);
+  }
+
+  // Journal d'audit (lot N2, SOC-SEC-04, annexe 1)
+  @Get('journal-audit')
+  journal(@CurrentUser() u: AuthenticatedUser, @Query() f: FiltresAuditDto) {
+    return this.journalAudit.lister(u, f);
+  }
+
+  @Get('journal-audit/verification')
+  verifierJournal(@CurrentUser() u: AuthenticatedUser) {
+    return this.journalAudit.verifier(u);
+  }
 
   // Organigramme (§3)
   @Get('organigramme')

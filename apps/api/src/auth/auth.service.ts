@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Injectable,
@@ -19,6 +20,10 @@ import {
   TwoFaSetupRequiredPayload,
 } from '../common/types/jwt-payload.type';
 import { AuthenticatedUser } from '../common/types/auth-user.type';
+import { JournalConnexionsService } from '../socle/journal-connexions.service';
+import { ParametresService } from '../socle/parametres.service';
+import { PreuveIdentiteService } from '../socle/preuve-identite.service';
+import { ReauthentificationDto } from './dto/reauth.dto';
 import { TotpService } from './services/totp.service';
 import { SessionService } from './services/session.service';
 import { LoginAttemptService } from './services/login-attempt.service';
@@ -53,6 +58,9 @@ export class AuthService {
     private readonly passwordReset: PasswordResetService,
     private readonly emailService: EmailService,
     private readonly config: ConfigService,
+    private readonly journalConnexions: JournalConnexionsService,
+    private readonly parametres: ParametresService,
+    private readonly preuves: PreuveIdentiteService,
   ) {}
 
   /** Options d'organisation utilisables à l'inscription (page publique, avant authentification) :
@@ -112,6 +120,7 @@ export class AuthService {
 
     await this.assertDeclaredAttachmentValid(dto);
 
+    await this.parametres.exigerLongueurMotDePasse(dto.password);
     const passwordHash = await this.passwordService.hash(dto.password);
     const user = await this.prisma.user.create({
       data: {
@@ -173,6 +182,7 @@ export class AuthService {
    * obtenu avant que l'utilisateur (ou un tiers) n'ait changé le mot de passe. */
   async resetPassword(dto: ResetPasswordDto): Promise<{ message: string }> {
     const userId = await this.passwordReset.consumeToken(dto.token);
+    await this.parametres.exigerLongueurMotDePasse(dto.newPassword);
     const passwordHash = await this.passwordService.hash(dto.newPassword);
 
     await this.prisma.user.update({ where: { id: userId }, data: { passwordHash } });
@@ -245,6 +255,7 @@ export class AuthService {
     dto: AdminSetPasswordDto,
   ): Promise<{ message: string }> {
     const user = await this.getUserOrThrow(userId);
+    await this.parametres.exigerLongueurMotDePasse(dto.newPassword);
     const passwordHash = await this.passwordService.hash(dto.newPassword);
 
     await this.prisma.user.update({ where: { id: user.id }, data: { passwordHash } });
@@ -287,7 +298,7 @@ export class AuthService {
     return { message: 'Double authentification réinitialisée. Les sessions actives de ce compte ont été fermées.' };
   }
 
-  async login(dto: LoginDto, ip: string) {
+  async login(dto: LoginDto, ip: string, navigateur?: string) {
     this.loginAttempts.assertNotLocked(dto.email, ip);
 
     const user = await this.prisma.user.findUnique({ where: { email: dto.email } });
@@ -295,16 +306,14 @@ export class AuthService {
 
     if (!user || !passwordValid) {
       this.loginAttempts.recordFailure(dto.email, ip);
-      await this.audit.log({
-        actorId: user?.id ?? null,
-        action: AuditAction.CONNEXION,
-        entityType: 'User',
-        entityId: user?.id ?? dto.email,
-        metadata: { result: 'failure', ip },
-      });
+      // Journal technique des connexions (socle N2, conservé N mois), et non plus le journal d'audit.
+      await this.journalConnexions.enregistrer({ userId: user?.id ?? null, email: dto.email, resultat: 'ECHEC', motif: 'identifiants', ip, navigateur });
       throw new UnauthorizedException('Identifiants invalides');
     }
 
+    if (user.status !== UserStatus.ACTIF) {
+      await this.journalConnexions.enregistrer({ userId: user.id, email: dto.email, resultat: 'ECHEC', motif: `compte ${user.status.toLowerCase()}`, ip, navigateur });
+    }
     if (user.status === UserStatus.EN_ATTENTE) {
       throw new ForbiddenException(
         "Votre demande d'accès est en cours d'examen par un administrateur. Vous recevrez un accès dès qu'elle sera approuvée.",
@@ -331,10 +340,10 @@ export class AuthService {
       return { status: 'two_fa_challenge_required' as const, challengeToken };
     }
 
-    return this.issueSession(user, ip);
+    return this.issueSession(user, ip, navigateur);
   }
 
-  async loginTwoFa(dto: LoginTwoFaDto, ip: string) {
+  async loginTwoFa(dto: LoginTwoFaDto, ip: string, navigateur?: string) {
     const payload = await this.verifyPurposeToken<TwoFaLoginChallengePayload>(
       dto.challengeToken,
       'two_fa_login_challenge',
@@ -346,18 +355,12 @@ export class AuthService {
     const valid = user.twoFactorSecret ? this.totpService.verify(dto.code, user.twoFactorSecret) : false;
     if (!valid) {
       this.loginAttempts.recordFailure(user.email, ip);
-      await this.audit.log({
-        actorId: user.id,
-        action: AuditAction.CONNEXION,
-        entityType: 'User',
-        entityId: user.id,
-        metadata: { result: 'failure_2fa', ip },
-      });
+      await this.journalConnexions.enregistrer({ userId: user.id, email: user.email, resultat: 'ECHEC', motif: 'code 2FA', ip, navigateur });
       throw new UnauthorizedException('Code de vérification invalide');
     }
 
     this.loginAttempts.recordSuccess(user.email, ip);
-    return this.issueSession(user, ip);
+    return this.issueSession(user, ip, navigateur);
   }
 
   /** Génère un secret TOTP + QR code — activation volontaire uniquement, la 2FA n'étant imposée à aucun rôle. Utilisable avec un access token normal ; le jeton "2FA requise" reste accepté par resolveSetupOrAccessSubject pour compatibilité mais n'est plus jamais émis par login(). */
@@ -465,19 +468,34 @@ export class AuthService {
     return { accessToken, refreshToken };
   }
 
-  private async issueSession(user: User, ip: string | undefined) {
+  private async issueSession(user: User, ip: string | undefined, navigateur?: string) {
     const accessToken = await this.issueAccessToken(user.id);
     const refreshToken = await this.sessionService.createSession(user.id, ip ? `IP ${ip}` : undefined);
 
-    await this.audit.log({
-      actorId: user.id,
-      action: AuditAction.CONNEXION,
-      entityType: 'User',
-      entityId: user.id,
-      metadata: { result: 'success' },
-    });
+    await this.journalConnexions.enregistrer({ userId: user.id, email: user.email, resultat: 'SUCCES', ip, navigateur });
 
     return { accessToken, refreshToken };
+  }
+
+  /**
+   * Réauthentification (socle N2) : mot de passe du compte RÉEL (et code si la double
+   * authentification est active), comptée par le même verrouillage que la connexion.
+   */
+  async reauthentifier(actor: AuthenticatedUser, dto: ReauthentificationDto, ip: string, navigateur?: string) {
+    const user = await this.getUserOrThrow(actor.id);
+    this.loginAttempts.assertNotLocked(user.email, ip);
+    const motDePasseOk = await this.passwordService.verify(user.passwordHash, dto.motDePasse);
+    const codeOk = !user.twoFactorEnabled || (!!dto.code && !!user.twoFactorSecret && this.totpService.verify(dto.code, user.twoFactorSecret));
+    if (!motDePasseOk || !codeOk) {
+      this.loginAttempts.recordFailure(user.email, ip);
+      await this.journalConnexions.enregistrer({ userId: user.id, email: user.email, resultat: 'ECHEC', motif: 'réauthentification', ip, navigateur });
+      // 400 et non 401 : la session reste valide (un 401 déclencherait un rafraîchissement inutile).
+      if (motDePasseOk && user.twoFactorEnabled && !dto.code) throw new BadRequestException({ message: 'Saisissez aussi le code de votre application d’authentification.', code: 'CODE_2FA_REQUIS' });
+      throw new BadRequestException(motDePasseOk ? 'Code de vérification invalide' : 'Mot de passe incorrect');
+    }
+    this.loginAttempts.recordSuccess(user.email, ip);
+    await this.journalConnexions.enregistrer({ userId: user.id, email: user.email, resultat: 'SUCCES', motif: 'réauthentification', ip, navigateur });
+    return { ...(await this.preuves.emettre(user.id)), doubleAuthentification: user.twoFactorEnabled };
   }
 
   private issueAccessToken(userId: string): Promise<string> {
