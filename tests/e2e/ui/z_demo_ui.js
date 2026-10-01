@@ -71,7 +71,7 @@ const ECRANS = [
   check('le DN réel voit l’activité de la démonstration sur son tableau de bord', await attendreTexte(dn, 'TEST — Rapport mensuel de conjoncture — août'));
   await dn.screenshot({ path: `${E.SHOTS}/demo_vue_direction_tableau_de_bord.png`, fullPage: true });
   await dn.goto(WEB + '/leaves');
-  await dn.getByRole('button', { name: /^Suivi/ }).first().click();
+  await dn.getByRole('tab', { name: /^Suivi/ }).first().click();
   await attendreTexte(dn, /Touré|Barry|Sylla/);
   const texte = await dn.locator('body').innerText();
   const ligne = texte.split('\n').findIndex((l) => l.includes('Touré'));
