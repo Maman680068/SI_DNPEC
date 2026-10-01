@@ -5,7 +5,9 @@
       "cle": "premiers-pas",
       "titre": "Premiers pas",
       "pour": "Tout le monde",
-      "profils": ["TOUS"],
+      "profils": [
+        "TOUS"
+      ],
       "sections": [
         {
           "titre": "Se connecter",
@@ -57,13 +59,15 @@
       "cle": "charge-etudes",
       "titre": "Chargé d’Études",
       "pour": "Personnel des Divisions et des Cellules",
-      "profils": ["AGENT"],
+      "profils": [
+        "AGENT"
+      ],
       "sections": [
         {
           "titre": "Mes tâches",
           "etapes": [
             "Menu « Mes tâches » : la liste de vos tâches ; cliquez sur une tâche pour l’ouvrir.",
-            "Mettez à jour l’avancement, ajoutez un commentaire ou une pièce jointe dans la fiche de la tâche.",
+            "Passez la tâche « en cours », ajoutez un commentaire ou une pièce jointe dans sa fiche. L’avancement se calcule tout seul : sous-tâches terminées, sinon statut (à faire 0 %, en cours 50 %, soumise 90 %, terminée 100 %).",
             "Quand le travail est fini, cliquez sur « Soumettre pour validation » : la personne qui vous l’a confiée la valide ou vous la renvoie avec un commentaire.",
             "Vous voyez aussi, en lecture seule, les tâches de votre section."
           ],
@@ -73,8 +77,10 @@
           "titre": "Congés et absences",
           "etapes": [
             "Menu Personnel → « Congés & absences » → « Nouvelle demande de congé ».",
-            "Choisissez le type, les dates et, si besoin, un motif, puis envoyez : votre chef est prévenu.",
-            "Vous recevez une notification quand la demande est approuvée ou rejetée ; « Mon solde » indique les jours restants."
+            "Choisissez le type, les dates et, si besoin, un motif, puis envoyez : votre chef donne son avis (48 heures ouvrées ; sans réponse, l’avis est réputé favorable), puis le DRH décide.",
+            "Chaque demande affiche son étape (« Avis du chef attendu », « Décision du DRH attendue »…). Vous êtes prévenu de la décision ; « Mon solde » indique les jours restants.",
+            "Congé maladie : votre chef (celui qui donne l’avis) et le DRH en voient la nature et le motif ; la Direction et le reste de la hiérarchie voient « Absence — motif protégé ». « Joindre le certificat médical » : seuls vous et le DRH pourrez le lire.",
+            "Les jours fériés ne sont décomptés ni dans vos jours de congé ni dans le délai d’avis du chef ; le calendrier est consultable dans l’onglet « Jours fériés »."
           ],
           "capture": "conges.png"
         },
@@ -112,7 +118,9 @@
       "cle": "chef-section",
       "titre": "Chef de Section",
       "pour": "Chefs de Section",
-      "profils": ["CHEF_SECTION"],
+      "profils": [
+        "CHEF_SECTION"
+      ],
       "sections": [
         {
           "titre": "Piloter les tâches de la section",
@@ -126,8 +134,10 @@
         {
           "titre": "Congés de la section",
           "etapes": [
-            "Congés & absences : les demandes de vos agents en attente de votre décision s’affichent dans la page.",
-            "Approuvez ou rejetez (motif obligatoire pour un rejet). Pour un congé maladie, le motif médical reste confidentiel."
+            "Congés & absences → onglet « À traiter » : les demandes de vos agents qui attendent votre avis, avec l’échéance. Un rappel arrive 12 heures ouvrées avant.",
+            "« Examiner » puis « Avis favorable » ou « Avis défavorable » (motif obligatoire). Sans avis dans le délai, il est réputé favorable. Le DRH décide ensuite.",
+            "Congé maladie d’un de vos agents : vous en voyez le type, les dates et la durée ; « Afficher le motif » le montre après votre mot de passe (lecture tracée). Le certificat médical reste réservé à l’agent et au DRH.",
+            "Onglet « Suivi » : les autres demandes de votre périmètre, en lecture. Le délai d’avis ne compte ni les week-ends ni les jours fériés."
           ],
           "capture": "conges.png"
         },
@@ -154,7 +164,10 @@
       "cle": "chef-division-cellule",
       "titre": "Chef de Division ou de Cellule",
       "pour": "Chefs de Division et Chefs de Cellule",
-      "profils": ["CHEF_DIVISION", "CHEF_CELLULE"],
+      "profils": [
+        "CHEF_DIVISION",
+        "CHEF_CELLULE"
+      ],
       "sections": [
         {
           "titre": "Votre périmètre",
@@ -168,7 +181,7 @@
           "titre": "Diffuser et valider",
           "etapes": [
             "« Mes tâches » → « Diffuser une tâche à une division » : une tâche collective ou une tâche par agent.",
-            "Validez les tâches soumises, les congés et les demandes logistiques de votre périmètre, comme un chef de section."
+            "Validez les tâches soumises et les demandes logistiques de votre périmètre ; pour les congés, donnez votre avis quand vous êtes le chef le plus proche (onglet « À traiter »), comme un chef de section."
           ],
           "capture": "taches.png"
         },
@@ -194,13 +207,17 @@
       "cle": "direction",
       "titre": "Directeur National (DN) et Directrice Nationale Adjointe (DNA)",
       "pour": "DN et DNA",
-      "profils": ["DN", "DNA"],
+      "profils": [
+        "DN",
+        "DNA"
+      ],
       "sections": [
         {
           "titre": "Vue d’ensemble",
           "etapes": [
             "Le tableau de bord couvre toute la DNPEC : tâches, retards, congés, courrier à imputer, stagiaires, logistique.",
-            "La visibilité s’arrête où commence le contenu protégé (congés maladie, plis personnels, informations personnelles du dossier) : c’est le principe du « besoin d’en connaître »."
+            "La visibilité s’arrête où commence le contenu protégé (congés maladie, plis personnels, informations personnelles du dossier) : c’est le principe du « besoin d’en connaître ».",
+            "Congés & absences : l’onglet « Suivi » montre les demandes de la Direction en lecture ; c’est le DRH qui décide, sauf pour une demande du DRH lui-même, que vous décidez (onglet « À traiter »). Sans chef dans l’unité, c’est vous qui donnez l’avis."
           ],
           "capture": "tableau-de-bord.png"
         },
@@ -234,7 +251,9 @@
       "cle": "assistant",
       "titre": "Assistant(e) de Direction",
       "pour": "Assistants du DN, de la DNA ou d’un Chef de Cellule",
-      "profils": ["ASSISTANT_DIRECTION"],
+      "profils": [
+        "ASSISTANT_DIRECTION"
+      ],
       "sections": [
         {
           "titre": "Ce que vous voyez",
@@ -258,7 +277,9 @@
       "cle": "secretariat-courrier",
       "titre": "Secrétariat courrier",
       "pour": "Personnes habilitées sur un registre du courrier",
-      "profils": ["SECRETARIAT_COURRIER"],
+      "profils": [
+        "SECRETARIAT_COURRIER"
+      ],
       "sections": [
         {
           "titre": "Enregistrer le courrier arrivée",
@@ -283,7 +304,9 @@
       "cle": "drh",
       "titre": "DRH",
       "pour": "Direction des Ressources Humaines",
-      "profils": ["DRH"],
+      "profils": [
+        "DRH"
+      ],
       "sections": [
         {
           "titre": "Organigramme",
@@ -319,9 +342,21 @@
             "Personnel → « Stagiaires » → « + Nouveau stage » : stagiaire, établissement, dates ; puis ajoutez les périodes (unité, dates, format d’évaluation).",
             "Chaque responsable d’unité accepte la période et désigne le tuteur ; le changement d’unité se fait tout seul à la date prévue.",
             "« Planning, capacités, modèle » : capacités d’accueil par unité et modèle d’attestation (Word avec des champs {{NOM_COMPLET}}, {{DATE_DEBUT}}…).",
-            "En fin de stage : « Clôturer », puis « Préparer l’attestation finale » (registre ATT) : l’acte part à la signature du DN ou de la DNA."
+            "En fin de stage : « Clôturer », puis « Préparer l’attestation finale » (registre ATT) : l’acte part à la signature du DN ou de la DNA.",
+            "Sur la fiche du stage, « Désigner l’encadreur » : choisissez l’encadreur principal parmi les tuteurs du plan ; il validera le rapport de stage. Vous êtes prévenu quand le rapport est validé."
           ],
           "capture": "stages.png"
+        },
+        {
+          "titre": "Congés et absences",
+          "etapes": [
+            "Congés & absences → « À traiter » : les demandes dont l’avis du chef est rendu (ou réputé favorable après le délai). « Approuver » ou « Refuser » (motif obligatoire).",
+            "Vous voyez le type d’un congé maladie ; « Afficher le motif » et le certificat médical joint par l’agent vous demandent votre mot de passe. Chaque lecture est tracée. Le chef qui donne l’avis voit aussi le motif, jamais le certificat.",
+            "Onglet « Suivi » : toutes les demandes de la Direction. Une demande que vous déposez vous-même est décidée par le DN ou la DNA.",
+            "Le délai d’avis du chef (48 heures ouvrées par défaut) se règle dans « Paramétrage et supervision » par l’administrateur.",
+            "Onglet « Jours fériés » : saisissez chaque année les fêtes religieuses (Tabaski, fin du Ramadan, Maouloud, lundi de Pâques…) ; « Ajouter les fêtes fixes » reprend les fêtes nationales. Une alerte vous prévient en début d’année si l’année suivante est vide."
+          ],
+          "capture": "jours-feries.png"
         }
       ]
     },
@@ -329,7 +364,9 @@
       "cle": "gestionnaire-logistique",
       "titre": "Gestionnaire logistique",
       "pour": "Personnes habilitées « gestionnaire logistique »",
-      "profils": ["GESTIONNAIRE_LOGISTIQUE"],
+      "profils": [
+        "GESTIONNAIRE_LOGISTIQUE"
+      ],
       "sections": [
         {
           "titre": "Traiter les demandes",
@@ -363,13 +400,16 @@
       "cle": "stagiaire",
       "titre": "Stagiaire",
       "pour": "Stagiaires accueillis à la DNPEC",
-      "profils": ["STAGIAIRE"],
+      "profils": [
+        "STAGIAIRE"
+      ],
       "sections": [
         {
           "titre": "Mon stage",
           "etapes": [
             "Menu « Mon stage » : votre plan (unités, dates, tuteurs) et les évaluations une fois visées par le chef.",
-            "À la fin, l’attestation signée est téléchargeable ici ; cliquez sur « J’ai pris connaissance de mon attestation »."
+            "À la fin, l’attestation signée est téléchargeable ici ; cliquez sur « J’ai pris connaissance de mon attestation ».",
+            "Rapport de stage : sur votre fiche, « Déposer mon rapport » (après la désignation de votre encadreur principal). S’il demande une reprise, le motif s’affiche et vous déposez une nouvelle version."
           ],
           "capture": "mon-stage.png"
         },
@@ -388,7 +428,9 @@
       "cle": "administrateur",
       "titre": "Administrateur système",
       "pour": "Cellule CSID",
-      "profils": ["ADMIN_SYSTEME"],
+      "profils": [
+        "ADMIN_SYSTEME"
+      ],
       "sections": [
         {
           "titre": "Comptes",
@@ -429,6 +471,15 @@
             "« Stages (réglages) » : capacités d’accueil et modèle d’attestation, que vous tenez avec le DRH (jamais le contenu des stages)."
           ],
           "capture": "administration.png"
+        },
+        {
+          "titre": "Jours fériés",
+          "etapes": [
+            "Congés & absences → onglet « Jours fériés » : choisissez l’année ; les fêtes fixes nationales sont pré-remplies (« Ajouter les fêtes fixes » pour une nouvelle année).",
+            "Saisissez les fêtes religieuses avec leur date de l’année (« Ajouter le jour férié ») ; « Modifier » si la date officielle change, « Supprimer » si besoin.",
+            "Les jours fériés sont exclus du délai d’avis du chef (heures ouvrées) et du décompte des jours de congé. En début d’année, une alerte vous prévient si l’année suivante n’a aucun jour férié."
+          ],
+          "capture": "jours-feries.png"
         }
       ]
     }

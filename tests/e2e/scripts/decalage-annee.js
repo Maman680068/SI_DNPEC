@@ -6,3 +6,9 @@ class Decalee extends Reelle {
   static now() { return Reelle.now() + DECALAGE; }
 }
 global.Date = Decalee;
+
+// Aucune tâche planifiée dans cette instance : avec son horloge avancée, elle traiterait les données
+// de l'instance normale (congés réputés favorables, stages terminés…) au milieu des autres suites.
+const { createRequire } = require('module');
+const depuisApi = createRequire(require.resolve('@nestjs/schedule', { paths: [process.cwd()] }));
+depuisApi('cron').CronJob.prototype.start = function () {};

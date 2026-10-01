@@ -964,10 +964,41 @@ model LeaveRequest {
   decisionComment String?
   decidedAt       DateTime?
 
+  // Socle N3 — circuit A6.1 : avis du chef d'unité (FAVORABLE | DEFAVORABLE | TACITE, réputé
+  // favorable passé l'échéance de 48 heures ouvrées, paramètre), puis décision du DRH
+  // (approverId / decidedAt ci-dessus). Alerte au chef 12 heures ouvrées avant l'échéance.
+  avisEtat     String?
+  avisParId    String?
+  avisMotif    String?
+  avisLe       DateTime?
+  avisEcheance DateTime?
+  alerteAvisAt DateTime?
+
+  // Socle N3 — certificat médical d'un congé maladie : déposé par l'agent, lisible de lui et du
+  // DRH seuls (jamais du chef qui donne l'avis, du DN ni de la DNA).
+  certificatFileKey  String?
+  certificatFileName String?
+  certificatDeposeLe DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([status, avisEtat])
   @@map("leave_requests")
+}
+
+/// Jour férié de Guinée (socle N3) : saisi année par année par l'administrateur ou le DRH ; exclu du
+/// délai d'avis en heures ouvrées et du décompte des jours de congé. nature : FIXE | RELIGIEUX.
+model JourFerie {
+  id        String   @id @default(cuid())
+  date      DateTime @unique @db.Date
+  libelle   String
+  nature    String   @default("FIXE")
+  creeParId String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("jours_feries")
 }
 
 model LeaveBalance {
@@ -1989,6 +2020,17 @@ model Stage {
   updatedAt           DateTime      @updatedAt
 
   periodes PeriodeStage[]
+
+  // Socle N3 — encadreur principal (SIG-RF-STG-05) et rapport de stage (SIG-RF-STG-11) :
+  // déposé par le stagiaire, validé ou renvoyé (motif) par l'encadreur principal, transmis au DRH.
+  encadrantPrincipalId String?
+  rapportFileKey       String?
+  rapportFileName      String?
+  rapportDeposeLe      DateTime?
+  rapportStatut        String? // DEPOSE | VALIDE | A_REPRENDRE
+  rapportMotif         String?
+  rapportValideLe      DateTime?
+  rapportValideParId   String?
 
   @@index([stagiaireId])
   @@map("stages")

@@ -8,13 +8,15 @@ import {
   changerTuteur,
   creerActeAttestation,
   creerStage,
+  designerEncadrant,
+  getEncadrantsPossibles,
   getRegistresAttestation,
   getStagiairesDisponibles,
   getTuteursPossibles,
   modifierPeriode,
   modifierStage,
 } from '../../lib/api/stages';
-import type { Candidat, FormatEvaluation, Periode, Stage } from '../../lib/stages/types';
+import type { Candidat, FormatEvaluation, Periode, Personne, Stage } from '../../lib/stages/types';
 import { FORMAT_LABEL } from '../../lib/stages/types';
 import { Erreur, Fenetre, Libelle, SELECT_CLASS, TEXTAREA_CLASS, messageErreur } from '../courrier/ui';
 
@@ -389,6 +391,41 @@ export function FenetreActeAttestation({ stage, onClose, onDone }: { stage: Stag
           {registres?.map((r) => (
             <option key={r.id} value={r.id}>
               {r.code} — {r.libelle}
+            </option>
+          ))}
+        </select>
+      </Champ>
+      <Erreur message={erreurListe ?? erreur} />
+    </Fenetre>
+  );
+}
+
+/** Encadreur principal (DRH) : choisi parmi les tuteurs des périodes ; il valide le rapport de stage. */
+export function FenetreEncadrant({ stage, onClose, onDone }: { stage: Stage; onClose: () => void; onDone: (s?: Stage) => void }) {
+  const [choix, setChoix] = useState<Personne[] | null>(null);
+  const [userId, setUserId] = useState(stage.encadrantPrincipal?.id ?? '');
+  const { enCours, erreur, lancer } = useAction(onDone);
+  const [erreurListe, setErreurListe] = useState<string | null>(null);
+  useEffect(() => {
+    getEncadrantsPossibles(stage.id)
+      .then(setChoix)
+      .catch((e) => setErreurListe(messageErreur(e, 'Impossible de charger les encadreurs possibles')));
+  }, [stage.id]);
+  return (
+    <Fenetre
+      titre="Encadreur principal"
+      sousTitre="Il suit le stagiaire sur toute la durée du stage et valide son rapport."
+      onClose={onClose}
+      onSubmit={() => lancer(() => designerEncadrant(stage.id, userId), 'Désignation impossible')}
+      valider="Désigner"
+      enCours={enCours}
+    >
+      <Champ id="en-encadrant" label="Encadreur (parmi les tuteurs du plan)">
+        <select id="en-encadrant" className={SELECT_CLASS} value={userId} onChange={(e) => setUserId(e.target.value)} required>
+          <option value="">{choix ? (choix.length ? 'Choisir…' : 'Aucun tuteur désigné dans le plan') : 'Chargement…'}</option>
+          {choix?.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.firstName} {c.lastName}
             </option>
           ))}
         </select>

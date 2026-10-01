@@ -69,7 +69,8 @@ async function televerser(k, p, champs, nom, contenu, champFichier = 'file') {
   expect('un agent d’une autre division ne l’ouvre pas', await call('agentdee', 'GET', `/tasks/${tid}`), 403);
   expect('soumettre avant de démarrer', await call('agent1', 'POST', `/tasks/${tid}/submit`), 409);
   expect('l’assigné démarre', await call('agent1', 'POST', `/tasks/${tid}/start`), 201);
-  expect('avancement à 60 %', await call('agent1', 'PATCH', `/tasks/${tid}/progress`, { progressPercent: 60 }), 200);
+  expect('avancement saisi à la main refusé (calculé, N3)', await call('agent1', 'PATCH', `/tasks/${tid}/progress`, { progressPercent: 60 }), 409);
+  check('… avancement calculé : en cours = 50 %', (await call('agent1', 'GET', `/tasks/${tid}`)).body.progressPercent === 50);
   expect('commentaire', await call('agent1', 'POST', `/tasks/${tid}/comments`, { body: `Premier jet déposé ${S}` }), 201);
   const pj = await televerser('agent1', `/tasks/${tid}/attachments`, {}, 'note.txt', `Contenu ${S}`, 'files');
   check('pièce jointe déposée', pj.status === 201);
@@ -85,7 +86,7 @@ async function televerser(k, p, champs, nom, contenu, champFichier = 'file') {
   expect('validation rejouée', await call('chefssr', 'POST', `/tasks/${tid}/validate`, {}), 409);
   check('l’assigné a été notifié', (await prisma.notification.count({ where: { userId: ids.agent1, type: 'TACHE_VALIDEE', channel: 'IN_APP' } })) >= 1);
 
-  console.log('— Congés : validation par le chef, congé maladie confidentiel');
+  console.log('— Congés : avis du chef, décision du DRH, congé maladie confidentiel');
   let types = (await call('agent1', 'GET', '/leave-types')).body;
   for (const [code, name] of [['CONGE_ANNUEL', 'Congé annuel'], ['CONGE_MALADIE', 'Congé maladie']]) {
     if (!types.some((x) => x.code === code)) await call('admin', 'POST', '/leave-types', { code, name });
@@ -96,17 +97,26 @@ async function televerser(k, p, champs, nom, contenu, champFichier = 'file') {
   expect('dates inversées', await call('agent1', 'POST', '/leaves', { leaveTypeId: annuel.id, startDate: jour(20), endDate: jour(18) }), 400);
   const c1 = (await call('agent1', 'POST', '/leaves', { leaveTypeId: annuel.id, startDate: jour(20), endDate: jour(24), reason: 'Famille' })).body;
   check('demande de congé annuel (5 jours)', c1.daysCount === 5);
-  expect('l’agent n’approuve pas sa demande', await call('agent1', 'POST', `/leaves/${c1.id}/approve`, {}), 403);
-  expect('un chef d’une autre division ne l’approuve pas', await call('chefdee', 'POST', `/leaves/${c1.id}/approve`, {}), 403);
-  expect('le chef de section approuve', await call('chefssr', 'POST', `/leaves/${c1.id}/approve`, {}), 201);
-  expect('approbation rejouée', await call('chefssr', 'POST', `/leaves/${c1.id}/approve`, {}), 409);
-  const c2 = (await call('agent1', 'POST', '/leaves', { leaveTypeId: maladie.id, startDate: jour(30), endDate: jour(31) })).body;
+  // Circuit N3 (A6.1) : avis du chef d'unité, puis décision du DRH.
+  expect('l’agent ne donne pas d’avis sur sa demande', await call('agent1', 'POST', `/leaves/${c1.id}/avis`, { avis: 'FAVORABLE' }), 403);
+  expect('un chef d’une autre division ne donne pas d’avis', await call('chefdee', 'POST', `/leaves/${c1.id}/avis`, { avis: 'FAVORABLE' }), 403);
+  expect('le DRH ne décide pas avant l’avis du chef', await call('drh', 'POST', `/leaves/${c1.id}/approve`, {}), 409);
+  expect('le chef de section donne un avis favorable', await call('chefssr', 'POST', `/leaves/${c1.id}/avis`, { avis: 'FAVORABLE' }), 201);
+  expect('avis rejoué', await call('chefssr', 'POST', `/leaves/${c1.id}/avis`, { avis: 'FAVORABLE' }), 409);
+  expect('le chef ne décide plus (décision du DRH)', await call('chefssr', 'POST', `/leaves/${c1.id}/approve`, {}), 403);
+  expect('le DRH approuve', await call('drh', 'POST', `/leaves/${c1.id}/approve`, {}), 201);
+  expect('approbation rejouée', await call('drh', 'POST', `/leaves/${c1.id}/approve`, {}), 409);
+  const c2 = (await call('agent1', 'POST', '/leaves', { leaveTypeId: maladie.id, startDate: jour(30), endDate: jour(31), reason: 'Consultation' })).body;
   const vueDn = (await call('dn', 'GET', `/leaves/${c2.id}`)).body;
   const vueChef = (await call('chefssr', 'GET', `/leaves/${c2.id}`)).body;
-  check('congé maladie : motif masqué pour le DN (chef plus proche existant)', vueDn.leaveType.code === null && vueDn.leaveTypeId === null);
-  check('congé maladie : visible du chef direct qui décide', vueChef.leaveType.code === 'CONGE_MALADIE');
-  expect('rejet sans motif', await call('chefssr', 'POST', `/leaves/${c2.id}/reject`, {}), 400);
-  expect('rejet motivé', await call('chefssr', 'POST', `/leaves/${c2.id}/reject`, { comment: 'Pièce justificative manquante' }), 201);
+  const vueDrh = (await call('drh', 'GET', `/leaves/${c2.id}`)).body;
+  check('congé maladie : type masqué pour le DN', vueDn.leaveType.code === null && vueDn.leaveTypeId === null);
+  check('congé maladie : le chef qui donne l’avis voit le type, le motif derrière la réauthentification', vueChef.leaveType.code === 'CONGE_MALADIE' && vueChef.motifVerrouille === true && vueChef.reason === null);
+  check('congé maladie : le DRH voit le type, le motif derrière la réauthentification', vueDrh.leaveType.code === 'CONGE_MALADIE' && vueDrh.motifVerrouille === true && vueDrh.reason === null);
+  expect('avis défavorable sans motif', await call('chefssr', 'POST', `/leaves/${c2.id}/avis`, { avis: 'DEFAVORABLE' }), 400);
+  expect('avis défavorable motivé', await call('chefssr', 'POST', `/leaves/${c2.id}/avis`, { avis: 'DEFAVORABLE', motif: 'Période chargée' }), 201);
+  expect('refus sans motif', await call('drh', 'POST', `/leaves/${c2.id}/reject`, {}), 400);
+  expect('refus motivé par le DRH', await call('drh', 'POST', `/leaves/${c2.id}/reject`, { comment: 'Pièce justificative manquante' }), 201);
   expect('un tiers n’annule pas la demande approuvée', await call('agent2', 'POST', `/leaves/${c1.id}/cancel`), 403);
   expect('l’agent annule sa demande approuvée', await call('agent1', 'POST', `/leaves/${c1.id}/cancel`), 201);
 

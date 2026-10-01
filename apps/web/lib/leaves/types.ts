@@ -25,7 +25,50 @@ export interface LeaveRequest {
   updatedAt: string;
   leaveType: { code: string | null; name: string };
   user: { id: string; firstName: string; lastName: string; divisionId: string | null; sectionId: string | null; celluleId: string | null };
+  /** Circuit A6.1 (socle N3) : avis du chef d'unité, puis décision du DRH. */
+  etape: EtapeConge;
+  avisEtat: 'FAVORABLE' | 'DEFAVORABLE' | 'TACITE' | null;
+  avisMotif: string | null;
+  avisLe: string | null;
+  avisEcheance: string | null;
+  avisPar: { id: string; nom: string } | null;
+  /** Motif médical (demandeur, chef qui donne l'avis, DRH), visible après réauthentification. */
+  motifVerrouille: boolean;
+  /** Certificat médical : demandeur et DRH seulement. */
+  certificat: { nom: string; deposeLe: string } | null;
+  droits: { peutDonnerAvis: boolean; peutDecider: boolean; peutAnnuler: boolean; deposerCertificat?: boolean; lireCertificat?: boolean };
 }
+
+export interface JourFerie {
+  id: string;
+  date: string;
+  libelle: string;
+  nature: 'FIXE' | 'RELIGIEUX';
+}
+
+export interface CalendrierFeries {
+  annee: number;
+  jours: JourFerie[];
+  fixesManquantes: { date: string; libelle: string }[];
+  religieusesSaisies: boolean;
+  droits: { gerer: boolean };
+}
+
+export type EtapeConge = 'AVIS_ATTENDU' | 'DECISION_ATTENDUE' | 'APPROUVEE' | 'REFUSEE' | 'ANNULEE';
+
+export const LIBELLE_ETAPE: Record<EtapeConge, string> = {
+  AVIS_ATTENDU: 'Avis du chef attendu',
+  DECISION_ATTENDUE: 'Décision du DRH attendue',
+  APPROUVEE: 'Approuvée',
+  REFUSEE: 'Refusée',
+  ANNULEE: 'Annulée',
+};
+
+export const LIBELLE_AVIS: Record<'FAVORABLE' | 'DEFAVORABLE' | 'TACITE', string> = {
+  FAVORABLE: 'Avis favorable',
+  DEFAVORABLE: 'Avis défavorable',
+  TACITE: 'Avis réputé favorable (délai dépassé)',
+};
 
 export interface LeaveBalanceView {
   id: string;

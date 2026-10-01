@@ -11,13 +11,16 @@ import { CreateLeaveRequestModal } from '../../../components/leaves/CreateLeaveR
 import { ValidationQueue } from '../../../components/leaves/ValidationQueue';
 import { LeaveDecisionDrawer } from '../../../components/leaves/LeaveDecisionDrawer';
 import { Button } from '../../../components/ui/Button';
+import { JoursFeries } from '../../../components/leaves/JoursFeries';
 import { Chargement, ErreurChargement, messageChargement } from '../../../components/ui/ErreurChargement';
 
-type Tab = 'mine' | 'validation';
+type Tab = 'mine' | 'validation' | 'suivi' | 'feries';
 
 export default function LeavesPage() {
   const { user: currentUser } = useAuth();
-  const canValidate = LEADERSHIP_ROLES_FOR_LEAVES.includes(currentUser?.role ?? '');
+  // Onglet « À traiter » : chefs (avis), DRH (décision) ; les droits par demande viennent de l'API.
+  // Onglet « Suivi » : les autres demandes de son périmètre, en lecture (circuit, étape).
+  const canValidate = LEADERSHIP_ROLES_FOR_LEAVES.includes(currentUser?.role ?? '') || (currentUser?.rolesFonctionnels ?? []).includes('DRH');
   const [tab, setTab] = useState<Tab>('mine');
   const [erreurChargement, setErreurChargement] = useState<string | null>(null);
 
@@ -30,6 +33,17 @@ export default function LeavesPage() {
   const [highlightId, setHighlightId] = useState<string | null>(null);
   const [linkNotice, setLinkNotice] = useState<string | null>(null);
   const [linkHandled, setLinkHandled] = useState(false);
+  const [anneeFeries, setAnneeFeries] = useState(new Date().getFullYear());
+
+  // Calendrier des jours fériés (socle N3) : « /leaves?onglet=feries&annee=2027 » (alerte annuelle).
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('onglet') === 'feries') {
+      setTab('feries');
+      const a = Number(params.get('annee'));
+      if (a >= 2000 && a <= 2100) setAnneeFeries(a);
+    }
+  }, []);
 
   const loadRequests = useCallback(() => {
     getLeaveRequests().then(setRequests).catch((err) => setErreurChargement(messageChargement(err)));
@@ -55,13 +69,14 @@ export default function LeavesPage() {
     } else if (request.userId === currentUser.id) {
       setTab('mine');
       setHighlightId(id);
-    } else if (request.status === 'EN_ATTENTE' && canValidate) {
+    } else if (request.droits?.peutDonnerAvis || request.droits?.peutDecider) {
       setTab('validation');
       setSelectedValidation(request);
     } else {
-      setLinkNotice('Cette demande de congé a déjà été traitée.');
+      setTab('suivi');
+      setSelectedValidation(request);
     }
-  }, [linkHandled, requests, currentUser, canValidate]);
+  }, [linkHandled, requests, currentUser]);
 
   const availableYears = useMemo(() => {
     const years = new Set(balances?.map((b) => b.year) ?? []);
@@ -76,7 +91,11 @@ export default function LeavesPage() {
     [requests, currentUser?.id],
   );
   const pendingForValidation = useMemo(
-    () => (requests ?? []).filter((r) => r.status === 'EN_ATTENTE' && r.userId !== currentUser?.id),
+    () => (requests ?? []).filter((r) => r.droits?.peutDonnerAvis || r.droits?.peutDecider),
+    [requests],
+  );
+  const suivi = useMemo(
+    () => (requests ?? []).filter((r) => r.userId !== currentUser?.id && !r.droits?.peutDonnerAvis && !r.droits?.peutDecider),
     [requests, currentUser?.id],
   );
 
@@ -117,16 +136,23 @@ export default function LeavesPage() {
 
       {linkNotice && <div className="mb-4 rounded-md bg-clay-soft px-4 py-3 text-sm text-clay">{linkNotice}</div>}
 
-      {canValidate && (
-        <div className="mb-4 flex gap-0.5 rounded-md border border-line bg-bg p-0.5" style={{ width: 'fit-content' }}>
+      <div role="tablist" className="mb-4 flex flex-wrap gap-0.5 rounded-md border border-line bg-bg p-0.5" style={{ width: 'fit-content' }}>
           {(
             [
               { key: 'mine', label: 'Mes congés' },
-              { key: 'validation', label: 'À valider' },
+              ...(canValidate
+                ? ([
+                    { key: 'validation', label: 'À traiter' },
+                    { key: 'suivi', label: 'Suivi' },
+                  ] as const)
+                : []),
+              { key: 'feries', label: 'Jours fériés' },
             ] as const
           ).map((option) => (
             <button
               key={option.key}
+              role="tab"
+              aria-selected={tab === option.key}
               onClick={() => setTab(option.key)}
               className={`rounded-[6px] px-4 py-1.5 text-[12.5px] font-semibold ${
                 tab === option.key ? 'bg-surface text-ink shadow-sm' : 'text-text-muted'
@@ -141,9 +167,10 @@ export default function LeavesPage() {
             </button>
           ))}
         </div>
-      )}
 
-      {tab === 'mine' ? (
+      {tab === 'feries' ? (
+        <JoursFeries anneeInitiale={anneeFeries} />
+      ) : tab === 'mine' ? (
         <div>
           <div className="mb-3.5 flex items-center justify-between">
             <h2 className="text-[16px] font-extrabold">Mon solde</h2>
@@ -175,7 +202,7 @@ export default function LeavesPage() {
       ) : requests === null ? (
         <Chargement erreur={erreurChargement} />
       ) : (
-        <ValidationQueue requests={pendingForValidation} onSelect={setSelectedValidation} />
+        <ValidationQueue requests={tab === 'suivi' ? suivi : pendingForValidation} onSelect={setSelectedValidation} suivi={tab === 'suivi'} />
       )}
 
       {showCreateModal && (

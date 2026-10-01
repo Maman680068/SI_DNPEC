@@ -353,7 +353,6 @@ async function taches(ctx: Ctx) {
         const t = await creer(a, titre, unite, k, e);
         const resp = await qui(k[0]!);
         await svc.start(resp, t.id);
-        await svc.updateProgress(resp, t.id, { progressPercent: pct });
       }
       // En retard (échéance dépassée, encore en cours)
       const retard = await creer(chefS2, 'Balance des paiements — estimation provisoire', s2, ['agent4'], 5, TaskPriority.URGENT);
@@ -370,7 +369,6 @@ async function taches(ctx: Ctx) {
         const t = await creer(a, titre, unite, k, 3);
         const r = await qui(k[0]!);
         await svc.start(r, t.id);
-        await svc.updateProgress(r, t.id, { progressPercent: 100 });
         await svc.submit(r, t.id);
       }
       // Validées / terminées
@@ -383,7 +381,6 @@ async function taches(ctx: Ctx) {
         const t = await creer(a, titre, unite, k, 2);
         const r = await qui(k[0]!);
         await svc.start(r, t.id);
-        await svc.updateProgress(r, t.id, { progressPercent: 100 });
         await svc.submit(r, t.id);
         await svc.validate(a, t.id, { comment: 'Travail de qualité, merci.' });
       }
@@ -391,7 +388,6 @@ async function taches(ctx: Ctx) {
       const rej = await creer(chefS2, 'Projection des recettes douanières', s2, ['agent3'], 8);
       const r3 = await qui('agent3');
       await svc.start(r3, rej.id);
-      await svc.updateProgress(r3, rej.id, { progressPercent: 100 });
       await svc.submit(r3, rej.id);
       await svc.reject(chefS2, rej.id, { comment: 'Les hypothèses de taux de change ne sont pas documentées : merci de compléter la section 2.' });
       // Sous-tâches et commentaires
@@ -467,11 +463,14 @@ async function conges(ctx: Ctx) {
       const maladie = await type('CONGE_MALADIE', 'Congé maladie');
       const a = async (k: Cle) => acteur(prisma, u[k]!.id);
       const l1 = await svc.create(await a('agent1'), { leaveTypeId: annuel.id, startDate: dateSeule(20), endDate: dateSeule(34), reason: 'Congé annuel' });
-      await svc.approve(await a('chefSection1'), l1.id, { comment: 'Bon repos.' });
+      // Circuit N3 : avis du chef d'unité, puis décision du DRH (compte technique de la démonstration).
+      await svc.donnerAvis(await a('chefSection1'), l1.id, { avis: 'FAVORABLE' });
+      await svc.approve(await a('systeme'), l1.id, { comment: 'Bon repos.' });
       await svc.create(await a('agent2'), { leaveTypeId: annuel.id, startDate: dateSeule(40), endDate: dateSeule(47), reason: 'Congé annuel' });
       const l3 = await svc.create(await a('agent3'), { leaveTypeId: annuel.id, startDate: dateSeule(6), endDate: dateSeule(9) });
-      await svc.reject(await a('chefSection2'), l3.id, { comment: 'Période de clôture du TOFE : merci de décaler d’une semaine.' });
-      // En attente : le chef le voit à valider ; la Direction le voit masqué (« motif protégé »).
+      await svc.donnerAvis(await a('chefSection2'), l3.id, { avis: 'DEFAVORABLE', motif: 'Période de clôture du TOFE.' });
+      await svc.reject(await a('systeme'), l3.id, { comment: 'Période de clôture du TOFE : merci de décaler d’une semaine.' });
+      // En attente d'avis : le motif médical n'est visible que de l'agent et du DRH.
       await svc.create(await a('agent4'), { leaveTypeId: maladie.id, startDate: dateSeule(0), endDate: dateSeule(3), reason: 'Arrêt maladie' });
       await svc.create(await a('agent5'), { leaveTypeId: annuel.id, startDate: dateSeule(14), endDate: dateSeule(18) });
     },
@@ -633,7 +632,7 @@ async function stage(ctx: Ctx) {
   const { prisma, app, u } = ctx;
   const svc = app.get(StagesService);
   await bloc(
-    'Stage avec plan de rotation (2 périodes) et évaluation visée',
+    'Stage avec plan de rotation (2 périodes), évaluation visée et encadreur principal',
     async () => (await prisma.stage.count({ where: { stagiaireId: u.stagiaire!.id } })) > 0,
     async () => {
       const drh = await acteur(prisma, u.systeme!.id);
@@ -653,6 +652,8 @@ async function stage(ctx: Ctx) {
       await svc.enregistrerEvaluation(tuteur, s.id, toutes[0]!.id, { criteres: { assiduite: 'TRES_SATISFAISANT', qualite: 'SATISFAISANT', autonomie: 'SATISFAISANT', integration: 'TRES_SATISFAISANT' }, appreciation: 'Stagiaire rigoureux et curieux, bonne maîtrise des outils.' });
       await svc.soumettreEvaluation(tuteur, s.id, toutes[0]!.id);
       await svc.viserEvaluation(await acteur(prisma, u.chefSection1!.id), s.id, toutes[0]!.id);
+      // Encadreur principal (N3) : le premier tuteur ; aucun rapport déposé (la démonstration n'écrit jamais dans le stockage).
+      await svc.designerEncadrant(drh, s.id, u.agent1!.id);
     },
   );
 }

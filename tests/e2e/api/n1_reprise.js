@@ -14,6 +14,8 @@ const { execFileSync } = require('child_process');
 const E = require('../config');
 const { check, bilan } = require('../lib');
 const { PrismaClient } = require('@prisma/client');
+// Colonnes des lots suivants (N3), appliqués par le même « migrate deploy » : hors comparaison.
+const MOINS_N3 = ['avisEtat', 'avisParId', 'avisMotif', 'avisLe', 'avisEcheance', 'alerteAvisAt', 'encadrantPrincipalId', 'rapportFileKey', 'rapportFileName', 'rapportDeposeLe', 'rapportStatut', 'rapportMotif', 'rapportValideLe', 'rapportValideParId', 'progressPercent', 'certificatFileKey', 'certificatFileName', 'certificatDeposeLe'].map((c) => ` - '${c}'`).join('');
 const prisma = new PrismaClient();
 
 const MODE = process.env.N1_MODE || 'apres';
@@ -36,7 +38,7 @@ const DEUX_CHEFS = 'SCE';
 async function empreinte(tables) {
   const res = {};
   for (const t of tables) {
-    const lignes = await prisma.$queryRawUnsafe(`SELECT md5((to_jsonb(x) - 'agentId')::text) AS h FROM "${t}" x`);
+    const lignes = await prisma.$queryRawUnsafe(`SELECT md5((to_jsonb(x) - 'agentId'${MOINS_N3})::text) AS h FROM "${t}" x`);
     res[t] = lignes.map((l) => l.h).sort();
   }
   return res;

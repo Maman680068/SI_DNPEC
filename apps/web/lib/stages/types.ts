@@ -61,6 +61,22 @@ export interface EtatAttestation {
   droits: { provisoire: boolean; document: boolean; creerActe: boolean; prendreConnaissance: boolean; telechargerFinale: boolean };
 }
 
+export type RapportStatut = 'DEPOSE' | 'VALIDE' | 'A_REPRENDRE';
+export const RAPPORT_STATUT_LABEL: Record<RapportStatut, string> = {
+  DEPOSE: 'Déposé, en attente de validation',
+  VALIDE: 'Validé',
+  A_REPRENDRE: 'À reprendre',
+};
+
+export interface EtatRapport {
+  statut: RapportStatut | null;
+  fichier: string | null;
+  deposeLe: string | null;
+  motif: string | null;
+  valideLe: string | null;
+  droits: { designerEncadrant: boolean; deposer: boolean; telecharger: boolean; valider: boolean };
+}
+
 export interface Stage {
   id: string;
   vue: 'STAGIAIRE' | 'DRH' | 'DIRECTION' | 'UNITE';
@@ -76,6 +92,8 @@ export interface Stage {
   clotureAt: string | null;
   periodes: Periode[];
   attestation: EtatAttestation;
+  encadrantPrincipal: Personne | null;
+  rapport: EtatRapport;
   droits: { modifier: boolean; ajouterPeriode: boolean; cloturer: boolean; interrompre: boolean };
 }
 
