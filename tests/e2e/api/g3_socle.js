@@ -111,7 +111,7 @@ async function televerser(k, p, champs, nom, contenu, champFichier = 'file') {
   const vueChef = (await call('chefssr', 'GET', `/leaves/${c2.id}`)).body;
   const vueDrh = (await call('drh', 'GET', `/leaves/${c2.id}`)).body;
   check('congé maladie : type masqué pour le DN', vueDn.leaveType.code === null && vueDn.leaveTypeId === null);
-  check('congé maladie : type masqué aussi pour le chef (motif médical réservé au DRH)', vueChef.leaveType.code === null && vueChef.reason === null);
+  check('congé maladie : le chef qui donne l’avis voit le type, le motif derrière la réauthentification', vueChef.leaveType.code === 'CONGE_MALADIE' && vueChef.motifVerrouille === true && vueChef.reason === null);
   check('congé maladie : le DRH voit le type, le motif derrière la réauthentification', vueDrh.leaveType.code === 'CONGE_MALADIE' && vueDrh.motifVerrouille === true && vueDrh.reason === null);
   expect('avis défavorable sans motif', await call('chefssr', 'POST', `/leaves/${c2.id}/avis`, { avis: 'DEFAVORABLE' }), 400);
   expect('avis défavorable motivé', await call('chefssr', 'POST', `/leaves/${c2.id}/avis`, { avis: 'DEFAVORABLE', motif: 'Période chargée' }), 201);
