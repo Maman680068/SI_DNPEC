@@ -45,6 +45,7 @@ async function capture(b, compte, url, fichier, attendre) {
   await capture(b, 'chefdpe', '/dashboard', 'tableau-de-bord.png');
   await capture(b, 'agent1', '/tasks', 'taches.png');
   await capture(b, 'agent1', '/leaves', 'conges.png');
+  await capture(b, 'admin', '/leaves?onglet=feries', 'jours-feries.png', async (p) => p.locator('[data-testid=jour-ferie]').first().waitFor());
   await capture(b, 'chefdpe', '/reunions', 'reunions.png');
   await capture(b, 'agent1', '/logistique', 'logistique.png', titre('Logistique'));
   await capture(b, 'agent1', '/personnel', 'dossier.png');

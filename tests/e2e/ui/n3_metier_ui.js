@@ -1,6 +1,7 @@
 // N3 — écrans sous Chromium, bureau (1366) et téléphone (390) : avis du chef puis décision du DRH
-// sur un congé (onglet « À traiter », circuit affiché), motif médical déverrouillé par le DRH après
-// réauthentification, onglet « Suivi » du DN, avancement calculé d'une tâche (plus de curseur),
+// sur un congé (onglet « À traiter », circuit affiché), motif médical déverrouillé par le DRH et par le
+// chef qui donne l'avis après réauthentification, « motif protégé » pour le DN, certificat médical
+// joint par l'agent, calendrier des jours fériés (saisie par l'administrateur, lecture par l'agent), avancement calculé d'une tâche (plus de curseur),
 // encadreur principal désigné, rapport de stage déposé par le stagiaire puis validé par l'encadreur.
 const path = require('path');
 const fs = require('fs');
@@ -17,7 +18,7 @@ const sansDefilementHorizontal = (p) => p.evaluate(() => document.documentElemen
 
 async function ouvrirDemande(p, onglet, nom) {
   await p.goto(`${WEB}/leaves`);
-  await p.getByRole('button', { name: new RegExp(`^${onglet}`) }).click();
+  await p.getByRole('tab', { name: new RegExp(`^${onglet}`) }).click();
   const carte = p.locator('div', { hasText: nom }).filter({ has: p.getByRole('button', { name: /Examiner|Consulter/ }) }).last();
   await carte.getByRole('button', { name: /Examiner|Consulter/ }).click();
   await p.locator('[data-testid=circuit-conge]').waitFor();
@@ -74,17 +75,66 @@ async function ouvrirDemande(p, onglet, nom) {
   await p.screenshot({ path: `${E.SHOTS}/n3_motif_medical_bureau.png` });
   await p.context().close();
 
-  console.log('— Chef : type masqué ; DN : onglet « Suivi » en lecture');
+  console.log('— Chef qui donne l’avis : type et motif (après réauthentification) ; DN : « motif protégé »');
+  const m2 = (await call('agent1', 'POST', '/leaves', { leaveTypeId: maladie.id, startDate: jour(110), endDate: jour(112), reason: `Hospitalisation ${S}` })).body;
   p = await loginPage(b, 'chefssr');
-  await p.goto(`${WEB}/leaves`);
-  await p.getByRole('button', { name: /^Suivi/ }).click();
-  await p.getByText(/motif protégé/).first().waitFor();
-  check('chef : l’absence médicale apparaît sans son type', (await p.getByText('Congé maladie').count()) === 0);
+  await ouvrirDemande(p, 'À traiter', nom);
+  check('chef : type « Congé maladie », dates et durée ; motif verrouillé', (await p.getByText('Congé maladie').count()) >= 1 && (await p.getByRole('button', { name: 'Afficher le motif' }).count()) === 1);
+  await p.getByRole('button', { name: 'Afficher le motif' }).click();
+  const fc = p.getByRole('dialog', { name: 'Confirmez votre identité' });
+  await fc.getByLabel('Votre mot de passe').fill('Password123!');
+  await fc.getByRole('button', { name: 'Confirmer' }).click();
+  await p.getByText(`Hospitalisation ${S}`).waitFor();
+  check('chef, après réauthentification : motif médical affiché ; jamais le certificat', (await p.locator('[data-testid=certificat-medical]').count()) === 0);
+  await p.screenshot({ path: `${E.SHOTS}/n3_chef_conge_maladie_bureau.png` });
   await p.context().close();
   p = await loginPage(b, 'dn');
+  await p.goto(`${WEB}/leaves`);
+  await p.getByRole('tab', { name: /^Suivi/ }).click();
+  await p.getByText(/motif protégé/).first().waitFor();
+  check('DN : « Absence — motif protégé », sans le type', (await p.getByText(`Hospitalisation ${S}`).count()) === 0);
   await ouvrirDemande(p, 'Suivi', nom);
   check('DN : consultation sans aucun bouton d’avis ou de décision', (await p.getByRole('button', { name: /Avis favorable|Approuver/ }).count()) === 0);
   await p.context().close();
+
+  console.log('— Certificat médical (agent, téléphone)');
+  p = await loginPage(b, 'agent1', TELEPHONE);
+  await p.goto(`${WEB}/leaves`);
+  const carteM = p.locator('[data-testid=certificat-medical]').first();
+  await carteM.waitFor();
+  const fichierCert = path.join(E.OUT, 'tmp', `certificat_${S}.pdf`);
+  fs.writeFileSync(fichierCert, `Certificat ${S}`);
+  await carteM.locator('input[type=file]').setInputFiles(fichierCert);
+  await p.getByText(`certificat_${S}.pdf`).first().waitFor();
+  check('agent : certificat joint à son congé maladie', true);
+  await p.screenshot({ path: `${E.SHOTS}/n3_certificat_mobile.png` });
+  fs.rmSync(fichierCert, { force: true });
+  await call('agent1', 'POST', `/leaves/${m2.id}/cancel`);
+  await p.context().close();
+
+  console.log('— Jours fériés : saisie par l’administrateur (bureau), lecture par l’agent (téléphone)');
+  const AN = new Date().getUTCFullYear() + 1;
+  for (const j of (await call('admin', 'GET', `/api/v1/jours-feries?annee=${AN}`)).body.jours.filter((x) => x.nature === 'RELIGIEUX')) await call('admin', 'DELETE', `/api/v1/jours-feries/${j.id}`);
+  p = await loginPage(b, 'admin');
+  await p.goto(`${WEB}/leaves?onglet=feries&annee=${AN}`);
+  const cal = p.locator('[data-testid=jours-feries]');
+  await cal.getByText('Fête de l’Indépendance').waitFor();
+  check('administrateur : fêtes fixes pré-remplies, alerte « aucune fête religieuse »', (await cal.getByRole('status').count()) === 1);
+  await cal.getByLabel('Date').last().fill(`${AN}-06-16`);
+  await cal.getByLabel('Libellé').last().fill(`Tabaski ${S}`);
+  await cal.getByRole('button', { name: 'Ajouter le jour férié' }).click();
+  await cal.getByText(`Tabaski ${S}`).waitFor();
+  check('fête religieuse ajoutée, alerte levée', (await cal.getByRole('status').count()) === 0);
+  await p.screenshot({ path: `${E.SHOTS}/n3_jours_feries_bureau.png`, fullPage: true });
+  await p.context().close();
+  p = await loginPage(b, 'agent1', TELEPHONE);
+  await p.goto(`${WEB}/leaves`);
+  await p.getByRole('tab', { name: 'Jours fériés' }).click();
+  await p.locator('[data-testid=jours-feries]').getByText('Fête de l’Indépendance').waitFor();
+  check('agent : calendrier en lecture (aucun bouton de saisie)', (await p.getByRole('button', { name: 'Ajouter le jour férié' }).count()) === 0);
+  check('téléphone : sans défilement horizontal', await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
+  await p.context().close();
+  for (const j of (await call('admin', 'GET', `/api/v1/jours-feries?annee=${AN}`)).body.jours.filter((x) => x.libelle === `Tabaski ${S}`)) await call('admin', 'DELETE', `/api/v1/jours-feries/${j.id}`);
 
   console.log('— Tâche : avancement calculé');
   const t = (await call('chefssr', 'POST', '/tasks', { title: `Synthèse N3 ${S}`, priority: 'NORMAL', dueDate: jour(10), divisionId: ids.DPE, sectionId: ids.SSR, assignees: [{ userId: ids.agent1 }] })).body;

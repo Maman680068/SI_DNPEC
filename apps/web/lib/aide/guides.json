@@ -79,7 +79,8 @@
             "Menu Personnel → « Congés & absences » → « Nouvelle demande de congé ».",
             "Choisissez le type, les dates et, si besoin, un motif, puis envoyez : votre chef donne son avis (48 heures ouvrées ; sans réponse, l’avis est réputé favorable), puis le DRH décide.",
             "Chaque demande affiche son étape (« Avis du chef attendu », « Décision du DRH attendue »…). Vous êtes prévenu de la décision ; « Mon solde » indique les jours restants.",
-            "Pour un congé maladie, seuls vous et le DRH en voyez la nature ; votre chef voit « Absence — motif protégé »."
+            "Congé maladie : votre chef (celui qui donne l’avis) et le DRH en voient la nature et le motif ; la Direction et le reste de la hiérarchie voient « Absence — motif protégé ». « Joindre le certificat médical » : seuls vous et le DRH pourrez le lire.",
+            "Les jours fériés ne sont décomptés ni dans vos jours de congé ni dans le délai d’avis du chef ; le calendrier est consultable dans l’onglet « Jours fériés »."
           ],
           "capture": "conges.png"
         },
@@ -135,7 +136,8 @@
           "etapes": [
             "Congés & absences → onglet « À traiter » : les demandes de vos agents qui attendent votre avis, avec l’échéance. Un rappel arrive 12 heures ouvrées avant.",
             "« Examiner » puis « Avis favorable » ou « Avis défavorable » (motif obligatoire). Sans avis dans le délai, il est réputé favorable. Le DRH décide ensuite.",
-            "Onglet « Suivi » : les autres demandes de votre périmètre, en lecture. Un congé maladie apparaît « Absence — motif protégé » : vous donnez votre avis sans en connaître la nature."
+            "Congé maladie d’un de vos agents : vous en voyez le type, les dates et la durée ; « Afficher le motif » le montre après votre mot de passe (lecture tracée). Le certificat médical reste réservé à l’agent et au DRH.",
+            "Onglet « Suivi » : les autres demandes de votre périmètre, en lecture. Le délai d’avis ne compte ni les week-ends ni les jours fériés."
           ],
           "capture": "conges.png"
         },
@@ -349,11 +351,12 @@
           "titre": "Congés et absences",
           "etapes": [
             "Congés & absences → « À traiter » : les demandes dont l’avis du chef est rendu (ou réputé favorable après le délai). « Approuver » ou « Refuser » (motif obligatoire).",
-            "Vous voyez le type d’un congé maladie ; « Afficher le motif » vous demande votre mot de passe, puis l’affiche. Chaque lecture est tracée.",
+            "Vous voyez le type d’un congé maladie ; « Afficher le motif » et le certificat médical joint par l’agent vous demandent votre mot de passe. Chaque lecture est tracée. Le chef qui donne l’avis voit aussi le motif, jamais le certificat.",
             "Onglet « Suivi » : toutes les demandes de la Direction. Une demande que vous déposez vous-même est décidée par le DN ou la DNA.",
-            "Le délai d’avis du chef (48 heures ouvrées par défaut) se règle dans « Paramétrage et supervision » par l’administrateur."
+            "Le délai d’avis du chef (48 heures ouvrées par défaut) se règle dans « Paramétrage et supervision » par l’administrateur.",
+            "Onglet « Jours fériés » : saisissez chaque année les fêtes religieuses (Tabaski, fin du Ramadan, Maouloud, lundi de Pâques…) ; « Ajouter les fêtes fixes » reprend les fêtes nationales. Une alerte vous prévient en début d’année si l’année suivante est vide."
           ],
-          "capture": "conges.png"
+          "capture": "jours-feries.png"
         }
       ]
     },
@@ -468,6 +471,15 @@
             "« Stages (réglages) » : capacités d’accueil et modèle d’attestation, que vous tenez avec le DRH (jamais le contenu des stages)."
           ],
           "capture": "administration.png"
+        },
+        {
+          "titre": "Jours fériés",
+          "etapes": [
+            "Congés & absences → onglet « Jours fériés » : choisissez l’année ; les fêtes fixes nationales sont pré-remplies (« Ajouter les fêtes fixes » pour une nouvelle année).",
+            "Saisissez les fêtes religieuses avec leur date de l’année (« Ajouter le jour férié ») ; « Modifier » si la date officielle change, « Supprimer » si besoin.",
+            "Les jours fériés sont exclus du délai d’avis du chef (heures ouvrées) et du décompte des jours de congé. En début d’année, une alerte vous prévient si l’année suivante n’a aucun jour férié."
+          ],
+          "capture": "jours-feries.png"
         }
       ]
     }

@@ -103,7 +103,10 @@ fonctionnalité ajoute sa suite (`tests/e2e/api/`, `tests/e2e/ui/`) et sa ligne 
   cellule/section → division → DN/DNA) dans `conges.delaiAvisHeures` heures ouvrées
   (`socle/heures-ouvrees.ts`), rappel 12 h avant, avis tacite ensuite (job `executer(now)` toutes les
   15 min, tâche `avis-conges`), **décision du DRH** (`estDrh`) ; demande d'un DRH décidée par DN/DNA.
-  Motif médical : demandeur et DRH seuls, motif derrière `PreuveIdentiteService` (lecture tracée).
+  Motif médical : demandeur, chef qui donne l'avis et DRH (motif derrière `PreuveIdentiteService`,
+  lecture tracée) ; DN/DNA et reste de la cascade : « Absence — motif protégé ». Certificat médical :
+  agent et DRH seuls. Jours fériés (`JoursFeriesService`, `api/v1/jours-feries`, admin + DRH) exclus
+  des heures ouvrées et du décompte des jours de congé ; alerte annuelle (tâche `jours-feries`).
   Avancement des tâches **calculé en base** (déclencheurs ; `PATCH /tasks/:id/progress` → 409).
   Stage : encadreur principal (DRH) et rapport (stagiaire dépose, encadreur valide/renvoie).
   Messages directs purgés après 3 ans (`ConservationService`, tâche `purge-messages`).

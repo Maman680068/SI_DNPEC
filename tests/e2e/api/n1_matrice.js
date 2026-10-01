@@ -162,8 +162,26 @@ const LOTS = [
   const med = (await call('agent1', 'POST', '/leaves', { leaveTypeId: types.find((t) => t.code === 'CONGE_MALADIE').id, startDate: jourM(120), endDate: jourM(121), reason: `Motif matrice ${S}` })).body;
   // « Accès » = motif transmis (avec une réauthentification valide) ; sinon la demande est lue sans son motif.
   for (const profil of Object.keys(PROFILS)) {
-    await caseMatrice({ objet: 'Justificatif médical (motif)', profil, action: 'lire', annexe: profil === 'drh' ? 'L(T) après réauthentification' : profil === 'agent1' ? 'C(S) — le demandeur' : '— (existence et durée seulement)', attendu: ['drh', 'agent1'].includes(profil),
+    await caseMatrice({ objet: 'Justificatif médical (motif)', profil, action: 'lire', annexe: profil === 'drh' ? 'L(T) après réauthentification' : profil === 'agent1' ? 'C(S) — le demandeur' : profil === 'chefssr' ? 'L — chef qui donne l’avis, après réauthentification' : '— (« Absence — motif protégé » et dates seulement)', attendu: ['drh', 'agent1', 'chefssr'].includes(profil),
       appel: async () => { const h = { 'X-Reauth': await preuve(profil).catch(() => '') }; const r = await call(profil, 'GET', `/leaves/${med.id}`, undefined, h); return { status: r.status === 200 && r.body.reason ? 200 : 403 }; } });
+  }
+  // Certificat médical : le demandeur et le DRH (après réauthentification) seulement.
+  {
+    const { login } = require('../lib');
+    const fd = new FormData(); fd.append('file', new Blob([`CERT ${S}`]), 'certificat.pdf');
+    await fetch(`http://localhost:3000/leaves/${med.id}/certificat`, { method: 'POST', headers: { Authorization: 'Bearer ' + (await login('agent1')) }, body: fd });
+    for (const profil of Object.keys(PROFILS)) {
+      await caseMatrice({ objet: 'Certificat médical', profil, action: 'lire', annexe: profil === 'drh' ? 'L(T) après réauthentification' : profil === 'agent1' ? 'C(S) — le demandeur' : '—', attendu: ['drh', 'agent1'].includes(profil),
+        appel: async () => { const r = await fetch(`http://localhost:3000/leaves/${med.id}/certificat`, { headers: { Authorization: 'Bearer ' + (await login(profil)), 'X-Reauth': await preuve(profil).catch(() => '') } }); return { status: r.status }; } });
+    }
+  }
+  // Jours fériés : lus par tous, tenus par l'administrateur et le DRH.
+  for (const profil of Object.keys(PROFILS)) {
+    const gere = profil === 'admin' || profil === 'drh';
+    let cree;
+    await caseMatrice({ objet: 'Jour férié', profil, action: 'créer', annexe: gere ? 'CLMS(T)' : 'L(T)', attendu: gere,
+      appel: async () => (cree = await call(profil, 'POST', '/api/v1/jours-feries', { date: `2093-0${1 + Object.keys(PROFILS).indexOf(profil)}-11`, libelle: `Matrice ${S}`, nature: 'RELIGIEUX' })) });
+    if (gere && cree.body && cree.body.id) await call(profil, 'DELETE', `/api/v1/jours-feries/${cree.body.id}`);
   }
   const ordre = [...Object.keys(PROFILS).filter((p) => p !== 'chefssr'), 'chefssr'];
   for (const profil of ordre) {

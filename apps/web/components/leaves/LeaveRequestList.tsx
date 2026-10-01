@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { cancelLeaveRequest } from '../../lib/api/leaves';
+import { cancelLeaveRequest, deposerCertificat, telechargerCertificat } from '../../lib/api/leaves';
 import type { LeaveRequest, LeaveRequestStatus } from '../../lib/leaves/types';
 import { LIBELLE_AVIS, LIBELLE_ETAPE, STATUS_LABEL } from '../../lib/leaves/types';
 import { Badge } from '../ui/Badge';
@@ -30,6 +30,7 @@ export function LeaveRequestList({
   highlightId?: string | null;
 }) {
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [erreur, setErreur] = useState<string | null>(null);
   const highlightRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -85,6 +86,37 @@ export function LeaveRequestList({
                 {request.decisionComment}
               </div>
             )}
+
+            {(request.droits?.deposerCertificat || request.certificat) && (
+              <div className="mt-2.5 flex flex-wrap items-center gap-2 text-[12.5px]" data-testid="certificat-medical">
+                {request.certificat ? (
+                  <button type="button" className="text-ink underline" onClick={() => telechargerCertificat(request.id).catch((e) => setErreur(e instanceof Error ? e.message : String(e)))}>
+                    📎 Certificat médical : {request.certificat.nom}
+                  </button>
+                ) : (
+                  <span className="text-text-muted">Aucun certificat médical joint (visible de vous et du DRH seulement).</span>
+                )}
+                {request.droits?.deposerCertificat && (
+                  <label className="cursor-pointer rounded-md border border-line px-2.5 py-1 font-semibold hover:bg-bg">
+                    {request.certificat ? 'Remplacer le certificat' : 'Joindre le certificat médical'}
+                    <input
+                      type="file"
+                      className="sr-only"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        if (!f) return;
+                        setBusyId(request.id);
+                        deposerCertificat(request.id, f)
+                          .then(onChange)
+                          .catch((err) => setErreur(err instanceof Error ? err.message : String(err)))
+                          .finally(() => setBusyId(null));
+                      }}
+                    />
+                  </label>
+                )}
+              </div>
+            )}
+            {erreur && <p className="mt-1.5 text-[12px] text-clay">{erreur}</p>}
 
             {(request.status === 'EN_ATTENTE' || request.status === 'APPROUVEE') && (
               <div className="mt-3">

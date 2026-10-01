@@ -974,11 +974,31 @@ model LeaveRequest {
   avisEcheance DateTime?
   alerteAvisAt DateTime?
 
+  // Socle N3 — certificat médical d'un congé maladie : déposé par l'agent, lisible de lui et du
+  // DRH seuls (jamais du chef qui donne l'avis, du DN ni de la DNA).
+  certificatFileKey  String?
+  certificatFileName String?
+  certificatDeposeLe DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([status, avisEtat])
   @@map("leave_requests")
+}
+
+/// Jour férié de Guinée (socle N3) : saisi année par année par l'administrateur ou le DRH ; exclu du
+/// délai d'avis en heures ouvrées et du décompte des jours de congé. nature : FIXE | RELIGIEUX.
+model JourFerie {
+  id        String   @id @default(cuid())
+  date      DateTime @unique @db.Date
+  libelle   String
+  nature    String   @default("FIXE")
+  creeParId String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("jours_feries")
 }
 
 model LeaveBalance {

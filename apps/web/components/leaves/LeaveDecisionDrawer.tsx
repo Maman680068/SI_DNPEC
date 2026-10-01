@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useOrg } from '../../lib/org/OrgProvider';
-import { approveLeaveRequest, donnerAvisConge, getBalancesForUser, getLeaveRequest, rejectLeaveRequest } from '../../lib/api/leaves';
+import { approveLeaveRequest, donnerAvisConge, getBalancesForUser, getLeaveRequest, rejectLeaveRequest, telechargerCertificat } from '../../lib/api/leaves';
 import { demanderReauthentification } from '../../lib/api/client';
 import { LIBELLE_AVIS, LIBELLE_ETAPE } from '../../lib/leaves/types';
 import type { LeaveBalanceView, LeaveRequest } from '../../lib/leaves/types';
@@ -140,6 +140,14 @@ export function LeaveDecisionDrawer({
             <Button className="!px-2.5 !py-1 !text-[12px]" onClick={afficherMotif}>
               Afficher le motif
             </Button>
+          </div>
+        )}
+
+        {request.droits?.lireCertificat && request.certificat && (
+          <div className="mb-5 text-[13px]" data-testid="certificat-medical">
+            <button type="button" className="text-ink underline" onClick={() => telechargerCertificat(request.id).catch((e) => setError(e instanceof Error ? e.message : String(e)))}>
+              📎 Certificat médical : {request.certificat.nom}
+            </button>
           </div>
         )}
 

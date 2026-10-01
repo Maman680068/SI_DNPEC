@@ -32,9 +32,26 @@ export interface LeaveRequest {
   avisLe: string | null;
   avisEcheance: string | null;
   avisPar: { id: string; nom: string } | null;
-  /** Motif médical réservé au DRH, visible après réauthentification. */
+  /** Motif médical (demandeur, chef qui donne l'avis, DRH), visible après réauthentification. */
   motifVerrouille: boolean;
-  droits: { peutDonnerAvis: boolean; peutDecider: boolean; peutAnnuler: boolean };
+  /** Certificat médical : demandeur et DRH seulement. */
+  certificat: { nom: string; deposeLe: string } | null;
+  droits: { peutDonnerAvis: boolean; peutDecider: boolean; peutAnnuler: boolean; deposerCertificat?: boolean; lireCertificat?: boolean };
+}
+
+export interface JourFerie {
+  id: string;
+  date: string;
+  libelle: string;
+  nature: 'FIXE' | 'RELIGIEUX';
+}
+
+export interface CalendrierFeries {
+  annee: number;
+  jours: JourFerie[];
+  fixesManquantes: { date: string; libelle: string }[];
+  religieusesSaisies: boolean;
+  droits: { gerer: boolean };
 }
 
 export type EtapeConge = 'AVIS_ATTENDU' | 'DECISION_ATTENDUE' | 'APPROUVEE' | 'REFUSEE' | 'ANNULEE';

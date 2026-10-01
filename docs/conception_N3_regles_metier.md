@@ -31,10 +31,25 @@ Aucun nouvel écran : les règles s'appliquent dans les modules existants.
 
 ## 2. Motif médical — besoin d'en connaître
 
-- Type « congé maladie » et motif visibles du demandeur et du DRH seulement. Les responsables, DN et DNA
-  compris, voient « Absence — motif protégé » et la durée ; le chef donne son avis sans la nature.
-- Le motif n'est transmis au DRH qu'avec une preuve de réauthentification (N2, en-tête `X-Reauth`) ;
-  sans preuve, `motifVerrouille: true`. Chaque lecture est tracée (`acces_objet_protege`).
+- Type « congé maladie », dates, durée et motif : demandeur, **chef qui donne l'avis** (chef le plus
+  proche, ou celui qui l'a donné) et DRH (décision de la Direction, 1er octobre 2026). Le DN, la DNA et le
+  reste de la cascade voient « Absence — motif protégé » et les dates.
+- Le motif n'est transmis au DRH et au chef qu'avec une preuve de réauthentification (N2, en-tête
+  `X-Reauth`) ; sans preuve, `motifVerrouille: true`. Chaque lecture est tracée (`acces_objet_protege`).
+- **Certificat médical** (`POST/GET /leaves/:id/certificat`) : déposé par l'agent, lu par lui et par le
+  DRH (après réauthentification, lecture tracée) ; jamais par le chef, le DN ni la DNA.
+
+## 2 bis. Calendrier des jours fériés
+
+- Table `jours_feries` (date unique, libellé, nature FIXE | RELIGIEUX), écran « Congés & absences →
+  Jours fériés » (`api/v1/jours-feries`) : lu par tous, tenu par l'administrateur système et le DRH.
+- Fêtes fixes nationales (1er janvier, 1er mai, 25 mai, 15 août, 2 octobre, 25 décembre) pré-remplies
+  pour 2026 et 2027 par la migration ; « Ajouter les fêtes fixes » pour une autre année ; fêtes
+  religieuses saisies chaque année (dates modifiables).
+- Exclus du délai d'avis en heures ouvrées (`socle/heures-ouvrees.ts`) et du décompte des jours de congé
+  (recalculé à la décision du DRH). Tâche quotidienne `jours-feries` : à partir du 1er janvier, alerte
+  unique à l'administrateur et au DRH si l'année suivante est vide ou l'année en cours sans fête
+  religieuse.
 
 ## 3. Avancement des tâches calculé
 

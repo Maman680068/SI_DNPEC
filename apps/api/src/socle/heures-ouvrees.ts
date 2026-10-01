@@ -1,13 +1,17 @@
 /**
  * Heures ouvrées (socle N3, circuit A6.1) : seules comptent les heures des jours du lundi au
- * vendredi (heure de Conakry = UTC). « 48 heures ouvrées » = deux jours ouvrés pleins : une demande
- * déposée le vendredi à 10 h a son échéance le mardi à 10 h.
+ * vendredi (heure de Conakry = UTC), hors jours fériés (`feries` : dates « AAAA-MM-JJ », fournies
+ * par JoursFeriesService). « 48 heures ouvrées » = deux jours ouvrés pleins : une demande déposée
+ * le vendredi à 10 h a son échéance le mardi à 10 h (le mercredi si le lundi est férié).
  */
 const HEURE = 3600e3;
-const ouvre = (d: Date) => d.getUTCDay() !== 0 && d.getUTCDay() !== 6;
+const AUCUN: ReadonlySet<string> = new Set();
+let feriesCourants: ReadonlySet<string> = AUCUN;
+const ouvre = (d: Date) => d.getUTCDay() !== 0 && d.getUTCDay() !== 6 && !feriesCourants.has(d.toISOString().slice(0, 10));
 
 /** Date atteinte après `heures` heures ouvrées à partir de `depart`. */
-export function ajouterHeuresOuvrees(depart: Date, heures: number): Date {
+export function ajouterHeuresOuvrees(depart: Date, heures: number, feries: ReadonlySet<string> = AUCUN): Date {
+  feriesCourants = feries;
   let t = new Date(depart);
   // Un départ pendant le week-end compte à partir du lundi 0 h.
   while (!ouvre(t)) t = new Date(Date.UTC(t.getUTCFullYear(), t.getUTCMonth(), t.getUTCDate() + 1));
@@ -24,7 +28,8 @@ export function ajouterHeuresOuvrees(depart: Date, heures: number): Date {
 }
 
 /** Heures ouvrées entre deux instants (0 si `fin` précède `debut`). */
-export function heuresOuvreesEntre(debut: Date, fin: Date): number {
+export function heuresOuvreesEntre(debut: Date, fin: Date, feries: ReadonlySet<string> = AUCUN): number {
+  feriesCourants = feries;
   if (fin <= debut) return 0;
   let n = 0;
   let t = debut.getTime();

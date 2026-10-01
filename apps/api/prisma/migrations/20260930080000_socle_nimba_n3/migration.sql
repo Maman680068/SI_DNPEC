@@ -1,6 +1,8 @@
 -- Socle NIMBA, lot N3 : circuit des congés (avis du chef d'unité, échéance en heures ouvrées, alerte,
 -- décision du DRH) et rapport de stage (encadreur principal). Additive : colonnes facultatives seulement.
--- Reprise : faite par l'API (échéance d'avis posée pour les demandes en attente au démarrage).
+-- Jours fériés (calendrier saisi à l'écran) et certificat médical d'un congé maladie.
+-- Reprise : faite par l'API (échéance d'avis posée pour les demandes en attente au démarrage) ;
+-- fêtes fixes nationales de 2026 et 2027 pré-remplies (modifiables et supprimables à l'écran).
 -- Retour arrière : prisma/retour-arriere/n3_down.sql.
 
 -- AlterTable
@@ -56,3 +58,39 @@ CREATE TRIGGER "tache_avancement_parent" AFTER INSERT OR DELETE OR UPDATE OF "st
 -- Reprise : avancement recalculé pour toutes les tâches (sous-tâches d'abord).
 UPDATE "tasks" SET "progressPercent" = "progressPercent" WHERE "parentTaskId" IS NOT NULL;
 UPDATE "tasks" SET "progressPercent" = "progressPercent" WHERE "parentTaskId" IS NULL;
+
+-- AlterTable (certificat médical d'un congé maladie : agent et DRH seulement)
+ALTER TABLE "leave_requests" ADD COLUMN     "certificatDeposeLe" TIMESTAMP(3),
+ADD COLUMN     "certificatFileKey" TEXT,
+ADD COLUMN     "certificatFileName" TEXT;
+
+-- CreateTable
+CREATE TABLE "jours_feries" (
+    "id" TEXT NOT NULL,
+    "date" DATE NOT NULL,
+    "libelle" TEXT NOT NULL,
+    "nature" TEXT NOT NULL DEFAULT 'FIXE',
+    "creeParId" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "jours_feries_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateIndex
+CREATE UNIQUE INDEX "jours_feries_date_key" ON "jours_feries"("date");
+
+-- Reprise : fêtes fixes nationales de 2026 et 2027 (les fêtes religieuses se saisissent chaque année).
+INSERT INTO "jours_feries" ("id", "date", "libelle", "nature", "updatedAt") VALUES
+('jf-2026-01-01', DATE '2026-01-01', 'Jour de l’An', 'FIXE', now()),
+('jf-2026-05-01', DATE '2026-05-01', 'Fête du Travail', 'FIXE', now()),
+('jf-2026-05-25', DATE '2026-05-25', 'Journée de l’Afrique', 'FIXE', now()),
+('jf-2026-08-15', DATE '2026-08-15', 'Assomption', 'FIXE', now()),
+('jf-2026-10-02', DATE '2026-10-02', 'Fête de l’Indépendance', 'FIXE', now()),
+('jf-2026-12-25', DATE '2026-12-25', 'Noël', 'FIXE', now()),
+('jf-2027-01-01', DATE '2027-01-01', 'Jour de l’An', 'FIXE', now()),
+('jf-2027-05-01', DATE '2027-05-01', 'Fête du Travail', 'FIXE', now()),
+('jf-2027-05-25', DATE '2027-05-25', 'Journée de l’Afrique', 'FIXE', now()),
+('jf-2027-08-15', DATE '2027-08-15', 'Assomption', 'FIXE', now()),
+('jf-2027-10-02', DATE '2027-10-02', 'Fête de l’Indépendance', 'FIXE', now()),
+('jf-2027-12-25', DATE '2027-12-25', 'Noël', 'FIXE', now());

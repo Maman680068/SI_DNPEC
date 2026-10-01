@@ -46,7 +46,7 @@ const ECRANS = [
       pages[compte] = pages[compte] || (await connecter(b, compte, taille));
       const p = pages[compte];
       await p.goto(WEB + url);
-      if (onglet) await p.getByRole(url === '/courrier' ? 'tab' : 'button', { name: new RegExp(`^${onglet}`) }).first().click();
+      if (onglet) await p.getByRole(url === '/courrier' || url === '/leaves' ? 'tab' : 'button', { name: new RegExp(`^${onglet}`) }).first().click();
       const vu = await attendreTexte(p, texte);
       await p.waitForTimeout(300);
       check(`${compte} ${url} : rempli`, vu);
@@ -81,10 +81,10 @@ const ECRANS = [
   await dn.context().close();
   const cs = await connecter(b, 'chef.section.syntheses', BUREAU);
   await cs.goto(WEB + '/leaves');
-  await cs.getByRole('button', { name: /^À traiter/ }).first().click();
+  await cs.getByRole('tab', { name: /^À traiter/ }).first().click();
   await attendreTexte(cs, /Touré/);
   const texteChef = await cs.locator('body').innerText();
-  check('N3 : le chef direct donne son avis sans voir le motif médical (réservé au DRH)', /motif protégé/i.test(texteChef) && !/maladie/i.test(texteChef) && /Votre avis est attendu/.test(texteChef));
+  check('N3 : le chef direct voit « Congé maladie » et donne son avis (motif derrière la réauthentification)', /maladie/i.test(texteChef) && /Votre avis est attendu/.test(texteChef));
   await cs.context().close();
 
   await b.close();
