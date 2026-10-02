@@ -618,6 +618,7 @@
             "À la création d’un compte (ou à l’approbation d’une inscription), rattachez-le à son agent : « Agent (dossier RH) » s’il existe déjà, sinon indiquez son matricule s’il est connu ; à défaut, un agent avec un matricule provisoire est créé pour le DRH.",
             "La personne est prévenue par email : inscription approuvée (rôle, unité, bouton « Se connecter »), inscription rejetée (motif facultatif, saisi dans la fenêtre « Rejeter l’inscription »), compte créé par vous (lien pour choisir son mot de passe, valable 7 jours).",
             "Sur un compte : « Changer de rôle » (aperçu des effets, puis confirmation avec un motif), mot de passe temporaire, lien de réinitialisation, « Réinitialiser la double authentification ».",
+            "Chaque nomination d’un chef est suivie le même jour d’un changement de rôle : l’acte signé de nomination met à jour la fonction du dossier, mais pas le rôle ni l’unité du compte (« Changer de rôle », motif : le numéro de l’acte).",
             "Vous n’avez pas accès au contenu métier des agents (tâches, stages, courrier des autres)."
           ],
           "capture": "utilisateurs.png"

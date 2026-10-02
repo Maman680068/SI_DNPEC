@@ -1,8 +1,24 @@
 import { apiFetch, API_BASE_URL, authHeaders, appelApi } from './client';
 import type { BroadcastTaskInput, CreateTaskInput, Task, TaskAttachment, TaskComment, TaskDashboard } from '../tasks/types';
 
-export function getTasks(): Promise<Task[]> {
-  return apiFetch<Task[]>('/tasks');
+/** Filtres de GET /tasks utilisés par les écrans (voir TaskFiltersDto côté API). */
+export interface FiltresTaches {
+  assigneeId?: string;
+  createdById?: string;
+  /** Vue de suivi : tâches non closes, et closes depuis moins de 30 jours. */
+  suivi?: boolean;
+  /** Nombre maximal de tâches (échéances les plus proches d'abord). */
+  limite?: number;
+}
+
+export function getTasks(filtres: FiltresTaches = {}): Promise<Task[]> {
+  const p = new URLSearchParams();
+  if (filtres.assigneeId) p.set('assigneeId', filtres.assigneeId);
+  if (filtres.createdById) p.set('createdById', filtres.createdById);
+  if (filtres.suivi) p.set('suivi', 'true');
+  if (filtres.limite) p.set('limite', String(filtres.limite));
+  const qs = p.toString();
+  return apiFetch<Task[]>(`/tasks${qs ? `?${qs}` : ''}`);
 }
 
 /** Voir TasksService.broadcastToDivision — renvoie toujours un tableau (1 tâche

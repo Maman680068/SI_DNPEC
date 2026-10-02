@@ -23,7 +23,9 @@ export function MessagesIcon() {
 
   useEffect(() => {
     compter();
-    const t = window.setInterval(compter, INTERVALLE_MS);
+    // Onglet caché : pas d'interrogation (charge du serveur, performance 2026-10) ; le compteur
+    // se remet à jour au retour sur la page (navigation) ou à l'intervalle suivant.
+    const t = window.setInterval(() => document.hidden || compter(), INTERVALLE_MS);
     window.addEventListener(EVENEMENT_MESSAGES_LUS, compter);
     return () => {
       window.clearInterval(t);

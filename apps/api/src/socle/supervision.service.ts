@@ -1,3 +1,4 @@
+import { statfs } from 'fs/promises';
 import { Injectable } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { NotificationType, Prisma, SystemRole, UserStatus } from '@prisma/client';
@@ -16,7 +17,17 @@ export type Service = { cle: string; libelle: string; etat: EtatService; detail:
 
 const CLE_DERNIER_ETAT = 'supervision.dernierEtat';
 export const LIEN_SUPERVISION = '/parametrage?onglet=supervision';
+
+/** Quota journalier d'emails (BREVO_QUOTA_JOUR) : dégradé à 80 %, indisponible une fois atteint. */
+export function etatQuotaEmails(envoyes: number, quota: number): { etat: EtatService; detail: string } {
+  const pct = quota > 0 ? Math.floor((envoyes / quota) * 100) : 0;
+  const detail = `${envoyes} email(s) envoyé(s) aujourd’hui (UTC) sur ${quota} (${pct} %)`;
+  if (envoyes >= quota) return { etat: 'INDISPONIBLE', detail: `${detail} : quota atteint, les emails reprendront demain` };
+  if (envoyes * 100 >= quota * 80) return { etat: 'DEGRADE', detail: `${detail} : quota bientôt atteint` };
+  return { etat: 'NOMINAL', detail };
+}
 const JOUR = 864e5;
+const mo = (octets: number) => Math.round(octets / (1024 * 1024)).toLocaleString('fr-FR');
 
 /**
  * Supervision (cahier NIMBA SOC-SUP-01 à 10) : état des services, tâches planifiées, sessions,
@@ -73,6 +84,8 @@ export class SupervisionService {
             ? `Dernier envoi réussi le ${m.dernierEnvoi.toISOString().slice(0, 16).replace('T', ' ')} UTC`
             : 'Configuré ; aucun envoi depuis le démarrage',
     });
+    // Performance 2026-10 : quota journalier du fournisseur d'emails (Brevo), alerte à 80 %.
+    res.push({ cle: 'quota-emails', libelle: 'Quota journalier d’emails', ...etatQuotaEmails(m.envoisDuJour, m.quotaJour) });
     const taches = await this.taches.dernieres();
     const enEchec = taches.filter((t) => t.derniere?.statut === 'ECHEC');
     const enRetard = taches.filter((t) => t.derniere && Date.now() - +t.derniere.debut > 2 * t.periodeMinutes * 60e3 + 60 * 60e3);
@@ -86,16 +99,50 @@ export class SupervisionService {
           ? `En retard : ${enRetard.map((t) => t.libelle).join(', ')}`
           : 'Dernières exécutions réussies',
     });
-    const audit = await this.journalAudit.etat();
+    // Exploitation 2026-10 : l'intégrité complète est vérifiée chaque nuit (tâche « verification-audit ») ;
+    // ici, le dernier résultat gardé et le scellement en cours (calcul léger, sonde publique comprise).
+    const audit = await this.journalAudit.etatRapide();
+    const d = audit.derniere;
     res.push({
       cle: 'audit',
       libelle: 'Journal d’audit',
-      etat: !audit.intacte ? 'INDISPONIBLE' : audit.scellementEnRetard > 0 ? 'DEGRADE' : 'NOMINAL',
-      detail: !audit.intacte
-        ? `Chaîne rompue à l’entrée n° ${audit.rangRompu} : le journal a été altéré`
-        : audit.scellementEnRetard > 0
-          ? `${audit.scellementEnRetard} entrée(s) non scellée(s) depuis plus de 10 minutes`
-          : `Chaîne intacte (${audit.lignesVerifiees} entrées scellées)`,
+      etat: d && !d.intacte ? 'INDISPONIBLE' : audit.ancienne || audit.scellementEnRetard > 0 ? 'DEGRADE' : 'NOMINAL',
+      detail:
+        d && !d.intacte
+          ? `Chaîne rompue à l’entrée n° ${d.rangRompu} (vérification du ${d.date.slice(0, 16).replace('T', ' ')} UTC) : le journal a été altéré`
+          : audit.scellementEnRetard > 0
+            ? `${audit.scellementEnRetard} entrée(s) non scellée(s) depuis plus de 10 minutes`
+            : audit.ancienne
+              ? d
+                ? `Dernière vérification complète le ${d.date.slice(0, 16).replace('T', ' ')} UTC : plus de 26 heures`
+                : 'Aucune vérification complète enregistrée (elle a lieu chaque nuit)'
+              : `Chaîne intacte (${d!.lignesVerifiees} entrées vérifiées le ${d!.date.slice(0, 16).replace('T', ' ')} UTC)`,
+    });
+    // Espace disque du stockage des fichiers (le disque persistant n'est pas dans la sauvegarde de la base).
+    try {
+      const f = await statfs(this.storage.root);
+      const total = Number(f.blocks) * Number(f.bsize);
+      const libre = Number(f.bavail) * Number(f.bsize);
+      const pct = total > 0 ? Math.round(((total - libre) / total) * 100) : 0;
+      const seuil = Number(process.env.SUPERVISION_DISQUE_ALERTE_PCT ?? 80);
+      res.push({
+        cle: 'disque',
+        libelle: 'Espace disque des fichiers',
+        etat: pct >= 95 ? 'INDISPONIBLE' : pct >= seuil ? 'DEGRADE' : 'NOMINAL',
+        detail: `${pct} % utilisés (${mo(total - libre)} Mo sur ${mo(total)} Mo ; alerte à ${seuil} %)`,
+      });
+    } catch {
+      res.push({ cle: 'disque', libelle: 'Espace disque des fichiers', etat: 'DEGRADE', detail: 'Espace disque illisible' });
+    }
+    // Taille de la base, comparée à la capacité de l'offre (BASE_TAILLE_MAX_MO).
+    const taille = (await this.prisma.$queryRaw<{ taille: bigint }[]>`SELECT pg_database_size(current_database()) AS taille`)[0]?.taille ?? 0n;
+    const maxMo = Number(process.env.BASE_TAILLE_MAX_MO ?? 1024);
+    const pctBase = Math.round((Number(taille) / (maxMo * 1024 * 1024)) * 100);
+    res.push({
+      cle: 'taille-base',
+      libelle: 'Taille de la base',
+      etat: pctBase >= 95 ? 'INDISPONIBLE' : pctBase >= 80 ? 'DEGRADE' : 'NOMINAL',
+      detail: `${mo(Number(taille))} Mo sur ${maxMo} Mo prévus (${pctBase} %)`,
     });
     return res;
   }

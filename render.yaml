@@ -61,6 +61,10 @@ services:
         sync: false
       - key: SMTP_FROM
         value: "no-reply@dnpec.gov.gn"
+      # Quota journalier d'emails de l'offre Brevo (300 pour l'offre gratuite) : la supervision
+      # alerte à 80 %. À ajuster si l'offre Brevo change.
+      - key: BREVO_QUOTA_JOUR
+        value: "300"
       # Origines autorisées en CORS, séparées par des virgules : l'URL exacte
       # du web (ex. https://dnpec-web.onrender.com). Sans valeur, toute origine
       # est autorisée. Une origine refusée est journalisée (« Origine refusée »)

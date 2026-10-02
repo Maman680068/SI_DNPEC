@@ -31,6 +31,9 @@ import { CreateCommentDto } from './dto/create-comment.dto';
 import { BroadcastMode, BroadcastTaskDto } from './dto/broadcast-task.dto';
 import { CreateSavedFilterDto } from './dto/create-saved-filter.dto';
 
+/** Vue de suivi (GET /tasks?suivi=true) : tâches closes encore montrées pendant ce nombre de jours. */
+const SUIVI_CLOSES_JOURS = 30;
+
 const TASK_SELECT = {
   id: true,
   title: true,
@@ -224,13 +227,19 @@ export class TasksService {
       activiteId: filters.activiteId,
       dueDate,
       assignees: filters.assigneeId ? { some: { userId: filters.assigneeId } } : undefined,
+      createdById: filters.createdById,
       parentTaskId: filters.includeSubtasks === 'true' ? undefined : null,
+      ...(filters.suivi === 'true'
+        ? // Dans un AND : la clé OR de scopedWhere porte la visibilité et ne doit jamais être écrasée.
+          { AND: [{ OR: [{ status: { notIn: [TaskStatus.TERMINEE, TaskStatus.VALIDEE] } }, { updatedAt: { gte: new Date(Date.now() - SUIVI_CLOSES_JOURS * 86_400_000) } }] }] }
+        : {}),
     });
 
     return this.prisma.task.findMany({
       where,
       select: TASK_SELECT,
       orderBy: [{ dueDate: 'asc' }, { createdAt: 'desc' }],
+      take: filters.limite,
     });
   }
 
@@ -897,10 +906,9 @@ export class TasksService {
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const baseWhere = this.scopedWhere(actor, { parentTaskId: null });
 
-    const [total, enCours, enAttenteValidation, enRetard, termineesCeMois] = await Promise.all([
-      this.prisma.task.count({ where: baseWhere }),
-      this.prisma.task.count({ where: { ...baseWhere, status: TaskStatus.EN_COURS } }),
-      this.prisma.task.count({ where: { ...baseWhere, status: TaskStatus.SOUMISE_VALIDATION } }),
+    // Performance (2026-10) : un décompte par statut au lieu de trois parcours du périmètre.
+    const [parStatut, enRetard, termineesCeMois] = await Promise.all([
+      this.prisma.task.groupBy({ by: ['status'], where: baseWhere, _count: { _all: true } }),
       this.prisma.task.count({
         where: { ...baseWhere, status: { not: TaskStatus.TERMINEE }, dueDate: { lt: now } },
       }),
@@ -908,8 +916,9 @@ export class TasksService {
         where: { ...baseWhere, status: TaskStatus.TERMINEE, completedAt: { gte: startOfMonth } },
       }),
     ]);
+    const nombre = (statut?: TaskStatus) => parStatut.filter((g) => !statut || g.status === statut).reduce((n, g) => n + g._count._all, 0);
 
-    return { total, enCours, enAttenteValidation, enRetard, termineesCeMois };
+    return { total: nombre(), enCours: nombre(TaskStatus.EN_COURS), enAttenteValidation: nombre(TaskStatus.SOUMISE_VALIDATION), enRetard, termineesCeMois };
   }
 
   // --------------------------------------------------------------------

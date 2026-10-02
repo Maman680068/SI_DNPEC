@@ -54,6 +54,10 @@ const VERSION_SELECT = {
 
 type DocumentWithVersion = Prisma.DocumentGetPayload<{ select: typeof DOCUMENT_SELECT }>;
 
+/** Rattachement du créateur d'un document : droit de modifier (créateur ou supérieur direct). */
+const CREATEUR_SELECT = { id: true, divisionId: true, sectionId: true, celluleId: true } satisfies Prisma.UserSelect;
+type Createur = Prisma.UserGetPayload<{ select: typeof CREATEUR_SELECT }>;
+
 /** Vue renvoyée au web (socle N4) : droits calculés ici, lien d'origine limité à ce que le lecteur voit. */
 export type DocumentVue = DocumentWithVersion & {
   metadonneesCompletes: boolean;
@@ -141,8 +145,16 @@ export class DocumentsService {
   }
 
   /** Vue d'un document pour l'acteur (droits, lien d'origine, complétude des métadonnées). */
-  async presenter(actor: AuthenticatedUser, d: DocumentWithVersion): Promise<DocumentVue> {
-    const modifier = await this.peutModifier(actor, d);
+  /** Liste de la GED : les créateurs sont lus en une requête pour toute la liste, et non un par
+   * document (performance 2026-10) ; même règle que `presenter`. */
+  async presenterListe(actor: AuthenticatedUser, ds: DocumentWithVersion[]): Promise<DocumentVue[]> {
+    const ids = [...new Set(ds.map((d) => d.createdById).filter((id) => id !== actor.id))];
+    const createurs = new Map((await this.prisma.user.findMany({ where: { id: { in: ids } }, select: CREATEUR_SELECT })).map((u) => [u.id, u]));
+    return Promise.all(ds.map((d) => this.presenter(actor, d, createurs)));
+  }
+
+  async presenter(actor: AuthenticatedUser, d: DocumentWithVersion, createurs?: Map<string, Createur>): Promise<DocumentVue> {
+    const modifier = createurs ? this.peutModifierAvec(actor, d, createurs.get(d.createdById)) : await this.peutModifier(actor, d);
     const validateur = this.estValidateur(actor, d);
     const direction = actor.role === SystemRole.DN || actor.role === SystemRole.DNA;
     const complet = this.metadonneesCompletes(d);
@@ -449,11 +461,17 @@ export class DocumentsService {
     return this.assertCanModify(actor, document).then(() => true, () => false);
   }
 
+  /** Même règle que `assertCanModify`, le créateur déjà lu. */
+  private peutModifierAvec(actor: AuthenticatedUser, document: DocumentWithVersion, creator: Createur | undefined): boolean {
+    if (document.createdById === actor.id) return true;
+    return !!creator && this.cascade.hasDirectAuthorityOver(actor, creator);
+  }
+
   private async assertCanModify(actor: AuthenticatedUser, document: DocumentWithVersion): Promise<void> {
     if (document.createdById === actor.id) return;
     const creator = await this.prisma.user.findUnique({
       where: { id: document.createdById },
-      select: { id: true, divisionId: true, sectionId: true, celluleId: true },
+      select: CREATEUR_SELECT,
     });
     if (!creator) throw new NotFoundException('Créateur du document introuvable');
     if (this.cascade.hasDirectAuthorityOver(actor, creator)) return;

@@ -23,7 +23,8 @@ import { cheminIntegre, estIntegre } from './fichiers-integres';
  */
 @Injectable()
 export class StorageService {
-  private readonly root = process.env.DOCUMENTS_STORAGE_PATH || path.join(process.cwd(), 'storage', 'documents');
+  /** Dossier du stockage (supervision de l'espace disque, sauvegarde des fichiers). */
+  readonly root = process.env.DOCUMENTS_STORAGE_PATH || path.join(process.cwd(), 'storage', 'documents');
 
   async save(buffer: Buffer, originalName: string): Promise<{ fileKey: string; sizeBytes: number }> {
     await mkdir(this.root, { recursive: true });

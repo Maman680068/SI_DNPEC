@@ -56,7 +56,7 @@ const sansDefilementHorizontal = (p) => p.evaluate(() => document.documentElemen
   await p.screenshot({ path: `${E.SHOTS}/n2_parametres_bureau.png`, fullPage: true });
   await p.getByRole('tab', { name: 'Supervision' }).click();
   await p.locator('[data-testid=service]').first().waitFor();
-  check('supervision : 5 services, base nominale, emails dégradés (sans serveur d’envoi)', (await p.locator('[data-testid=service]').count()) === 5 && /NOMINAL/.test(await p.locator('[data-cle=base]').innerText()) && /DÉGRADÉ/.test(await p.locator('[data-cle=email]').innerText()));
+  check('supervision : 8 services (dont espace disque, taille de la base et quota d’emails), base nominale, emails dégradés (sans serveur d’envoi)', (await p.locator('[data-testid=service]').count()) === 8 && /NOMINAL/.test(await p.locator('[data-cle=base]').innerText()) && /DÉGRADÉ/.test(await p.locator('[data-cle=email]').innerText()));
   await p.getByRole('button', { name: 'Déclarer un test de restauration' }).click();
   const ft = p.getByRole('dialog', { name: 'Test de restauration' });
   await ft.getByLabel('Commentaire (facultatif)').fill('Restauration vérifiée sur une base de test');
