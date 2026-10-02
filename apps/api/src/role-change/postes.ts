@@ -1,4 +1,5 @@
 import { Prisma, PrismaClient, SystemRole, UserStatus } from '@prisma/client';
+import { ROLE_LIBELLE } from './roles';
 
 /** Postes de responsabilité qu'un acte de nomination peut porter (droits appliqués par l'administrateur). */
 export const POSTES_RESPONSABILITE: SystemRole[] = [SystemRole.DN, SystemRole.DNA, SystemRole.CHEF_DIVISION, SystemRole.CHEF_SECTION, SystemRole.CHEF_CELLULE];
@@ -84,4 +85,22 @@ export async function listePostes(db: PrismaClient | Prisma.TransactionClient): 
 export async function fonctionDuPoste(db: PrismaClient | Prisma.TransactionClient, role: SystemRole, u: UnitePoste): Promise<string | null> {
   const p = (await listePostes(db)).find((x) => x.role === role && x.divisionId === u.divisionId && x.sectionId === u.sectionId && x.celluleId === u.celluleId);
   return p?.fonction ?? null;
+}
+
+/**
+ * Intitulé de fonction pour un rôle et un rattachement : celui du poste pour un poste de
+ * responsabilité, sinon « <rôle> — <unité> » (ex. « Chargé d’Études — Section SSR (Division Prévisions) »).
+ */
+export async function fonctionPourRole(db: PrismaClient | Prisma.TransactionClient, role: SystemRole, u: UnitePoste): Promise<string> {
+  if (POSTES_RESPONSABILITE.includes(role)) {
+    const f = await fonctionDuPoste(db, role, u);
+    if (f) return f;
+  }
+  let unite: string | null = null;
+  if (u.sectionId) {
+    const s = await db.section.findUnique({ where: { id: u.sectionId }, select: { name: true, division: { select: { name: true } } } });
+    unite = s ? `${s.name} (${s.division.name})` : null;
+  } else if (u.divisionId) unite = (await db.division.findUnique({ where: { id: u.divisionId }, select: { name: true } }))?.name ?? null;
+  else if (u.celluleId) unite = (await db.cellule.findUnique({ where: { id: u.celluleId }, select: { name: true } }))?.name ?? null;
+  return unite ? `${ROLE_LIBELLE[role]} — ${unite}` : ROLE_LIBELLE[role];
 }

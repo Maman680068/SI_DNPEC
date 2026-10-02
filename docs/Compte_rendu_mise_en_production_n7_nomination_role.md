@@ -17,7 +17,7 @@
 
 **Ce qui change, en une phrase par profil**
 - **DRH** : pour une nomination à un poste de chef (division, section, cellule) ou de DN/DNA, le DRH choisit le « Poste visé » dans la liste ; le rôle, l'unité et l'intitulé de la fonction en découlent. Les autres nominations gardent le texte libre, sans effet sur les droits. Après la signature, le mouvement affiche « Droits en attente (administrateur) », puis « Droits appliqués » ou « Droits refusés » avec le motif.
-- **Administrateur** : notification et email immédiats « Nomination à appliquer — acte n° … ». Onglet « Nominations » : « Confirmer… » (l'actuel titulaire du poste redevient par défaut Chargé(e) d'Études dans la même unité, modifiable ; les deux changements s'appliquent ensemble, tout ou rien ; motif enregistré : le numéro de l'acte) ou « Refuser… » (motif obligatoire, transmis au DRH). Chaque matin (6 h 40 UTC), une notification s'il reste des écarts.
+- **Administrateur** : notification et email immédiats « Nomination à appliquer — acte n° … ». Onglet « Nominations » : « Confirmer… » (l'actuel titulaire du poste redevient par défaut Chargé(e) d'Études dans la même unité, modifiable ; les deux changements s'appliquent ensemble, tout ou rien ; l'intitulé de fonction de l'ancien titulaire suit son nouveau rôle et son unité, inscrit à son historique de carrière « suite à l'acte n° … », sans acte supplémentaire du DRH ; motif enregistré : le numéro de l'acte) ou « Refuser… » (motif obligatoire, transmis au DRH). Chaque matin (6 h 40 UTC), une notification s'il reste des écarts.
 - **DN, DNA** : signent l'acte comme aujourd'hui ; rien d'autre.
 - **Le nommé et l'ancien titulaire** : prévenus par le changement de rôle habituel (sessions fermées, reconnexion avec les nouveaux droits).
 
@@ -34,7 +34,8 @@
 1. DRH : nomination d'un chargé d'études à un poste vacant, « Poste visé » choisi dans la liste → « Préparer l'acte ».
 2. DN ou DNA : signature dans le Courrier.
 3. Administrateur : la notification arrive ; onglet « Nominations » : la ligne montre le poste, l'acte et l'actuel titulaire → « Confirmer… ».
-4. DRH : le mouvement affiche « Droits appliqués ».
+4. DRH : le mouvement affiche « Droits appliqués » ; si le poste avait un titulaire, son dossier porte sa nouvelle fonction (« Chargé d'Études — … ») et son historique la mention « suite à l'acte n° … ».
+5. Administrateur : l'onglet « Nominations » ne montre plus d'écart pour ces deux personnes.
 
 **Si quelque chose bloque**
 - **« Confirmer » échoue** (poste repris entre-temps, assistant à réaffecter, compte inactif…) : rien n'est appliqué (ni au nommé, ni à l'actuel titulaire) : la nomination reste en attente, avec la raison affichée sous la ligne. Réglez la cause, puis « Confirmer… » à nouveau, ou « Refuser… » avec un motif.
@@ -47,6 +48,6 @@
   - perdus : les changements de rôle issus des actes (en attente, appliqués, refusés, avec leurs motifs). Restent : les rôles déjà appliqués aux comptes, les mouvements de carrière et les actes.
 
 **Tests joués avant la mise en production** (suite de bout en bout, base locale et CI)
-- `r_nomination_role` (API) : liste des postes et intitulé dérivé, texte libre sans effet, préparation contrôlée (400), « tout ou rien » (échec simulé en fin de transaction : aucun des deux rôles ne change), signature → changement en attente, actuel titulaire relevé, administrateur notifié ; écran réservé à l'administrateur (403 pour DRH, DN, chef, agent) ; confirmation (rôles des deux comptes, audit, DRH informé), échec gardé en attente puis réussite ; 409 sur une seconde décision ; poste déjà tenu → appliqué d'emblée ; refus motivé ; DN/DNA sans rôle proposé (400) ; écarts quotidiens et supervision ; sonde publique inchangée.
+- `r_nomination_role` (API) : liste des postes et intitulé dérivé, texte libre sans effet, préparation contrôlée (400), « tout ou rien » (échec simulé en fin de transaction : aucun des deux rôles ne change), fonction et historique de l'ancien titulaire mis à jour à la confirmation (plus aucun écart), signature → changement en attente, actuel titulaire relevé, administrateur notifié ; écran réservé à l'administrateur (403 pour DRH, DN, chef, agent) ; confirmation (rôles des deux comptes, audit, DRH informé), échec gardé en attente puis réussite ; 409 sur une seconde décision ; poste déjà tenu → appliqué d'emblée ; refus motivé ; DN/DNA sans rôle proposé (400) ; écarts quotidiens et supervision ; sonde publique inchangée.
 - `r_nomination_role_ui` (Chromium, bureau et téléphone) : formulaire du DRH, badges d'état, onglet ouvert par le lien des notifications, confirmation et refus, sans défilement horizontal.
 - Phase 39m (`n7_reprise`) : migration sur une base N6 réaliste, retour arrière (schéma identique à celui d'avant, données intactes), ré-application.

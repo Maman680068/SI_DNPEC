@@ -56,7 +56,8 @@ const notifAdmin = (depuis, re) => prisma.notification.count({ where: { userId: 
   const sec = await prisma.section.create({ data: { divisionId: div.id, code: `NS${L}`, name: `Section nominations ${S}` } });
   const cree = async (cle, role, extra) => (await prisma.user.create({ data: { email: `${cle}@test.local`, passwordHash: hash, firstName: cle.toUpperCase(), lastName: 'Nomination', role, status: 'ACTIF', ...extra } })).id;
   const K = { chef: `nrchef${S}`, a: `nra${S}`, b: `nrb${S}` };
-  const chef = await cree(K.chef, 'CHEF_SECTION', { divisionId: div.id, sectionId: sec.id });
+  // L'ancien chef porte à son dossier l'intitulé de son poste (comme après un acte de nomination).
+  const chef = await cree(K.chef, 'CHEF_SECTION', { divisionId: div.id, sectionId: sec.id, jobTitle: `Chef de Section — Section nominations ${S} (Division nominations ${S})` });
   const a = await cree(K.a, 'AGENT', { divisionId: div.id, sectionId: sec.id });
   const b = await cree(K.b, 'AGENT', { divisionId: div.id });
   const familleAvant = await prisma.familleActeRh.findUnique({ where: { code: 'DECISION_NOMINATION' } });
@@ -135,6 +136,10 @@ const notifAdmin = (depuis, re) => prisma.notification.count({ where: { userId: 
     const na = await compte(a), nc = await compte(chef);
     check('le nommé est Chef de Section de l’unité de l’acte', na.role === 'CHEF_SECTION' && na.sectionId === sec.id && na.divisionId === div.id);
     check('l’ancien chef devient Chargé d’Études de la même section', nc.role === 'AGENT' && nc.sectionId === sec.id);
+    const FONCTION_ANCIEN = `Chargé d’Études — Section nominations ${S} (Division nominations ${S})`;
+    check('fonction de l’ancien chef mise à jour d’office (nouveau rôle et unité)', (nc.agent?.fonction ?? nc.jobTitle) === FONCTION_ANCIEN && nc.jobTitle === FONCTION_ANCIEN, `${nc.agent?.fonction} / ${nc.jobTitle}`);
+    const histo = await prisma.personnelCareerEvent.findMany({ where: { userId: chef, eventType: 'CHANGEMENT_FONCTION', createdAt: { gte: t1 } } });
+    check('historique de carrière de l’ancien chef : « suite à l’acte n° … », depuis l’intitulé de son poste', histo.length === 1 && histo[0].fromValue === FONCTION_SECTION && histo[0].toValue === `${FONCTION_ANCIEN} (suite à l’acte n° ${m1.acte.numero})`, JSON.stringify(histo.map((h) => [h.fromValue, h.toValue])));
     const c1b = await changementDe(m1.id);
     check('changement « appliqué », décidé par l’administrateur, erreur effacée', c1b.statut === 'APPLIQUE' && c1b.decideParId === ids.admin && c1b.erreur === null);
     const audits = await prisma.auditLog.findMany({ where: { entityId: { in: [a, chef] }, createdAt: { gte: t1 } }, select: { metadata: true } });
@@ -175,7 +180,7 @@ const notifAdmin = (depuis, re) => prisma.notification.count({ where: { userId: 
     console.log('— Écarts quotidiens : fonction du dossier et rôle du compte');
     let ecarts = (await call('admin', 'GET', '/api/v1/changements-role')).body.ecarts;
     check('écart : fonction « Chef de Division » sur un Chargé d’Études (après le refus)', ecarts.some((e) => e.userId === b && e.changementId === null && e.role === 'AGENT'));
-    check('aucun écart pour l’ancien chef (aucune fonction de chef à son dossier)', !ecarts.some((e) => e.userId === chef));
+    check('aucun écart pour l’ancien chef après confirmation (fonction mise à jour)', !ecarts.some((e) => e.userId === chef));
     check('aucun écart pour le nommé confirmé', !ecarts.some((e) => e.userId === a));
     const t4 = new Date();
     const r = await nominations.signalerEcarts();

@@ -97,14 +97,21 @@ export class RoleChangeService {
    */
   async changerEnsemble(
     actor: AuthenticatedUser,
-    demandes: { userId: string; dto: ChangerRoleDto }[],
+    demandes: { userId: string; dto: ChangerRoleDto; historique?: { avant: string; apres: string } }[],
     options: { dansTransaction?: (tx: Prisma.TransactionClient) => Promise<void> } = {},
   ) {
     const liberes = new Set(demandes.map((d) => d.userId));
     const plans: { plan: Plan; dto: ChangerRoleDto; libAvant: string; libApres: string }[] = [];
     for (const d of demandes) {
       const plan = await this.preparer(actor, d.userId, d.dto, liberes);
-      plans.push({ plan, dto: d.dto, libAvant: await this.libelleFonction(plan.cible.role, plan.cible), libApres: await this.libelleFonction(plan.apres.role, plan.apres) });
+      // `historique` : libellés imposés par l'appelant pour l'historique de carrière (nomination : intitulé
+      // de fonction du dossier et mention de l'acte) ; sinon rôle et unité.
+      plans.push({
+        plan,
+        dto: d.dto,
+        libAvant: d.historique?.avant ?? (await this.libelleFonction(plan.cible.role, plan.cible)),
+        libApres: d.historique?.apres ?? (await this.libelleFonction(plan.apres.role, plan.apres)),
+      });
     }
     // Une suppléance entre les deux personnes n'est révoquée (et notifiée) qu'une fois.
     const vues = new Set<string>();

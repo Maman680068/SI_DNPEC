@@ -162,7 +162,8 @@ fonctionnalité ajoute sa suite (`tests/e2e/api/`, `tests/e2e/ui/`) et sa ligne 
   signature, `CarriereService` crée un `ChangementRoleNomination` **en attente** (ou appliqué si le poste est
   déjà tenu) et notifie les administrateurs ; `api/v1/changements-role` (admin seul, jamais en intérim) :
   confirmation = `RoleChangeService.changerEnsemble` (actuel titulaire puis nommé, **une seule transaction, tout
-  ou rien**, motif « Acte de nomination n° … »), échec gardé dans `erreur` ; refus motivé → DRH. Le DRH voit `droitsPoste` sur le
+  ou rien**, motif « Acte de nomination n° … » ; fonction de l'ancien titulaire = `fonctionPourRole`, historique
+  « suite à l'acte n° … »), échec gardé dans `erreur` ; refus motivé → DRH. Le DRH voit `droitsPoste` sur le
   mouvement. Écarts fonction du dossier / rôle du compte calculés à la lecture (supervision
   `fonction-role`, hors sonde publique ; tâche quotidienne `ecarts-fonction-role`).
 - Stages (`stages/`, D6) : job quotidien `StagesRotationService.executer(now)` (appelable avec une

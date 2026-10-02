@@ -10,7 +10,7 @@ import { detenteursWhere } from '../socle/roles-fonctionnels';
 import { ecartsFonctionRole } from '../socle/ecarts-fonction-role';
 import { RoleChangeService } from './role-change.service';
 import { ROLE_LIBELLE } from './roles';
-import { POSTES_RESPONSABILITE, UnitePoste, propositionPourAncienTitulaire, titulaireDuPoste } from './postes';
+import { POSTES_RESPONSABILITE, UnitePoste, fonctionPourRole, propositionPourAncienTitulaire, titulaireDuPoste } from './postes';
 import { ConfirmerNominationDto, RefuserNominationDto } from './dto/nomination.dto';
 
 /** Rôles proposables à l'actuel titulaire d'un poste (jamais assistant ni stagiaire : pas de superviseur à choisir ici). */
@@ -126,11 +126,25 @@ export class NominationsRoleService {
       throw new BadRequestException(`Choisissez le nouveau rôle de ${nom(titulaire)} (${ROLE_LIBELLE[titulaire.role]}) : aucun rôle n’est proposé d’office pour la Direction.`);
     }
     if (p && !ROLES_ANCIEN_TITULAIRE.includes(p.role)) throw new BadRequestException('Rôle de l’actuel titulaire : Chargé d’Études, un poste de responsabilité, DRH ou administrateur.');
+    // L'ancien titulaire : l'intitulé de sa fonction suit son nouveau rôle et son unité (même transaction),
+    // inscrit à son historique de carrière « suite à l'acte n° … », sans acte supplémentaire du DRH.
+    const uniteAncien = p ? { divisionId: p.divisionId ?? null, sectionId: p.sectionId ?? null, celluleId: p.celluleId ?? null } : null;
+    const fonctionAncien = titulaire && p ? await fonctionPourRole(this.prisma, p.role, uniteAncien!) : null;
+    const dossierAncien = titulaire ? await this.prisma.user.findUnique({ where: { id: titulaire.id }, select: { jobTitle: true, agentId: true, agent: { select: { fonction: true } } } }) : null;
     const deja = cible.role === c.roleCible && cible.divisionId === unite.divisionId && cible.sectionId === unite.sectionId && cible.celluleId === unite.celluleId;
     const demandes = [
       // 1. L'actuel titulaire quitte le poste, 2. le nommé le prend (rien à faire s'il l'a déjà).
       ...(titulaire && p
-        ? [{ userId: titulaire.id, dto: { role: p.role, roleAttendu: titulaire.role, divisionId: p.divisionId ?? null, sectionId: p.sectionId ?? null, celluleId: p.celluleId ?? null, motif: `${motif} (poste confié à ${nom(cible)})` } }]
+        ? [
+            {
+              userId: titulaire.id,
+              dto: { role: p.role, roleAttendu: titulaire.role, ...uniteAncien!, motif: `${motif} (poste confié à ${nom(cible)})` },
+              historique: {
+                avant: dossierAncien?.agent?.fonction ?? dossierAncien?.jobTitle ?? ROLE_LIBELLE[titulaire.role],
+                apres: `${fonctionAncien} (suite à l’acte n° ${c.acteNumero})`,
+              },
+            },
+          ]
         : []),
       ...(deja ? [] : [{ userId: cible.id, dto: { role: c.roleCible, roleAttendu: cible.role, ...unite, motif } }]),
     ];
@@ -143,13 +157,17 @@ export class NominationsRoleService {
             data: { statut: StatutChangementRole.APPLIQUE, decideParId: actor.id, decideLe: new Date(), erreur: null, ancienTitulaireId: titulaire?.id ?? c.ancienTitulaireId, roleAncienTitulaire: p?.role ?? c.roleAncienTitulaire },
           });
           if (!n.count) throw new ConflictException('Cette nomination vient d’être traitée : rechargez.');
+          if (titulaire && fonctionAncien) {
+            await tx.user.update({ where: { id: titulaire.id }, data: { jobTitle: fonctionAncien } });
+            if (dossierAncien?.agentId) await tx.agent.update({ where: { id: dossierAncien.agentId }, data: { fonction: fonctionAncien } });
+          }
           await this.audit.log(
             {
               actorId: actor.id,
               action: AuditAction.VALIDATION,
               entityType: 'ChangementRoleNomination',
               entityId: id,
-              metadata: { event: 'confirmation', acteNumero: c.acteNumero, userId: c.userId, role: c.roleCible, ...unite, ancienTitulaire: titulaire ? { id: titulaire.id, role: p!.role, divisionId: p!.divisionId ?? null, sectionId: p!.sectionId ?? null, celluleId: p!.celluleId ?? null } : null },
+              metadata: { event: 'confirmation', acteNumero: c.acteNumero, userId: c.userId, role: c.roleCible, ...unite, ancienTitulaire: titulaire ? { id: titulaire.id, role: p!.role, ...uniteAncien!, fonction: fonctionAncien } : null },
             },
             tx,
           );
