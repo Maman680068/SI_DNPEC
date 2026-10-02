@@ -114,7 +114,6 @@ CREATE TABLE "pleins_carburant" (
     "vehiculeId" TEXT NOT NULL,
     "date" DATE NOT NULL,
     "litres" DECIMAL(8,2) NOT NULL,
-    "montant" INTEGER NOT NULL,
     "kilometrage" INTEGER NOT NULL,
     "ordreMissionId" TEXT,
     "saisiParId" TEXT NOT NULL,
@@ -159,10 +158,13 @@ ALTER TABLE "mouvements_carriere" ADD CONSTRAINT "mouvements_carriere_acteId_fke
 -- AddForeignKey
 ALTER TABLE "pleins_carburant" ADD CONSTRAINT "pleins_carburant_vehiculeId_fkey" FOREIGN KEY ("vehiculeId") REFERENCES "vehicules"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
+-- AddForeignKey
+ALTER TABLE "pleins_carburant" ADD CONSTRAINT "pleins_carburant_ordreMissionId_fkey" FOREIGN KEY ("ordreMissionId") REFERENCES "ordres_mission"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
 
 -- Contrôles en base.
 ALTER TABLE "vehicules" ADD CONSTRAINT "vehicules_kilometrage_positif" CHECK ("kilometrage" >= 0);
-ALTER TABLE "pleins_carburant" ADD CONSTRAINT "pleins_carburant_valeurs" CHECK ("litres" > 0 AND "montant" >= 0 AND "kilometrage" >= 0);
+ALTER TABLE "pleins_carburant" ADD CONSTRAINT "pleins_carburant_valeurs" CHECK ("litres" > 0 AND "kilometrage" >= 0);
 ALTER TABLE "ordres_mission" ADD CONSTRAINT "ordres_mission_kilometrage" CHECK ("kilometrageRetour" IS NULL OR "kilometrageDepart" IS NULL OR "kilometrageRetour" >= "kilometrageDepart");
 ALTER TABLE "besoins_formation" ADD CONSTRAINT "besoins_formation_valeurs" CHECK ("effectif" >= 1 AND "priorite" IN ('HAUTE', 'MOYENNE', 'BASSE') AND "statut" IN ('EXPRIME', 'RETENU', 'REALISE', 'ECARTE'));
 

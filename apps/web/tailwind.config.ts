@@ -9,14 +9,16 @@ export default {
       colors: {
         ink: { DEFAULT: '#1B2A6B', dark: '#142057' },
         gold: { DEFAULT: '#F0B429', soft: '#FDF1D6' },
-        // Socle N6 (accessibilité, WCAG 2.1 AA) : vert et gris clair foncés pour un contraste ≥ 4,5:1.
-        sage: { DEFAULT: '#167040', soft: '#E1F3E7' },
+        // Socle N6 (accessibilité, WCAG 2.1 AA) : vert et gris clair lus dans des variables
+        // (app/globals.css) — couleurs de la maquette sur l'accueil et la connexion, assombries juste
+        // assez pour un contraste ≥ 4,5:1 dans l'application (.contraste-aa).
+        sage: { DEFAULT: 'var(--couleur-sage)', soft: '#E1F3E7' },
         clay: { DEFAULT: '#CE1126', soft: '#FBE3E5' },
         accent: { DEFAULT: '#1B2A6B', soft: '#E7E9F5' },
         surface: '#FFFFFF',
         bg: '#F5F6FA',
         line: '#E2E4EE',
-        text: { DEFAULT: '#1C2233', muted: '#5C6270', faint: '#5F6577' },
+        text: { DEFAULT: '#1C2233', muted: '#5C6270', faint: 'var(--couleur-texte-faint)' },
         'flag-red': '#CE1126',
         'flag-green': '#1C8B4B',
       },

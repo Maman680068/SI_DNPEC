@@ -1,5 +1,6 @@
 // N6 — accessibilité des écrans principaux (SOC-PLT-04, WCAG 2.1 niveau AA) : audit automatique axe-core
-// sous Chromium, bureau et téléphone, pour chaque profil sur ses écrans. Aucune violation « grave » ni
+// sous Chromium, bureau et téléphone, pour chaque profil sur ses écrans (accueil et connexion exclus :
+// identité visuelle validée, contrôlée inchangée). Aucune violation « grave » ni
 // « critique » admise ; les violations « modérées » et « mineures » sont listées dans le rapport
 // (out/accessibilite.md) pour la revue manuelle qui complète l'audit.
 const fs = require('fs');
@@ -50,6 +51,15 @@ const GRAVES = ['serious', 'critical'];
       check(`${compte} ${url} (${vue}) : aucune violation grave ou critique`, graves.length === 0, graves.map((v) => `${v.id} (${v.nodes.length}) : ${v.nodes[0]?.target?.join(' ')}`).join(' ; '));
     }
     for (const p of Object.values(pages)) await p.context().close();
+  }
+  // Accueil et connexion : identité visuelle validée inchangée (couleurs de la maquette, hors .contraste-aa).
+  for (const url of ['/', '/login']) {
+    const p = await (await b.newContext({ locale: 'fr-FR' })).newPage();
+    await p.goto(WEB + url);
+    await p.waitForLoadState('networkidle').catch(() => {});
+    const c = await p.evaluate(() => ({ sage: getComputedStyle(document.body).getPropertyValue('--couleur-sage').trim(), faint: getComputedStyle(document.body).getPropertyValue('--couleur-texte-faint').trim(), aa: document.querySelectorAll('.contraste-aa').length }));
+    check(`${url} : couleurs d’origine (vert #1c8b4b, gris #9298a8), sans la correction de contraste`, c.sage === '#1c8b4b' && c.faint === '#9298a8' && c.aa === 0, JSON.stringify(c));
+    await p.context().close();
   }
   fs.writeFileSync(path.join(E.OUT, 'accessibilite.md'), rapport.join('\n') + '\n');
   await b.close();

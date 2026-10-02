@@ -8,7 +8,7 @@ export const getVehicule = (id: string) => apiFetch<VehiculeDetail>(`/api/v1/veh
 export const creerVehicule = (v: { immatriculation: string; marque: string; modele: string; energie: string; kilometrage: number }) =>
   apiFetch<Vehicule>('/api/v1/vehicules', j('POST', v));
 export const modifierVehicule = (id: string, v: { etat?: EtatVehicule; actif?: boolean }) => apiFetch<Vehicule>(`/api/v1/vehicules/${id}`, j('PATCH', v));
-export const ajouterPlein = (id: string, v: { date: string; litres: number; montant: number; kilometrage: number; ordreMissionId?: string }) =>
+export const ajouterPlein = (id: string, v: { date: string; litres: number; kilometrage: number; ordreMissionId?: string }) =>
   apiFetch(`/api/v1/vehicules/${id}/pleins`, j('POST', v));
 export const affecterVehicule = (ordreId: string, vehiculeId: string | null) =>
   apiFetch(`/api/v1/vehicules/missions/${ordreId}/vehicule`, j('POST', { vehiculeId }));

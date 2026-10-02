@@ -213,6 +213,9 @@ export class GenerateurService {
       dateDepart: o.dateDepart,
       dateRetour: o.dateRetour,
       transport: o.transport,
+      // Véhicule de service affecté par le gestionnaire logistique (N6) : affiché à l'écran, jamais
+      // ajouté au document opposable (le texte signé ne change pas après la signature).
+      vehicule: o.vehicule ? { ...o.vehicule, kilometrageDepart: o.kilometrageDepart, kilometrageRetour: o.kilometrageRetour } : null,
       fraisMontant: o.fraisMontant,
       fraisEnLettres: o.fraisMontant != null ? montantEnLettres(o.fraisMontant) : null,
       acte: acte ? { id: acte.id, statut: acte.statut, numero: signe(acte) ? acte.numero : null } : null,
@@ -519,7 +522,7 @@ export class GenerateurService {
   }
 
   private async chargerOrdre(id: string) {
-    const o = await this.prisma.ordreMission.findUnique({ where: { id }, include: { agent: { select: { id: true, firstName: true, lastName: true, divisionId: true, sectionId: true, celluleId: true } } } });
+    const o = await this.prisma.ordreMission.findUnique({ where: { id }, include: { agent: { select: { id: true, firstName: true, lastName: true, divisionId: true, sectionId: true, celluleId: true } }, vehicule: { select: { immatriculation: true, marque: true, modele: true } } } });
     if (!o) throw new NotFoundException('Ordre de mission introuvable');
     return o;
   }

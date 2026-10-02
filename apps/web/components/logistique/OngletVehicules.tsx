@@ -179,7 +179,7 @@ function FenetreVehicule({ onClose, onFait }: { onClose: () => void; onFait: () 
 
 function FicheVehicule({ id, onClose, onChange }: { id: string; onClose: () => void; onChange: () => void }) {
   const [v, setV] = useState<VehiculeDetail | null>(null);
-  const [plein, setPlein] = useState({ date: aujourdhui(), litres: '', montant: '', kilometrage: '' });
+  const [plein, setPlein] = useState({ date: aujourdhui(), litres: '', kilometrage: '', ordreMissionId: '' });
   const [erreur, setErreur] = useState<string | null>(null);
   const charger = useCallback(() => getVehicule(id).then(setV).catch((x) => setErreur(messageChargement(x))), [id]);
   useEffect(() => {
@@ -199,7 +199,7 @@ function FicheVehicule({ id, onClose, onChange }: { id: string; onClose: () => v
           <div className="mb-3 grid grid-cols-1 gap-2 text-[12.5px] sm:grid-cols-3">
             <div className="rounded-md border border-line p-2.5"><div className="text-text-muted">Compteur</div><div className="text-[16px] font-bold">{km(v.kilometrage)}</div></div>
             <div className="rounded-md border border-line p-2.5"><div className="text-text-muted">Consommation</div><div className="text-[16px] font-bold">{v.consommationL100 !== null ? `${v.consommationL100} L/100 km` : '—'}</div></div>
-            <div className="rounded-md border border-line p-2.5"><div className="text-text-muted">Carburant</div><div className="text-[16px] font-bold">{v.litresTotal.toLocaleString('fr-FR')} L · {v.montantTotal.toLocaleString('fr-FR')} GNF</div></div>
+            <div className="rounded-md border border-line p-2.5"><div className="text-text-muted">Carburant</div><div className="text-[16px] font-bold">{v.litresTotal.toLocaleString('fr-FR')} L</div></div>
           </div>
           {v.droits.gerer && (
             <label className="mb-3 block text-[12.5px] font-semibold">
@@ -212,8 +212,8 @@ function FicheVehicule({ id, onClose, onChange }: { id: string; onClose: () => v
           <h3 className="mb-1.5 text-[13.5px] font-bold">Pleins de carburant</h3>
           {v.pleins.length === 0 ? <p className="mb-3 text-[12.5px] text-text-muted">Aucun plein enregistré.</p> : (
             <table className="mb-3 w-full text-[12.5px]">
-              <thead><tr className="text-left text-text-muted"><th className="py-1">Date</th><th>Litres</th><th>Montant (GNF)</th><th>Compteur</th></tr></thead>
-              <tbody>{v.pleins.map((p) => <tr key={p.id} className="border-t border-line"><td className="py-1">{dateCourte(p.date)}</td><td>{p.litres.toLocaleString('fr-FR')}</td><td>{p.montant.toLocaleString('fr-FR')}</td><td>{km(p.kilometrage)}</td></tr>)}</tbody>
+              <thead><tr className="text-left text-text-muted"><th className="py-1">Date</th><th>Litres</th><th>Compteur</th><th>Mission</th></tr></thead>
+              <tbody>{v.pleins.map((p) => <tr key={p.id} className="border-t border-line"><td className="py-1">{dateCourte(p.date)}</td><td>{p.litres.toLocaleString('fr-FR')}</td><td>{km(p.kilometrage)}</td><td>{p.ordreMission?.objet ?? '—'}</td></tr>)}</tbody>
             </table>
           )}
           {v.droits.gerer && (
@@ -221,12 +221,17 @@ function FicheVehicule({ id, onClose, onChange }: { id: string; onClose: () => v
               className="grid grid-cols-2 gap-2 sm:grid-cols-5"
               onSubmit={(e) => {
                 e.preventDefault();
-                agir(ajouterPlein(v.id, { date: plein.date, litres: Number(plein.litres), montant: Number(plein.montant), kilometrage: Number(plein.kilometrage) }).then(() => setPlein({ date: aujourdhui(), litres: '', montant: '', kilometrage: '' })));
+                agir(ajouterPlein(v.id, { date: plein.date, litres: Number(plein.litres), kilometrage: Number(plein.kilometrage), ordreMissionId: plein.ordreMissionId || undefined }).then(() => setPlein({ date: aujourdhui(), litres: '', kilometrage: '', ordreMissionId: '' })));
               }}
             >
               <label className="text-[12px] font-semibold">Date<input type="date" required value={plein.date} onChange={(e) => setPlein({ ...plein, date: e.target.value })} className={champ} /></label>
               <label className="text-[12px] font-semibold">Litres<input type="number" step="0.01" min={0.5} required value={plein.litres} onChange={(e) => setPlein({ ...plein, litres: e.target.value })} className={champ} /></label>
-              <label className="text-[12px] font-semibold">Montant<input type="number" min={0} required value={plein.montant} onChange={(e) => setPlein({ ...plein, montant: e.target.value })} className={champ} /></label>
+              <label className="text-[12px] font-semibold">Mission (facultatif)
+                <select value={plein.ordreMissionId} onChange={(e) => setPlein({ ...plein, ordreMissionId: e.target.value })} className={champ}>
+                  <option value="">—</option>
+                  {v.missions.map((m) => <option key={m.id} value={m.id}>{m.objet}</option>)}
+                </select>
+              </label>
               <label className="text-[12px] font-semibold">Compteur<input type="number" min={0} required value={plein.kilometrage} onChange={(e) => setPlein({ ...plein, kilometrage: e.target.value })} className={champ} /></label>
               <div className="flex items-end"><Button type="submit" variant="solid" className="w-full">Ajouter le plein</Button></div>
             </form>

@@ -389,7 +389,7 @@ model Cellule {
   Poll          Poll[]
 
   // Socle N4 : espace documentaire de la cellule (document produit par la cellule).
-  documents     Document[]
+  documents Document[]
 
   periodesStage    PeriodeStage[]
   affectationsBien AffectationBien[] @relation("AffectationBienCellule")
@@ -1490,7 +1490,7 @@ model PersonnelFileBasic {
   echelon                String?
   // Socle N6 : catégorie (A, B, C, D…) pour les effectifs ; date du dernier échelon (avancement à instruire).
   categorie              String?
-  echelonDepuis          DateTime? @db.Date
+  echelonDepuis          DateTime?         @db.Date
   serviceStartDate       DateTime?
   // Fiche de poste déposée (fichier) — StorageService, même mécanique que la GED.
   jobDescriptionFileKey  String?
@@ -1542,19 +1542,19 @@ model PersonnelDiploma {
 }
 
 model PersonnelDocument {
-  id           String   @id @default(cuid())
-  userId       String
-  user         User     @relation("PersonnelDocumentOwner", fields: [userId], references: [id], onDelete: Cascade)
-  label        String // libre : "CNI", "Acte de naissance", "Casier judiciaire"...
+  id             String        @id @default(cuid())
+  userId         String
+  user           User          @relation("PersonnelDocumentOwner", fields: [userId], references: [id], onDelete: Cascade)
+  label          String // libre : "CNI", "Acte de naissance", "Casier judiciaire"...
   // Socle N6 : pièce de la liste des pièces requises que ce document fournit (dossier complet).
   pieceRequiseId String?
   pieceRequise   PieceRequise? @relation(fields: [pieceRequiseId], references: [id], onDelete: SetNull)
-  fileKey      String
-  fileName     String
-  uploadedById String
-  uploadedBy   User     @relation("PersonnelDocumentUploadedBy", fields: [uploadedById], references: [id])
-  verified     Boolean  @default(false)
-  createdAt    DateTime @default(now())
+  fileKey        String
+  fileName       String
+  uploadedById   String
+  uploadedBy     User          @relation("PersonnelDocumentUploadedBy", fields: [uploadedById], references: [id])
+  verified       Boolean       @default(false)
+  createdAt      DateTime      @default(now())
 
   @@map("personnel_documents")
 }
@@ -1919,10 +1919,10 @@ model ActeCourrier {
   accesDelegues      AccesDelegueCourrier[]
   imputationsReponse ImputationCourrier[]   @relation("ImputationReponse")
 
-  stageAttestation Stage?
+  stageAttestation  Stage?
   mouvementCarriere MouvementCarriere?
   // Socle N4 — ordre de mission dont l'acte est la version signée.
-  ordreMission     OrdreMission?
+  ordreMission      OrdreMission?
 
   @@unique([registreId, uniteKey, annee, sequence])
   @@index([redacteurId])
@@ -2819,26 +2819,27 @@ model ChangementStatut {
 
 /// Ordre de mission (SIG-RF-DOC) : saisi une fois, puis généré et signé comme un acte.
 model OrdreMission {
-  id           String        @id @default(cuid())
-  agentId      String
-  agent        User          @relation("OrdreMissionAgent", fields: [agentId], references: [id])
-  objet        String
-  destination  String
-  dateDepart   DateTime      @db.Date
-  dateRetour   DateTime      @db.Date
-  transport    String?
-  fraisMontant Int?
+  id                String           @id @default(cuid())
+  agentId           String
+  agent             User             @relation("OrdreMissionAgent", fields: [agentId], references: [id])
+  objet             String
+  destination       String
+  dateDepart        DateTime         @db.Date
+  dateRetour        DateTime         @db.Date
+  transport         String?
+  fraisMontant      Int?
   // Socle N6 : véhicule de service affecté par la logistique, kilométrage au départ et au retour.
   vehiculeId        String?
-  vehicule          Vehicule? @relation(fields: [vehiculeId], references: [id])
+  vehicule          Vehicule?        @relation(fields: [vehiculeId], references: [id])
   kilometrageDepart Int?
   kilometrageRetour Int?
-  creeParId    String
-  creePar      User          @relation("OrdreMissionCreePar", fields: [creeParId], references: [id])
-  acteId       String?       @unique
-  acte         ActeCourrier? @relation(fields: [acteId], references: [id])
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  pleins            PleinCarburant[]
+  creeParId         String
+  creePar           User             @relation("OrdreMissionCreePar", fields: [creeParId], references: [id])
+  acteId            String?          @unique
+  acte              ActeCourrier?    @relation(fields: [acteId], references: [id])
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
 
   @@index([agentId])
   @@map("ordres_mission")
@@ -3141,16 +3142,16 @@ model Vehicule {
 }
 
 model PleinCarburant {
-  id             String   @id @default(cuid())
+  id             String        @id @default(cuid())
   vehiculeId     String
-  vehicule       Vehicule @relation(fields: [vehiculeId], references: [id])
-  date           DateTime @db.Date
-  litres         Decimal  @db.Decimal(8, 2)
-  montant        Int
+  vehicule       Vehicule      @relation(fields: [vehiculeId], references: [id])
+  date           DateTime      @db.Date
+  litres         Decimal       @db.Decimal(8, 2)
   kilometrage    Int
   ordreMissionId String?
+  ordreMission   OrdreMission? @relation(fields: [ordreMissionId], references: [id], onDelete: SetNull)
   saisiParId     String
-  createdAt      DateTime @default(now())
+  createdAt      DateTime      @default(now())
 
   @@index([vehiculeId, date])
   @@map("pleins_carburant")

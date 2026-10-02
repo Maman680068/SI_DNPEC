@@ -183,10 +183,10 @@ async function signerActe(acteId, soumettant) {
   expect('le gestionnaire logistique ajoute un véhicule', vh, 201);
   expect('immatriculation déjà enregistrée', await call('agentsaf', 'POST', '/api/v1/vehicules', VH), 409);
   check('parc lisible par un agent (sans droit de gestion)', (await call('agent1', 'GET', '/api/v1/vehicules')).body.vehicules.some((v) => v.id === vh.body.id));
-  expect('plein : compteur qui recule', await call('agentsaf', 'POST', `/api/v1/vehicules/${vh.body.id}/pleins`, { date: jour(0), litres: 40, montant: 480000, kilometrage: 41000 }), 409);
-  expect('plein daté du futur', await call('agentsaf', 'POST', `/api/v1/vehicules/${vh.body.id}/pleins`, { date: jour(3), litres: 40, montant: 480000, kilometrage: 42100 }), 400);
-  expect('premier plein', await call('agentsaf', 'POST', `/api/v1/vehicules/${vh.body.id}/pleins`, { date: jour(-10), litres: 50, montant: 600000, kilometrage: 42000 }), 201);
-  expect('second plein', await call('agentsaf', 'POST', `/api/v1/vehicules/${vh.body.id}/pleins`, { date: jour(0), litres: 40, montant: 480000, kilometrage: 42500 }), 201);
+  expect('plein : compteur qui recule', await call('agentsaf', 'POST', `/api/v1/vehicules/${vh.body.id}/pleins`, { date: jour(0), litres: 40, kilometrage: 41000 }), 409);
+  expect('plein daté du futur', await call('agentsaf', 'POST', `/api/v1/vehicules/${vh.body.id}/pleins`, { date: jour(3), litres: 40, kilometrage: 42100 }), 400);
+  expect('premier plein', await call('agentsaf', 'POST', `/api/v1/vehicules/${vh.body.id}/pleins`, { date: jour(-10), litres: 50, kilometrage: 42000 }), 201);
+  expect('second plein', await call('agentsaf', 'POST', `/api/v1/vehicules/${vh.body.id}/pleins`, { date: jour(0), litres: 40, kilometrage: 42500 }), 201);
   const det = (await call('agent1', 'GET', `/api/v1/vehicules/${vh.body.id}`)).body;
   check('consommation calculée : 40 L sur 500 km = 8 L/100 km ; compteur à 42 500 km', det.consommationL100 === 8 && det.kilometrage === 42500 && det.litresTotal === 90, JSON.stringify({ c: det.consommationL100, k: det.kilometrage }));
   const OM = { agentId: ids.agent1, objet: `Collecte ${S}`, destination: 'Labé', dateDepart: jour(20), dateRetour: jour(24), transport: 'Véhicule de service', fraisMontant: 300000 };
@@ -195,6 +195,13 @@ async function signerActe(acteId, soumettant) {
   expect('un agent affecte un véhicule', await call('agent1', 'POST', `/api/v1/vehicules/missions/${om1.id}/vehicule`, { vehiculeId: vh.body.id }), 403);
   const af = await call('agentsaf', 'POST', `/api/v1/vehicules/missions/${om1.id}/vehicule`, { vehiculeId: vh.body.id });
   check('le gestionnaire affecte le véhicule à la mission (kilométrage au départ = compteur)', af.status === 200 && (await prisma.ordreMission.findUnique({ where: { id: om1.id } })).kilometrageDepart === 42500);
+  expect('carburant en litres seulement : un montant est refusé', await call('agentsaf', 'POST', `/api/v1/vehicules/${vh.body.id}/pleins`, { date: jour(0), litres: 10, kilometrage: 42600, montant: 120000 }), 400);
+  expect('plein rattaché à une mission qui n’utilise pas ce véhicule', await call('agentsaf', 'POST', `/api/v1/vehicules/${vh.body.id}/pleins`, { date: jour(0), litres: 10, kilometrage: 42600, ordreMissionId: om2.id }), 400);
+  expect('plein rattaché à la mission du véhicule (ordre de mission N4)', await call('agentsaf', 'POST', `/api/v1/vehicules/${vh.body.id}/pleins`, { date: jour(0), litres: 10, kilometrage: 42600, ordreMissionId: om1.id }), 201);
+  const detOm = (await call('agentsaf', 'GET', `/api/v1/vehicules/${vh.body.id}`)).body;
+  check('fiche du véhicule : plein avec sa mission, aucun montant', detOm.pleins.some((x) => x.ordreMission && x.ordreMission.id === om1.id) && detOm.pleins.every((x) => !('montant' in x)) && !('montantTotal' in detOm));
+  const omN4 = (await call('chefssr', 'GET', '/api/v1/ordres-mission')).body.find((o) => o.id === om1.id);
+  check('ordre de mission N4 : véhicule affecté affiché (immatriculation, compteur au départ)', omN4 && omN4.vehicule && omN4.vehicule.immatriculation === VH.immatriculation && omN4.vehicule.kilometrageDepart === 42500, JSON.stringify(omN4 && omN4.vehicule));
   expect('le même véhicule sur une mission qui chevauche', await call('agentsaf', 'POST', `/api/v1/vehicules/missions/${om2.id}/vehicule`, { vehiculeId: vh.body.id }), 409);
   expect('retour inférieur au départ', await call('agentsaf', 'POST', `/api/v1/vehicules/missions/${om1.id}/retour`, { kilometrageRetour: 42000 }), 400);
   const ret = await call('agentsaf', 'POST', `/api/v1/vehicules/missions/${om1.id}/retour`, { kilometrageRetour: 43280 });

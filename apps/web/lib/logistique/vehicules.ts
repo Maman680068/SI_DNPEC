@@ -37,15 +37,13 @@ export interface Plein {
   id: string;
   date: string;
   litres: number;
-  montant: number;
   kilometrage: number;
-  ordreMissionId: string | null;
+  ordreMission: { id: string; objet: string } | null;
 }
 export interface VehiculeDetail extends Vehicule {
   pleins: Plein[];
   missions: Omit<MissionVehicule, 'transport' | 'vehiculeId'>[];
   consommationL100: number | null;
-  montantTotal: number;
   litresTotal: number;
   droits: { gerer: boolean };
 }

@@ -64,12 +64,6 @@ export class PleinDto {
   @Type(() => Number)
   @IsInt()
   @Min(0)
-  @Max(100_000_000)
-  montant!: number;
-
-  @Type(() => Number)
-  @IsInt()
-  @Min(0)
   @Max(2_000_000)
   kilometrage!: number;
 

@@ -156,7 +156,6 @@ async function signerActe(acteId) {
   await fiche.waitFor();
   await fiche.getByLabel('Date', { exact: true }).fill(jour(0));
   await fiche.getByLabel('Litres', { exact: true }).fill('60');
-  await fiche.getByLabel('Montant', { exact: true }).fill('720000');
   await fiche.getByLabel('Compteur', { exact: true }).fill('15400');
   await fiche.getByRole('button', { name: 'Ajouter le plein' }).click();
   await fiche.getByText(/15\s400 km/).first().waitFor();

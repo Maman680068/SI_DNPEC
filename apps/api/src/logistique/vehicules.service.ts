@@ -45,7 +45,7 @@ export class VehiculesService {
       where: { id },
       select: {
         ...VEHICULE,
-        pleins: { orderBy: [{ date: 'desc' }, { createdAt: 'desc' }], select: { id: true, date: true, litres: true, montant: true, kilometrage: true, ordreMissionId: true } },
+        pleins: { orderBy: [{ date: 'desc' }, { createdAt: 'desc' }], select: { id: true, date: true, litres: true, kilometrage: true, ordreMission: { select: { id: true, objet: true } } } },
         missions: { orderBy: { dateDepart: 'desc' }, take: 20, select: { id: true, objet: true, destination: true, dateDepart: true, dateRetour: true, kilometrageDepart: true, kilometrageRetour: true, agent: { select: { firstName: true, lastName: true } } } },
       },
     });
@@ -57,9 +57,8 @@ export class VehiculesService {
       const litres = pleins.slice(1).reduce((s, p) => s + Number(p.litres), 0);
       if (distance > 0) consommation = Math.round((litres / distance) * 1000) / 10;
     }
-    const montantTotal = v.pleins.reduce((s, p) => s + p.montant, 0);
     const litresTotal = Math.round(v.pleins.reduce((s, p) => s + Number(p.litres), 0) * 100) / 100;
-    return { ...v, pleins: v.pleins.map((p) => ({ ...p, litres: Number(p.litres) })), consommationL100: consommation, montantTotal, litresTotal, droits: { gerer: await this.gestionnaires.estGestionnaire(actor) } };
+    return { ...v, pleins: v.pleins.map((p) => ({ ...p, litres: Number(p.litres) })), consommationL100: consommation, litresTotal, droits: { gerer: await this.gestionnaires.estGestionnaire(actor) } };
   }
 
   async creer(actor: AuthenticatedUser, dto: VehiculeDto) {
@@ -94,11 +93,11 @@ export class VehiculesService {
       const [v] = await tx.$queryRaw<{ kilometrage: number; actif: boolean }[]>`SELECT "kilometrage", "actif" FROM "vehicules" WHERE "id" = ${id} FOR UPDATE`;
       if (!v || !v.actif) throw new NotFoundException('Véhicule introuvable ou retiré du parc.');
       if (dto.kilometrage < v.kilometrage) throw new ConflictException(`Le compteur ne recule pas : ${v.kilometrage} km déjà enregistrés pour ce véhicule.`);
-      const p = await tx.pleinCarburant.create({ data: { vehiculeId: id, date: jour(dto.date), litres: new Prisma.Decimal(dto.litres), montant: dto.montant, kilometrage: dto.kilometrage, ordreMissionId: dto.ordreMissionId ?? null, saisiParId: actor.id } });
+      const p = await tx.pleinCarburant.create({ data: { vehiculeId: id, date: jour(dto.date), litres: new Prisma.Decimal(dto.litres), kilometrage: dto.kilometrage, ordreMissionId: dto.ordreMissionId ?? null, saisiParId: actor.id } });
       await tx.vehicule.update({ where: { id }, data: { kilometrage: dto.kilometrage } });
       return p;
     });
-    await this.audit.log({ actorId: actor.id, action: AuditAction.CREATION, entityType: 'PleinCarburant', entityId: plein.id, metadata: { vehiculeId: id, litres: dto.litres, montant: dto.montant, kilometrage: dto.kilometrage } });
+    await this.audit.log({ actorId: actor.id, action: AuditAction.CREATION, entityType: 'PleinCarburant', entityId: plein.id, metadata: { vehiculeId: id, litres: dto.litres, kilometrage: dto.kilometrage, ordreMissionId: dto.ordreMissionId ?? null } });
     return { ...plein, litres: Number(plein.litres) };
   }
 
