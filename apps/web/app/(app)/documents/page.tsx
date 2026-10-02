@@ -172,12 +172,14 @@ export default function DocumentsPage() {
 
       <div className="mb-4 flex flex-wrap items-center gap-2.5">
         <input
+          aria-label="Filtrer par titre"
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Rechercher par titre…"
           className="rounded-md border border-line bg-surface px-3 py-1.5 text-[13px]"
         />
         <select
+          aria-label="Filtrer par catégorie"
           value={category}
           onChange={(e) => setCategory(e.target.value as DocumentCategory | '')}
           className="rounded-md border border-line bg-surface px-3 py-1.5 text-[13px]"
@@ -215,9 +217,9 @@ export default function DocumentsPage() {
             </option>
           ))}
         </select>
-        <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="rounded-md border border-line bg-surface px-3 py-1.5 text-[13px]" />
+        <input type="date" aria-label="Déposé à partir du" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="rounded-md border border-line bg-surface px-3 py-1.5 text-[13px]" />
         <span className="text-[12px] text-text-faint">à</span>
-        <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="rounded-md border border-line bg-surface px-3 py-1.5 text-[13px]" />
+        <input type="date" aria-label="Déposé jusqu’au" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="rounded-md border border-line bg-surface px-3 py-1.5 text-[13px]" />
       </div>
 
       {documents === null ? (

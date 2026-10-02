@@ -94,6 +94,9 @@ const compte = async () => ({
   check('plan de travail (N5) : 1 objectif, 2 activités, 2 tâches rattachées', objectifs.length === 1 && actIds.length === 2 && (await prisma.task.count({ where: { activiteId: { in: actIds } } })) === 2);
   const fils = await prisma.filMessages.findMany({ where: { creeParId: { in: idsDemo } }, include: { messages: true, participants: true } });
   check('fil de discussion (N5) : 3 participants, 2 messages, une tâche jointe', fils.length === 1 && fils[0].participants.length === 3 && fils[0].messages.length === 2 && fils[0].messages.some((m) => m.lienType === 'TACHE'));
+  const vehicule = await prisma.vehicule.findUnique({ where: { immatriculation: 'TEST 0001 DM' }, include: { pleins: true, missions: true } });
+  check('véhicule (N6) : 2 pleins en litres, compteur 58 800 km, affecté à l’ordre de mission N4 de démonstration', !!vehicule && vehicule.pleins.length === 2 && vehicule.kilometrage === 58800 && vehicule.missions.length === 1 && vehicule.missions[0].agentId === idsDemo.find((x) => x === vehicule.missions[0].agentId));
+  check('fiche de poste et besoin de formation (N6)', (await prisma.fichePoste.count({ where: { fonction: { startsWith: 'TEST — ' } } })) === 1 && (await prisma.besoinFormation.count({ where: { intitule: { startsWith: 'TEST — ' }, creeParId: { in: idsDemo } } })) === 1);
 
   console.log('— Données réelles intactes');
   const apres = await D.empreinte(prisma);

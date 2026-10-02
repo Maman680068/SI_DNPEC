@@ -19,7 +19,7 @@ const MODE = process.env.N5_MODE || 'apres';
 const DOSSIER = path.join(E.OUT, 'n5_reprise');
 fs.mkdirSync(DOSSIER, { recursive: true });
 const PSQL_URL = (process.env.DATABASE_URL || '').split('?')[0];
-const COLONNES_N5 = ['activiteId', 'alerteVeilleAt', 'alerteRetardAt', 'aEnvoyerLe'];
+const COLONNES_N5 = ['activiteId', 'alerteVeilleAt', 'alerteRetardAt', 'aEnvoyerLe', 'categorie', 'echelonDepuis', 'pieceRequiseId', 'vehiculeId', 'kilometrageDepart', 'kilometrageRetour'];
 const STATUTS = ['A_FAIRE', 'EN_COURS', 'SOUMISE_VALIDATION', 'VALIDEE', 'REJETEE', 'TERMINEE'];
 const TABLES_N5 = ['objectifs', 'activites', 'fils_messages', 'participants_fil', 'messages_fil', 'lectures_message', 'preferences_notification', 'instructions'];
 const J = 864e5;

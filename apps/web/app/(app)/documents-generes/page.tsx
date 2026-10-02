@@ -259,6 +259,14 @@ function Ordres({ catalogue, liste, onChange, setInfo }: { catalogue: Catalogue;
                 Du {date(o.dateDepart)} au {date(o.dateRetour)}
                 {o.fraisEnLettres ? ` · frais : ${o.fraisEnLettres}` : ''}
               </p>
+              {o.vehicule && (
+                <p className="mb-3 -mt-2 text-[12px] text-text-muted" data-testid="vehicule-mission">
+                  Véhicule de service : {o.vehicule.immatriculation} ({o.vehicule.marque} {o.vehicule.modele})
+                  {o.vehicule.kilometrageRetour !== null && o.vehicule.kilometrageDepart !== null
+                    ? ` · ${(o.vehicule.kilometrageRetour - o.vehicule.kilometrageDepart).toLocaleString('fr-FR')} km parcourus`
+                    : ''}
+                </p>
+              )}
               <Actions demande={{ type: 'ORDRE_MISSION', ordreMissionId: o.id }} catalogue={catalogue} destinataireParDefaut={o.agent.id} preparerActe={o.droits.preparerActe ? (r) => acteOrdre(o.id, r) : undefined} onChange={onChange} setInfo={setInfo} />
             </li>
           ))}

@@ -17,6 +17,7 @@ import { Button } from '../../../components/ui/Button';
 import { CarteCourrier } from '../../../components/courrier/CarteCourrier';
 import { CarteStages } from '../../../components/stages/CarteStages';
 import { CarteLogistique } from '../../../components/logistique/CarteLogistique';
+import { BlocsRole } from '../../../components/dashboard/BlocsRole';
 
 /** Rôles pouvant plausiblement diffuser une tâche à une division (voir
  * CascadeService.canBroadcastToDivision) — DN/DNA n'importe laquelle, Chef de
@@ -118,6 +119,8 @@ export default function DashboardPage() {
       {error && <div className="mb-5 rounded-md bg-clay-soft px-4 py-3 text-sm text-clay">{error}</div>}
 
       {dashboard && <KpiRow dashboard={dashboard} />}
+
+      {!stagiaire && <BlocsRole />}
 
       {!stagiaire && <CarteCourrier />}
       {!stagiaire && <CarteStages />}

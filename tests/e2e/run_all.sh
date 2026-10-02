@@ -135,6 +135,9 @@ lancer "38h. SOCLE N4 : STATUT DE DIFFUSION, MENTION SUR LES EXPORTS, MÉTADONN�
 lancer "38i. CHROMIUM — SOCLE N4 : STATUT ET MÉTADONNÉES GED, DÉPÔT DEPUIS UNE TÂCHE, DOCUMENTS GÉNÉRÉS (BUREAU, TÉLÉPHONE)" ui/n4_documents_ui.js
 lancer "38j. SOCLE N5 : PLAN DE TRAVAIL, ALERTES D'ÉCHÉANCE, NOTIFICATIONS ET RÉSUMÉ, FILS DE DISCUSSION, RECHERCHE, INSTRUCTIONS" api/n5_pilotage.js
 lancer "38k. CHROMIUM — SOCLE N5 : PLAN DE TRAVAIL, RECHERCHE, FIL, PRÉFÉRENCES, INSTRUCTIONS (BUREAU, TÉLÉPHONE)" ui/n5_pilotage_ui.js
+lancer "38l. SOCLE N6 : EFFECTIFS ET ALERTES RH, CARRIÈRE ET ACTES, FICHES DE POSTE, FORMATION, VÉHICULES, TABLEAU DE BORD PAR RÔLE" api/n6_rh.js
+lancer "38m. CHROMIUM — SOCLE N6 : RESSOURCES HUMAINES, VÉHICULES, TABLEAU DE BORD PAR RÔLE (BUREAU, TÉLÉPHONE)" ui/n6_rh_ui.js
+lancer "38n. CHROMIUM — ACCESSIBILITÉ WCAG 2.1 AA DES ÉCRANS PRINCIPAUX (AXE, BUREAU, TÉLÉPHONE)" ui/n6_accessibilite_ui.js
 # Liens : après toutes les suites, pour contrôler aussi les notifications et emails réellement produits.
 lancer "39a. LIENS DE L'API VERS LE WEB (CODE, NOTIFICATIONS, EMAILS) ET ANCIENS FORMATS" api/i_liens.js
 lancer "39b. CHROMIUM — ANCIENS LIENS (CONNECTÉ, NON CONNECTÉ) ET PAGE 404" ui/i_liens_ui.js
@@ -152,6 +155,7 @@ if veut n1_reprise; then
   psql -q "$PSQL_URL" -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public;' >/dev/null 2>&1
   (cd "$API" && pnpm exec prisma migrate deploy >/dev/null 2>&1 && pnpm run -s db:seed >/dev/null) || { echo "Base neuve : échec"; exit 1; }
   # Retour arrière dans l'ordre inverse des lots : N5, N4, N3, N2 puis N1.
+  psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/n6_down.sql" >/dev/null || { echo "Retour arrière N6 : échec"; exit 1; }
   psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/n5_down.sql" >/dev/null || { echo "Retour arrière N5 : échec"; exit 1; }
   psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/n4_down.sql" >/dev/null || { echo "Retour arrière N4 : échec"; exit 1; }
   psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/n3_down.sql" >/dev/null || { echo "Retour arrière N3 : échec"; exit 1; }
@@ -163,6 +167,7 @@ if veut n1_reprise; then
   export N1_MODE=apres; lancer "39g-2. N1 APPLIQUÉ : REPRISE CONTRÔLÉE, DONNÉES D'AVANT INTACTES" api/n1_reprise.js
   arreter_api
   # Retour arrière dans l'ordre inverse des lots : N5, N4, N3, N2 puis N1.
+  psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/n6_down.sql" >/dev/null || { echo "Retour arrière N6 : échec"; exit 1; }
   psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/n5_down.sql" >/dev/null || { echo "Retour arrière N5 : échec"; exit 1; }
   psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/n4_down.sql" >/dev/null || { echo "Retour arrière N4 : échec"; exit 1; }
   psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/n3_down.sql" >/dev/null || { echo "Retour arrière N3 : échec"; exit 1; }
@@ -183,6 +188,7 @@ if veut n2_reprise; then
   for f in "$E2E_OUT"/logs/api-*.pid; do [ -f "$f" ] && kill "$(cat "$f")" 2>/dev/null; done; sleep 1
   psql -q "$PSQL_URL" -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public;' >/dev/null 2>&1
   (cd "$API" && pnpm exec prisma migrate deploy >/dev/null 2>&1 && pnpm run -s db:seed >/dev/null) || { echo "Base neuve : échec"; exit 1; }
+  psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/n6_down.sql" >/dev/null || { echo "Retour arrière N6 : échec"; exit 1; }
   psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/n5_down.sql" >/dev/null || { echo "Retour arrière N5 : échec"; exit 1; }
   psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/n4_down.sql" >/dev/null || { echo "Retour arrière N4 : échec"; exit 1; }
   psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/n3_down.sql" >/dev/null || { echo "Retour arrière N3 : échec"; exit 1; }
@@ -190,6 +196,7 @@ if veut n2_reprise; then
   export N2_MODE=charger; lancer "39h-1. ÉTAT N1 : COMPTES ET JOURNAL D'AUDIT CHARGÉS, EMPREINTE" api/n2_reprise.js
   (cd "$API" && pnpm exec prisma migrate deploy >/dev/null 2>&1) || { echo "Migration N2 : échec"; exit 1; }
   export N2_MODE=apres; lancer "39h-2. N2 APPLIQUÉ : JOURNAL SCELLÉ, COMPTES AVEC AGENT, DONNÉES INTACTES" api/n2_reprise.js
+  psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/n6_down.sql" >/dev/null || { echo "Retour arrière N6 : échec"; exit 1; }
   psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/n5_down.sql" >/dev/null || { echo "Retour arrière N5 : échec"; exit 1; }
   psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/n4_down.sql" >/dev/null || { echo "Retour arrière N4 : échec"; exit 1; }
   psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/n3_down.sql" >/dev/null || { echo "Retour arrière N3 : échec"; exit 1; }
@@ -208,12 +215,14 @@ if veut n3_reprise; then
   for f in "$E2E_OUT"/logs/api-*.pid; do [ -f "$f" ] && kill "$(cat "$f")" 2>/dev/null; done; sleep 1
   psql -q "$PSQL_URL" -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public;' >/dev/null 2>&1
   (cd "$API" && pnpm exec prisma migrate deploy >/dev/null 2>&1 && pnpm run -s db:seed >/dev/null) || { echo "Base neuve : échec"; exit 1; }
+  psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/n6_down.sql" >/dev/null || { echo "Retour arrière N6 : échec"; exit 1; }
   psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/n5_down.sql" >/dev/null || { echo "Retour arrière N5 : échec"; exit 1; }
   psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/n4_down.sql" >/dev/null || { echo "Retour arrière N4 : échec"; exit 1; }
   psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/n3_down.sql" >/dev/null || { echo "Retour arrière N3 : échec"; exit 1; }
   export N3_MODE=charger; lancer "39i-1. ÉTAT N2 : TÂCHES, CONGÉS ET STAGE CHARGÉS, EMPREINTE" api/n3_reprise.js
   (cd "$API" && pnpm exec prisma migrate deploy >/dev/null 2>&1) || { echo "Migration N3 : échec"; exit 1; }
   export N3_MODE=apres; lancer "39i-2. N3 APPLIQUÉ : AVANCEMENT RECALCULÉ, AUCUN AVIS INVENTÉ, DONNÉES INTACTES" api/n3_reprise.js
+  psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/n6_down.sql" >/dev/null || { echo "Retour arrière N6 : échec"; exit 1; }
   psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/n5_down.sql" >/dev/null || { echo "Retour arrière N5 : échec"; exit 1; }
   psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/n4_down.sql" >/dev/null || { echo "Retour arrière N4 : échec"; exit 1; }
   psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/n3_down.sql" >/dev/null || { echo "Retour arrière N3 : échec"; exit 1; }
@@ -231,11 +240,13 @@ if veut n4_reprise; then
   for f in "$E2E_OUT"/logs/api-*.pid; do [ -f "$f" ] && kill "$(cat "$f")" 2>/dev/null; done; sleep 1
   psql -q "$PSQL_URL" -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public;' >/dev/null 2>&1
   (cd "$API" && pnpm exec prisma migrate deploy >/dev/null 2>&1 && pnpm run -s db:seed >/dev/null) || { echo "Base neuve : échec"; exit 1; }
+  psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/n6_down.sql" >/dev/null || { echo "Retour arrière N6 : échec"; exit 1; }
   psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/n5_down.sql" >/dev/null || { echo "Retour arrière N5 : échec"; exit 1; }
   psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/n4_down.sql" >/dev/null || { echo "Retour arrière N4 : échec"; exit 1; }
   export N4_MODE=charger; lancer "39j-1. ÉTAT N3 : DOCUMENTS CHARGÉS, EMPREINTE" api/n4_reprise.js
   (cd "$API" && pnpm exec prisma migrate deploy >/dev/null 2>&1) || { echo "Migration N4 : échec"; exit 1; }
   export N4_MODE=apres; lancer "39j-2. N4 APPLIQUÉ : TYPE, DATE, STATUT REPRIS, DONNÉES INTACTES" api/n4_reprise.js
+  psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/n6_down.sql" >/dev/null || { echo "Retour arrière N6 : échec"; exit 1; }
   psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/n5_down.sql" >/dev/null || { echo "Retour arrière N5 : échec"; exit 1; }
   psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/n4_down.sql" >/dev/null || { echo "Retour arrière N4 : échec"; exit 1; }
   export N4_MODE=retour; lancer "39j-3. RETOUR ARRIÈRE : SCHÉMA ET DONNÉES D'AVANT N4" api/n4_reprise.js
@@ -252,15 +263,36 @@ if veut n5_reprise; then
   for f in "$E2E_OUT"/logs/api-*.pid; do [ -f "$f" ] && kill "$(cat "$f")" 2>/dev/null; done; sleep 1
   psql -q "$PSQL_URL" -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public;' >/dev/null 2>&1
   (cd "$API" && pnpm exec prisma migrate deploy >/dev/null 2>&1 && pnpm run -s db:seed >/dev/null) || { echo "Base neuve : échec"; exit 1; }
+  psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/n6_down.sql" >/dev/null || { echo "Retour arrière N6 : échec"; exit 1; }
   psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/n5_down.sql" >/dev/null || { echo "Retour arrière N5 : échec"; exit 1; }
   export N5_MODE=charger; lancer "39k-1. ÉTAT N4 : TÂCHES ET NOTIFICATIONS CHARGÉES, EMPREINTE" api/n5_reprise.js
   (cd "$API" && pnpm exec prisma migrate deploy >/dev/null 2>&1) || { echo "Migration N5 : échec"; exit 1; }
   export N5_MODE=apres; lancer "39k-2. N5 APPLIQUÉ : RETARDS ANCIENS RÉPUTÉS SIGNALÉS, EMAILS PARTIS, DONNÉES INTACTES" api/n5_reprise.js
+  psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/n6_down.sql" >/dev/null || { echo "Retour arrière N6 : échec"; exit 1; }
   psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/n5_down.sql" >/dev/null || { echo "Retour arrière N5 : échec"; exit 1; }
   export N5_MODE=retour; lancer "39k-3. RETOUR ARRIÈRE : SCHÉMA ET DONNÉES D'AVANT N5" api/n5_reprise.js
   (cd "$API" && pnpm exec prisma migrate deploy >/dev/null 2>&1) || { echo "Ré-application N5 : échec"; exit 1; }
   export N5_MODE=apres; lancer "39k-4. RÉ-APPLICATION DE N5" api/n5_reprise.js
   unset N5_MODE
+  bash "$ICI/scripts/api.sh" normal >/dev/null || exit 1
+fi
+
+# Migration N6 sur une base N5 chargée (dossiers, pièces, ordres de mission), retour arrière
+# (n6_down.sql), schéma et données comparés, puis ré-application. API arrêtée.
+if veut n6_reprise; then
+  echo; echo "################ 39l. MIGRATION N6 SUR UNE BASE N5 — APRÈS, RETOUR ARRIÈRE, RÉ-APPLICATION"
+  for f in "$E2E_OUT"/logs/api-*.pid; do [ -f "$f" ] && kill "$(cat "$f")" 2>/dev/null; done; sleep 1
+  psql -q "$PSQL_URL" -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public;' >/dev/null 2>&1
+  (cd "$API" && pnpm exec prisma migrate deploy >/dev/null 2>&1 && pnpm run -s db:seed >/dev/null) || { echo "Base neuve : échec"; exit 1; }
+  psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/n6_down.sql" >/dev/null || { echo "Retour arrière N6 : échec"; exit 1; }
+  export N6_MODE=charger; lancer "39l-1. ÉTAT N5 : DOSSIERS, PIÈCES ET ORDRES DE MISSION CHARGÉS, EMPREINTE" api/n6_reprise.js
+  (cd "$API" && pnpm exec prisma migrate deploy >/dev/null 2>&1) || { echo "Migration N6 : échec"; exit 1; }
+  export N6_MODE=apres; lancer "39l-2. N6 APPLIQUÉ : COLONNES VIDES, PARAMÉTRAGE LIVRÉ, DONNÉES INTACTES" api/n6_reprise.js
+  psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/n6_down.sql" >/dev/null || { echo "Retour arrière N6 : échec"; exit 1; }
+  export N6_MODE=retour; lancer "39l-3. RETOUR ARRIÈRE : SCHÉMA ET DONNÉES D'AVANT N6" api/n6_reprise.js
+  (cd "$API" && pnpm exec prisma migrate deploy >/dev/null 2>&1) || { echo "Ré-application N6 : échec"; exit 1; }
+  export N6_MODE=apres; lancer "39l-4. RÉ-APPLICATION DE N6" api/n6_reprise.js
+  unset N6_MODE
   bash "$ICI/scripts/api.sh" normal >/dev/null || exit 1
 fi
 

@@ -40,6 +40,7 @@ export interface OrdreMission {
   dateDepart: string;
   dateRetour: string;
   transport: string | null;
+  vehicule: { immatriculation: string; marque: string; modele: string; kilometrageDepart: number | null; kilometrageRetour: number | null } | null;
   fraisMontant: number | null;
   fraisEnLettres: string | null;
   acte: ActeLie | null;

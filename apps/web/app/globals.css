@@ -3,6 +3,17 @@
 @tailwind utilities;
 
 @layer base {
+  /* Couleurs de la maquette validée (accueil, connexion) et leur version assombrie juste assez pour
+   * le niveau AA dans l'application (WCAG 2.1, contraste ≥ 4,5:1 sur fond blanc, fonds gris clair
+   * — colonnes Kanban comprises — et vert pâle). La bande tricolore garde ses couleurs. */
+  :root {
+    --couleur-sage: #1c8b4b;
+    --couleur-texte-faint: #9298a8;
+  }
+  .contraste-aa {
+    --couleur-sage: #197c43;
+    --couleur-texte-faint: #666e80;
+  }
   body {
     @apply bg-bg text-text antialiased;
   }

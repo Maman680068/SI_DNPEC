@@ -21,4 +21,14 @@ export class UpdatePersonnelBasicDto {
   @IsOptional()
   @IsDateString()
   serviceStartDate?: string;
+
+  // Socle N6 : catégorie (effectifs) et date du dernier échelon (avancement à instruire).
+  @IsOptional()
+  @IsString()
+  @Length(1, 20)
+  categorie?: string;
+
+  @IsOptional()
+  @IsDateString()
+  echelonDepuis?: string;
 }

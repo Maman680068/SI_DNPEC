@@ -31,7 +31,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     <OrgProvider>
       <InterimProvider>
        <ReauthProvider>
-        <div className="flex h-screen overflow-hidden">
+        <div className="contraste-aa flex h-screen overflow-hidden">
           <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
           <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
             <div className="flag-stripe">

@@ -3,7 +3,7 @@
 Système d'information interne de la DNPEC (Guinée), **en production** sur Render
 (PostgreSQL, API NestJS et frontend Next.js en services distincts, emails réels via Brevo).
 Référence fonctionnelle : cahier des charges v2.5 (§2.2 « besoin d'en connaître », §3.2 changement
-de rôle, §4.10 suppléance, §4.11 courrier et actes, §4.15 socle NIMBA N1, §4.16 N2, §4.17 N3, §4.18 N4, §4.19 N5, Annexe B = journal des décisions) : `docs/Cahier_des_charges_DNPEC_SI.docx`.
+de rôle, §4.10 suppléance, §4.11 courrier et actes, §4.15 socle NIMBA N1, §4.16 N2, §4.17 N3, §4.18 N4, §4.19 N5, §4.20 N6, Annexe B = journal des décisions) : `docs/Cahier_des_charges_DNPEC_SI.docx`.
 Programme en cours : socle NIMBA, lots N1 → N6 (`docs/NIMBA_Cahier_des_charges_v2.2.docx`), une PR par lot,
 déployés dans l'ordre ; conception N1 : `docs/conception_N1_socle_NIMBA.md`.
 
@@ -132,6 +132,22 @@ fonctionnalité ajoute sa suite (`tests/e2e/api/`, `tests/e2e/ui/`) et sa ligne 
   la requête de son module (jamais plus que l'écran ; pli personnel exclu). Instructions de la Direction
   (`instructions/`) : DN/DNA émettent, invisibles pour l'agent concerné avant l'exécution (acte signé),
   relance à 7 jours (`relance-instructions`).
+- Socle N6 (RH, véhicules, tableaux de bord) : `rh/` (routes `api/v1/rh`, onglets renvoyés par l'API) —
+  effectifs (DRH, DN, DNA) et **alertes calculées à la lecture, jamais stockées** (fins de contrat et de
+  stage, avancement d'échelon après `rh.avancementEchelonMois`, dossier incomplet selon la liste des
+  **pièces requises**, DRH seul) ; **mouvements de carrière** préparés par le DRH, portés par un acte du
+  Courrier dans le registre de leur **famille d'actes** (séquence + signataire), **appliqués au dossier à
+  la signature** (`ActesService.surSignature`, dans la transaction de signature) ; une mutation ne vise
+  qu'un AGENT/DRH/ADMIN (les autres passent par le changement de rôle) ; fin de contrat → `Agent.dateFinPrevue`.
+  Fiches de poste (une par fonction, DRH), besoins de formation (chefs, Direction ; le DRH retient).
+  Véhicules (`logistique/vehicules.*`, gestionnaire logistique) : **carburant en litres seulement, aucun
+  montant** (bloc finances/paie), compteur qui ne recule jamais (verrou + CHECK), véhicule affecté à un
+  **ordre de mission N4** (chevauchement 409), plein rattachable à la mission ; le document signé de
+  l'ordre de mission ne change pas. Tableau de bord par rôle `api/v1/tableau-de-bord` (blocs calculés
+  par les requêtes des modules). Accessibilité AA : couleurs `sage` et `text-faint` en variables
+  (`globals.css`), assombries dans `.contraste-aa` (application) seulement — accueil et connexion gardent
+  la maquette ; audit axe `n6_accessibilite_ui`. Images Docker `apps/api/Dockerfile`, `apps/web/Dockerfile`
+  (Render ne les utilise pas).
 - Stages (`stages/`, D6) : job quotidien `StagesRotationService.executer(now)` (appelable avec une
   date simulée) ; attestation finale = acte du Courrier (`ActesService`).
   Réglages (capacités, modèle d'attestation) : DRH **et** administrateur système

@@ -71,7 +71,7 @@ function espion(page) {
   check('lien direct : dossier ouvert avec le niveau 2 pour le DRH', (await d.locator('[data-testid=niveau-2]').innerText()).includes(`${TEL}9`));
   check('DRH : ni bandeau de confirmation, ni « Signaler »', (await d.locator('[data-testid=bandeau-a-verifier]').count()) === 0 && (await d.getByRole('button', { name: 'Signaler une erreur' }).count()) === 0);
   await d.locator('[data-testid=niveau-1]').getByRole('button', { name: 'Modifier' }).click();
-  await d.getByLabel('Échelon').fill(`E${S}`);
+  await d.getByLabel('Échelon', { exact: true }).fill(`E${S}`);
   await d.getByRole('button', { name: 'Enregistrer' }).click();
   await d.getByText('Situation administrative enregistrée.').waitFor();
   check('DRH : échelon enregistré « À vérifier »', await attendre(async () => /À vérifier/.test(await d.locator('[data-testid="champ-Échelon"]').innerText())));

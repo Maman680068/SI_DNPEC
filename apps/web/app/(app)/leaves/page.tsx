@@ -36,14 +36,22 @@ export default function LeavesPage() {
   const [anneeFeries, setAnneeFeries] = useState(new Date().getFullYear());
 
   // Calendrier des jours fériés (socle N3) : « /leaves?onglet=feries&annee=2027 » (alerte annuelle).
+  // Tableau de bord (socle N6) : « /leaves?onglet=validation » et « /leaves?onglet=suivi » ; l'onglet
+  // n'est affiché qu'à qui peut traiter des demandes, sinon « Mes congés » reste ouvert.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.get('onglet') === 'feries') {
+    const onglet = params.get('onglet');
+    if (onglet === 'feries') {
       setTab('feries');
       const a = Number(params.get('annee'));
       if (a >= 2000 && a <= 2100) setAnneeFeries(a);
     }
   }, []);
+
+  useEffect(() => {
+    const onglet = new URLSearchParams(window.location.search).get('onglet');
+    if (canValidate && (onglet === 'validation' || onglet === 'suivi')) setTab(onglet);
+  }, [canValidate]);
 
   const loadRequests = useCallback(() => {
     getLeaveRequests().then(setRequests).catch((err) => setErreurChargement(messageChargement(err)));
@@ -175,6 +183,7 @@ export default function LeavesPage() {
           <div className="mb-3.5 flex items-center justify-between">
             <h2 className="text-[16px] font-extrabold">Mon solde</h2>
             <select
+              aria-label="Année du solde"
               value={year}
               onChange={(e) => setYear(Number(e.target.value))}
               className="rounded-md border border-line bg-surface px-3 py-1.5 text-[13px]"

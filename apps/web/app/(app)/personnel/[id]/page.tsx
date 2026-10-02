@@ -172,6 +172,8 @@ export default function DossierPage() {
           <Ligne label="Statut d’emploi" valeur={basic.employmentStatus ? EMPLOYMENT_STATUS_LABEL[basic.employmentStatus] : null} statut={statuts.employmentStatus} />
           <Ligne label="Grade" valeur={basic.grade} statut={statuts.grade} />
           <Ligne label="Échelon" valeur={basic.echelon} statut={statuts.echelon} />
+          <Ligne label="Dans l’échelon depuis" valeur={basic.echelonDepuis ? date(basic.echelonDepuis) : null} />
+          <Ligne label="Catégorie" valeur={basic.categorie} />
           <Ligne label="Date de prise de service" valeur={date(basic.serviceStartDate)} statut={statuts.serviceStartDate} />
           <Ligne label="Fiche de poste" valeur={basic.jobDescriptionFileName} statut={statuts.jobDescription}>
             {basic.jobDescriptionFileName && (

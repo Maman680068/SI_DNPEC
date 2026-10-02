@@ -26,6 +26,9 @@ export interface NiveauUn {
   employmentStatus: EmploymentStatus | null;
   grade: string | null;
   echelon: string | null;
+  /** Socle N6 : catégorie (effectifs) et date du dernier échelon (avancement à instruire). */
+  categorie: string | null;
+  echelonDepuis: string | null;
   serviceStartDate: string | null;
   jobDescriptionFileName: string | null;
 }

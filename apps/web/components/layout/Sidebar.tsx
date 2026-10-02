@@ -42,6 +42,9 @@ const NAV_GROUPS: NavGroup[] = [
       { icon: '🌴', label: 'Congés & absences', href: '/leaves' },
       // Documents générés (socle N4) : attestation de travail, ordre de mission, rapport d'activité.
       { icon: '🖨', label: 'Documents générés', href: '/documents-generes' },
+      // Ressources humaines (socle N6) : effectifs et alertes (DRH, Direction), carrière et actes,
+      // fiches de poste, formation ; les onglets ouverts sont donnés par GET /api/v1/rh.
+      { icon: '👥', label: 'Ressources humaines', href: '/rh' },
       { icon: '☰', label: 'Annuaire', href: '/annuaire' },
       // Organigramme (socle NIMBA) : lisible par tous, géré par le DRH et l'administrateur.
       { icon: '🏛', label: 'Organisation', href: '/organisation' },
