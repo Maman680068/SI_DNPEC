@@ -1,3 +1,4 @@
+import { typeServi } from '../common/storage/type-servi';
 import {
   Body,
   Controller,
@@ -213,7 +214,7 @@ export class TasksController {
   ): Promise<StreamableFile> {
     const { attachment, stream } = await this.tasksService.downloadAttachment(actor, id, attachmentId);
     res.set({
-      'Content-Type': attachment.mimeType,
+      'Content-Type': typeServi(attachment.mimeType),
       'Content-Disposition': `attachment; filename="${encodeURIComponent(attachment.fileName)}"`,
     });
     return new StreamableFile(stream);

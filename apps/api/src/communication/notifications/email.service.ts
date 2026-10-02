@@ -47,9 +47,11 @@ export class EmailService {
       // jsonTransport n'envoie réellement rien — journaliser le corps est ce qui rend
       // le docstring ci-dessus ("encodé et journalisé") vrai, et permet de tester en
       // local un lien à usage unique (réinitialisation de mot de passe) sans SMTP réel.
-      this.logger.debug(
-        `Email non envoyé (SMTP non configuré) — destinataire=${to}, sujet="${subject}"\n${text}`,
-      );
+      // Revue de sécurité 2026-10 : le corps (liens à usage unique, contenu métier) n'est jamais
+      // écrit dans les journaux d'un service en production, même mal configuré — sauf demande
+      // explicite de la suite de bout en bout (EMAIL_JOURNAL_CORPS=1, qui lit les liens envoyés).
+      const corps = process.env.NODE_ENV !== 'production' || process.env.EMAIL_JOURNAL_CORPS === '1';
+      this.logger.debug(`Email non envoyé (SMTP non configuré) — destinataire=${to}, sujet="${subject}"${corps ? `\n${text}` : ''}`);
     }
     try {
       await this.transporter.sendMail({ from: this.from, to, subject, text, html });

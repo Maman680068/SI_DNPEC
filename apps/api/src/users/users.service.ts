@@ -285,6 +285,11 @@ export class UsersService {
       data: { status: dto.status },
       select: USER_LIST_SELECT,
     });
+    // Revue de sécurité 2026-10 : un compte qui quitte l'état actif perd ses sessions ; une
+    // réactivation ne rend jamais leur validité aux anciens jetons de renouvellement.
+    if (dto.status !== UserStatus.ACTIF) {
+      await this.prisma.userSession.updateMany({ where: { userId: target.id, revokedAt: null }, data: { revokedAt: new Date() } });
+    }
 
     await this.audit.log({
       actorId: actor.id,

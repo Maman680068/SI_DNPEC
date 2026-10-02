@@ -11,7 +11,7 @@ import { DecideLeaveRequestDto } from '../dto/decide-leave-request.dto';
 import { RejectLeaveRequestDto } from '../dto/reject-leave-request.dto';
 import { AvisLeaveRequestDto } from '../dto/avis-leave-request.dto';
 import { LeaveRequestFiltersDto } from '../dto/leave-request-filters.dto';
-import { LeaveMedicalPrivacyService } from '../leave-medical-privacy.service';
+import { LeaveMedicalPrivacyService, MASKED_LEAVE_TYPE_LABEL } from '../leave-medical-privacy.service';
 import { detenteursWhere, estDrh } from '../../socle/roles-fonctionnels';
 import { ParametresService } from '../../socle/parametres.service';
 import { TachesPlanifieesService } from '../../socle/taches-planifiees.service';
@@ -116,10 +116,19 @@ export class LeaveRequestsService {
     return estDrh(actor);
   }
 
+  /** Destinataires des notifications de décision : la même règle que `peutDecider` (revue de
+   * sécurité 2026-10) — le DRH, ou le DN et la DNA pour la demande d'un DRH ; jamais de repli vers
+   * quelqu'un qui ne décide pas (il recevrait le type d'une absence protégée). */
   private async idsDecideurs(r: LeaveRequestWithUser): Promise<string[]> {
-    const drh = (await this.prisma.user.findMany({ where: detenteursWhere(RoleFonctionnel.DRH), select: { id: true } })).map((u) => u.id).filter((id) => id !== r.userId);
-    if (drh.length) return drh;
-    return (await this.prisma.user.findMany({ where: { role: { in: [SystemRole.DN, SystemRole.DNA] }, status: UserStatus.ACTIF }, select: { id: true } })).map((u) => u.id);
+    const demandeurDrh = (await this.prisma.user.count({ where: { id: r.userId, ...detenteursWhere(RoleFonctionnel.DRH) } })) > 0;
+    const where = demandeurDrh ? { role: { in: [SystemRole.DN, SystemRole.DNA] }, status: UserStatus.ACTIF } : detenteursWhere(RoleFonctionnel.DRH);
+    return (await this.prisma.user.findMany({ where, select: { id: true } })).map((u) => u.id).filter((id) => id !== r.userId);
+  }
+
+  /** Libellé du type dans une notification (in-app et email, résumé quotidien compris) : jamais la
+   * nature médicale, qui partirait vers le service d'email ; elle se lit dans l'écran Congés. */
+  private libelleNotification(leaveType: { code: string; name: string }): string {
+    return this.medicalPrivacy.isSensitiveCode(leaveType.code) ? MASKED_LEAVE_TYPE_LABEL : leaveType.name;
   }
 
   private etape(r: LeaveRequestWithUser): EtapeConge {
@@ -153,7 +162,7 @@ export class LeaveRequestsService {
     const { certificatFileName, certificatDeposeLe, ...reste } = r;
     return {
       ...reste,
-      ...(masquerType ? { leaveTypeId: null, leaveType: this.medicalPrivacy.maskedLeaveType(), reason: null } : {}),
+      ...(masquerType ? { leaveTypeId: null, leaveType: this.medicalPrivacy.maskedLeaveType(), reason: null, avisMotif: null, decisionComment: null } : {}),
       ...(motifVerrouille ? { reason: null } : {}),
       etape: this.etape(r),
       motifVerrouille,
@@ -222,7 +231,7 @@ export class LeaveRequestsService {
         id,
         NotificationType.CONGE_SOUMIS,
         'Demande de congé : votre avis est attendu',
-        `${qui} — ${leaveType.name}, ${duree}. Avis attendu avant le ${echeance} UTC ; passé ce délai, il sera réputé favorable.`,
+        `${qui} — ${this.libelleNotification(leaveType)}, ${duree}. Avis attendu avant le ${echeance} UTC ; passé ce délai, il sera réputé favorable.`,
         `/leaves?id=${leaveRequest.id}`,
         qui,
         { libelleBouton: 'Donner mon avis' },
@@ -230,7 +239,7 @@ export class LeaveRequestsService {
     }
     // DRH : pour information (§A6.1).
     for (const id of await this.idsDecideurs(leaveRequest)) {
-      await this.notifications.notify(id, NotificationType.CONGE_SOUMIS, 'Nouvelle demande de congé (pour information)', `${qui} — ${leaveType.name}, ${duree}. Avis du chef attendu, puis votre décision.`, `/leaves?id=${leaveRequest.id}`, qui);
+      await this.notifications.notify(id, NotificationType.CONGE_SOUMIS, 'Nouvelle demande de congé (pour information)', `${qui} — ${this.libelleNotification(leaveType)}, ${duree}. Avis du chef attendu, puis votre décision.`, `/leaves?id=${leaveRequest.id}`, qui);
     }
     return this.vue(actor, leaveRequest);
   }
@@ -250,7 +259,13 @@ export class LeaveRequestsService {
     });
     const ids = [...new Set(requests.map((r) => r.avisParId).filter((x): x is string => !!x))];
     const noms = new Map((await this.prisma.user.findMany({ where: { id: { in: ids } }, select: { id: true, firstName: true, lastName: true } })).map((u) => [u.id, `${u.firstName} ${u.lastName}`]));
-    return Promise.all(requests.map((r) => this.vue(actor, r, noms)));
+    const vues = await Promise.all(requests.map((r) => this.vue(actor, r, noms)));
+    // Revue de sécurité 2026-10 : un filtre sur le type ne révèle jamais un type masqué (une ligne
+    // « motif protégé » n'apparaît pas sous le filtre « Congé maladie ») ; le motif d'un tiers ne
+    // se lit que dans le détail, où sa lecture est tracée.
+    return vues
+      .filter((v) => !filters.leaveTypeId || v.leaveTypeId === filters.leaveTypeId)
+      .map((v) => (v.userId !== actor.id && v.reason && this.medicalPrivacy.isSensitiveCode(v.leaveType.code ?? '') ? { ...v, reason: null } : v));
   }
 
   async findOneVisibleTo(actor: AuthenticatedUser, id: string): Promise<LeaveRequestView> {
@@ -307,7 +322,7 @@ export class LeaveRequestsService {
       data: { avisEtat: dto.avis, avisParId: actor.id, avisMotif: motif, avisLe: new Date() },
     });
     if (n.count === 0) throw new ConflictException('L’avis a déjà été donné.');
-    await this.audit.log({ actorId: actor.id, action: AuditAction.VALIDATION, entityType: 'LeaveRequest', entityId: id, metadata: { event: 'avis_conge', avis: dto.avis, motif } });
+    await this.audit.log({ actorId: actor.id, action: AuditAction.VALIDATION, entityType: 'LeaveRequest', entityId: id, metadata: { event: 'avis_conge', avis: dto.avis, motif: !!motif } });
     const maj = await this.getLeaveRequestOrThrow(id);
     await this.notifierDecideurs(maj, `Avis ${dto.avis === 'FAVORABLE' ? 'favorable' : 'défavorable'} du chef${motif ? ` : « ${motif} »` : ''}. Votre décision est attendue.`);
     return this.vue(actor, maj);
@@ -316,7 +331,7 @@ export class LeaveRequestsService {
   private async notifierDecideurs(r: LeaveRequestWithUser, texte: string): Promise<void> {
     const qui = `${r.user.firstName} ${r.user.lastName}`;
     for (const id of await this.idsDecideurs(r)) {
-      await this.notifications.notify(id, NotificationType.CONGE_SOUMIS, 'Congé : décision attendue', `${qui} — ${r.leaveType.name}, du ${r.startDate.toISOString().slice(0, 10)} au ${r.endDate.toISOString().slice(0, 10)}. ${texte}`, `/leaves?id=${r.id}`, qui, { libelleBouton: 'Décider' });
+      await this.notifications.notify(id, NotificationType.CONGE_SOUMIS, 'Congé : décision attendue', `${qui} — ${this.libelleNotification(r.leaveType)}, du ${r.startDate.toISOString().slice(0, 10)} au ${r.endDate.toISOString().slice(0, 10)}. ${texte}`, `/leaves?id=${r.id}`, qui, { libelleBouton: 'Décider' });
     }
   }
 
@@ -350,10 +365,10 @@ export class LeaveRequestsService {
     });
 
     await this.audit.log({ actorId: actor.id, action: AuditAction.VALIDATION, entityType: 'LeaveRequest', entityId: id, metadata: { daysCount: updated.daysCount } });
-    await this.notifications.notify(updated.userId, NotificationType.CONGE_VALIDE, 'Demande de congé approuvée', `${updated.leaveType.name} — ${updated.daysCount} jour${updated.daysCount > 1 ? 's' : ''}`, `/leaves?id=${id}`, updated.leaveType.name);
+    await this.notifications.notify(updated.userId, NotificationType.CONGE_VALIDE, 'Demande de congé approuvée', `${this.libelleNotification(updated.leaveType)} — ${updated.daysCount} jour${updated.daysCount > 1 ? 's' : ''}`, `/leaves?id=${id}`, this.libelleNotification(updated.leaveType));
     // Chef qui a donné l'avis informé de la décision.
     for (const chef of await this.avisants(updated.user)) {
-      await this.notifications.notify(chef, NotificationType.CONGE_VALIDE, 'Congé approuvé par le DRH', `${updated.user.firstName} ${updated.user.lastName} — ${updated.leaveType.name}, du ${updated.startDate.toISOString().slice(0, 10)} au ${updated.endDate.toISOString().slice(0, 10)}.`, `/leaves?id=${id}`);
+      await this.notifications.notify(chef, NotificationType.CONGE_VALIDE, 'Congé approuvé par le DRH', `${updated.user.firstName} ${updated.user.lastName} — ${this.libelleNotification(updated.leaveType)}, du ${updated.startDate.toISOString().slice(0, 10)} au ${updated.endDate.toISOString().slice(0, 10)}.`, `/leaves?id=${id}`);
     }
     return this.vue(actor, updated);
   }
@@ -366,8 +381,8 @@ export class LeaveRequestsService {
       data: { status: LeaveRequestStatus.REJETEE, approverId: actor.id, decisionComment: dto.comment, decidedAt: new Date() },
       select: LEAVE_REQUEST_SELECT,
     });
-    await this.audit.log({ actorId: actor.id, action: AuditAction.REJET, entityType: 'LeaveRequest', entityId: id, metadata: { comment: dto.comment } });
-    await this.notifications.notify(updated.userId, NotificationType.CONGE_REJETE, 'Demande de congé refusée', dto.comment, `/leaves?id=${id}`, updated.leaveType.name);
+    await this.audit.log({ actorId: actor.id, action: AuditAction.REJET, entityType: 'LeaveRequest', entityId: id, metadata: { event: 'refus_conge', commentaire: !!dto.comment } });
+    await this.notifications.notify(updated.userId, NotificationType.CONGE_REJETE, 'Demande de congé refusée', dto.comment, `/leaves?id=${id}`, this.libelleNotification(updated.leaveType));
     return this.vue(actor, updated);
   }
 
@@ -427,7 +442,7 @@ export class LeaveRequestsService {
       } else if (!r.alerteAvisAt && heuresOuvreesEntre(maintenant, r.avisEcheance!, feries) <= ALERTE_AVIS_HEURES) {
         await this.prisma.leaveRequest.update({ where: { id: r.id }, data: { alerteAvisAt: maintenant } });
         for (const id of await this.avisants(r.user)) {
-          await this.notifications.notify(id, NotificationType.CONGE_SOUMIS, 'Rappel : avis attendu sur un congé', `${qui} — ${r.leaveType.name}. Sans avis de votre part avant le ${r.avisEcheance!.toISOString().slice(0, 16).replace('T', ' ')} UTC, il sera réputé favorable.`, `/leaves?id=${r.id}`, qui, { libelleBouton: 'Donner mon avis' });
+          await this.notifications.notify(id, NotificationType.CONGE_SOUMIS, 'Rappel : avis attendu sur un congé', `${qui} — ${this.libelleNotification(r.leaveType)}. Sans avis de votre part avant le ${r.avisEcheance!.toISOString().slice(0, 16).replace('T', ' ')} UTC, il sera réputé favorable.`, `/leaves?id=${r.id}`, qui, { libelleBouton: 'Donner mon avis' });
         }
         bilan.alertes++;
       }

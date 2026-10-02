@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { API_BASE_URL, issueSessionResponse } from '../../../../lib/auth/session-proxy.server';
+import { API_BASE_URL, entetesClient, issueSessionResponse } from '../../../../lib/auth/session-proxy.server';
 
 /**
  * Proxy de POST /auth/login. La réponse amont peut être :
@@ -13,7 +13,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   const upstream = await fetch(`${API_BASE_URL}/auth/login`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...entetesClient(req) },
     body: JSON.stringify(credentials),
   });
   const upstreamBody = await upstream.json();

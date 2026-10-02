@@ -17,14 +17,16 @@ async function code(secret) {
   if (reste <= 2) await new Promise((r) => setTimeout(r, (reste + 0.5) * 1000));
   return authenticator.generate(secret);
 }
-async function http(method, path, body, token) {
-  const h = { 'Content-Type': 'application/json' };
+async function http(method, path, body, token, entetes = {}) {
+  const h = { 'Content-Type': 'application/json', ...entetes };
   if (token) h.Authorization = 'Bearer ' + token;
   const r = await fetch(API + path, { method, headers: h, body: body ? JSON.stringify(body) : undefined });
   const t = await r.text(); let j; try { j = JSON.parse(t); } catch { j = t; }
   return { status: r.status, body: j };
 }
 const connexion = () => http('POST', '/auth/login', { email: EMAIL, password: 'Password123!' });
+/** Preuve de réauthentification (mot de passe) exigée pour configurer la 2FA depuis une session. */
+const preuve = async (tok) => ({ 'X-Reauth': (await http('POST', '/api/v1/reauthentification', { motDePasse: 'Password123!' }, tok)).body.preuve });
 
 (async () => {
   void E;
@@ -37,14 +39,17 @@ const connexion = () => http('POST', '/auth/login', { email: EMAIL, password: 'P
   console.log('— Activation');
   check('état initial : désactivée', (await http('GET', '/auth/2fa/status', null, tok)).body.enabled === false);
   expect('activer sans configuration', await http('POST', '/auth/2fa/activate', { code: '123456' }, tok), 409);
-  const conf = await http('POST', '/auth/2fa/setup', null, tok);
+  const sansPreuve = await http('POST', '/auth/2fa/setup', null, tok);
+  check('configuration sans mot de passe : refusée (403 REAUTH_REQUISE) — un jeton volé ne suffit pas', sansPreuve.status === 403 && sansPreuve.body.code === 'REAUTH_REQUISE', sansPreuve.status);
+  expect('parcours « enable » (ouvre une session) avec un jeton d’accès : refusé', await http('POST', '/auth/2fa/enable', { code: '123456' }, tok), 409);
+  const conf = await http('POST', '/auth/2fa/setup', null, tok, await preuve(tok));
   check('configuration : secret et QR code', conf.status === 201 && !!conf.body.secret && /^data:image\/png;base64,/.test(conf.body.qrCodeDataUrl));
   check('état : en attente, pas encore active', JSON.stringify((await http('GET', '/auth/2fa/status', null, tok)).body) === JSON.stringify({ enabled: false, pending: true }));
   expect('activation avec un code faux', await http('POST', '/auth/2fa/activate', { code: '000000' }, tok), 401);
   expect('activation sans session', await http('POST', '/auth/2fa/activate', { code: await code(conf.body.secret) }), 401);
   expect('activation avec le bon code', await http('POST', '/auth/2fa/activate', { code: await code(conf.body.secret) }, tok), 200);
   check('état : activée', (await http('GET', '/auth/2fa/status', null, tok)).body.enabled === true);
-  expect('reconfiguration une fois active (bloquerait le compte)', await http('POST', '/auth/2fa/setup', null, tok), 409);
+  expect('reconfiguration une fois active (bloquerait le compte)', await http('POST', '/auth/2fa/setup', null, tok, await preuve(tok)), 409);
   expect('seconde activation', await http('POST', '/auth/2fa/activate', { code: await code(conf.body.secret) }, tok), 409);
   check('activation tracée dans le journal', (await prisma.auditLog.count({ where: { entityId: u.body.id, metadata: { path: ['event'], equals: 'two_fa_enabled' } } })) === 1);
 
@@ -69,7 +74,7 @@ const connexion = () => http('POST', '/auth/login', { email: EMAIL, password: 'P
   tok = s.accessToken;
 
   console.log('— Réinitialisation par l’administrateur (téléphone perdu)');
-  const conf2 = (await http('POST', '/auth/2fa/setup', null, tok)).body;
+  const conf2 = (await http('POST', '/auth/2fa/setup', null, tok, await preuve(tok))).body;
   await http('POST', '/auth/2fa/activate', { code: await code(conf2.secret) }, tok);
   const c3 = (await connexion()).body;
   const session = (await http('POST', '/auth/login/2fa', { challengeToken: c3.challengeToken, code: await code(conf2.secret) })).body;

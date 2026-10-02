@@ -1,3 +1,4 @@
+import { typeServi } from '../common/storage/type-servi';
 import {
   Body,
   Controller,
@@ -81,7 +82,7 @@ export class DocumentsController {
   ): Promise<StreamableFile> {
     const f = await this.documentsService.downloadVersion(actor, id, versionId);
     res.set({
-      'Content-Type': f.mimeType,
+      'Content-Type': typeServi(f.mimeType),
       'Content-Disposition': `attachment; filename="${encodeURIComponent(f.fileName)}"`,
       'X-Statut-Diffusion': f.statut,
     });

@@ -1,3 +1,4 @@
+import { typeServi } from '../common/storage/type-servi';
 import { memoryStorage } from 'multer';
 import type { Response } from 'express';
 import { StreamableFile } from '@nestjs/common';
@@ -11,7 +12,7 @@ export function envoyerFichier(
   f: { piece: { mimeType: string; fileName: string }; stream: NodeJS.ReadableStream },
 ): StreamableFile {
   res.set({
-    'Content-Type': f.piece.mimeType,
+    'Content-Type': typeServi(f.piece.mimeType),
     'Content-Disposition': `attachment; filename="${encodeURIComponent(f.piece.fileName)}"`,
   });
   return new StreamableFile(f.stream as never);

@@ -1,4 +1,4 @@
-import { IsDateString, IsEnum, IsOptional, IsString } from 'class-validator';
+import { IsDateString, IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
 import { DocumentCategory, DocumentVisibility, StatutDiffusion, TypeDocument } from '@prisma/client';
 
 /** Filtres de GET /documents (RF-GED-05 : division, date, type). Combinés en ET avec
@@ -34,6 +34,7 @@ export class DocumentFiltersDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(100)
   q?: string;
 
   // Socle N4 — type, statut de diffusion, objet d'origine.

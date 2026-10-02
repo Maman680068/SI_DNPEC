@@ -1,3 +1,4 @@
+import { adresseClient } from '../common/security/client-ip';
 import {
   Body,
   Controller,
@@ -27,7 +28,7 @@ import { ResetPasswordDto } from './dto/reset-password.dto';
 import { OuvertAuxStagiaires } from '../common/decorators/ouvert-aux-stagiaires.decorator';
 
 function clientIp(req: Request): string {
-  return req.ip ?? 'unknown';
+  return adresseClient(req).ip;
 }
 
 @OuvertAuxStagiaires()
@@ -62,8 +63,8 @@ export class AuthController {
   @Public()
   @HttpCode(HttpStatus.OK)
   @Post('forgot-password')
-  forgotPassword(@Body() dto: ForgotPasswordDto) {
-    return this.authService.forgotPassword(dto.email);
+  forgotPassword(@Body() dto: ForgotPasswordDto, @Req() req: Request) {
+    return this.authService.forgotPassword(dto.email, clientIp(req));
   }
 
   @Public()
@@ -77,14 +78,16 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @Post('login')
   login(@Body() dto: LoginDto, @Req() req: Request) {
-    return this.authService.login(dto, clientIp(req), req.headers['user-agent']);
+    const { ip, fiable } = adresseClient(req);
+    return this.authService.login(dto, ip, req.headers['user-agent'], fiable);
   }
 
   @Public()
   @HttpCode(HttpStatus.OK)
   @Post('login/2fa')
   loginTwoFa(@Body() dto: LoginTwoFaDto, @Req() req: Request) {
-    return this.authService.loginTwoFa(dto, clientIp(req), req.headers['user-agent']);
+    const { ip, fiable } = adresseClient(req);
+    return this.authService.loginTwoFa(dto, ip, req.headers['user-agent'], fiable);
   }
 
   // @Public() : accepte un access token normal (opt-in) ou un jeton "2FA
@@ -126,6 +129,9 @@ export class AuthController {
     return this.authService.refresh(dto.refreshToken);
   }
 
+  // Publique (revue de sécurité 2026-10) : le web déconnecte sans jeton d'accès, avec le seul jeton
+  // de renouvellement de son cookie ; sa possession suffit à révoquer la session qu'il désigne.
+  @Public()
   @HttpCode(HttpStatus.NO_CONTENT)
   @Post('logout')
   async logout(@Body() dto: RefreshTokenDto): Promise<void> {

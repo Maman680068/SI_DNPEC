@@ -1,4 +1,4 @@
-import { IsEmail, IsIn, IsOptional, IsString, MinLength } from 'class-validator';
+import { IsEmail, IsIn, IsOptional, IsString, MinLength, MaxLength } from 'class-validator';
 
 // Postes déclarables à l'inscription (User.declaredRole) — délibérément une
 // simple liste de chaînes, pas le SystemRole importé du client Prisma : ce
@@ -20,6 +20,7 @@ export class RegisterDto {
 
   @IsString()
   @MinLength(8, { message: 'Le mot de passe doit contenir au moins 8 caractères' })
+  @MaxLength(200, { message: 'Mot de passe trop long (200 caractères au plus).' })
   password!: string;
 
   @IsString()
