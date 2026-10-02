@@ -20,4 +20,19 @@ export async function issueSessionResponse(accessToken: string, refreshToken: st
   return res;
 }
 
+/** En-têtes qui transmettent à l'API l'adresse et le navigateur du client d'une connexion relayée
+ * (revue de sécurité 2026-10) : sans eux, toutes les connexions viendraient de l'adresse du
+ * serveur web, et quelques échecs verrouilleraient tout le monde. L'API ne croit l'adresse
+ * transmise qu'avec le secret partagé WEB_PROXY_SECRET (voir apps/api/src/common/security/client-ip.ts). */
+export function entetesClient(req: Request): Record<string, string> {
+  const ip = (req.headers.get('x-forwarded-for') ?? '').split(',')[0]?.trim();
+  // Adresse inconnue : l'en-tête part sans le secret, et l'API n'applique alors que le
+  // verrouillage par compte (jamais un verrou commun à toutes les connexions).
+  const h: Record<string, string> = { 'X-Client-IP': ip || 'inconnue' };
+  const navigateur = req.headers.get('user-agent');
+  if (navigateur) h['User-Agent'] = navigateur;
+  if (ip && process.env.WEB_PROXY_SECRET) h['X-Proxy-Secret'] = process.env.WEB_PROXY_SECRET;
+  return h;
+}
+
 export { API_BASE_URL };

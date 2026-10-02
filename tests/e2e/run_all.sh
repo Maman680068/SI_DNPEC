@@ -17,6 +17,10 @@ if [ -z "${DATABASE_URL:-}" ] && [ -f "$API/.env" ]; then set -a; . "$API/.env";
 bash "$ICI/scripts/garde-locale.sh" || exit 1
 export JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET:-secret-de-test-e2e-uniquement-local}
 export JWT_ACCESS_EXPIRES_IN=${JWT_ACCESS_EXPIRES_IN:-2h}
+# Secret partagé web → API (adresse du client des connexions relayées, revue de sécurité 2026-10).
+export WEB_PROXY_SECRET=${WEB_PROXY_SECRET:-secret-proxy-e2e-uniquement-local}
+# Corps des emails non envoyés écrit dans le journal de l'API (les suites y lisent les liens).
+export EMAIL_JOURNAL_CORPS=1
 export WEB_APP_URL=${WEB_APP_URL:-http://localhost:3100}
 # CORS strict comme en production (jamais « toute origine ») : l'adresse du web saisie avec
 # une barre finale et des espaces, plus une seconde origine — l'API doit la normaliser.
@@ -139,6 +143,8 @@ lancer "38k. CHROMIUM — SOCLE N5 : PLAN DE TRAVAIL, RECHERCHE, FIL, PRÉFÉREN
 lancer "38l. SOCLE N6 : EFFECTIFS ET ALERTES RH, CARRIÈRE ET ACTES, FICHES DE POSTE, FORMATION, VÉHICULES, TABLEAU DE BORD PAR RÔLE" api/n6_rh.js
 lancer "38m. CHROMIUM — SOCLE N6 : RESSOURCES HUMAINES, VÉHICULES, TABLEAU DE BORD PAR RÔLE (BUREAU, TÉLÉPHONE)" ui/n6_rh_ui.js
 lancer "38n. CHROMIUM — ACCESSIBILITÉ WCAG 2.1 AA DES ÉCRANS PRINCIPAUX (AXE, BUREAU, TÉLÉPHONE)" ui/n6_accessibilite_ui.js
+lancer "38o. SÉCURITÉ : ROUTES PUBLIQUES, 401 SANS JETON, JETON FORGÉ, EXPIRÉ OU NON SIGNÉ, INVENTAIRE DES GARDES" api/s1_routes.js
+lancer "38p. SÉCURITÉ : CONGÉS MALADIE, VERROU PAR IP, DÉCONNEXION, QUOTAS, 2FA, LIENS DE RÉINITIALISATION, SESSIONS, TÉLÉCHARGEMENTS, EN-TÊTES" api/s2_securite.js
 # Liens : après toutes les suites, pour contrôler aussi les notifications et emails réellement produits.
 lancer "39a. LIENS DE L'API VERS LE WEB (CODE, NOTIFICATIONS, EMAILS) ET ANCIENS FORMATS" api/i_liens.js
 lancer "39b. CHROMIUM — ANCIENS LIENS (CONNECTÉ, NON CONNECTÉ) ET PAGE 404" ui/i_liens_ui.js
