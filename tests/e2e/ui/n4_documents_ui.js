@@ -21,7 +21,7 @@ const sansDefilementHorizontal = (p) => p.evaluate(() => document.documentElemen
   let p = await loginPage(b, 'agent1');
   await p.goto(`${WEB}/documents`);
   await p.getByRole('button', { name: '+ Nouveau document' }).click();
-  await p.getByLabel('Titre').fill(`Note N4 ${S}`);
+  await p.getByLabel('Titre', { exact: true }).fill(`Note N4 ${S}`);
   const envoyer = p.getByRole('button', { name: 'Envoyer' });
   await p.getByLabel('Fichier').setInputFiles(fichier);
   check('sans type ni période : envoi impossible', await envoyer.isDisabled());
@@ -59,7 +59,7 @@ const sansDefilementHorizontal = (p) => p.evaluate(() => document.documentElemen
   await issus.waitFor();
   await issus.getByRole('button', { name: 'Déposer un document' }).click();
   check('formulaire prérempli : « Issu de : tâche … »', new RegExp(`Synthèse N4 ${S}`).test(await p.locator('[data-testid=source-depot]').innerText()));
-  await p.getByLabel('Titre').fill(`Livrable ${S}`);
+  await p.getByLabel('Titre', { exact: true }).fill(`Livrable ${S}`);
   await p.locator('#doc-type').selectOption('RAPPORT');
   await p.getByLabel('Fichier').setInputFiles(fichier);
   await p.getByRole('button', { name: 'Envoyer' }).click();
@@ -129,7 +129,7 @@ const sansDefilementHorizontal = (p) => p.evaluate(() => document.documentElemen
   await p.getByRole('button', { name: 'Mon espace cellule' }).waitFor();
   check('agent de cellule : onglet « Mon espace cellule », espace de sa cellule', /Cellule :/.test(await p.locator('body').innerText()));
   await p.getByRole('button', { name: '+ Nouveau document' }).click();
-  await p.getByLabel('Titre').fill(`Note SAF ${S}`);
+  await p.getByLabel('Titre', { exact: true }).fill(`Note SAF ${S}`);
   await p.getByLabel('Fichier').setInputFiles(fichier);
   await p.locator('#doc-type').selectOption('NOTE_TECHNIQUE');
   await p.locator('#doc-debut').fill('2026-07-01');
