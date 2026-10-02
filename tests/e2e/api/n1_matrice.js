@@ -4,7 +4,7 @@
 //   CONFORME — le comportement est celui de l'annexe ;
 //   ÉCART    — comportement actuel conservé en N1 (décision du 4e point de validation N1),
 //              vérifié tel quel pour qu'aucune régression ne passe inaperçue, et aligné plus tard ;
-//   LOT      — objet livré par un lot ultérieur (N2, N3, N5, N6) ou hors périmètre : non joué ici.
+//   LOT      — objet hors périmètre (rémunération, modélisation) : non joué ici.
 // Le tableau complet est écrit dans $E2E_OUT/matrice_n1.md (repris dans docs/NIMBA_matrice_N1.md).
 const fs = require('fs');
 const path = require('path');
@@ -31,7 +31,6 @@ async function caseMatrice({ objet, profil, action, annexe, appel, attendu, ecar
 }
 
 const LOTS = [
-  ['Mouvement de carrière et acte RH, effectifs et alertes RH', 'N6'],
   ['Campagne et bulletin de paie, élément de rémunération, ordre de paiement', 'hors périmètre (D5, finances SAF)'],
   ['Objets du domaine modélisation (annexe 1.3)', 'hors périmètre (domaine B)'],
 ];
@@ -258,9 +257,47 @@ const LOTS = [
   }
   await call('chefssr', 'POST', `/api/v1/instructions/${ins.id}/rejet`, { motif: 'Instruction de test de la matrice.' });
 
+  console.log('— Ressources humaines (N6) : effectifs (DRH, Direction), alertes et mouvements (DRH), fiches de poste (tous), formation (chefs, Direction, DRH)');
+  for (const profil of Object.keys(PROFILS)) {
+    const lit = ['drh', 'dn', 'dna'].includes(profil);
+    await caseMatrice({ objet: 'Effectifs RH', profil, action: 'lire', annexe: lit ? 'L (DRH, DN, DNA)' : '—', attendu: lit, appel: () => call(profil, 'GET', '/api/v1/rh/effectifs') });
+  }
+  for (const profil of Object.keys(PROFILS)) {
+    await caseMatrice({ objet: 'Alertes RH', profil, action: 'lire (elles nomment des agents)', annexe: profil === 'drh' ? 'L (DRH)' : '—', attendu: profil === 'drh', appel: () => call(profil, 'GET', '/api/v1/rh/alertes') });
+  }
+  for (const profil of Object.keys(PROFILS)) {
+    const prepare = profil === 'drh';
+    let mv;
+    await caseMatrice({
+      objet: 'Mouvement de carrière', profil, action: 'préparer (acte du Courrier signé par la Direction)', annexe: prepare ? 'C (DRH)' : '—', attendu: prepare,
+      appel: async () => (mv = await call(profil, 'POST', '/api/v1/rh/mouvements', { userId: ids.agent2, type: 'MUTATION', dateEffet: new Date().toISOString().slice(0, 10), apres: { divisionId: ids.DEE } })),
+    });
+    if (prepare && mv.body && mv.body.id) await call('drh', 'POST', `/api/v1/rh/mouvements/${mv.body.id}/annulation`);
+  }
+  for (const profil of Object.keys(PROFILS)) {
+    const lit = ['drh', 'dn', 'dna'].includes(profil);
+    await caseMatrice({ objet: 'Mouvement de carrière', profil, action: 'lire ceux d’un autre agent', annexe: lit ? 'L (DRH, DN, DNA ; l’agent : les siens, appliqués)' : '—', attendu: lit, appel: () => call(profil, 'GET', `/api/v1/rh/mouvements?userId=${ids.agent2}`) });
+  }
+  for (const profil of Object.keys(PROFILS)) {
+    await caseMatrice({ objet: 'Fiche de poste', profil, action: 'lire', annexe: 'L (tous)', attendu: true, appel: () => call(profil, 'GET', '/api/v1/rh/fiches-poste') });
+    const cree = profil === 'drh';
+    await caseMatrice({
+      objet: 'Fiche de poste', profil, action: 'rédiger', annexe: cree ? 'CLM (DRH)' : '—', attendu: cree,
+      appel: () => call(profil, 'POST', '/api/v1/rh/fiches-poste', { fonction: `Matrice ${S} ${profil}`, missions: 'Fiche de poste de la matrice.' }),
+    });
+  }
+  for (const profil of Object.keys(PROFILS)) {
+    const lit = ['drh', 'dn', 'dna', 'chefdpe', 'chefssr', 'chefsaf'].includes(profil);
+    await caseMatrice({ objet: 'Besoin de formation', profil, action: 'lire (son unité ; tout pour le DRH)', annexe: lit ? 'L(P) — chefs, Direction, DRH' : '—', attendu: lit, appel: () => call(profil, 'GET', `/api/v1/rh/formation?annee=${new Date().getFullYear()}`) });
+  }
+  for (const profil of Object.keys(PROFILS)) {
+    await caseMatrice({ objet: 'Véhicule de service', profil, action: 'lire le parc', annexe: 'L (tous)', attendu: true, appel: () => call(profil, 'GET', '/api/v1/vehicules') });
+    await caseMatrice({ objet: 'Tableau de bord par rôle', profil, action: 'lire le sien', annexe: 'L (chacun, jamais plus que ses écrans)', attendu: true, appel: () => call(profil, 'GET', '/api/v1/tableau-de-bord') });
+  }
+
   // Rapport lisible : tableau des cases jouées + objets renvoyés à un lot ultérieur.
   const md = [
-    '# Matrice des habilitations — état N5',
+    '# Matrice des habilitations — état N6',
     '',
     'Généré par `tests/e2e/api/n1_matrice.js` (annexe 1 du cahier NIMBA v2.2). « ÉCART » : comportement actuel conservé en N1 et vérifié tel quel.',
     '',

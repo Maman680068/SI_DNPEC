@@ -62,6 +62,15 @@
             "Icône 🔔 en bas du menu → « Préférences de notification » : heure du résumé, ou « Tout immédiatement »."
           ],
           "capture": "recherche.png"
+        },
+        {
+          "titre": "Mon tableau de bord",
+          "etapes": [
+            "Le tableau de bord s’adapte à votre rôle : vos tâches en tête, puis votre solde de congés, vos demandes en cours et les réunions des 7 prochains jours.",
+            "Un chef y voit en plus les absences de son équipe pour les 7 prochains jours, les demandes de congé qui attendent son avis et les activités du plan dont il est responsable ; la Direction, l’avancement du plan de travail, les décisions de réunion et les instructions ouvertes ; le DRH, les alertes RH et les congés à décider.",
+            "« Ouvrir » mène à l’écran du bloc. Les absences n’indiquent jamais le motif médical : seul l’écran Congés le montre, à ceux qui ont le droit de le voir."
+          ],
+          "capture": "tableau-de-bord.png"
         }
       ]
     },
@@ -143,6 +152,13 @@
             "Sous chaque message : « Lu par … le … » pour chaque destinataire."
           ],
           "capture": "fils.png"
+        },
+        {
+          "titre": "Ma carrière et ma fiche de poste",
+          "etapes": [
+            "Personnel → « Ressources humaines » → « Carrière et actes » : vos nominations, avancements, promotions et mutations, une fois l’acte signé par le DN ou la DNA, avec son numéro.",
+            "Onglet « Fiches de poste » : missions, activités et compétences attendues pour chaque fonction de la DNPEC."
+          ]
         }
       ]
     },
@@ -208,6 +224,13 @@
             "Vous êtes prévenu quand une tâche d’un agent de la section dépasse son échéance. Le rapport d’activité (Documents générés) reprend les activités du plan."
           ],
           "capture": "plan-travail.png"
+        },
+        {
+          "titre": "Besoins de formation",
+          "etapes": [
+            "Personnel → « Ressources humaines » → « Formation » → « + Exprimer un besoin » : intitulé, priorité, origine (entretien, plan de travail…) et nombre d’agents concernés.",
+            "Le DRH consolide les besoins de toutes les unités et décide : « Retenu » dans le plan de formation, « Réalisé » ou « Écarté ». Vous voyez les besoins de votre unité et leur statut."
+          ]
         }
       ]
     },
@@ -269,6 +292,13 @@
             "Les tâches en retard de vos agents directs vous sont signalées une fois, le lendemain de l’échéance."
           ],
           "capture": "plan-travail.png"
+        },
+        {
+          "titre": "Besoins de formation",
+          "etapes": [
+            "Personnel → « Ressources humaines » → « Formation » → « + Exprimer un besoin » : intitulé, priorité, origine (entretien, plan de travail…) et nombre d’agents concernés.",
+            "Le DRH consolide les besoins de toutes les unités et décide : « Retenu » dans le plan de formation, « Réalisé » ou « Écarté ». Vous voyez les besoins de votre unité et leur statut."
+          ]
         }
       ]
     },
@@ -332,6 +362,14 @@
             "Plan de travail : vous gérez les objectifs de toute la Direction et de chaque unité."
           ],
           "capture": "instructions.png"
+        },
+        {
+          "titre": "Effectifs et actes RH",
+          "etapes": [
+            "Personnel → « Ressources humaines » → « Effectifs » : agents actifs par unité, statut et catégorie, calculés à partir des dossiers.",
+            "Les mouvements de carrière préparés par le DRH arrivent dans le Courrier comme des actes à viser et signer : le dossier de l’agent n’est modifié qu’à votre signature, et vous êtes prévenu de son application.",
+            "Onglet « Carrière et actes » : chaque famille d’actes (arrêté d’affectation, décision de nomination, d’avancement…) a sa séquence de numéros (son registre du Courrier) et son signataire."
+          ]
         }
       ]
     },
@@ -463,6 +501,32 @@
             "Instruction RH de la Direction : Général → « Instructions » → « Prendre en compte », préparez puis faites signer l’acte, enfin « Marquer exécutée » en choisissant l’acte signé."
           ],
           "capture": "documents-generes.png"
+        },
+        {
+          "titre": "Effectifs et alertes RH",
+          "etapes": [
+            "Personnel → « Ressources humaines » → « Effectifs » : répartition par unité, statut et catégorie.",
+            "Onglet « Alertes » : fins de contrat et de stage proches, avancements d’échelon à instruire (ancienneté réglée dans Paramétrage), dossiers incomplets selon la liste des pièces requises. Une alerte disparaît d’elle-même quand sa cause est réglée.",
+            "Onglet « Pièces requises » : la liste des pièces attendues dans chaque dossier ; en déposant une pièce dans un dossier, choisissez la pièce requise qu’elle remplit."
+          ],
+          "capture": "rh-effectifs.png"
+        },
+        {
+          "titre": "Carrière et actes",
+          "etapes": [
+            "Avant le premier mouvement : choisissez dans « Familles d’actes » le registre du Courrier de chaque famille (sa séquence de numéros).",
+            "« + Nouveau mouvement » : l’agent, le type (nomination, avancement d’échelon, promotion, mutation, fin de contrat), la date d’effet et la nouvelle valeur → « Préparer le mouvement ».",
+            "« Préparer l’acte » : l’acte est créé dans le Courrier, avec la décision jointe, et suit le circuit de visa et de signature. Le dossier n’est modifié qu’à la signature par le DN ou la DNA ; l’agent est prévenu.",
+            "Une mutation ne concerne qu’un chargé d’études ; pour un chef, un assistant ou un stagiaire, passez par le changement de rôle (Organisation)."
+          ],
+          "capture": "rh-carriere.png"
+        },
+        {
+          "titre": "Fiches de poste et plan de formation",
+          "etapes": [
+            "Onglet « Fiches de poste » → « + Nouvelle fiche de poste » : une fiche par fonction (missions, activités, compétences), lisible par tout le personnel.",
+            "Onglet « Formation » : les besoins exprimés par les chefs d’unité ; choisissez « Retenu » pour les inscrire au plan de formation de l’année, puis « Réalisé »."
+          ]
         }
       ]
     },
@@ -499,6 +563,15 @@
             "« À valider » : acceptez ou refusez (motif) les réservations en attente."
           ],
           "capture": "reservations.png"
+        },
+        {
+          "titre": "Véhicules et carburant",
+          "etapes": [
+            "Logistique → onglet « Véhicules » → « + Nouveau véhicule » : immatriculation, marque, modèle, énergie et compteur.",
+            "Cliquez sur un véhicule : son état (en service, en panne, en réparation, réformé), ses pleins et sa consommation en litres aux 100 km. Un plein se saisit en litres avec le compteur, qui ne peut jamais reculer ; il peut être rattaché à une mission du véhicule.",
+            "Sous « Ordres de mission » : choisissez le véhicule de chaque mission (un véhicule ne sert pas à deux missions en même temps), puis « Enregistrer le retour » avec le compteur au retour. Le véhicule apparaît sur l’ordre de mission dans « Documents générés »."
+          ],
+          "capture": "vehicules.png"
         }
       ]
     },

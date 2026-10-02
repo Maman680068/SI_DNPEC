@@ -77,12 +77,15 @@ import { DemandesLogistiqueService } from '../src/logistique/demandes.service';
 import { ReservationsService } from '../src/logistique/reservations.service';
 import { PlanTravailService } from '../src/plan-travail/plan-travail.service';
 import { FilsService } from '../src/collaboration/fils.service';
+import { ReferentielRhService } from '../src/rh/referentiel-rh.service';
+import { VehiculesService } from '../src/logistique/vehicules.service';
 import { DOMAINE_DEMO, DUREE_DEMO_JOURS, ENTITE_AUDIT_DEMO, PREFIXE_DEMO, estAdresseDemo } from '../src/demo/demo.constantes';
 import { verifierMigrations } from './verifier-migrations';
 import { rolesActifs } from '../src/socle/roles-fonctionnels';
 import { ReprisesN1Service } from '../src/socle/reprise-n1.service';
 
 const T = PREFIXE_DEMO; // « TEST — »
+const IMMATRICULATION_DEMO = 'TEST 0001 DM'; // véhicule de démonstration (N6)
 const FICHIER_DEMO = 'demo-document-dnpec.pdf';
 const J = 24 * 3600 * 1000;
 
@@ -591,6 +594,35 @@ async function pilotage(ctx: Ctx) {
   );
 }
 
+/** Socle N6 : véhicule de service (carburant en litres, relié à l'ordre de mission N4), fiche de
+ * poste, besoin de formation. Pas de mouvement de carrière : ses actes iraient dans les registres
+ * réels des familles d'actes RH. */
+async function ressourcesHumaines(ctx: Ctx) {
+  const { prisma, app, u } = ctx;
+  await bloc(
+    'Véhicule de service (N6 : 2 pleins en litres, affecté à l’ordre de mission N4)',
+    async () => (await prisma.vehicule.count({ where: { immatriculation: IMMATRICULATION_DEMO } })) > 0,
+    async () => {
+      const svc = app.get(VehiculesService);
+      const gestionnaire = await acteur(prisma, u.logistique!.id);
+      const v = await svc.creer(gestionnaire, { immatriculation: IMMATRICULATION_DEMO, marque: 'Toyota', modele: 'Hilux (TEST)', energie: 'GAZOLE', kilometrage: 58000 } as never);
+      await svc.ajouterPlein(gestionnaire, v.id, { date: dateSeule(-12), litres: 55, kilometrage: 58200 } as never);
+      await svc.ajouterPlein(gestionnaire, v.id, { date: dateSeule(-2), litres: 48, kilometrage: 58800 } as never);
+      const om = await prisma.ordreMission.findFirst({ where: { agentId: u.agent1!.id }, orderBy: { createdAt: 'desc' } });
+      if (om) await svc.affecter(gestionnaire, om.id, { vehiculeId: v.id } as never);
+    },
+  );
+  await bloc(
+    'Fiche de poste (N6 : rédigée par le DRH) et besoin de formation (N6 : exprimé par le chef de division)',
+    async () => (await prisma.fichePoste.count({ where: { fonction: { startsWith: T } } })) > 0,
+    async () => {
+      const rh = app.get(ReferentielRhService);
+      await rh.enregistrerFiche(await acteur(prisma, u.systeme!.id), { fonction: `${T}Chargé d’études — conjoncture`, missions: 'Suivre les indicateurs de conjoncture et rédiger les notes trimestrielles.', activites: 'Collecte, analyse, rédaction.', competences: 'Statistique, économétrie, rédaction.' } as never);
+      await rh.exprimer(await acteur(prisma, u.chefDivision!.id), { annee: new Date().getUTCFullYear(), intitule: `${T}Modélisation macroéconomique`, priorite: 'HAUTE', origine: 'PLAN_TRAVAIL', effectif: 3 } as never);
+    },
+  );
+}
+
 async function suppleance(ctx: Ctx) {
   const { prisma, app, u } = ctx;
   await bloc(
@@ -822,6 +854,12 @@ async function supprimer(prisma: PrismaClient) {
   n('Fils de discussion', await prisma.filMessages.deleteMany({ where: { creeParId: { in: U } } }));
   await prisma.preferenceNotification.deleteMany({ where: { userId: { in: U } } });
   n('Instructions', await prisma.instruction.deleteMany({ where: { OR: [{ emetteurId: { in: U } }, { destinataireId: { in: U } }, { agentConcerneId: { in: U } }] } }));
+  // Socle N6 : pleins puis véhicule de démonstration (l'ordre de mission perd son véhicule), fiche de
+  // poste et besoins de formation marqués « TEST — » ou exprimés par un compte de démonstration.
+  n('Pleins de carburant', await prisma.pleinCarburant.deleteMany({ where: { vehicule: { immatriculation: IMMATRICULATION_DEMO } } }));
+  n('Véhicules', await prisma.vehicule.deleteMany({ where: { immatriculation: IMMATRICULATION_DEMO } }));
+  n('Fiches de poste', await prisma.fichePoste.deleteMany({ where: { fonction: { startsWith: T } } }));
+  n('Besoins de formation', await prisma.besoinFormation.deleteMany({ where: { OR: [{ creeParId: { in: U } }, { intitule: { startsWith: T } }] } }));
   // Réunions (participants, décisions : cascade).
   n('Réunions', await prisma.meeting.deleteMany({ where: { createdById: { in: U } } }));
   // Congés et soldes.
@@ -1014,6 +1052,7 @@ async function main() {
         await dossiers(ctx);
         await courrier(ctx);
         await stage(ctx);
+        await ressourcesHumaines(ctx);
         console.log(
           directionReelle
             ? `\nVue Direction : compte RÉEL ${directionReelle.email} (${directionReelle.role}) — aucun DN de démonstration créé.`

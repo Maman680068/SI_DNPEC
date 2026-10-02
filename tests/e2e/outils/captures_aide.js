@@ -100,6 +100,9 @@ async function capture(b, compte, url, fichier, attendre) {
   await capture(b, 'agent1', `/communication?fil=${fil.id}`, 'fils.png', async (p) => p.locator('[data-testid=message-fil]').nth(1).waitFor());
   await capture(b, 'agent1', '/recherche?q=trimestriels', 'recherche.png', async (p) => p.locator('[data-testid=categorie-taches] a').first().waitFor());
   await capture(b, 'dn', `/instructions?id=${ins.id}`, 'instructions.png', async (p) => p.locator('[data-testid=fiche-instruction]').waitFor());
+  await capture(b, 'drh', '/rh?onglet=effectifs', 'rh-effectifs.png', async (p) => p.locator('[data-testid=effectifs]').waitFor());
+  await capture(b, 'drh', '/rh?onglet=carriere', 'rh-carriere.png', async (p) => p.locator('[data-testid=familles-actes]').waitFor());
+  await capture(b, 'agentsaf', '/logistique?onglet=vehicules', 'vehicules.png', async (p) => p.locator('[data-testid=vehicule]').first().waitFor());
   if (stagiaire) await capture(b, stagiaire.email.replace('@test.local', ''), '/stages', 'mon-stage.png', async (p) => p.waitForURL('**/stages/**'));
   await b.close(); await prisma.$disconnect();
 })().catch((e) => { console.error(e); process.exit(1); });

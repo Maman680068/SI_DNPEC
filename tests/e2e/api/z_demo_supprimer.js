@@ -34,6 +34,10 @@ const demo = { email: { endsWith: `@${D.DOMAINE}` } };
     typesCongéTEST: await prisma.leaveType.count({ where: { name: { startsWith: 'TEST — ' } } }),
     objectifsPlan: await prisma.objectif.count({ where: { libelle: { startsWith: 'TEST — ' } } }),
     filsDiscussion: await prisma.filMessages.count({ where: { objet: { startsWith: 'TEST — ' } } }),
+    véhiculesTEST: await prisma.vehicule.count({ where: { immatriculation: 'TEST 0001 DM' } }),
+    pleinsTEST: await prisma.pleinCarburant.count({ where: { vehicule: { immatriculation: 'TEST 0001 DM' } } }),
+    fichesPosteTEST: await prisma.fichePoste.count({ where: { fonction: { startsWith: 'TEST — ' } } }),
+    besoinsFormationTEST: await prisma.besoinFormation.count({ where: { intitule: { startsWith: 'TEST — ' } } }),
     actesNonNumérotés: await prisma.acteCourrier.count({ where: { registre: { code: 'TEST-DEP' }, numero: null } }),
   };
   for (const [k, v] of Object.entries(zero)) check(`${k} : 0`, v === 0, `${v}`);
