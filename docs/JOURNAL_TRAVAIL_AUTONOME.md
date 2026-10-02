@@ -13,10 +13,11 @@ branche de production ni de Render ; une branche et une PR par chantier, basées
 | PR | Branche | Objet | Migration | CI |
 |---|---|---|---|---|
 | [#16](https://github.com/Maman680068/SI_DNPEC/pull/16) | `feature/socle-nimba-n6` | Socle NIMBA N6 | `20261003080000_socle_nimba_n6` | **verte** (f8f0b38) |
-| [#17](https://github.com/Maman680068/SI_DNPEC/pull/17) | `feature/conception-domaine-b` | Conception du domaine B (document) | aucune | en cours |
-| [#18](https://github.com/Maman680068/SI_DNPEC/pull/18) | `feature/revue-securite` | Revue de sécurité | aucune (variable Render `WEB_PROXY_SECRET`) | en cours |
-| [#19](https://github.com/Maman680068/SI_DNPEC/pull/19) | `feature/exploitation` | Exploitation et reprise après incident | aucune | en cours |
-| [#20](https://github.com/Maman680068/SI_DNPEC/pull/20) | `feature/formation` | Documentation et formation | aucune | en cours |
+| [#17](https://github.com/Maman680068/SI_DNPEC/pull/17) | `feature/conception-domaine-b` | Conception du domaine B (document) | aucune | verte |
+| [#18](https://github.com/Maman680068/SI_DNPEC/pull/18) | `feature/revue-securite` | Revue de sécurité | aucune (variable Render `WEB_PROXY_SECRET`) | verte |
+| [#19](https://github.com/Maman680068/SI_DNPEC/pull/19) | `feature/exploitation` | Exploitation et reprise après incident | aucune | rouge sur 8e67f86 (z_demo_supprimer), corrigée par e385ee1, en cours |
+| [#21](https://github.com/Maman680068/SI_DNPEC/pull/21) | `feature/performance` | Performance, emails par lots et reprise, quota Brevo | aucune (variable `BREVO_QUOTA_JOUR`, non secrète) | en cours |
+| [#20](https://github.com/Maman680068/SI_DNPEC/pull/20) | `feature/formation` | Documentation et formation | aucune | verte |
 
 ## Fait
 
@@ -32,17 +33,56 @@ branche de production ni de Render ; une branche et une PR par chantier, basées
 - 2026-10-02 — Chantier 4 : fiches par profil, support 45 min, annonce, liste de démarrage, rapport de qualité ;
   PR #20.
 
+- 2026-10-02 — Chantier 2 : jeu gonflé (300 agents, 20 000 tâches), test de charge à 100 utilisateurs sur bases
+  bridées comme Render (0,1 et 0,5 CPU), corrections (tableau de bord borné, N+1 congés et GED, décompte groupé),
+  emails par lots avec reprise et quota ; aucune migration (index documentés, non indispensables) ; PR #21.
+- 2026-10-02 — PR #19 : CI rouge (z_demo_supprimer, paramètre `audit.verificationNocturne` réécrit par l'API
+  décalée d'un an) ; corrigée (e385ee1) et vérifiée en local (c1_setup, x_exploitation, z_demo_creer,
+  z_demo_supprimer conformes).
+
 ## En cours
 
-- Chantier 2 — performance et robustesse (`feature/performance`) : base de volume locale `dnpec_volume`
-  (20 000 tâches, 100 000 notifications, 50 000 lignes d'audit) prête.
+- Suivi de la CI de #19 et #21.
 
 ## Reste à faire
 
-1. Chantier 2 — performance (test de charge, N+1, index, pagination, emails par lots, quota Brevo).
-2. Suivre la CI des PR #17 à #21.
-3. Récapitulatif final.
+1. CI verte de #19 et #21 (corriger si rouge).
+2. Récapitulatif final.
+
+## Ordre de déploiement conseillé
+
+#16 (N6, migration) → #18 sécurité (`WEB_PROXY_SECRET` sur l'API et le web) → #19 exploitation → #21 performance
+(passer la base en `basic-1gb` avant ou avec) → #20 formation → #17 domaine B (document).
+Conflits attendus entre #18, #19, #20, #21 : `run_all.sh`, `docs/Guide_developpeur.md`, `supervision.service.ts`,
+compteur de services de `n2_securite_ui` (8 après #19 et #21).
 
 ## Choix tranchés seul (hors N6, listés dans la PR #16)
 
-_(à compléter au fil des chantiers)_
+- **#18 sécurité** :
+  - verrou par IP via secret partagé web → API (sans lui, pas de verrou par IP) ;
+  - configurer la 2FA depuis une session exige le mot de passe ;
+  - motif médical retiré de la liste des congés (détail tracé) ;
+  - « Absence — motif protégé » dans toutes les notifications de congé maladie ;
+  - quotas oubli 5/email et 10/IP par heure, inscription 30/IP par heure ;
+  - fichiers servis selon une liste de types sûrs ;
+  - jeton d'accès valable jusqu'à 15 min après une réinitialisation (sessions révoquées tout de suite) ;
+  - démarrage refusé si `JWT_ACCESS_SECRET` fait moins de 16 caractères.
+- **#19 exploitation** :
+  - seuils 80/95 % réglables par variables ;
+  - vérification complète de l'audit la nuit et au démarrage du serveur si elle a plus de 26 h ;
+  - sauvegarde des fichiers par téléchargement de l'administrateur (pas de workflow, pas d'accès en plus) ;
+  - « Vérifier l'intégrité » après une restauration ;
+  - empreinte de la démonstration sans `audit.verificationNocturne`.
+- **#20 formation** :
+  - workflow de qualité sans aucun nom ;
+  - fiches régénérées depuis un fichier de contenu et les captures ;
+  - cas pratiques sur les comptes de démonstration.
+- **#21 performance** :
+  - pas de migration ;
+  - tableau de bord à 300 tâches (closes depuis plus de 30 jours masquées) ;
+  - congés et GED non paginés ;
+  - reprise des emails par le résumé, abandon à 72 h ;
+  - quota en mémoire par jour UTC ;
+  - cache des chefs avisants limité à la requête ;
+  - compteurs suspendus onglet caché ;
+  - base `basic-1gb` recommandée, API `starter` maintenue.
