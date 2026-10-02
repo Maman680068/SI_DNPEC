@@ -5,8 +5,21 @@
 -- Perd : statuts de diffusion et leur journal, type, date et période des documents, lien vers une
 -- réunion, ordres de mission, attestations de travail et éditions des documents générés (les actes
 -- correspondants restent dans le module Courrier, les documents déposés restent dans la GED).
+-- Documents de cellule : le retour arrière est REFUSÉ tant qu'il en existe (la version N3 exige une
+-- division pour chaque document) ; les rattacher d'abord à une division ou les supprimer à l'écran.
 -- Contrôlé par la phase 39j de tests/e2e/run_all.sh (schéma identique à celui d'avant N4).
 BEGIN;
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM "documents" WHERE "celluleId" IS NOT NULL) THEN
+    RAISE EXCEPTION 'Retour arrière N4 refusé : % document(s) de cellule existent ; la version N3 exige une division pour chaque document.',
+      (SELECT count(*) FROM "documents" WHERE "celluleId" IS NOT NULL);
+  END IF;
+END $$;
+ALTER TABLE "documents" DROP CONSTRAINT IF EXISTS "documents_unite_productrice";
+ALTER TABLE "documents" DROP CONSTRAINT IF EXISTS "documents_celluleId_fkey";
+ALTER TABLE "documents" DROP COLUMN IF EXISTS "celluleId";
+ALTER TABLE "documents" ALTER COLUMN "divisionId" SET NOT NULL;
 DROP TABLE IF EXISTS "attestations_travail";
 DROP TABLE IF EXISTS "documents_generes";
 DROP TABLE IF EXISTS "ordres_mission";

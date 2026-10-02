@@ -539,6 +539,16 @@ async function documents(ctx: Ctx) {
     },
   );
   await bloc(
+    'Document de la cellule (N4 : validé par la cheffe de cellule)',
+    async () => (await prisma.document.count({ where: { celluleId: ctx.cellule.id, title: { startsWith: T } } })) > 0,
+    async () => {
+      const chefC = await acteur(prisma, u.chefCellule!.id);
+      const d = await svc.create(chefC, { title: `${T}Procédure de sauvegarde des données de la cellule`, category: DocumentCategory.NOTE_TECHNIQUE, celluleId: ctx.cellule.id, ...meta(TypeDocument.NOTE_TECHNIQUE, -30, 0) }, fichier('procedure.pdf'));
+      await svc.markFinal(chefC, d.id);
+      await svc.changerStatut(chefC, d.id, { vers: StatutDiffusion.VALIDE });
+    },
+  );
+  await bloc(
     'Ordre de mission (N4 : à préparer en acte par le chef de division)',
     async () => (await prisma.ordreMission.count({ where: { agentId: u.agent1!.id } })) > 0,
     async () => {

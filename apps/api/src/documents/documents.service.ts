@@ -21,6 +21,7 @@ const DOCUMENT_SELECT = {
   visibility: true,
   isFinal: true,
   divisionId: true,
+  celluleId: true,
   folderId: true,
   sourceTaskId: true,
   sourceMeetingId: true,
@@ -81,8 +82,13 @@ export class DocumentsService {
   ) {}
 
   async create(actor: AuthenticatedUser, dto: CreateDocumentDto, file: Express.Multer.File): Promise<DocumentWithVersion> {
-    this.cascade.assertCanAccessDivisionWorkspace(actor, dto.divisionId);
-    if (dto.folderId) await this.assertFolderInDivision(dto.folderId, dto.divisionId);
+    if (!dto.divisionId === !dto.celluleId) throw new BadRequestException('Indiquez l’unité productrice : une division ou une cellule.');
+    if (dto.divisionId) this.cascade.assertCanAccessDivisionWorkspace(actor, dto.divisionId);
+    else if (!this.cascade.canAccessCelluleWorkspace(actor, dto.celluleId!)) throw new ForbiddenException("Cette cellule n'est pas dans votre périmètre.");
+    if (dto.folderId) {
+      if (!dto.divisionId) throw new BadRequestException('Les dossiers sont propres aux divisions : un document de cellule n’a pas de dossier.');
+      await this.assertFolderInDivision(dto.folderId, dto.divisionId);
+    }
     if (dto.sourceTaskId) await this.assertTaskExists(actor, dto.sourceTaskId);
     if (dto.sourceMeetingId) await this.meetings.findOneVisibleTo(actor, dto.sourceMeetingId);
     if (dto.sourceTaskId && dto.sourceMeetingId) throw new BadRequestException('Un document est issu d’une tâche ou d’une réunion, pas des deux.');
@@ -96,7 +102,8 @@ export class DocumentsService {
             title: dto.title,
             description: dto.description,
             category: dto.category,
-            divisionId: dto.divisionId,
+            divisionId: dto.divisionId ?? null,
+            celluleId: dto.celluleId ?? null,
             folderId: dto.folderId,
             sourceTaskId: dto.sourceTaskId,
             sourceMeetingId: dto.sourceMeetingId,
@@ -127,7 +134,7 @@ export class DocumentsService {
       action: AuditAction.CREATION,
       entityType: 'Document',
       entityId: document.id,
-      metadata: { title: document.title, divisionId: document.divisionId, typeDocument: document.typeDocument, source: dto.sourceTaskId ? 'tache' : dto.sourceMeetingId ? 'reunion' : null },
+      metadata: { title: document.title, divisionId: document.divisionId, celluleId: document.celluleId, typeDocument: document.typeDocument, source: dto.sourceTaskId ? 'tache' : dto.sourceMeetingId ? 'reunion' : null },
     });
 
     return document;
@@ -179,7 +186,7 @@ export class DocumentsService {
     if (ecart === 0) throw new ConflictException(`Le document est déjà « ${LIBELLE_STATUT[vers]} ».`);
     if (Math.abs(ecart) > 1) throw new ConflictException(`Passage direct de « ${LIBELLE_STATUT[de]} » à « ${LIBELLE_STATUT[vers]} » impossible : un statut à la fois.`);
     if (vers === StatutDiffusion.VALIDE && de === StatutDiffusion.BROUILLON) {
-      if (!this.estValidateur(actor, d)) throw new ForbiddenException('La validation revient au chef de la division productrice, au DN ou à la DNA.');
+      if (!this.estValidateur(actor, d)) throw new ForbiddenException('La validation revient au chef de l’unité productrice (division ou cellule), au DN ou à la DNA.');
       if (!d.isFinal) throw new ConflictException('Seul un document marqué « Final » peut être validé.');
       if (!this.metadonneesCompletes(d)) throw new ConflictException('Métadonnées à compléter avant validation : type, date et période couverte.');
     } else if (vers === StatutDiffusion.DIFFUSABLE) {
@@ -225,6 +232,7 @@ export class DocumentsService {
       where: {
         OR: this.visibilityClauses(actor),
         divisionId: filters.divisionId,
+        celluleId: filters.celluleId,
         category: filters.category,
         visibility: filters.visibility,
         folderId: filters.folderId,
@@ -299,7 +307,10 @@ export class DocumentsService {
   async update(actor: AuthenticatedUser, id: string, dto: UpdateDocumentDto): Promise<DocumentWithVersion> {
     const document = await this.getOrThrow(id);
     await this.assertCanModify(actor, document);
-    if (dto.folderId) await this.assertFolderInDivision(dto.folderId, document.divisionId);
+    if (dto.folderId) {
+      if (!document.divisionId) throw new BadRequestException('Les dossiers sont propres aux divisions : un document de cellule n’a pas de dossier.');
+      await this.assertFolderInDivision(dto.folderId, document.divisionId);
+    }
     const debut = dto.periodeDebut ?? document.periodeDebut?.toISOString();
     const fin = dto.periodeFin ?? document.periodeFin?.toISOString();
     if (debut && fin) this.assertPeriode(debut, fin);
@@ -354,7 +365,7 @@ export class DocumentsService {
     const document = await this.getOrThrow(id);
 
     if (!this.peutPublier(actor, document)) {
-      throw new ForbiddenException('Seuls le DN, la DNA, ou le Chef de la division concernée peuvent publier ce document.');
+      throw new ForbiddenException('Seuls le DN, la DNA ou le chef de l’unité productrice (division ou cellule) peuvent publier ce document.');
     }
     if (!document.isFinal) {
       throw new ConflictException('Seul un document marqué "Final" peut être publié.');
@@ -401,12 +412,16 @@ export class DocumentsService {
     if (actor.divisionId) {
       clauses.push({ visibility: DocumentVisibility.PRIVE_DIVISION, divisionId: actor.divisionId });
     }
+    if (actor.celluleId && actor.role !== SystemRole.STAGIAIRE) {
+      clauses.push({ visibility: DocumentVisibility.PRIVE_DIVISION, celluleId: actor.celluleId });
+    }
     return clauses;
   }
 
   private assertVisible(actor: AuthenticatedUser, document: DocumentWithVersion): void {
     if (document.visibility === DocumentVisibility.PUBLIE_DNPEC) return;
-    if (this.cascade.isMemberOfDivision(actor, document.divisionId)) return;
+    if (document.divisionId && this.cascade.isMemberOfDivision(actor, document.divisionId)) return;
+    if (document.celluleId && this.cascade.isMemberOfCellule(actor, document.celluleId)) return;
     throw new ForbiddenException("Ce document est hors de votre périmètre.");
   }
 
@@ -414,12 +429,15 @@ export class DocumentsService {
     return !!d.periodeDebut && !!d.periodeFin;
   }
 
-  /** Responsable métier (§7.1) : chef de la division productrice, DN, DNA. */
-  private estValidateur(actor: AuthenticatedUser, d: Pick<DocumentWithVersion, 'divisionId'>): boolean {
-    return PUBLISHER_TOP_ROLES.includes(actor.role) || (actor.role === SystemRole.CHEF_DIVISION && actor.divisionId === d.divisionId);
+  /** Responsable métier (§7.1) : chef de l'unité productrice — chef de la division, ou chef de la
+   * cellule rattachée à la Direction (SAF, RH, CSID, CTSCM, CNC) —, DN, DNA (recours). */
+  private estValidateur(actor: AuthenticatedUser, d: Pick<DocumentWithVersion, 'divisionId' | 'celluleId'>): boolean {
+    if (PUBLISHER_TOP_ROLES.includes(actor.role)) return true;
+    if (d.divisionId) return actor.role === SystemRole.CHEF_DIVISION && actor.divisionId === d.divisionId;
+    return !!d.celluleId && actor.role === SystemRole.CHEF_CELLULE && actor.celluleId === d.celluleId;
   }
 
-  private peutPublier(actor: AuthenticatedUser, d: Pick<DocumentWithVersion, 'divisionId'>): boolean {
+  private peutPublier(actor: AuthenticatedUser, d: Pick<DocumentWithVersion, 'divisionId' | 'celluleId'>): boolean {
     return this.estValidateur(actor, d);
   }
 

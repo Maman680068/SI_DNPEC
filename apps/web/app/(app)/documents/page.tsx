@@ -18,17 +18,21 @@ const LEADERSHIP_ROLES = ['DN', 'DNA'];
 
 export default function DocumentsPage() {
   const { user: currentUser } = useAuth();
-  const { divisions } = useOrg();
+  const { divisions, cellules } = useOrg();
   const [tab, setTab] = useState<Tab>('division');
   const [erreurChargement, setErreurChargement] = useState<string | null>(null);
 
   const canPickDivision = LEADERSHIP_ROLES.includes(currentUser?.role ?? '');
-  const [selectedDivisionId, setSelectedDivisionId] = useState('');
+  // Espace de l'unité productrice : « d:<id> » (division) ou « c:<id> » (cellule rattachée à la Direction).
+  const [espace, setEspace] = useState('');
   useEffect(() => {
-    if (selectedDivisionId) return;
-    if (currentUser?.divisionId) setSelectedDivisionId(currentUser.divisionId);
-    else if (divisions[0]) setSelectedDivisionId(divisions[0].id);
-  }, [currentUser?.divisionId, divisions, selectedDivisionId]);
+    if (espace) return;
+    if (currentUser?.divisionId) setEspace(`d:${currentUser.divisionId}`);
+    else if (currentUser?.celluleId && currentUser.role !== 'STAGIAIRE') setEspace(`c:${currentUser.celluleId}`);
+    else if (divisions[0]) setEspace(`d:${divisions[0].id}`);
+  }, [currentUser?.divisionId, currentUser?.celluleId, currentUser?.role, divisions, espace]);
+  const selectedDivisionId = espace.startsWith('d:') ? espace.slice(2) : '';
+  const selectedCelluleId = espace.startsWith('c:') ? espace.slice(2) : '';
 
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
   const [category, setCategory] = useState<DocumentCategory | ''>('');
@@ -43,12 +47,13 @@ export default function DocumentsPage() {
   const [selectedDoc, setSelectedDoc] = useState<DnpecDocument | null>(null);
 
   const load = useCallback(() => {
-    if (tab === 'division' && !selectedDivisionId) return;
+    if (tab === 'division' && !espace) return;
     setDocuments(null);
     getDocuments({
       visibility: tab === 'division' ? 'PRIVE_DIVISION' : 'PUBLIE_DNPEC',
-      divisionId: tab === 'division' ? selectedDivisionId : undefined,
-      folderId: tab === 'division' ? currentFolderId ?? undefined : undefined,
+      divisionId: tab === 'division' && selectedDivisionId ? selectedDivisionId : undefined,
+      celluleId: tab === 'division' && selectedCelluleId ? selectedCelluleId : undefined,
+      folderId: tab === 'division' && selectedDivisionId ? currentFolderId ?? undefined : undefined,
       category: category || undefined,
       typeDocument: typeDocument || undefined,
       statutDiffusion: statut || undefined,
@@ -56,7 +61,7 @@ export default function DocumentsPage() {
       dateTo: dateTo || undefined,
       q: q || undefined,
     }).then(setDocuments).catch((err) => setErreurChargement(messageChargement(err)));
-  }, [tab, selectedDivisionId, currentFolderId, category, typeDocument, statut, dateFrom, dateTo, q]);
+  }, [tab, espace, selectedDivisionId, selectedCelluleId, currentFolderId, category, typeDocument, statut, dateFrom, dateTo, q]);
 
   useEffect(() => {
     load();
@@ -83,7 +88,11 @@ export default function DocumentsPage() {
     }
   }
 
-  const divisionLabel = useMemo(() => divisions.find((d) => d.id === selectedDivisionId)?.name, [divisions, selectedDivisionId]);
+  const espaceLabel = useMemo(
+    () => (selectedDivisionId ? divisions.find((d) => d.id === selectedDivisionId)?.name : cellules.find((c) => c.id === selectedCelluleId)?.name),
+    [divisions, cellules, selectedDivisionId, selectedCelluleId],
+  );
+  const ongletEspace = currentUser?.divisionId || canPickDivision ? 'Mon espace division' : 'Mon espace cellule';
 
   return (
     <div>
@@ -93,7 +102,7 @@ export default function DocumentsPage() {
           <div className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-sage">Général</div>
           <h1 className="text-[22px] font-extrabold">Archives &amp; documents</h1>
         </div>
-        {tab === 'division' && selectedDivisionId && (
+        {tab === 'division' && espace && (
           <Button variant="gold" onClick={() => setShowUpload(true)}>
             + Nouveau document
           </Button>
@@ -103,7 +112,7 @@ export default function DocumentsPage() {
       <div className="mb-4 flex gap-0.5 rounded-md border border-line bg-bg p-0.5" style={{ width: 'fit-content' }}>
         {(
           [
-            { key: 'division', label: 'Mon espace division' },
+            { key: 'division', label: ongletEspace },
             { key: 'published', label: 'Documents publiés (DNPEC)' },
           ] as const
         ).map((option) => (
@@ -123,22 +132,32 @@ export default function DocumentsPage() {
         <div className="mb-4">
           {canPickDivision ? (
             <select
-              value={selectedDivisionId}
+              aria-label="Espace documentaire"
+              value={espace}
               onChange={(e) => {
-                setSelectedDivisionId(e.target.value);
+                setEspace(e.target.value);
                 setCurrentFolderId(null);
               }}
               className="mb-3 w-full max-w-[280px] rounded-md border border-line bg-surface px-3 py-1.5 text-[13px]"
             >
-              {divisions.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.name}
-                </option>
-              ))}
+              <optgroup label="Divisions">
+                {divisions.map((d) => (
+                  <option key={d.id} value={`d:${d.id}`}>
+                    {d.name}
+                  </option>
+                ))}
+              </optgroup>
+              <optgroup label="Cellules rattachées à la Direction">
+                {cellules.map((c) => (
+                  <option key={c.id} value={`c:${c.id}`}>
+                    {c.name}
+                  </option>
+                ))}
+              </optgroup>
             </select>
           ) : (
             <p className="mb-3 text-[13px] text-text-muted">
-              Division : <strong>{divisionLabel}</strong>
+              {selectedCelluleId ? 'Cellule' : 'Division'} : <strong>{espaceLabel}</strong>
             </p>
           )}
           {selectedDivisionId && (
@@ -203,10 +222,11 @@ export default function DocumentsPage() {
         <DocumentList documents={documents} onSelect={setSelectedDoc} />
       )}
 
-      {showUpload && selectedDivisionId && (
+      {showUpload && espace && (
         <UploadDocumentModal
-          divisionId={selectedDivisionId}
-          folderId={currentFolderId}
+          divisionId={selectedDivisionId || null}
+          celluleId={selectedCelluleId || null}
+          folderId={selectedDivisionId ? currentFolderId : null}
           onClose={() => setShowUpload(false)}
           onCreated={(doc) => {
             setDocuments((prev) => (prev ? [doc, ...prev] : [doc]));

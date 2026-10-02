@@ -388,6 +388,9 @@ model Cellule {
   announcements Announcement[]
   Poll          Poll[]
 
+  // Socle N4 : espace documentaire de la cellule (document produit par la cellule).
+  documents     Document[]
+
   periodesStage    PeriodeStage[]
   affectationsBien AffectationBien[] @relation("AffectationBienCellule")
 
@@ -880,10 +883,14 @@ model Document {
   // Seuls les documents marqués "Final" peuvent être publiés (RF-GED-03)
   isFinal     Boolean            @default(false)
 
-  divisionId String
-  division   Division @relation(fields: [divisionId], references: [id])
+  // Unité productrice : une division OU (socle N4) une cellule rattachée à la Direction —
+  // exactement l'une des deux (CHECK documents_unite_productrice). Dossiers : divisions seulement.
+  divisionId String?
+  division   Division? @relation(fields: [divisionId], references: [id], onDelete: Restrict)
+  celluleId  String?
+  cellule    Cellule?  @relation(fields: [celluleId], references: [id], onDelete: Restrict)
   folderId   String?
-  folder     Folder?  @relation(fields: [folderId], references: [id])
+  folder     Folder?   @relation(fields: [folderId], references: [id])
 
   // Document issu d'une tâche (§4.3 : "le document peut être lié
   // directement à la tâche dont il est issu")

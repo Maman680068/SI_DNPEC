@@ -32,8 +32,14 @@ export class CreateDocumentDto {
   @IsDateString({}, { message: 'La fin de la période couverte est obligatoire.' })
   periodeFin!: string;
 
+  // Unité productrice : une division OU une cellule rattachée à la Direction (exactement l'une).
+  @IsOptional()
   @IsString()
-  divisionId!: string;
+  divisionId?: string;
+
+  @IsOptional()
+  @IsString()
+  celluleId?: string;
 
   @IsOptional()
   @IsString()

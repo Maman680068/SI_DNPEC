@@ -113,3 +113,12 @@ UPDATE "documents" SET "statutDiffusion" = 'VALIDE' WHERE "visibility" = 'PUBLIE
 INSERT INTO "changements_statut" ("id", "objetType", "objetId", "de", "vers", "motif", "parId", "le")
   SELECT 'reprise-n4-' || "id", 'Document', "id", 'BROUILLON', 'VALIDE', 'Reprise N4 : document déjà publié dans l''espace DNPEC', NULL, CURRENT_TIMESTAMP
   FROM "documents" WHERE "visibility" = 'PUBLIE_DNPEC';
+
+-- Unité productrice : une division OU une cellule rattachée à la Direction (SAF, RH, CSID, CTSCM,
+-- CNC), exactement l'une des deux. Les documents existants restent ceux de leur division.
+ALTER TABLE "documents" ADD COLUMN     "celluleId" TEXT,
+ALTER COLUMN "divisionId" DROP NOT NULL;
+
+ALTER TABLE "documents" ADD CONSTRAINT "documents_celluleId_fkey" FOREIGN KEY ("celluleId") REFERENCES "cellules"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+ALTER TABLE "documents" ADD CONSTRAINT "documents_unite_productrice" CHECK (("divisionId" IS NULL) <> ("celluleId" IS NULL));

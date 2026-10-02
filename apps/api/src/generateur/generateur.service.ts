@@ -87,7 +87,7 @@ export class GenerateurService {
       ordreMission: { peutCreer: missionnables.length > 0, agents: missionnables },
       rapportActivite: { perimetres: await this.perimetres(actor) },
       registres: drh || direction || missionnables.length ? registres : [],
-      peutDeposerEnGed: !!actor.divisionId,
+      peutDeposerEnGed: !!actor.divisionId || (!!actor.celluleId && actor.role !== SystemRole.STAGIAIRE),
       // Transmission par la messagerie : tout compte actif (comme la messagerie elle-même).
       destinataires: (await this.prisma.user.findMany({ where: { status: UserStatus.ACTIF, id: { not: actor.id } }, select: { id: true, firstName: true, lastName: true }, orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }] })).map(personne),
     };
@@ -291,14 +291,14 @@ export class GenerateurService {
     };
   }
 
-  /** Dépôt en GED : document Brouillon dans la division de l'acteur, type et période renseignés. */
+  /** Dépôt en GED : document Brouillon dans l'unité de l'acteur (division ou cellule), type et période renseignés. */
   async deposerEnGed(actor: AuthenticatedUser, dto: ProduireDto) {
-    if (!actor.divisionId) throw new ConflictException('Vous n’avez pas d’espace documentaire de division : dépôt impossible.');
+    if (!actor.divisionId && !actor.celluleId) throw new ConflictException('Vous n’avez pas d’espace documentaire de division ou de cellule : dépôt impossible.');
     const f = await this.produire(actor, { ...dto, format: dto.format ?? 'PDF' }, { enregistrer: true });
     const { titre, periode } = await this.metaGed(dto);
     const d = await this.documents.create(
       actor,
-      { title: titre, typeDocument: dto.type === 'RAPPORT_ACTIVITE' ? TypeDocument.RAPPORT : TypeDocument.ACTE, periodeDebut: periode[0], periodeFin: periode[1], divisionId: actor.divisionId },
+      { title: titre, typeDocument: dto.type === 'RAPPORT_ACTIVITE' ? TypeDocument.RAPPORT : TypeDocument.ACTE, periodeDebut: periode[0], periodeFin: periode[1], ...(actor.divisionId ? { divisionId: actor.divisionId } : { celluleId: actor.celluleId! }) },
       { buffer: f.buffer, originalname: f.fileName, mimetype: f.mimeType } as Express.Multer.File,
     );
     return { documentId: d.id };

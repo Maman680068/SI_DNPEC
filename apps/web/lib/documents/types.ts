@@ -60,7 +60,9 @@ export interface DnpecDocument {
   category: DocumentCategory;
   visibility: DocumentVisibility;
   isFinal: boolean;
-  divisionId: string;
+  /** Unité productrice : une division OU une cellule rattachée à la Direction. */
+  divisionId: string | null;
+  celluleId: string | null;
   folderId: string | null;
   sourceTaskId: string | null;
   sourceMeetingId: string | null;
@@ -83,6 +85,7 @@ export interface DnpecDocument {
 
 export interface DocumentFilters {
   divisionId?: string;
+  celluleId?: string;
   category?: DocumentCategory;
   visibility?: DocumentVisibility;
   folderId?: string;

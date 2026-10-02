@@ -30,7 +30,9 @@ export interface CreateDocumentInput {
   title: string;
   description?: string;
   category?: string;
-  divisionId: string;
+  /** Unité productrice : une division OU une cellule (exactement l'une). */
+  divisionId?: string;
+  celluleId?: string;
   folderId?: string;
   typeDocument: TypeDocument;
   dateDocument?: string;
@@ -46,7 +48,8 @@ export function createDocument(input: CreateDocumentInput): Promise<DnpecDocumen
   form.set('title', input.title);
   if (input.description) form.set('description', input.description);
   if (input.category) form.set('category', input.category);
-  form.set('divisionId', input.divisionId);
+  if (input.divisionId) form.set('divisionId', input.divisionId);
+  if (input.celluleId) form.set('celluleId', input.celluleId);
   if (input.folderId) form.set('folderId', input.folderId);
   form.set('typeDocument', input.typeDocument);
   if (input.dateDocument) form.set('dateDocument', input.dateDocument);

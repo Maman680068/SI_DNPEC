@@ -14,7 +14,7 @@ Direction).
 
 | Transition | Qui | Conditions |
 |---|---|---|
-| Brouillon → Validé | chef de la division productrice, DN, DNA | document marqué « Final », métadonnées complètes |
+| Brouillon → Validé | chef de l'unité productrice (chef de division ; chef de cellule pour un document d'une cellule rattachée à la Direction : SAF, RH, CSID, CTSCM, CNC), DN, DNA en recours | document marqué « Final », métadonnées complètes |
 | Validé → Diffusable | DN, DNA | — |
 | Retrait (Diffusable → Validé, Validé → Brouillon) | qui peut faire la transition inverse | motif obligatoire ; le document reste consultable en interne |
 
@@ -90,3 +90,15 @@ date, bloc de signature.
   Brouillon ; documents déjà publiés dans l'espace DNPEC → **Validé** (journalisé « reprise N4 »).
 - Retour arrière : `prisma/retour-arriere/n4_down.sql` (colonnes, tables, types) ; phase 39j de
   `run_all.sh` ; ordre inverse des lots (N4 avant N3).
+
+## Complément (décision de la Direction) : documents produits par une cellule
+
+- Une cellule rattachée à la Direction (SAF, RH, CSID, CTSCM, CNC) a son propre espace documentaire,
+  comme une division : `documents.celluleId`, `divisionId` devenu facultatif, contrainte
+  `documents_unite_productrice` (exactement une unité). Les dossiers restent propres aux divisions.
+- Dépôt : membres de la cellule, DN, DNA. Lecture du privé : membres de la cellule seulement (besoin
+  d'en connaître, comme pour une division).
+- Validation : chef de la cellule ; DN et DNA en recours (sur ce qu'ils voient) ; un chef de division
+  reçoit 403.
+- Retour arrière N4 refusé tant qu'un document de cellule existe ; rollback Render vers N3 sûr
+  seulement avant le premier dépôt d'un document de cellule.

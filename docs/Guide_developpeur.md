@@ -110,7 +110,8 @@ fonctionnalité ajoute sa suite (`tests/e2e/api/`, `tests/e2e/ui/`) et sa ligne 
   Avancement des tâches **calculé en base** (déclencheurs ; `PATCH /tasks/:id/progress` → 409).
   Stage : encadreur principal (DRH) et rapport (stagiaire dépose, encadreur valide/renvoie).
   Messages directs purgés après 3 ans (`ConservationService`, tâche `purge-messages`).
-- Socle N4 : **statut de diffusion** Brouillon → Validé (chef de la division productrice, DN, DNA ;
+- Socle N4 : **statut de diffusion** Brouillon → Validé (chef de l'unité productrice — division, ou cellule
+  rattachée à la Direction (`Document.celluleId`, CHECK une seule unité) —, DN, DNA en recours ;
   document Final aux métadonnées complètes) → Diffusable (DN, DNA), retrait motivé, journal générique
   `changements_statut` ; **tout fichier issu d'un objet à statut passe par `ExportsService.marquer`**
   (service d'export unique). GED : type, date, période couverte obligatoires ; lien vers une tâche ou

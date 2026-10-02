@@ -115,6 +115,7 @@
         {
           "titre": "Documents",
           "etapes": [
+            "Archives & documents → « Mon espace division » ou, dans une cellule rattachée à la Direction, « Mon espace cellule » : déposez-y vos documents ; seuls les membres de votre unité les voient tant qu’ils ne sont pas publiés.",
             "Depuis une tâche ou une réunion : « Déposer un document » ; le document est lié à son origine et reste dans la GED de votre division.",
             "« Marquer comme final » quand le document est achevé : votre chef de division peut alors le valider.",
             "Personnel → « Documents générés » → « Rapport d’activité » : votre rapport sur une période, construit depuis vos tâches (aperçu, PDF, Word, dépôt en GED).",
@@ -223,7 +224,7 @@
         {
           "titre": "Statut des documents",
           "etapes": [
-            "Archives & documents : ouvrez un document « Final » de votre division, puis « Valider » (les métadonnées doivent être complètes). « Retirer le statut » exige un motif.",
+            "Archives & documents : ouvrez un document « Final » de votre unité (division, ou cellule rattachée à la Direction), puis « Valider » (les métadonnées doivent être complètes). « Retirer le statut » exige un motif. Un chef de division ne valide pas les documents d’une cellule.",
             "Le DN ou la DNA seuls le rendent « Diffusable » (usage hors de la Direction).",
             "Documents générés : ordres de mission de vos agents et rapport d’activité de votre division ou de ses sections."
           ],

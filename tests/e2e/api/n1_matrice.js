@@ -191,7 +191,7 @@ const LOTS = [
   }
   await call('agent1', 'POST', `/leaves/${med.id}/cancel`);
 
-  console.log('— Statut de diffusion (N4) : valider = chef de la division productrice, DN, DNA ; diffusable = DN, DNA');
+  console.log('— Statut de diffusion (N4) : valider = chef de l’unité productrice (division ou cellule), DN, DNA ; diffusable = DN, DNA');
   const docPublie = async (validerAvec) => {
     const d = (await upload('agent1', '/documents', { title: `Matrice ${S} ${Math.random().toString(36).slice(2, 6)}`, divisionId: ids.DPE, typeDocument: 'RAPPORT', periodeDebut: '2026-01-01', periodeFin: '2026-06-30' }, [{ field: 'file', name: 'm.txt' }])).body;
     await call('agent1', 'POST', `/documents/${d.id}/mark-final`);
@@ -205,6 +205,20 @@ const LOTS = [
     const valide = validateurs.includes(profil);
     const id = valide ? await docPublie(null) : commun;
     await caseMatrice({ objet: 'Document — statut de diffusion', profil, action: 'valider', annexe: valide ? 'V (responsable métier / Direction)' : '—', attendu: valide, appel: () => call(profil, 'POST', `/documents/${id}/statut`, { vers: 'VALIDE' }) });
+  }
+  // Document produit par une cellule rattachée à la Direction : le chef de cellule valide, DN/DNA en recours.
+  const docCellulePublie = async () => {
+    const d = (await upload('agentsaf', '/documents', { title: `Matrice SAF ${S} ${Math.random().toString(36).slice(2, 6)}`, celluleId: ids.SAF, typeDocument: 'RAPPORT', periodeDebut: '2026-01-01', periodeFin: '2026-06-30' }, [{ field: 'file', name: 'm.txt' }])).body;
+    await call('agentsaf', 'POST', `/documents/${d.id}/mark-final`);
+    await call('chefsaf', 'POST', `/documents/${d.id}/publish`);
+    return d.id;
+  };
+  const communCellule = await docCellulePublie();
+  const validateursCellule = ['chefsaf', 'dn', 'dna'];
+  for (const profil of Object.keys(PROFILS)) {
+    const valide = validateursCellule.includes(profil);
+    const id = valide ? await docCellulePublie() : communCellule;
+    await caseMatrice({ objet: 'Document de cellule — statut de diffusion', profil, action: 'valider', annexe: valide ? 'V (chef de cellule / Direction)' : '—', attendu: valide, appel: () => call(profil, 'POST', `/documents/${id}/statut`, { vers: 'VALIDE' }) });
   }
   const valideCommun = await docPublie('chefdpe');
   for (const profil of Object.keys(PROFILS)) {

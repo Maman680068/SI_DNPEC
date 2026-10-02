@@ -13,12 +13,15 @@ const aujourdhui = () => new Date().toISOString().slice(0, 10);
  * `source` : dépôt direct depuis une tâche ou une réunion (lien vers l'objet d'origine). */
 export function UploadDocumentModal({
   divisionId,
+  celluleId,
   folderId,
   onClose,
   onCreated,
   source,
 }: {
-  divisionId: string;
+  /** Unité productrice : une division OU une cellule. */
+  divisionId?: string | null;
+  celluleId?: string | null;
   folderId: string | null;
   onClose: () => void;
   onCreated: (doc: DnpecDocument) => void;
@@ -45,7 +48,8 @@ export function UploadDocumentModal({
         title: title.trim(),
         description: description.trim() || undefined,
         category,
-        divisionId,
+        divisionId: divisionId ?? undefined,
+        celluleId: celluleId ?? undefined,
         folderId: folderId ?? undefined,
         typeDocument,
         dateDocument,

@@ -110,6 +110,49 @@ async function signerActe(acteId, soumettant) {
   check('journal du statut : 4 changements, motifs et auteurs', h.length === 4 && h[0].vers === 'BROUILLON' && /Nouvelle version/.test(h[0].motif) && h.some((x) => x.motif === 'Chiffres à revoir') && h.every((x) => x.par));
   const dl3 = await binaire('agent1', 'GET', `/documents/${d.id}/versions/${nv.body.currentVersion.id}/download`);
   check('… PDF téléchargé : mention « BROUILLON »', dl3.statut === 'BROUILLON' && pdfContient(dl3.buf, 'BROUILLON'));
+
+  console.log('— Document produit par une cellule rattachée à la Direction (SAF) : le chef de cellule valide, DN/DNA en recours');
+  const baseSaf = { title: `Note SAF ${S}`, celluleId: ids.SAF, ...META };
+  expect('unité productrice absente (ni division ni cellule)', await televerser('agentsaf', '/documents', { title: `X ${S}`, ...META }, 'x.txt', 'x'), 400);
+  expect('division ET cellule à la fois', await televerser('agentsaf', '/documents', { ...baseSaf, divisionId: ids.DPE }, 'x.txt', 'x'), 400);
+  expect('un agent de division ne dépose pas dans une cellule', await televerser('agent1', '/documents', baseSaf, 'x.txt', 'x'), 403);
+  const ds = await televerser('agentsaf', '/documents', baseSaf, 'saf.pdf', pdf, 'application/pdf');
+  check('l’agent de la cellule dépose dans l’espace de sa cellule (Brouillon, sans division)', ds.status === 201 && ds.body.celluleId === ids.SAF && ds.body.divisionId === null && ds.body.statutDiffusion === 'BROUILLON', ds.status);
+  const dsId = ds.body.id;
+  const listeSaf = (await call('agentsaf', 'GET', `/documents?celluleId=${ids.SAF}&visibility=PRIVE_DIVISION`)).body;
+  check('espace de la cellule : le document y figure pour ses membres', Array.isArray(listeSaf) && listeSaf.some((x) => x.id === dsId));
+  expect('un agent d’une division ne lit pas le document privé de la cellule', await call('agent1', 'GET', `/documents/${dsId}`), 403);
+  expect('l’administrateur (autre cellule) ne le lit pas', await call('admin', 'GET', `/documents/${dsId}`), 403);
+  check('… ni ne le voit dans une liste', !((await call('agent1', 'GET', `/documents?celluleId=${ids.SAF}`)).body || []).some((x) => x.id === dsId));
+  await call('agentsaf', 'POST', `/documents/${dsId}/mark-final`);
+  const vueChefSaf = (await call('chefsaf', 'GET', `/documents/${dsId}`)).body;
+  check('chef de la cellule : « Valider » proposé', vueChefSaf.droits && vueChefSaf.droits.valider === true);
+  const refusDiv = await call('chefdpe', 'POST', `/documents/${dsId}/statut`, { vers: 'VALIDE' });
+  check('un chef de division valide un document de cellule → 403', refusDiv.status === 403, refusDiv.status);
+  expect('l’agent de la cellule valide', await call('agentsaf', 'POST', `/documents/${dsId}/statut`, { vers: 'VALIDE' }), 403);
+  const vs = await call('chefsaf', 'POST', `/documents/${dsId}/statut`, { vers: 'VALIDE' });
+  check('le chef de la cellule valide → Validé', vs.status === 201 && vs.body.statutDiffusion === 'VALIDE', vs.status);
+  expect('le chef de cellule ne rend pas diffusable', await call('chefsaf', 'POST', `/documents/${dsId}/statut`, { vers: 'DIFFUSABLE' }), 403);
+  const rs = await call('chefsaf', 'POST', `/documents/${dsId}/statut`, { vers: 'BROUILLON', motif: 'Annexe manquante' });
+  check('le chef de la cellule retire sa validation (motif)', rs.status === 201 && rs.body.statutDiffusion === 'BROUILLON');
+  expect('un chef de division publie un document de cellule', await call('chefdpe', 'POST', `/documents/${dsId}/publish`), 403);
+  expect('le chef de la cellule publie', await call('chefsaf', 'POST', `/documents/${dsId}/publish`), 201);
+  const vdn = await call('dn', 'POST', `/documents/${dsId}/statut`, { vers: 'VALIDE' });
+  check('recours : le DN valide un document de cellule publié', vdn.status === 201 && vdn.body.statutDiffusion === 'VALIDE', vdn.status);
+  const dfs = await call('dna', 'POST', `/documents/${dsId}/statut`, { vers: 'DIFFUSABLE' });
+  check('la DNA le rend diffusable', dfs.status === 201 && dfs.body.statutDiffusion === 'DIFFUSABLE', dfs.status);
+  expect('un dossier de division pour un document de cellule', await call('agentsaf', 'PATCH', `/documents/${dsId}`, { folderId: 'inexistant' }), 400);
+  const enBase = await prisma.$queryRawUnsafe(`SELECT count(*)::int AS n FROM documents WHERE "divisionId" IS NULL AND "celluleId" IS NULL`);
+  check('contrainte en base : jamais un document sans unité productrice', enBase[0].n === 0);
+  let refusBase = null;
+  try { await prisma.document.update({ where: { id: dsId }, data: { divisionId: ids.DPE } }); } catch (e) { refusBase = e; }
+  check('… ni avec une division ET une cellule (CHECK documents_unite_productrice)', !!refusBase);
+  // Retour arrière de N4 : refusé tant qu'un document de cellule existe (la version N3 exige une division).
+  const down = require('fs').readFileSync(require('path').join(__dirname, '../../../apps/api/prisma/retour-arriere/n4_down.sql'), 'utf8');
+  const garde = down.slice(down.indexOf('DO $$'), down.indexOf('END $$;') + 'END $$;'.length);
+  let refusDown = null;
+  try { await prisma.$executeRawUnsafe(garde); } catch (e) { refusDown = e; }
+  check('retour arrière N4 refusé tant qu’un document de cellule existe (message explicite)', !!refusDown && /Retour arrière N4 refusé/.test(String(refusDown.message)), refusDown && String(refusDown.message).slice(0, 120));
   const txt = await binaire('agent1', 'GET', `/documents/${dt.body.id}/versions/${dt.body.currentVersion.id}/download`);
   check('autre format : statut dans le nom du fichier', txt.status === 200 && /\(BROUILLON\)\.txt$/.test(txt.nom), txt.nom);
   check('audit : changements de statut tracés', (await prisma.auditLog.count({ where: { entityId: d.id, metadata: { path: ['event'], equals: 'statut_diffusion' } } })) === 3);

@@ -9,6 +9,10 @@ export class DocumentFiltersDto {
   divisionId?: string;
 
   @IsOptional()
+  @IsString()
+  celluleId?: string;
+
+  @IsOptional()
   @IsEnum(DocumentCategory)
   category?: DocumentCategory;
 

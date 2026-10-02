@@ -32,7 +32,7 @@ export function DocumentDetailDrawer({
   onClose: () => void;
   onChange: (doc: DnpecDocument) => void;
 }) {
-  const { getDivisionName, getUserLabel } = useOrg();
+  const { getDivisionName, getCelluleName, getUserLabel } = useOrg();
   const [versions, setVersions] = useState<DocumentVersionSummary[] | null>(null);
   const [historique, setHistorique] = useState<ChangementStatut[] | null>(null);
   const [busy, setBusy] = useState(false);
@@ -91,7 +91,7 @@ export function DocumentDetailDrawer({
 
         <h2 className="mb-1.5 text-[19px] font-semibold leading-snug">{doc.title}</h2>
         <p className="mb-4 text-[13px] text-text-muted">
-          {getDivisionName(doc.divisionId)} · par {getUserLabel(doc.createdById)}
+          {doc.divisionId ? getDivisionName(doc.divisionId) : getCelluleName(doc.celluleId)} · par {getUserLabel(doc.createdById)}
         </p>
 
         <dl className="mb-4 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 rounded-md border border-line px-3.5 py-2.5 text-[12.5px]" data-testid="metadonnees">

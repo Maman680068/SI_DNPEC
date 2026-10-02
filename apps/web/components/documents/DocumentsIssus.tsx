@@ -32,7 +32,7 @@ export function DocumentsIssus({ source }: { source: { tacheId?: string; reunion
     <div className="mb-[22px]" data-testid="documents-issus">
       <div className="mb-2.5 flex items-center justify-between gap-2">
         <div className="text-xs font-bold uppercase tracking-wide text-text-muted">Documents issus{docs ? ` (${docs.length})` : ''}</div>
-        {user?.divisionId && (
+        {(user?.divisionId || user?.celluleId) && (
           <Button variant="outline" className="!px-3 !py-1 !text-[12px]" onClick={() => setDepot(true)}>
             Déposer un document
           </Button>
@@ -53,9 +53,10 @@ export function DocumentsIssus({ source }: { source: { tacheId?: string; reunion
           </li>
         ))}
       </ul>
-      {depot && user?.divisionId && (
+      {depot && (user?.divisionId || user?.celluleId) && (
         <UploadDocumentModal
           divisionId={user.divisionId}
+          celluleId={user.divisionId ? null : user.celluleId}
           folderId={null}
           source={source}
           onClose={() => setDepot(false)}
