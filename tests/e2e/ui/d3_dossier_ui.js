@@ -107,7 +107,9 @@ function espion(page) {
     const recus = espion(c);
     await c.goto(`${WEB}/personnel`);
     await c.getByLabel('Rechercher une personne').fill('agent1');
-    await c.locator('[data-testid=ligne-personnel]').first().click();
+    // Recherche filtrée côté serveur : on attend la ligne d'agent1 (sinon la première ligne de la
+    // liste non encore filtrée — tout le personnel pour le DN — serait ouverte).
+    await c.locator(`[data-testid=ligne-personnel][href$="/personnel/${a1}"]`).click();
     await c.waitForURL(`**/personnel/${a1}`);
     await c.locator('[data-testid=niveau-1]').waitFor();
     check(`${key} : niveau 1 affiché (grade)`, (await c.locator('[data-testid=niveau-1]').innerText()).includes(`B${S}`));
