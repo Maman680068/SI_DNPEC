@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { AuditAction, Prisma, SystemRole } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
@@ -34,8 +34,11 @@ export type FiltresAudit = { du?: string; au?: string; acteurId?: string; entity
  * l'administrateur ; les entrées dont l'auteur est dans son périmètre pour un responsable ; ses
  * propres entrées pour les autres. Jamais de métadonnées brutes : aucun contenu d'objet protégé.
  */
+/** Dernière vérification complète de la chaîne d'audit (tâche de nuit). */
+export const CLE_VERIFICATION_NOCTURNE = 'audit.verificationNocturne';
+
 @Injectable()
-export class JournalAuditService {
+export class JournalAuditService implements OnApplicationBootstrap {
   private readonly logger = new Logger('JournalAudit');
 
   constructor(
@@ -65,10 +68,52 @@ export class JournalAuditService {
 
   async verifier(actor: AuthenticatedUser) {
     await this.autorisation.exiger(actor, { action: 'L', objet: { type: 'JournalAudit' }, positionsAcceptees: [SystemRole.ADMIN_SYSTEME], perimetre: 'IGNORE' });
+    // Vérification à la demande : son résultat remplace celui de la nuit dans la supervision.
+    await this.verifierEtGarder().catch(() => undefined);
     return this.etat();
   }
 
-  /** État de la chaîne (supervision). */
+  /**
+   * Vérification complète de la chaîne d'audit, chaque nuit à 2 h 30 (heure de Conakry, UTC) :
+   * parcourir toute la chaîne coûte de plus en plus cher à mesure que le journal grandit, elle ne
+   * se fait donc plus à chaque passage de la supervision (exploitation 2026-10). Le résultat est
+   * gardé pour la supervision ; une chaîne rompue met la tâche en échec, et la supervision alerte
+   * les administrateurs.
+   */
+  /** Au démarrage (après un déploiement), une vérification complète si la dernière date de plus de
+   * 26 heures ou n'existe pas encore — en arrière-plan, sans retarder le démarrage. */
+  onApplicationBootstrap(): void {
+    void this.etatRapide()
+      .then((e) => (e.ancienne ? this.taches.suivre('verification-audit', () => this.verifierEtGarder()) : undefined))
+      .catch(() => undefined);
+  }
+
+  @Cron('30 2 * * *')
+  async verifierNuit(): Promise<void> {
+    await this.taches.suivre('verification-audit', () => this.verifierEtGarder()).catch(() => undefined);
+  }
+
+  /** Vérifie toute la chaîne et garde le résultat (aussi appelable par les tests). */
+  async verifierEtGarder(maintenant = new Date()) {
+    const t0 = Date.now();
+    const e = await this.etat();
+    const resultat = { date: maintenant.toISOString(), intacte: e.intacte, rangRompu: e.rangRompu, lignesVerifiees: e.lignesVerifiees, dureeMs: Date.now() - t0 };
+    await this.prisma.parametre.upsert({ where: { cle: CLE_VERIFICATION_NOCTURNE }, create: { cle: CLE_VERIFICATION_NOCTURNE, valeur: resultat }, update: { valeur: resultat } });
+    if (!e.intacte) throw new Error(`Chaîne du journal d’audit rompue à l’entrée n° ${e.rangRompu}`);
+    return resultat;
+  }
+
+  /** État rapide pour la supervision (toutes les 10 min) : dernière vérification complète gardée,
+   * et lignes en attente de scellement. */
+  async etatRapide(maintenant = new Date()) {
+    const ligne = await this.prisma.parametre.findUnique({ where: { cle: CLE_VERIFICATION_NOCTURNE } });
+    const derniere = (ligne?.valeur ?? null) as { date: string; intacte: boolean; rangRompu: number | null; lignesVerifiees: number } | null;
+    const enRetard = await this.prisma.auditLog.count({ where: { rang: null, createdAt: { lt: new Date(maintenant.getTime() - 10 * 60e3) } } });
+    const ancienne = !derniere || maintenant.getTime() - new Date(derniere.date).getTime() > 26 * 3600e3;
+    return { derniere, ancienne, scellementEnRetard: enRetard };
+  }
+
+  /** État de la chaîne (vérification complète, à la demande de l'administrateur). */
   async etat() {
     const [v] = await this.prisma.$queryRaw<{ rangRompu: number | null; lignesVerifiees: number }[]>`SELECT * FROM "audit_verifier"()`;
     const nonScellees = await this.prisma.auditLog.count({ where: { rang: null } });

@@ -1,7 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { declarerTestRestauration, getSupervision, listerParametres, modifierParametre } from '../../../lib/api/securite';
+import { declarerTestRestauration, getInventaireFichiers, getSupervision, listerParametres, modifierParametre } from '../../../lib/api/securite';
+import { telechargerFichier } from '../../../lib/api/client';
 import type { ListeParametres, Parametre, Supervision } from '../../../lib/securite/types';
 import { LIBELLE_ETAPE, LIBELLE_ETAT, TON_ETAT } from '../../../lib/securite/types';
 import { Chargement, ErreurChargement, messageChargement } from '../../../components/ui/ErreurChargement';
@@ -125,6 +126,39 @@ function FenetreParametre({ parametre, onClose, onFait }: { parametre: Parametre
   );
 }
 
+/** Sauvegarde du stockage des fichiers (exploitation 2026-10) : le disque des fichiers n'est pas dans
+ * l'export de la base ; l'administrateur télécharge ici une archive ZIP (mot de passe demandé). */
+function SauvegardeFichiers() {
+  const [inv, setInv] = useState<{ fichiers: number; octets: number } | null>(null);
+  const [erreur, setErreur] = useState<string | null>(null);
+  const [enCours, setEnCours] = useState(false);
+  useEffect(() => {
+    getInventaireFichiers().then(setInv).catch((e) => setErreur(messageChargement(e)));
+  }, []);
+  return (
+    <div className="mt-3 border-t border-line pt-2.5" data-testid="sauvegarde-fichiers">
+      <h3 className="text-[12.5px] font-bold">Fichiers déposés (disque séparé de la base)</h3>
+      <ErreurChargement message={erreur} />
+      <p className="mt-0.5 text-[12px] text-text-muted">
+        {inv ? `${inv.fichiers.toLocaleString('fr-FR')} fichier(s), ${(inv.octets / (1024 * 1024)).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} Mo.` : '…'} À télécharger en même temps que l’export de la base, et à ranger avec lui.
+      </p>
+      <Button
+        className="mt-1.5 !px-2.5 !py-1.5 !text-[12px]"
+        disabled={enCours}
+        onClick={() => {
+          setEnCours(true);
+          setErreur(null);
+          telechargerFichier('/api/v1/supervision/sauvegarde-fichiers/archive', null)
+            .catch((e) => setErreur(messageChargement(e)))
+            .finally(() => setEnCours(false));
+        }}
+      >
+        {enCours ? 'Préparation de l’archive…' : 'Télécharger les fichiers (ZIP)'}
+      </Button>
+    </div>
+  );
+}
+
 function SupervisionVue() {
   const [s, setS] = useState<Supervision | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
@@ -193,6 +227,7 @@ function SupervisionVue() {
               Déclarer un test de restauration
             </Button>
           )}
+          {s.droits.peutDeclarerTest && <SauvegardeFichiers />}
         </div>
       </div>
 

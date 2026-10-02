@@ -184,6 +184,11 @@ fonctionnalité ajoute sa suite (`tests/e2e/api/`, `tests/e2e/ui/`) et sa ligne 
   Contenu : `apps/web/lib/aide/guides.json`, captures `apps/web/public/aide/` ; toute évolution
   d'écran qui change un libellé cité doit mettre le guide à jour, puis régénérer captures et PDF
   (`tests/e2e/outils/captures_aide.js`, `guide_pdf.js`).
+- Exploitation (2026-10, `docs/Plan_reprise_incident.md`) : supervision = `SupervisionService.services()`
+  (léger : appelé toutes les 10 min et par la sonde publique) — disque (`statfs`), taille de la base ; la chaîne
+  d'audit complète est vérifiée la nuit (`JournalAuditService.verifierNuit`, résultat gardé dans le paramètre
+  `audit.verificationNocturne`), jamais dans `services()`. Sauvegarde des fichiers : `SauvegardeFichiersService`
+  (ZIP en flux, administrateur + `PreuveIdentiteService`, tracée).
 - Écrans : l'API renvoie les droits (`droits`, `peutAjouter`...) et les listes de choix
   (« responsables possibles »...) ; le web n'en calcule aucun.
 
