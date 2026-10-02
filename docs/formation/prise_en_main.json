@@ -1,0 +1,186 @@
+{
+  "version": "2026-10",
+  "profils": [
+    {
+      "cle": "agent",
+      "titre": "Chargé d’études",
+      "pour": "Personnel des divisions, sections et cellules",
+      "capture": "taches.png",
+      "gestes": [
+        "Se connecter : adresse du SI DNPEC, e-mail et mot de passe, « Se connecter ». Sécuriser son compte : cadenas 🔒 en bas du menu → « Activer la double authentification ».",
+        "Mes tâches : passer une tâche « en cours », commenter, joindre un fichier, puis « Soumettre pour validation ». Vues « Kanban » et « Calendrier ».",
+        "Congés : Personnel → « Congés & absences » → « Nouvelle demande de congé ». Le chef donne son avis, le DRH décide ; « Mon solde » indique les jours restants.",
+        "Mon dossier : Personnel → « Dossier du personnel » → vérifier puis « Confirmer mes informations » (ou « Signaler une erreur »).",
+        "Documents : « Archives & documents » → « Mon espace division » (ou « Mon espace cellule ») ; au dépôt, type, date et période couverte."
+      ],
+      "retenir": [
+        "Le tableau de bord montre vos tâches, votre solde, vos demandes et vos réunions.",
+        "Vos informations personnelles ne sont visibles que de vous et du DRH.",
+        "La cloche 🔔 est immédiate ; par e-mail, un résumé quotidien à 7 h (réglable dans 🔔 → préférences)."
+      ]
+    },
+    {
+      "cle": "chef-section",
+      "titre": "Chef de section",
+      "pour": "Chefs de section",
+      "capture": "plan-travail.png",
+      "gestes": [
+        "Plan de travail : Général → « Plan de travail » → « + Nouvel objectif », puis « + Activité » (responsable, dates, indicateur, cible).",
+        "Tâches : « + Nouvelle tâche » → « Assigner à » ; valider ou renvoyer les tâches soumises.",
+        "Congés : Congés & absences → onglet « À traiter » → « Examiner » → « Avis favorable » ou « Avis défavorable » (motif). Sans avis dans le délai, il est réputé favorable.",
+        "Courrier et logistique : traiter le courrier imputé (« À faire ») ; Logistique → « À valider » pour les demandes de vos agents.",
+        "Absence : Personnel → « Suppléances » → « Désigner un suppléant »."
+      ],
+      "retenir": [
+        "L’avancement du plan se calcule à partir des tâches, jamais saisi.",
+        "Un congé maladie : le motif s’affiche après votre mot de passe, et la lecture est tracée.",
+        "Besoins de formation : Ressources humaines → « Formation » → « + Exprimer un besoin »."
+      ]
+    },
+    {
+      "cle": "chef-division",
+      "titre": "Chef de division ou de cellule",
+      "pour": "Chefs de division et chefs de cellule",
+      "capture": "tableau-de-bord.png",
+      "gestes": [
+        "Tableau de bord : charge, retards, absences de l’équipe sur 7 jours, avis de congé attendus.",
+        "Diffuser une tâche : « Mes tâches » → « Diffuser une tâche à une division ».",
+        "Courrier : « À faire » → imputer le courrier arrivée (attribution, information, avis ; échéance), viser et signer les actes de vos registres.",
+        "Documents : ouvrir un document « Final » de votre unité → « Valider ». Le DN ou la DNA le rendent « Diffusable ».",
+        "Plan de travail : celui de la division et de ses sections (filtre « Unité »)."
+      ],
+      "retenir": [
+        "Les tâches en retard de vos agents directs vous sont signalées une fois.",
+        "« Faire valoir la priorité » sur une salle réservée par votre périmètre.",
+        "Le chef de cellule rattachée à la Direction valide les documents de sa cellule."
+      ]
+    },
+    {
+      "cle": "direction",
+      "titre": "DN et DNA",
+      "pour": "Directeur national et Directrice nationale adjointe",
+      "capture": "instructions.png",
+      "gestes": [
+        "Courrier → « À faire » : imputer le courrier de la Direction, signer notes, décisions, ordres de mission, attestations et actes de carrière.",
+        "Instructions : Général → « Instructions » → « + Nouvelle instruction » (objet, texte, destinataire, échéance) ; suivi jusqu’à « Exécutée ».",
+        "Ressources humaines → « Effectifs » : agents par unité, statut et catégorie.",
+        "Documents : rendre « Diffusable » un document validé ; Documents générés → rapport d’activité de la Direction.",
+        "Suppléance : Personnel → « Suppléances » pour désigner qui agit en votre nom."
+      ],
+      "retenir": [
+        "La visibilité s’arrête où commence le contenu protégé (congé maladie, pli personnel, informations personnelles).",
+        "Le dossier d’un agent n’est modifié par un mouvement de carrière qu’à votre signature de l’acte.",
+        "Supervision et journal d’audit : Administration, en lecture."
+      ]
+    },
+    {
+      "cle": "drh",
+      "titre": "DRH",
+      "pour": "Direction des ressources humaines",
+      "capture": "rh-effectifs.png",
+      "gestes": [
+        "Congés : « À traiter » → « Approuver » ou « Refuser » (motif). Motif médical et certificat après votre mot de passe.",
+        "Ressources humaines → « Alertes » : fins de contrat et de stage, avancements à instruire, dossiers incomplets.",
+        "Carrière : « + Nouveau mouvement » → « Préparer le mouvement » → « Préparer l’acte » (le Courrier fait viser et signer).",
+        "Agents et dossiers : Personnel → « Agents » (matricules, fins prévues), « Dossier du personnel » (import Excel possible).",
+        "Stages : Personnel → « Stagiaires » → « + Nouveau stage », périodes, encadreur principal."
+      ],
+      "retenir": [
+        "Avant le premier mouvement : relier chaque famille d’actes à son registre du Courrier.",
+        "Jours fériés : Congés & absences → onglet « Jours fériés » (fêtes religieuses chaque année).",
+        "Une demande de congé du DRH est décidée par le DN ou la DNA."
+      ]
+    },
+    {
+      "cle": "assistant",
+      "titre": "Assistant(e)",
+      "pour": "Assistants du DN, de la DNA ou d’un chef de cellule",
+      "capture": "reunions.png",
+      "gestes": [
+        "Vous voyez ce que voit la personne assistée (tâches, réunions, congés de son périmètre).",
+        "Réunions → « Nouvelle réunion » : participants, salle, début et fin.",
+        "Communication : messagerie avec tous les agents, fils de discussion.",
+        "Plan de travail : lecture des plans de votre supérieur.",
+        "Recherche : barre du haut, 3 caractères au moins."
+      ],
+      "retenir": [
+        "Vous n’avez pas l’autorité de la personne assistée : vous ne validez rien à sa place.",
+        "Pour agir en son nom, il faut une suppléance (« Agir en intérim pour… »).",
+        "La recherche ne montre que ce que vous avez le droit de voir."
+      ]
+    },
+    {
+      "cle": "secretariat-courrier",
+      "titre": "Secrétariat du courrier",
+      "pour": "Personnes habilitées sur un registre",
+      "capture": "courrier.png",
+      "gestes": [
+        "Courrier → « Arrivées » → « + Enregistrer un courrier » : registre, expéditeur, objet, dates, confidentialité.",
+        "« Ajouter un scan » : le numéro est attribué automatiquement, sans trou.",
+        "Une date dans le futur, ou un courrier daté après sa réception : dérogation motivée.",
+        "« À faire » : expédier les départs et actes signés en précisant le mode d’envoi.",
+        "Seuls vos registres vous sont proposés."
+      ],
+      "retenir": [
+        "Un courrier « Confidentiel » : vous ne voyez que son enregistrement.",
+        "Un « Pli personnel » ne s’ouvre que pour son destinataire.",
+        "Les numéros ne sont jamais réutilisés."
+      ]
+    },
+    {
+      "cle": "gestionnaire-logistique",
+      "titre": "Gestionnaire logistique",
+      "pour": "Personnes habilitées « gestionnaire logistique »",
+      "capture": "vehicules.png",
+      "gestes": [
+        "Logistique → « Demandes » → « À traiter » → « Prendre en charge » → « Traiter ».",
+        "« Inventaire » → « + Nouveau bien » (numéro automatique) → « Affecter ».",
+        "« Fournitures » : « Entrée » pour réapprovisionner, « Sortie » avec motif ; alerte sous le seuil.",
+        "« Réservations » → « À valider » ; « Ressources » pour les salles et le matériel.",
+        "« Véhicules » : pleins en litres avec le compteur ; affecter un véhicule à un ordre de mission, puis « Enregistrer le retour »."
+      ],
+      "retenir": [
+        "Vous ne traitez jamais votre propre demande.",
+        "Le compteur d’un véhicule ne recule jamais.",
+        "Un bien réformé garde son numéro et son historique."
+      ]
+    },
+    {
+      "cle": "stagiaire",
+      "titre": "Stagiaire",
+      "pour": "Stagiaires accueillis à la DNPEC",
+      "capture": "mon-stage.png",
+      "gestes": [
+        "« Mon stage » : votre plan (unités, dates, tuteurs) et vos évaluations visées.",
+        "« Mes tâches » : les tâches confiées par votre tuteur ou votre chef.",
+        "« Communication » : messagerie, annonces, fils de discussion.",
+        "Rapport : « Déposer mon rapport » sur votre fiche de stage.",
+        "Fin de stage : télécharger l’attestation signée, puis « J’ai pris connaissance de mon attestation »."
+      ],
+      "retenir": [
+        "Les autres modules (courrier, documents internes, logistique) ne sont pas ouverts aux stagiaires.",
+        "Votre accès s’arrête à la fin du stage.",
+        "Une question : votre tuteur ou l’administrateur."
+      ]
+    },
+    {
+      "cle": "administrateur",
+      "titre": "Administrateur système (CSID)",
+      "pour": "Cellule CSID",
+      "capture": "supervision.png",
+      "gestes": [
+        "Administration → « Utilisateurs » : approuver les inscriptions, créer, suspendre ; rattacher chaque compte à son agent.",
+        "Rôles fonctionnels : « + Attribuer un rôle » (DRH, Gestionnaire RH…).",
+        "« Paramétrage et supervision » : paramètres bornés, état des services, tâches planifiées, sauvegardes.",
+        "Organisation, Courrier (registres, habilitations), Logistique (catégories, gestionnaires).",
+        "Jours fériés : avec le DRH, saisir les fêtes religieuses de l’année."
+      ],
+      "retenir": [
+        "Deux administrateurs au moins, chacun avec la double authentification.",
+        "Chaque nomination d’un chef est suivie le même jour d’un changement de rôle.",
+        "Après chaque essai de restauration : « Déclarer un test de restauration ».",
+        "Le guide d’exploitation (docs/Exploitation.md) décrit sauvegardes, mises à jour et pannes."
+      ]
+    }
+  ]
+}

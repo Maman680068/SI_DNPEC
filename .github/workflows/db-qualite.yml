@@ -1,0 +1,50 @@
+name: Rapport de qualité des données (manuel, lecture seule)
+
+# Déclenchement manuel uniquement. Lit la base pointée par le secret DATABASE_URL dans une
+# transaction déclarée READ ONLY (PostgreSQL y refuse toute écriture) et affiche le rapport dans
+# le résumé du workflow : agents sans unité, unités sans chef, matricules provisoires, dossiers
+# incomplets ou « à vérifier », comptes inactifs, jours fériés, familles d'actes RH sans registre.
+# CHIFFRES SEULEMENT (--sans-noms) : aucun nom ni aucune donnée personnelle dans les journaux de
+# GitHub. Les noms se lisent dans l'application (Organisation, Ressources humaines, Utilisateurs).
+# Voir apps/api/prisma/qualite-donnees.ts.
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Tapez "qualite" pour lancer le rapport (lecture seule, rien n’est modifié)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  rapport:
+    if: ${{ github.event.inputs.confirm == 'qualite' }}
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+    steps:
+      - name: Checkout du dépôt
+        uses: actions/checkout@v4
+
+      - name: Installer pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+
+      - name: Installer Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Installer les dépendances
+        run: pnpm install --frozen-lockfile
+
+      - name: Générer le client Prisma
+        run: pnpm --filter @dnpec/api exec prisma generate
+
+      - name: Rapport (lecture seule, chiffres seulement)
+        run: pnpm --silent --filter @dnpec/api run db:qualite -- --sans-noms | tee -a "$GITHUB_STEP_SUMMARY"
