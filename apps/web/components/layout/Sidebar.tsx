@@ -37,6 +37,8 @@ const NAV_GROUPS: NavGroup[] = [
       // un tuteur y arrive par ses notifications et la carte du tableau de bord.
       { icon: '🎓', label: 'Stagiaires', href: '/stages' },
       { icon: '🌴', label: 'Congés & absences', href: '/leaves' },
+      // Documents générés (socle N4) : attestation de travail, ordre de mission, rapport d'activité.
+      { icon: '🖨', label: 'Documents générés', href: '/documents-generes' },
       { icon: '☰', label: 'Annuaire', href: '/annuaire' },
       // Organigramme (socle NIMBA) : lisible par tous, géré par le DRH et l'administrateur.
       { icon: '🏛', label: 'Organisation', href: '/organisation' },

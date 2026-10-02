@@ -1,5 +1,5 @@
-import { IsEnum, IsOptional, IsString, Length } from 'class-validator';
-import { DocumentCategory } from '@prisma/client';
+import { IsDateString, IsEnum, IsOptional, IsString, Length } from 'class-validator';
+import { DocumentCategory, TypeDocument } from '@prisma/client';
 
 export class UpdateDocumentDto {
   @IsOptional()
@@ -19,4 +19,21 @@ export class UpdateDocumentDto {
   @IsOptional()
   @IsString()
   folderId?: string;
+
+  // Socle N4 — métadonnées (compléter celles des documents d'avant N4).
+  @IsOptional()
+  @IsEnum(TypeDocument)
+  typeDocument?: TypeDocument;
+
+  @IsOptional()
+  @IsDateString()
+  dateDocument?: string;
+
+  @IsOptional()
+  @IsDateString()
+  periodeDebut?: string;
+
+  @IsOptional()
+  @IsDateString()
+  periodeFin?: string;
 }

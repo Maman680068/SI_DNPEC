@@ -24,6 +24,7 @@ import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
 import { SubtaskChecklist } from './SubtaskChecklist';
 import { CommentThread } from './CommentThread';
+import { DocumentsIssus } from '../documents/DocumentsIssus';
 
 const PRIORITY_LABEL: Record<Task['priority'], string> = { URGENT: 'Urgent', NORMAL: 'Normal', FAIBLE: 'Faible' };
 const CONFIDENTIALITY_LABEL: Record<Task['confidentiality'], string> = {
@@ -390,6 +391,15 @@ export function TaskDetailDrawer({
               )}
               {attachmentError && <p className="mt-1.5 text-[12px] text-clay">{attachmentError}</p>}
             </div>
+
+            <DocumentsIssus
+              source={{
+                tacheId: task.id,
+                libelle: `tâche « ${task.title} »`,
+                periodeDebut: task.createdAt.slice(0, 10),
+                periodeFin: (task.dueDate ?? new Date().toISOString()).slice(0, 10),
+              }}
+            />
 
             <div>
               <div className="mb-2.5 text-xs font-bold uppercase tracking-wide text-text-muted">Commentaires</div>

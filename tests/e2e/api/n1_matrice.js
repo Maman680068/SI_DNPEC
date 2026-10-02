@@ -9,7 +9,7 @@
 const fs = require('fs');
 const path = require('path');
 const E = require('../config');
-const { call, ids, check, bilan, preuve } = require('../lib');
+const { call, ids, check, bilan, preuve, upload } = require('../lib');
 
 const S = Date.now().toString(36).slice(-4).toUpperCase();
 const PROFILS = {
@@ -34,7 +34,6 @@ const LOTS = [
   ['Activité / plan de travail', 'N5 (plan de travail objectif → activité → tâche)'],
   ['Instruction de la Direction', 'N5'],
   ['Mouvement de carrière et acte RH, effectifs et alertes RH', 'N6'],
-  ['Document publié — statut de diffusion', 'N4'],
   ['Campagne et bulletin de paie, élément de rémunération, ordre de paiement', 'hors périmètre (D5, finances SAF)'],
   ['Objets du domaine modélisation (annexe 1.3)', 'hors périmètre (domaine B)'],
 ];
@@ -192,9 +191,45 @@ const LOTS = [
   }
   await call('agent1', 'POST', `/leaves/${med.id}/cancel`);
 
+  console.log('— Statut de diffusion (N4) : valider = chef de l’unité productrice (division ou cellule), DN, DNA ; diffusable = DN, DNA');
+  const docPublie = async (validerAvec) => {
+    const d = (await upload('agent1', '/documents', { title: `Matrice ${S} ${Math.random().toString(36).slice(2, 6)}`, divisionId: ids.DPE, typeDocument: 'RAPPORT', periodeDebut: '2026-01-01', periodeFin: '2026-06-30' }, [{ field: 'file', name: 'm.txt' }])).body;
+    await call('agent1', 'POST', `/documents/${d.id}/mark-final`);
+    await call('chefdpe', 'POST', `/documents/${d.id}/publish`);
+    if (validerAvec) await call(validerAvec, 'POST', `/documents/${d.id}/statut`, { vers: 'VALIDE' });
+    return d.id;
+  };
+  const commun = await docPublie(null);
+  const validateurs = ['chefdpe', 'dn', 'dna'];
+  for (const profil of Object.keys(PROFILS)) {
+    const valide = validateurs.includes(profil);
+    const id = valide ? await docPublie(null) : commun;
+    await caseMatrice({ objet: 'Document — statut de diffusion', profil, action: 'valider', annexe: valide ? 'V (responsable métier / Direction)' : '—', attendu: valide, appel: () => call(profil, 'POST', `/documents/${id}/statut`, { vers: 'VALIDE' }) });
+  }
+  // Document produit par une cellule rattachée à la Direction : le chef de cellule valide, DN/DNA en recours.
+  const docCellulePublie = async () => {
+    const d = (await upload('agentsaf', '/documents', { title: `Matrice SAF ${S} ${Math.random().toString(36).slice(2, 6)}`, celluleId: ids.SAF, typeDocument: 'RAPPORT', periodeDebut: '2026-01-01', periodeFin: '2026-06-30' }, [{ field: 'file', name: 'm.txt' }])).body;
+    await call('agentsaf', 'POST', `/documents/${d.id}/mark-final`);
+    await call('chefsaf', 'POST', `/documents/${d.id}/publish`);
+    return d.id;
+  };
+  const communCellule = await docCellulePublie();
+  const validateursCellule = ['chefsaf', 'dn', 'dna'];
+  for (const profil of Object.keys(PROFILS)) {
+    const valide = validateursCellule.includes(profil);
+    const id = valide ? await docCellulePublie() : communCellule;
+    await caseMatrice({ objet: 'Document de cellule — statut de diffusion', profil, action: 'valider', annexe: valide ? 'V (chef de cellule / Direction)' : '—', attendu: valide, appel: () => call(profil, 'POST', `/documents/${id}/statut`, { vers: 'VALIDE' }) });
+  }
+  const valideCommun = await docPublie('chefdpe');
+  for (const profil of Object.keys(PROFILS)) {
+    const direction = profil === 'dn' || profil === 'dna';
+    const id = direction ? await docPublie('chefdpe') : valideCommun;
+    await caseMatrice({ objet: 'Document — statut de diffusion', profil, action: 'rendre diffusable', annexe: direction ? 'V (DN, DNA)' : '—', attendu: direction, appel: () => call(profil, 'POST', `/documents/${id}/statut`, { vers: 'DIFFUSABLE' }) });
+  }
+
   // Rapport lisible : tableau des cases jouées + objets renvoyés à un lot ultérieur.
   const md = [
-    '# Matrice des habilitations — état N3',
+    '# Matrice des habilitations — état N4',
     '',
     'Généré par `tests/e2e/api/n1_matrice.js` (annexe 1 du cahier NIMBA v2.2). « ÉCART » : comportement actuel conservé en N1 et vérifié tel quel.',
     '',

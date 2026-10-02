@@ -53,6 +53,7 @@ async function capture(b, compte, url, fichier, attendre) {
   await capture(b, 'chefssr', '/suppleances', 'suppleances.png');
   await capture(b, 'chefssr', '/logistique?onglet=reservations', 'reservations.png', async (p) => p.getByRole('button', { name: 'Voir les disponibilités' }).waitFor());
   await capture(b, 'drh', '/stages', 'stages.png');
+  await capture(b, 'drh', '/documents-generes', 'documents-generes.png', async (p) => p.getByRole('tab', { name: 'Attestations de travail' }).waitFor());
   await capture(b, 'agentsaf', '/logistique?onglet=inventaire', 'inventaire.png', async (p) => p.getByTestId('onglet-biens').waitFor());
   await capture(b, 'admin', '/users', 'utilisateurs.png');
   await capture(b, 'drh', '/organisation', 'organigramme.png', async (p) => p.locator('[data-testid=unite][data-code=DPE]').first().waitFor());

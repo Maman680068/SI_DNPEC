@@ -1,8 +1,10 @@
-import { IsEnum, IsOptional, IsString, Length } from 'class-validator';
-import { DocumentCategory } from '@prisma/client';
+import { IsDateString, IsEnum, IsOptional, IsString, Length } from 'class-validator';
+import { DocumentCategory, TypeDocument } from '@prisma/client';
 
 /** Champs texte du formulaire multipart — le fichier est géré séparément par
- * FileInterceptor (voir DocumentsController.create). */
+ * FileInterceptor (voir DocumentsController.create). Socle N4 : type, date et période
+ * couverte obligatoires (§8, SIG-RF-GED-07) ; lien facultatif vers la tâche ou la réunion
+ * d'origine (SIG-RF-GED-08). */
 export class CreateDocumentDto {
   @IsString()
   @Length(2, 300)
@@ -17,8 +19,27 @@ export class CreateDocumentDto {
   @IsEnum(DocumentCategory)
   category?: DocumentCategory;
 
+  @IsEnum(TypeDocument, { message: 'Le type du document est obligatoire.' })
+  typeDocument!: TypeDocument;
+
+  @IsOptional()
+  @IsDateString({}, { message: 'Date du document invalide.' })
+  dateDocument?: string;
+
+  @IsDateString({}, { message: 'Le début de la période couverte est obligatoire.' })
+  periodeDebut!: string;
+
+  @IsDateString({}, { message: 'La fin de la période couverte est obligatoire.' })
+  periodeFin!: string;
+
+  // Unité productrice : une division OU une cellule rattachée à la Direction (exactement l'une).
+  @IsOptional()
   @IsString()
-  divisionId!: string;
+  divisionId?: string;
+
+  @IsOptional()
+  @IsString()
+  celluleId?: string;
 
   @IsOptional()
   @IsString()
@@ -27,4 +48,8 @@ export class CreateDocumentDto {
   @IsOptional()
   @IsString()
   sourceTaskId?: string;
+
+  @IsOptional()
+  @IsString()
+  sourceMeetingId?: string;
 }

@@ -383,6 +383,18 @@ export class CascadeService {
     return actor.divisionId === divisionId;
   }
 
+  /** Socle N4 — espace documentaire d'une cellule rattachée à la Direction : mêmes règles que
+   * pour une division (dépôt : ses membres, le DN et la DNA ; lecture du contenu privé : ses
+   * membres seulement, besoin d'en connaître). */
+  canAccessCelluleWorkspace(actor: AuthenticatedUser, celluleId: string): boolean {
+    if (LEADERSHIP_ROLES.includes(actor.role)) return true;
+    return actor.role !== SystemRole.STAGIAIRE && actor.celluleId === celluleId;
+  }
+
+  isMemberOfCellule(actor: AuthenticatedUser, celluleId: string): boolean {
+    return actor.role !== SystemRole.STAGIAIRE && actor.celluleId === celluleId;
+  }
+
   assertIsMemberOfDivision(actor: AuthenticatedUser, divisionId: string): void {
     if (!this.isMemberOfDivision(actor, divisionId)) {
       throw new ForbiddenException('Cet espace documentaire privé est hors de votre périmètre.');

@@ -1,5 +1,5 @@
-import { apiFetch, API_BASE_URL, authHeaders, appelApi } from './client';
-import type { DnpecDocument, DocumentFilters, DocumentVersionSummary, Folder } from '../documents/types';
+import { apiFetch, telechargerFichier } from './client';
+import type { ChangementStatut, DnpecDocument, DocumentFilters, DocumentVersionSummary, Folder, StatutDiffusion, TypeDocument } from '../documents/types';
 
 export function getFolders(divisionId: string): Promise<Folder[]> {
   return apiFetch<Folder[]>(`/folders?divisionId=${encodeURIComponent(divisionId)}`);
@@ -30,8 +30,16 @@ export interface CreateDocumentInput {
   title: string;
   description?: string;
   category?: string;
-  divisionId: string;
+  /** Unité productrice : une division OU une cellule (exactement l'une). */
+  divisionId?: string;
+  celluleId?: string;
   folderId?: string;
+  typeDocument: TypeDocument;
+  dateDocument?: string;
+  periodeDebut: string;
+  periodeFin: string;
+  sourceTaskId?: string;
+  sourceMeetingId?: string;
   file: File;
 }
 
@@ -40,8 +48,15 @@ export function createDocument(input: CreateDocumentInput): Promise<DnpecDocumen
   form.set('title', input.title);
   if (input.description) form.set('description', input.description);
   if (input.category) form.set('category', input.category);
-  form.set('divisionId', input.divisionId);
+  if (input.divisionId) form.set('divisionId', input.divisionId);
+  if (input.celluleId) form.set('celluleId', input.celluleId);
   if (input.folderId) form.set('folderId', input.folderId);
+  form.set('typeDocument', input.typeDocument);
+  if (input.dateDocument) form.set('dateDocument', input.dateDocument);
+  form.set('periodeDebut', input.periodeDebut);
+  form.set('periodeFin', input.periodeFin);
+  if (input.sourceTaskId) form.set('sourceTaskId', input.sourceTaskId);
+  if (input.sourceMeetingId) form.set('sourceMeetingId', input.sourceMeetingId);
   form.set('file', input.file);
   return apiFetch<DnpecDocument>('/documents', { method: 'POST', body: form });
 }
@@ -64,18 +79,21 @@ export function publishDocument(documentId: string): Promise<DnpecDocument> {
   return apiFetch<DnpecDocument>(`/documents/${documentId}/publish`, { method: 'POST' });
 }
 
-/** Hors apiFetch : la réponse est un flux binaire, pas du JSON — déclenche un
- * téléchargement navigateur via une URL d'objet temporaire. */
-export async function downloadVersion(documentId: string, versionId: string, fileName: string): Promise<void> {
-  const res = await appelApi(`${API_BASE_URL}/documents/${documentId}/versions/${versionId}/download`, {
-    headers: authHeaders(),
-  });
-  if (!res.ok) throw new Error('Téléchargement impossible');
-  const blob = await res.blob();
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = fileName;
-  link.click();
-  URL.revokeObjectURL(url);
+/** Métadonnées (compléter celles d'un document d'avant N4). */
+export function updateDocument(documentId: string, input: { typeDocument?: TypeDocument; dateDocument?: string; periodeDebut?: string; periodeFin?: string }): Promise<DnpecDocument> {
+  return apiFetch<DnpecDocument>(`/documents/${documentId}`, { method: 'PATCH', body: JSON.stringify(input) });
+}
+
+/** Statut de diffusion : valider, rendre diffusable, retirer (motif). */
+export function changerStatut(documentId: string, vers: StatutDiffusion, motif?: string): Promise<DnpecDocument> {
+  return apiFetch<DnpecDocument>(`/documents/${documentId}/statut`, { method: 'POST', body: JSON.stringify({ vers, ...(motif ? { motif } : {}) }) });
+}
+
+export function getHistoriqueStatut(documentId: string): Promise<ChangementStatut[]> {
+  return apiFetch<ChangementStatut[]>(`/documents/${documentId}/statut`);
+}
+
+/** Copie marquée du statut de diffusion : le nom du fichier est celui annoncé par le serveur. */
+export function downloadVersion(documentId: string, versionId: string): Promise<void> {
+  return telechargerFichier(`/documents/${documentId}/versions/${versionId}/download`, null);
 }

@@ -74,7 +74,7 @@ const compte = async () => ({
   check('congés (5), dont un congé maladie', n.conges === 5 && (await prisma.leaveRequest.count({ where: { user: demo, leaveType: { code: 'CONGE_MALADIE' } } })) === 1);
   check('2 annonces, 1 sondage avec 6 votes', n.annonces === 2 && (await prisma.pollVote.count({ where: { poll: { author: demo } } })) === 6);
   check('2 suggestions, dont une anonyme', (await prisma.suggestion.count({ where: { content: { startsWith: 'TEST — ' } } })) === 2 && (await prisma.suggestion.count({ where: { content: { startsWith: 'TEST — ' }, isAnonymous: true } })) === 1);
-  check('documents GED (3, dont un publié), fichier livré avec l’application', n.documents === 3 && (await prisma.document.count({ where: { createdBy: demo, visibility: 'PUBLIE_DNPEC' } })) === 1 && (await prisma.documentVersion.count({ where: { uploadedBy: demo, fileKey: 'integre:demo-document-dnpec.pdf' } })) === 3);
+  check('documents GED (4, dont un publié et un de la cellule validé par sa cheffe), fichier livré avec l’application', n.documents === 4 && (await prisma.document.count({ where: { createdBy: demo, visibility: 'PUBLIE_DNPEC' } })) === 1 && (await prisma.document.count({ where: { createdBy: demo, celluleId: { not: null }, divisionId: null, statutDiffusion: 'VALIDE' } })) === 1 && (await prisma.documentVersion.count({ where: { uploadedBy: demo, fileKey: 'integre:demo-document-dnpec.pdf' } })) === 4);
   check('messages', n.messages === 5);
   check('suppléance en cours', (await prisma.suppleance.count({ where: { titulaire: demo, revokedAt: null, startDate: { lte: new Date() } } })) === 1);
   check('dossiers du personnel partiels', (await prisma.personnelFileBasic.count({ where: { user: demo } })) === 4);

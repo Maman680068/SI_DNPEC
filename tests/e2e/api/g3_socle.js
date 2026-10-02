@@ -121,9 +121,9 @@ async function televerser(k, p, champs, nom, contenu, champFichier = 'file') {
   expect('l’agent annule sa demande approuvée', await call('agent1', 'POST', `/leaves/${c1.id}/cancel`), 201);
 
   console.log('— GED : dépôt, versions, publication, besoin d’en connaître');
-  const d = await televerser('agent1', '/documents', { title: `Rapport trimestriel ${S}`, category: 'RAPPORT', divisionId: ids.DPE }, 'rapport-v1.txt', `Version 1 ${S}`);
+  const d = await televerser('agent1', '/documents', { title: `Rapport trimestriel ${S}`, category: 'RAPPORT', divisionId: ids.DPE, typeDocument: 'RAPPORT', periodeDebut: '2026-07-01', periodeFin: '2026-09-30' }, 'rapport-v1.txt', `Version 1 ${S}`);
   check('dépôt d’un document dans sa division', d.status === 201);
-  expect('dépôt dans une autre division', await televerser('agent1', '/documents', { title: 'Hors division', divisionId: ids.DEE }, 'x.txt', 'x'), 403);
+  expect('dépôt dans une autre division', await televerser('agent1', '/documents', { title: 'Hors division', divisionId: ids.DEE, typeDocument: 'AUTRE', periodeDebut: '2026-07-01', periodeFin: '2026-09-30' }, 'x.txt', 'x'), 403);
   expect('un agent d’une autre division ne l’ouvre pas (privé division)', await call('agentdee', 'GET', `/documents/${d.body.id}`), 403);
   expect('nouvelle version', await televerser('agent1', `/documents/${d.body.id}/versions`, {}, 'rapport-v2.txt', `Version 2 ${S}`), 201);
   const versions = (await call('agent1', 'GET', `/documents/${d.body.id}/versions`)).body;

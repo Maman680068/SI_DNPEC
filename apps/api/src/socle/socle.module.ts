@@ -19,7 +19,9 @@ import { SupervisionService } from './supervision.service';
 import { ConservationService } from './conservation.service';
 
 /** Lot N2 : paramètres, tâches planifiées, connexions, journal d'audit, réauthentification, supervision. */
-const SERVICES_N2 = [ParametresService, TachesPlanifieesService, JournalConnexionsService, JournalAuditService, PreuveIdentiteService, SupervisionService, ConservationService, JoursFeriesService];
+import { ExportsService } from './exports.service';
+
+const SERVICES_N2 = [ParametresService, TachesPlanifieesService, JournalConnexionsService, JournalAuditService, PreuveIdentiteService, SupervisionService, ConservationService, JoursFeriesService, ExportsService];
 
 /**
  * Socle NIMBA : organigramme, agents, habilitation à deux axes. Global : la
