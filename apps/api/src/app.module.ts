@@ -25,6 +25,8 @@ import { GenerateurModule } from './generateur/generateur.module';
 import { PlanTravailModule } from './plan-travail/plan-travail.module';
 import { CollaborationModule } from './collaboration/collaboration.module';
 import { InstructionsModule } from './instructions/instructions.module';
+import { RhModule } from './rh/rh.module';
+import { TableauDeBordModule } from './tableau-de-bord/tableau-de-bord.module';
 import { SuppleancesModule } from './suppleances/suppleances.module';
 import { CourrierModule } from './courrier/courrier.module';
 import { RoleChangeModule } from './role-change/role-change.module';
@@ -59,6 +61,8 @@ import { AppController } from './app.controller';
     GenerateurModule,
     PlanTravailModule,
     InstructionsModule,
+    RhModule,
+    TableauDeBordModule,
     CollaborationModule,
     PersonnelImportModule,
     StagesModule,

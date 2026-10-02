@@ -118,8 +118,26 @@ function libelleActe(a: { numero: string | null; objet: string; confidentialite:
  * - numéro attribué À LA SIGNATURE, dans la transaction qui fait passer
  *   l'acte de A_SIGNER à SIGNE (0 ligne → 409, aucun numéro consommé).
  */
+/**
+ * Écouteur de signature (socle N6) : appelé DANS la transaction de signature (un échec annule la
+ * signature et ne consomme aucun numéro) ; peut renvoyer une suite à exécuter après le commit
+ * (synchronisation, notifications). Sert par exemple à appliquer un mouvement de carrière.
+ */
+export type EcouteurSignature = (
+  tx: Prisma.TransactionClient,
+  acte: { id: string; numero: string; beneficiaireId: string | null },
+  actor: AuthenticatedUser,
+) => Promise<(() => Promise<void>) | void>;
+
 @Injectable()
 export class ActesService {
+  private readonly ecouteursSignature: EcouteurSignature[] = [];
+
+  /** Inscrit un écouteur de signature (à l'initialisation d'un module). */
+  surSignature(ecouteur: EcouteurSignature): void {
+    this.ecouteursSignature.push(ecouteur);
+  }
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
@@ -405,12 +423,18 @@ export class ActesService {
           },
           tx,
         );
-        return n.numero;
+        const suites: (() => Promise<void>)[] = [];
+        for (const ecouteur of this.ecouteursSignature) {
+          const suite = await ecouteur(tx, { id, numero: n.numero, beneficiaireId: acte.beneficiaireId }, actor);
+          if (suite) suites.push(suite);
+        }
+        return { numero: n.numero, suites };
       }, TRANSACTION_NUMEROTATION);
 
-    const numero = fichier
+    const { numero, suites } = fichier
       ? await this.storage.saveThen(fichier.buffer, fichier.originalname, (saved) => transaction(saved))
       : await transaction(null);
+    for (const suite of suites) await suite();
 
     // Notifications APRÈS le commit.
     const signe = { ...acte, numero };

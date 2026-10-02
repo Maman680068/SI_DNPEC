@@ -175,6 +175,7 @@ export default function LeavesPage() {
           <div className="mb-3.5 flex items-center justify-between">
             <h2 className="text-[16px] font-extrabold">Mon solde</h2>
             <select
+              aria-label="Année du solde"
               value={year}
               onChange={(e) => setYear(Number(e.target.value))}
               className="rounded-md border border-line bg-surface px-3 py-1.5 text-[13px]"

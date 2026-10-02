@@ -7,11 +7,13 @@ import { InventaireService } from './inventaire.service';
 import { DemandesLogistiqueService } from './demandes.service';
 import { ReservationsService } from './reservations.service';
 import { LogistiqueController } from './logistique.controller';
+import { VehiculesService } from './vehicules.service';
+import { VehiculesController } from './vehicules.controller';
 
 @Module({
   imports: [OrgModule, CommunicationModule],
-  controllers: [LogistiqueController],
-  providers: [GestionnairesLogistiqueService, ReferentielLogistiqueService, InventaireService, DemandesLogistiqueService, ReservationsService],
+  controllers: [LogistiqueController, VehiculesController],
+  providers: [GestionnairesLogistiqueService, ReferentielLogistiqueService, InventaireService, DemandesLogistiqueService, ReservationsService, VehiculesService],
   // ReservationsService : salle réservée depuis une réunion (MeetingsModule).
   exports: [GestionnairesLogistiqueService, ReservationsService],
 })

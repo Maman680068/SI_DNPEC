@@ -9,7 +9,7 @@ export function getDossier(userId: string): Promise<DossierPersonnel> {
   return apiFetch<DossierPersonnel>(`/personnel-files/${userId}`);
 }
 
-export type NiveauUnInput = Partial<Pick<NiveauUn, 'employmentStatus' | 'grade' | 'echelon' | 'serviceStartDate'>>;
+export type NiveauUnInput = Partial<Pick<NiveauUn, 'employmentStatus' | 'grade' | 'echelon' | 'categorie' | 'echelonDepuis' | 'serviceStartDate'>>;
 
 export function modifierNiveauUn(userId: string, input: NiveauUnInput): Promise<unknown> {
   return apiFetch(`/personnel-files/${userId}/basic`, { method: 'PATCH', body: JSON.stringify(input) });
@@ -42,8 +42,8 @@ export function supprimerDiplome(userId: string, diplomaId: string): Promise<unk
   return apiFetch(`/personnel-files/${userId}/diplomas/${diplomaId}`, { method: 'DELETE' });
 }
 
-export function ajouterPiece(userId: string, label: string, fichier: File): Promise<PieceAdministrative> {
-  return apiFetch<PieceAdministrative>(`/personnel-files/${userId}/documents`, { method: 'POST', body: formulaire(fichier, { label }) });
+export function ajouterPiece(userId: string, label: string, fichier: File, pieceRequiseId?: string): Promise<PieceAdministrative> {
+  return apiFetch<PieceAdministrative>(`/personnel-files/${userId}/documents`, { method: 'POST', body: formulaire(fichier, pieceRequiseId ? { label, pieceRequiseId } : { label }) });
 }
 
 export function supprimerPiece(userId: string, documentId: string): Promise<unknown> {

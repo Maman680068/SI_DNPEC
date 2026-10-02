@@ -9,8 +9,9 @@ import { OngletDemandes } from '../../../components/logistique/OngletDemandes';
 import { OngletReservations } from '../../../components/logistique/OngletReservations';
 import { OngletBiens } from '../../../components/logistique/OngletBiens';
 import { OngletFournitures } from '../../../components/logistique/OngletFournitures';
+import { OngletVehicules } from '../../../components/logistique/OngletVehicules';
 
-type Onglet = 'demandes' | 'reservations' | 'inventaire' | 'fournitures';
+type Onglet = 'demandes' | 'reservations' | 'inventaire' | 'fournitures' | 'vehicules';
 
 /** Logistique (D9) : demandes, réservations, biens ; fournitures pour les gestionnaires.
  * Liens profonds : ?id=<demande>, ?onglet=reservations&reservation=<id>,
@@ -31,7 +32,7 @@ export default function LogistiquePage() {
     charger();
     const p = new URLSearchParams(window.location.search);
     const o = p.get('onglet') as Onglet | null;
-    if (o && ['demandes', 'reservations', 'inventaire', 'fournitures'].includes(o)) setOnglet(o);
+    if (o && ['demandes', 'reservations', 'inventaire', 'fournitures', 'vehicules'].includes(o)) setOnglet(o);
     setLien({ id: p.get('id'), reservation: p.get('reservation') });
   }, [charger]);
 
@@ -43,6 +44,7 @@ export default function LogistiquePage() {
     { cle: 'reservations', libelle: `Réservations${badge(tableau.reservationsAValider)}` },
     { cle: 'inventaire', libelle: g ? 'Inventaire' : 'Mes biens' },
     ...(g ? [{ cle: 'fournitures' as Onglet, libelle: `Fournitures${badge(tableau.stockBas)}` }] : []),
+    { cle: 'vehicules', libelle: 'Véhicules' },
   ];
   return (
     <div>
@@ -66,6 +68,7 @@ export default function LogistiquePage() {
         />
       )}
       {onglet === 'fournitures' && g && <OngletFournitures ouvrirId={lien.id} />}
+      {onglet === 'vehicules' && <OngletVehicules />}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import {
   AuditAction,
   NotificationType,
@@ -59,6 +59,7 @@ const DIPLOMA_VIEW_SELECT = {
 const DOCUMENT_VIEW_SELECT = {
   id: true,
   label: true,
+  pieceRequiseId: true,
   fileName: true,
   verified: true,
   createdAt: true,
@@ -69,6 +70,8 @@ const BASIC_DEFAULTS = {
   employmentStatus: null,
   grade: null,
   echelon: null,
+  categorie: null,
+  echelonDepuis: null,
   serviceStartDate: null,
   jobDescriptionFileKey: null,
   jobDescriptionFileName: null,
@@ -250,6 +253,8 @@ export class PersonnelFilesService {
       ...(dto.grade !== undefined ? { grade: dto.grade } : {}),
       ...(dto.echelon !== undefined ? { echelon: dto.echelon } : {}),
       ...(dto.serviceStartDate !== undefined ? { serviceStartDate: new Date(dto.serviceStartDate) } : {}),
+      ...(dto.categorie !== undefined ? { categorie: dto.categorie } : {}),
+      ...(dto.echelonDepuis !== undefined ? { echelonDepuis: new Date(`${dto.echelonDepuis.slice(0, 10)}T00:00:00.000Z`) } : {}),
       verifiedFields,
       source,
     };
@@ -401,9 +406,12 @@ export class PersonnelFilesService {
     await this.getTargetOrThrow(userId);
     this.assertCanAccessSensitive(actor, userId);
 
+    if (dto.pieceRequiseId && !(await this.prisma.pieceRequise.findFirst({ where: { id: dto.pieceRequiseId, actif: true } }))) {
+      throw new BadRequestException('Pièce requise inconnue ou retirée de la liste.');
+    }
     const document = await this.storage.saveThen(file.buffer, file.originalname, ({ fileKey }) =>
       this.prisma.personnelDocument.create({
-        data: { userId, label: dto.label, fileKey, fileName: file.originalname, uploadedById: actor.id },
+        data: { userId, label: dto.label, pieceRequiseId: dto.pieceRequiseId ?? null, fileKey, fileName: file.originalname, uploadedById: actor.id },
         select: DOCUMENT_VIEW_SELECT,
       }),
     );
@@ -599,6 +607,8 @@ export class PersonnelFilesService {
       employmentStatus: r.employmentStatus,
       grade: r.grade,
       echelon: r.echelon,
+      categorie: r.categorie,
+      echelonDepuis: r.echelonDepuis,
       serviceStartDate: r.serviceStartDate,
       jobDescriptionFileName: r.jobDescriptionFileName,
       verifiedFields: r.verifiedFields,

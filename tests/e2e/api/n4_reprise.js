@@ -17,7 +17,7 @@ const MODE = process.env.N4_MODE || 'apres';
 const DOSSIER = path.join(E.OUT, 'n4_reprise');
 fs.mkdirSync(DOSSIER, { recursive: true });
 const PSQL_URL = (process.env.DATABASE_URL || '').split('?')[0];
-const COLONNES_N4 = ['statutDiffusion', 'typeDocument', 'dateDocument', 'periodeDebut', 'periodeFin', 'sourceMeetingId', 'activiteId', 'alerteVeilleAt', 'alerteRetardAt', 'aEnvoyerLe'];
+const COLONNES_N4 = ['statutDiffusion', 'typeDocument', 'dateDocument', 'periodeDebut', 'periodeFin', 'sourceMeetingId', 'activiteId', 'alerteVeilleAt', 'alerteRetardAt', 'aEnvoyerLe', 'categorie', 'echelonDepuis', 'pieceRequiseId', 'vehiculeId', 'kilometrageDepart', 'kilometrageRetour'];
 const CATEGORIES = ['ETUDE', 'RAPPORT', 'NOTE_TECHNIQUE', 'AUTRE'];
 
 const sql = (q) => prisma.$queryRawUnsafe(q);

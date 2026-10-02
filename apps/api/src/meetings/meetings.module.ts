@@ -11,6 +11,6 @@ import { DecisionsService } from './decisions.service';
   imports: [OrgModule, CommunicationModule, LogistiqueModule],
   controllers: [MeetingsController, DecisionsController],
   providers: [MeetingsService, DecisionsService],
-  exports: [MeetingsService],
+  exports: [MeetingsService, DecisionsService],
 })
 export class MeetingsModule {}

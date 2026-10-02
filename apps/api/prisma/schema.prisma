@@ -1488,6 +1488,9 @@ model PersonnelFileBasic {
   employmentStatus       EmploymentStatus?
   grade                  String?
   echelon                String?
+  // Socle N6 : catégorie (A, B, C, D…) pour les effectifs ; date du dernier échelon (avancement à instruire).
+  categorie              String?
+  echelonDepuis          DateTime? @db.Date
   serviceStartDate       DateTime?
   // Fiche de poste déposée (fichier) — StorageService, même mécanique que la GED.
   jobDescriptionFileKey  String?
@@ -1543,6 +1546,9 @@ model PersonnelDocument {
   userId       String
   user         User     @relation("PersonnelDocumentOwner", fields: [userId], references: [id], onDelete: Cascade)
   label        String // libre : "CNI", "Acte de naissance", "Casier judiciaire"...
+  // Socle N6 : pièce de la liste des pièces requises que ce document fournit (dossier complet).
+  pieceRequiseId String?
+  pieceRequise   PieceRequise? @relation(fields: [pieceRequiseId], references: [id], onDelete: SetNull)
   fileKey      String
   fileName     String
   uploadedById String
@@ -1741,6 +1747,7 @@ model RegistreCourrier {
   compteurs     CompteurRegistre[]
   arrivees      CourrierArrivee[]
   actes         ActeCourrier[]
+  famillesRh    FamilleActeRh[]
 
   @@map("registres_courrier")
 }
@@ -1913,6 +1920,7 @@ model ActeCourrier {
   imputationsReponse ImputationCourrier[]   @relation("ImputationReponse")
 
   stageAttestation Stage?
+  mouvementCarriere MouvementCarriere?
   // Socle N4 — ordre de mission dont l'acte est la version signée.
   ordreMission     OrdreMission?
 
@@ -2820,6 +2828,11 @@ model OrdreMission {
   dateRetour   DateTime      @db.Date
   transport    String?
   fraisMontant Int?
+  // Socle N6 : véhicule de service affecté par la logistique, kilométrage au départ et au retour.
+  vehiculeId        String?
+  vehicule          Vehicule? @relation(fields: [vehiculeId], references: [id])
+  kilometrageDepart Int?
+  kilometrageRetour Int?
   creeParId    String
   creePar      User          @relation("OrdreMissionCreePar", fields: [creeParId], references: [id])
   acteId       String?       @unique
@@ -3003,4 +3016,142 @@ model Instruction {
   @@index([destinataireId, statut])
   @@index([emetteurId])
   @@map("instructions")
+}
+
+// ---------------------------------------------------------------------------
+// Socle NIMBA, lot N6 — effectifs et alertes RH, carrière et actes, fiches de poste, formation,
+// véhicules de service et carburant (cahier NIMBA A3.5, A3.6, A5 logistique, SIG-RF-CAR, SIG-RF-LOG-03).
+
+/// Pièce exigée pour un dossier complet (liste tenue par le DRH à l'écran).
+model PieceRequise {
+  id        String   @id @default(cuid())
+  libelle   String   @unique
+  ordre     Int      @default(0)
+  actif     Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  documents PersonnelDocument[]
+
+  @@map("pieces_requises")
+}
+
+enum TypeMouvementCarriere {
+  NOMINATION
+  AVANCEMENT_ECHELON
+  PROMOTION
+  MUTATION
+  FIN_CONTRAT
+
+  @@map("type_mouvement_carriere")
+}
+
+enum StatutMouvementCarriere {
+  PREPARE
+  EN_ACTE
+  APPLIQUE
+  ANNULE
+
+  @@map("statut_mouvement_carriere")
+}
+
+/// Famille d'actes des RH : sa séquence est celle de son registre du Courrier (numérotation continue,
+/// jamais réutilisée), son signataire celui du registre (portée Direction : DN ou DNA).
+model FamilleActeRh {
+  code       String            @id
+  libelle    String
+  registreId String?
+  registre   RegistreCourrier? @relation(fields: [registreId], references: [id])
+  updatedAt  DateTime          @updatedAt
+
+  @@map("familles_actes_rh")
+}
+
+/// Mouvement de carrière daté : préparé par le DRH, porté par un acte du Courrier, appliqué au dossier
+/// à la signature de l'acte.
+model MouvementCarriere {
+  id          String                  @id @default(cuid())
+  userId      String
+  type        TypeMouvementCarriere
+  avant       Json
+  apres       Json
+  dateEffet   DateTime                @db.Date
+  motif       String?
+  statut      StatutMouvementCarriere @default(PREPARE)
+  familleCode String
+  acteId      String?                 @unique
+  acte        ActeCourrier?           @relation(fields: [acteId], references: [id])
+  creeParId   String
+  appliqueLe  DateTime?
+  createdAt   DateTime                @default(now())
+  updatedAt   DateTime                @updatedAt
+
+  @@index([userId])
+  @@map("mouvements_carriere")
+}
+
+/// Fiche de poste rattachée à la fonction, non à la personne.
+model FichePoste {
+  id          String   @id @default(cuid())
+  fonction    String   @unique
+  missions    String
+  activites   String?
+  competences String?
+  majParId    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("fiches_poste")
+}
+
+/// Besoin de formation exprimé par une unité, consolidé par le DRH dans le plan annuel.
+model BesoinFormation {
+  id        String   @id @default(cuid())
+  annee     Int
+  uniteId   String
+  intitule  String
+  priorite  String // HAUTE | MOYENNE | BASSE
+  origine   String // ENTRETIEN | PLAN_TRAVAIL | NOUVELLE_FONCTION | REGLEMENTAIRE | AUTRE
+  effectif  Int      @default(1)
+  statut    String   @default("EXPRIME") // EXPRIME | RETENU | REALISE | ECARTE
+  creeParId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([annee])
+  @@map("besoins_formation")
+}
+
+/// Véhicule de service (logistique) : affecté aux ordres de mission, suivi du kilométrage et du carburant.
+model Vehicule {
+  id              String   @id @default(cuid())
+  immatriculation String   @unique
+  marque          String
+  modele          String
+  energie         String // ESSENCE | GAZOLE
+  kilometrage     Int      @default(0)
+  etat            EtatBien @default(EN_SERVICE)
+  actif           Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  missions OrdreMission[]
+  pleins   PleinCarburant[]
+
+  @@map("vehicules")
+}
+
+model PleinCarburant {
+  id             String   @id @default(cuid())
+  vehiculeId     String
+  vehicule       Vehicule @relation(fields: [vehiculeId], references: [id])
+  date           DateTime @db.Date
+  litres         Decimal  @db.Decimal(8, 2)
+  montant        Int
+  kilometrage    Int
+  ordreMissionId String?
+  saisiParId     String
+  createdAt      DateTime @default(now())
+
+  @@index([vehiculeId, date])
+  @@map("pleins_carburant")
 }

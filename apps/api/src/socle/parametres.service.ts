@@ -63,6 +63,16 @@ export const PARAMETRES: DefinitionParametre[] = [
     reference: '§13.6, circuit A6.1',
   },
   {
+    cle: 'rh.avancementEchelonMois',
+    libelle: 'Ancienneté dans l’échelon avant un avancement à instruire',
+    unite: 'mois',
+    defaut: 24,
+    min: 12,
+    max: 60,
+    effet: 'Alerte « avancement d’échelon à instruire » au DRH pour un fonctionnaire resté plus longtemps dans son échelon.',
+    reference: 'A3.5, SIG-RF-CAR-02',
+  },
+  {
     cle: 'finPrevue.alerteJours',
     libelle: 'Alerte avant une fin de stage ou de contrat',
     unite: 'jours',

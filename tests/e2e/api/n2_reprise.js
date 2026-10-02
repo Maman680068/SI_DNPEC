@@ -18,7 +18,7 @@ const DOSSIER = path.join(E.OUT, 'n2_reprise');
 fs.mkdirSync(DOSSIER, { recursive: true });
 const PSQL_URL = (process.env.DATABASE_URL || '').split('?')[0];
 // Colonnes de N2, puis celles de N3 (appliqué par le même « migrate deploy », contrôlé par n3_reprise).
-const COLONNES_N2 = ['agentId', 'numero', 'acteurInitial', 'auNomDeInitial', 'rang', 'empreinte', 'empreintePrecedente', 'avisEtat', 'avisParId', 'avisMotif', 'avisLe', 'avisEcheance', 'alerteAvisAt', 'encadrantPrincipalId', 'rapportFileKey', 'rapportFileName', 'rapportDeposeLe', 'rapportStatut', 'rapportMotif', 'rapportValideLe', 'rapportValideParId', 'progressPercent', 'certificatFileKey', 'certificatFileName', 'certificatDeposeLe', 'statutDiffusion', 'typeDocument', 'dateDocument', 'periodeDebut', 'periodeFin', 'sourceMeetingId', 'activiteId', 'alerteVeilleAt', 'alerteRetardAt', 'aEnvoyerLe'];
+const COLONNES_N2 = ['agentId', 'numero', 'acteurInitial', 'auNomDeInitial', 'rang', 'empreinte', 'empreintePrecedente', 'avisEtat', 'avisParId', 'avisMotif', 'avisLe', 'avisEcheance', 'alerteAvisAt', 'encadrantPrincipalId', 'rapportFileKey', 'rapportFileName', 'rapportDeposeLe', 'rapportStatut', 'rapportMotif', 'rapportValideLe', 'rapportValideParId', 'progressPercent', 'certificatFileKey', 'certificatFileName', 'certificatDeposeLe', 'statutDiffusion', 'typeDocument', 'dateDocument', 'periodeDebut', 'periodeFin', 'sourceMeetingId', 'activiteId', 'alerteVeilleAt', 'alerteRetardAt', 'aEnvoyerLe', 'categorie', 'echelonDepuis', 'pieceRequiseId', 'vehiculeId', 'kilometrageDepart', 'kilometrageRetour'];
 // Tables alimentées par N2 elle-même (agents créés pour les comptes qui n'en avaient pas).
 const AJOUTS_ADMIS = ['agents', 'mouvements_agents'];
 

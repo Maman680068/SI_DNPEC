@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ajouterDiplome,
   ajouterPiece,
@@ -12,6 +12,8 @@ import {
 } from '../../lib/api/personnel';
 import type { DossierPersonnel, EmploymentStatus, NiveauDeux } from '../../lib/personnel/types';
 import { EMPLOYMENT_STATUS_LABEL } from '../../lib/personnel/types';
+import { getPiecesRequises } from '../../lib/api/rh';
+import type { PieceRequise } from '../../lib/rh/types';
 import { Erreur, Fenetre, Libelle, SELECT_CLASS, TEXTAREA_CLASS, messageErreur } from '../courrier/ui';
 
 type Props = { dossier: DossierPersonnel; onClose: () => void; onDone: () => void };
@@ -52,6 +54,8 @@ export function FenetreNiveauUn({ dossier, onClose, onDone }: Props) {
     employmentStatus: b.employmentStatus ?? '',
     grade: b.grade ?? '',
     echelon: b.echelon ?? '',
+    categorie: b.categorie ?? '',
+    echelonDepuis: b.echelonDepuis ? b.echelonDepuis.slice(0, 10) : '',
     serviceStartDate: b.serviceStartDate ? b.serviceStartDate.slice(0, 10) : '',
   };
   const [v, setV] = useState(initial);
@@ -64,6 +68,8 @@ export function FenetreNiveauUn({ dossier, onClose, onDone }: Props) {
     if (v.grade.trim() && v.grade.trim() !== initial.grade) input.grade = v.grade.trim();
     if (v.echelon.trim() && v.echelon.trim() !== initial.echelon) input.echelon = v.echelon.trim();
     if (v.serviceStartDate && v.serviceStartDate !== initial.serviceStartDate) input.serviceStartDate = v.serviceStartDate;
+    if (v.categorie.trim() && v.categorie.trim() !== initial.categorie) input.categorie = v.categorie.trim();
+    if (v.echelonDepuis && v.echelonDepuis !== initial.echelonDepuis) input.echelonDepuis = v.echelonDepuis;
     return envoyer(async () => {
       if (Object.keys(input).length > 0) await modifierNiveauUn(dossier.userId, input);
       if (fiche) await deposerFicheDePoste(dossier.userId, fiche);
@@ -85,6 +91,8 @@ export function FenetreNiveauUn({ dossier, onClose, onDone }: Props) {
       </div>
       <Champ id="n1-grade" label="Grade" value={v.grade} onChange={(x) => setV({ ...v, grade: x })} maxLength={100} />
       <Champ id="n1-echelon" label="Échelon" value={v.echelon} onChange={(x) => setV({ ...v, echelon: x })} maxLength={50} />
+      <Champ id="n1-echelon-depuis" label="Dans cet échelon depuis le" type="date" value={v.echelonDepuis} onChange={(x) => setV({ ...v, echelonDepuis: x })} />
+      <Champ id="n1-categorie" label="Catégorie (A, B, C, D…)" value={v.categorie} onChange={(x) => setV({ ...v, categorie: x })} maxLength={20} />
       <Champ id="n1-date" label="Date de prise de service" type="date" value={v.serviceStartDate} onChange={(x) => setV({ ...v, serviceStartDate: x })} />
       <div className="mb-3.5">
         <Libelle htmlFor="n1-fiche">Fiche de poste {dossier.basic.jobDescriptionFileName ? '(remplace l’actuelle)' : ''}</Libelle>
@@ -164,16 +172,44 @@ export function FenetreDiplome({ dossier, onClose, onDone }: Props) {
 
 export function FenetrePiece({ dossier, onClose, onDone }: Props) {
   const [libelle, setLibelle] = useState('');
+  const [pieceRequiseId, setPieceRequiseId] = useState('');
+  const [requises, setRequises] = useState<PieceRequise[]>([]);
   const [fichier, setFichier] = useState<File | null>(null);
   const { enCours, erreur, envoyer } = useEnvoi(onDone);
+  useEffect(() => {
+    // Socle N6 : une pièce peut fournir une pièce de la liste des pièces requises (dossier complet).
+    getPiecesRequises().then((l) => setRequises(l.pieces.filter((p) => p.actif))).catch(() => setRequises([]));
+  }, []);
   return (
     <Fenetre
       titre="Ajouter une pièce administrative"
       onClose={onClose}
-      onSubmit={() => (fichier ? envoyer(() => ajouterPiece(dossier.userId, libelle.trim(), fichier), 'Ajout impossible') : undefined)}
+      onSubmit={() => (fichier ? envoyer(() => ajouterPiece(dossier.userId, libelle.trim(), fichier, pieceRequiseId || undefined), 'Ajout impossible') : undefined)}
       valider="Ajouter"
       enCours={enCours}
     >
+      {requises.length > 0 && (
+        <div className="mb-3.5">
+          <Libelle htmlFor="piece-requise">Pièce requise fournie (facultatif)</Libelle>
+          <select
+            id="piece-requise"
+            className={SELECT_CLASS}
+            value={pieceRequiseId}
+            onChange={(e) => {
+              setPieceRequiseId(e.target.value);
+              const p = requises.find((x) => x.id === e.target.value);
+              if (p && !libelle.trim()) setLibelle(p.libelle);
+            }}
+          >
+            <option value="">— Autre pièce —</option>
+            {requises.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.libelle}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
       <Champ id="piece-libelle" label="Libellé" value={libelle} onChange={setLibelle} maxLength={150} />
       <div className="mb-3.5">
         <Libelle htmlFor="piece-fichier">Fichier</Libelle>

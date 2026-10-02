@@ -1,0 +1,12 @@
+# Contexte de construction des images (socle N6) : jamais de dépendances, de builds, de secrets ni de
+# résultats de tests locaux.
+**/node_modules
+**/.next
+**/dist
+**/.env
+**/.env.*
+!**/.env.example
+.git
+tests/e2e/out
+docs
+apps/mobile
