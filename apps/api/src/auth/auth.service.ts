@@ -4,8 +4,7 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
-  UnauthorizedException,
-} from '@nestjs/common';
+  UnauthorizedException, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { AuditAction, SystemRole, User, UserStatus } from '@prisma/client';
@@ -115,6 +114,8 @@ export class AuthService {
 
   /** Auto-inscription (RF-SEC-01, modalité 2) — soumise à validation admin, cf. UsersService.approveRegistration. */
   async register(dto: RegisterDto, ip: string) {
+    // Revue de sécurité 2026-10 : pas de création de comptes en masse depuis une même adresse.
+    this.loginAttempts.consommer(`inscription:ip:${ip}`, 30, 60 * 60_000, 'Trop de demandes d’inscription depuis cette adresse. Réessayez dans une heure.');
     const existing = await this.prisma.user.findUnique({ where: { email: dto.email } });
     if (existing) throw new ConflictException('Un compte existe déjà avec cet email');
 
@@ -154,7 +155,12 @@ export class AuthService {
    * corresponde ou non à un compte (anti-énumération). L'email n'est envoyé
    * (et le jeton créé) que si un compte ACTIF existe réellement.
    */
-  async forgotPassword(email: string): Promise<{ message: string }> {
+  async forgotPassword(email: string, ip = 'unknown'): Promise<{ message: string }> {
+    // Revue de sécurité 2026-10 : pas de rafale d'emails vers une adresse, ni depuis une adresse.
+    // Le quota est le même que le compte existe ou non (rien ne fuit).
+    const trop = 'Trop de demandes de réinitialisation. Réessayez dans une heure.';
+    this.loginAttempts.consommer(`oubli:email:${email.trim().toLowerCase()}`, 5, 60 * 60_000, trop);
+    this.loginAttempts.consommer(`oubli:ip:${ip}`, Number(process.env.QUOTA_OUBLI_IP ?? 10), 60 * 60_000, trop);
     const user = await this.prisma.user.findUnique({ where: { email } });
     if (user && user.status === UserStatus.ACTIF) {
       const token = await this.passwordReset.createResetToken(user.id);
@@ -172,7 +178,8 @@ export class AuthService {
           "Si vous n'êtes pas à l'origine de cette demande, vous pouvez ignorer cet email : votre mot de passe actuel ne changera pas.",
         ],
       });
-      await this.emailService.send(user.email, 'Réinitialisation de votre mot de passe DNPEC', text, html);
+      // Non attendu : le temps de réponse ne dit pas si le compte existe (revue 2026-10).
+      void this.emailService.send(user.email, 'Réinitialisation de votre mot de passe DNPEC', text, html).catch((e) => new Logger('AuthService').error(`Échec d'envoi de l'email de réinitialisation : ${e instanceof Error ? e.message : e}`));
     }
     return { message: 'Si un compte existe avec cette adresse, un email de réinitialisation a été envoyé.' };
   }
@@ -298,14 +305,15 @@ export class AuthService {
     return { message: 'Double authentification réinitialisée. Les sessions actives de ce compte ont été fermées.' };
   }
 
-  async login(dto: LoginDto, ip: string, navigateur?: string) {
-    this.loginAttempts.assertNotLocked(dto.email, ip);
+  async login(dto: LoginDto, ip: string, navigateur?: string, ipFiable = true) {
+    const ipVerrou = ipFiable ? ip : null;
+    this.loginAttempts.assertNotLocked(dto.email, ipVerrou);
 
     const user = await this.prisma.user.findUnique({ where: { email: dto.email } });
-    const passwordValid = user ? await this.passwordService.verify(user.passwordHash, dto.password) : false;
+    const passwordValid = user ? await this.passwordService.verify(user.passwordHash, dto.password) : await this.passwordService.verifierFactice(dto.password);
 
     if (!user || !passwordValid) {
-      this.loginAttempts.recordFailure(dto.email, ip);
+      this.loginAttempts.recordFailure(dto.email, ipVerrou);
       // Journal technique des connexions (socle N2, conservé N mois), et non plus le journal d'audit.
       await this.journalConnexions.enregistrer({ userId: user?.id ?? null, email: dto.email, resultat: 'ECHEC', motif: 'identifiants', ip, navigateur });
       throw new UnauthorizedException('Identifiants invalides');
@@ -326,7 +334,7 @@ export class AuthService {
       throw new ForbiddenException('Ce compte a été supprimé. Contactez un administrateur pour plus d’informations.');
     }
 
-    this.loginAttempts.recordSuccess(dto.email, ip);
+    this.loginAttempts.recordSuccess(dto.email, ipVerrou);
 
     // La 2FA n'est plus imposée à aucun rôle — un mot de passe correct
     // suffit désormais pour tout le monde ; elle reste une option que
@@ -343,35 +351,40 @@ export class AuthService {
     return this.issueSession(user, ip, navigateur);
   }
 
-  async loginTwoFa(dto: LoginTwoFaDto, ip: string, navigateur?: string) {
+  async loginTwoFa(dto: LoginTwoFaDto, ip: string, navigateur?: string, ipFiable = true) {
+    const ipVerrou = ipFiable ? ip : null;
     const payload = await this.verifyPurposeToken<TwoFaLoginChallengePayload>(
       dto.challengeToken,
       'two_fa_login_challenge',
     );
     const user = await this.getUserOrThrow(payload.sub);
 
-    this.loginAttempts.assertNotLocked(user.email, ip);
+    this.loginAttempts.assertNotLocked(user.email, ipVerrou);
 
     const valid = user.twoFactorSecret ? this.totpService.verify(dto.code, user.twoFactorSecret) : false;
     if (!valid) {
-      this.loginAttempts.recordFailure(user.email, ip);
+      this.loginAttempts.recordFailure(user.email, ipVerrou);
       await this.journalConnexions.enregistrer({ userId: user.id, email: user.email, resultat: 'ECHEC', motif: 'code 2FA', ip, navigateur });
       throw new UnauthorizedException('Code de vérification invalide');
     }
 
-    this.loginAttempts.recordSuccess(user.email, ip);
+    this.loginAttempts.recordSuccess(user.email, ipVerrou);
     return this.issueSession(user, ip, navigateur);
   }
 
   /** Génère un secret TOTP + QR code — activation volontaire uniquement, la 2FA n'étant imposée à aucun rôle. Utilisable avec un access token normal ; le jeton "2FA requise" reste accepté par resolveSetupOrAccessSubject pour compatibilité mais n'est plus jamais émis par login(). */
   async setupTwoFa(authorizationHeader: string | undefined) {
-    const userId = await this.resolveSetupOrAccessSubject(authorizationHeader);
-    const user = await this.getUserOrThrow(userId);
+    const jeton = await this.resoudreJetonConfiguration(authorizationHeader);
+    // Revue de sécurité 2026-10 : depuis une session ouverte, configurer la 2FA exige le mot de
+    // passe (preuve de réauthentification) — un jeton d'accès volé ne suffit pas à imposer son
+    // propre secret au titulaire du compte.
+    const user = await this.getUserOrThrow(jeton.sub);
     // Déjà active : régénérer le secret désynchroniserait l'application
     // d'authentification et bloquerait le compte (désactiver d'abord).
     if (user.twoFactorEnabled) {
       throw new ConflictException('La double authentification est déjà active : désactivez-la avant de la reconfigurer.');
     }
+    if (jeton.purpose === 'access') await this.preuves.exiger({ id: jeton.sub } as AuthenticatedUser);
 
     const secret = this.totpService.generateSecret();
     // Secret stocké dès la génération, mais 2FA reste désactivée
@@ -385,7 +398,11 @@ export class AuthService {
   }
 
   async enableTwoFa(authorizationHeader: string | undefined, dto: EnableTwoFaDto) {
-    const userId = await this.resolveSetupOrAccessSubject(authorizationHeader);
+    const jeton = await this.resoudreJetonConfiguration(authorizationHeader);
+    // Ce parcours ouvre une nouvelle session : réservé au jeton de configuration de la connexion.
+    // Depuis une session ouverte, l'activation passe par /auth/2fa/activate (revue 2026-10).
+    if (jeton.purpose === 'access') throw new ConflictException('Activez la double authentification depuis la page « Sécurité du compte ».');
+    const userId = jeton.sub;
     const user = await this.getUserOrThrow(userId);
 
     if (!user.twoFactorSecret) {
@@ -407,6 +424,19 @@ export class AuthService {
     return this.issueSession(user, undefined);
   }
 
+  /** Code TOTP saisi depuis une session (activation, désactivation) : compté dans le verrouillage
+   * du compte et journalisé comme un échec de connexion (revue de sécurité 2026-10). */
+  private async verifierCodeSession(user: { id: string; email: string; twoFactorSecret: string | null }, code: string, motif: string): Promise<void> {
+    this.loginAttempts.assertNotLocked(user.email, null);
+    if (user.twoFactorSecret && this.totpService.verify(code, user.twoFactorSecret)) {
+      this.loginAttempts.recordSuccess(user.email, null);
+      return;
+    }
+    this.loginAttempts.recordFailure(user.email, null);
+    await this.journalConnexions.enregistrer({ userId: user.id, email: user.email, resultat: 'ECHEC', motif });
+    throw new UnauthorizedException('Code de vérification invalide');
+  }
+
   /** État de la double authentification du compte connecté (page Sécurité). */
   async twoFaStatus(userId: string): Promise<{ enabled: boolean; pending: boolean }> {
     const user = await this.getUserOrThrow(userId);
@@ -424,9 +454,7 @@ export class AuthService {
     if (!user.twoFactorSecret) {
       throw new ConflictException('Aucune configuration en attente : générez d’abord le QR code.');
     }
-    if (!this.totpService.verify(dto.code, user.twoFactorSecret)) {
-      throw new UnauthorizedException('Code de vérification invalide');
-    }
+    await this.verifierCodeSession(user, dto.code, 'code 2FA (activation)');
     await this.prisma.user.update({ where: { id: user.id }, data: { twoFactorEnabled: true } });
     await this.audit.log({
       actorId: user.id,
@@ -445,9 +473,7 @@ export class AuthService {
   async disableTwoFa(userId: string, dto: EnableTwoFaDto): Promise<void> {
     const user = await this.getUserOrThrow(userId);
     if (!user.twoFactorEnabled) throw new ConflictException('La double authentification n’est pas active.');
-    if (!user.twoFactorSecret || !this.totpService.verify(dto.code, user.twoFactorSecret)) {
-      throw new UnauthorizedException('Code de vérification invalide');
-    }
+    await this.verifierCodeSession(user, dto.code, 'code 2FA (désactivation)');
 
     await this.prisma.user.update({
       where: { id: user.id },
@@ -481,19 +507,20 @@ export class AuthService {
    * Réauthentification (socle N2) : mot de passe du compte RÉEL (et code si la double
    * authentification est active), comptée par le même verrouillage que la connexion.
    */
-  async reauthentifier(actor: AuthenticatedUser, dto: ReauthentificationDto, ip: string, navigateur?: string) {
+  async reauthentifier(actor: AuthenticatedUser, dto: ReauthentificationDto, ip: string, navigateur?: string, ipFiable = true) {
+    const ipVerrou = ipFiable ? ip : null;
     const user = await this.getUserOrThrow(actor.id);
-    this.loginAttempts.assertNotLocked(user.email, ip);
+    this.loginAttempts.assertNotLocked(user.email, ipVerrou);
     const motDePasseOk = await this.passwordService.verify(user.passwordHash, dto.motDePasse);
     const codeOk = !user.twoFactorEnabled || (!!dto.code && !!user.twoFactorSecret && this.totpService.verify(dto.code, user.twoFactorSecret));
     if (!motDePasseOk || !codeOk) {
-      this.loginAttempts.recordFailure(user.email, ip);
+      this.loginAttempts.recordFailure(user.email, ipVerrou);
       await this.journalConnexions.enregistrer({ userId: user.id, email: user.email, resultat: 'ECHEC', motif: 'réauthentification', ip, navigateur });
       // 400 et non 401 : la session reste valide (un 401 déclencherait un rafraîchissement inutile).
       if (motDePasseOk && user.twoFactorEnabled && !dto.code) throw new BadRequestException({ message: 'Saisissez aussi le code de votre application d’authentification.', code: 'CODE_2FA_REQUIS' });
       throw new BadRequestException(motDePasseOk ? 'Code de vérification invalide' : 'Mot de passe incorrect');
     }
-    this.loginAttempts.recordSuccess(user.email, ip);
+    this.loginAttempts.recordSuccess(user.email, ipVerrou);
     await this.journalConnexions.enregistrer({ userId: user.id, email: user.email, resultat: 'SUCCES', motif: 'réauthentification', ip, navigateur });
     return { ...(await this.preuves.emettre(user.id)), doubleAuthentification: user.twoFactorEnabled };
   }
@@ -504,6 +531,11 @@ export class AuthService {
 
   /** Accepte un access token normal (opt-in volontaire) OU un jeton "2FA requise" — ce dernier type n'est plus jamais émis par login() mais reste accepté ici sans risque. */
   private async resolveSetupOrAccessSubject(authorizationHeader: string | undefined): Promise<string> {
+    return (await this.resoudreJetonConfiguration(authorizationHeader)).sub;
+  }
+
+  /** Comme resolveSetupOrAccessSubject, avec le type du jeton présenté. */
+  private async resoudreJetonConfiguration(authorizationHeader: string | undefined): Promise<{ sub: string; purpose: string }> {
     const token = this.extractBearer(authorizationHeader);
     if (!token) throw new UnauthorizedException('Jeton manquant');
 
@@ -516,7 +548,7 @@ export class AuthService {
     if (payload.purpose !== 'access' && payload.purpose !== 'two_fa_setup_required') {
       throw new UnauthorizedException('Jeton invalide pour cette étape');
     }
-    return payload.sub;
+    return { sub: payload.sub, purpose: payload.purpose };
   }
 
   private async verifyPurposeToken<T extends { sub: string; purpose: string }>(

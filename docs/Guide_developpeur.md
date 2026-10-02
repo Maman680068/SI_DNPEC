@@ -192,6 +192,17 @@ fonctionnalité ajoute sa suite (`tests/e2e/api/`, `tests/e2e/ui/`) et sa ligne 
   Contenu : `apps/web/lib/aide/guides.json`, captures `apps/web/public/aide/` ; toute évolution
   d'écran qui change un libellé cité doit mettre le guide à jour, puis régénérer captures et PDF
   (`tests/e2e/outils/captures_aide.js`, `guide_pdf.js`).
+- Sécurité (revue 2026-10, `docs/Revue_securite_2026-10.md`) : routes publiques = liste fermée vérifiée par
+  `s1_routes` (toute nouvelle route publique doit y être ajoutée) ; adresse du client des connexions relayées
+  par le web = `adresseClient(req)` (`common/security/client-ip.ts`, secret partagé `WEB_PROXY_SECRET`) ;
+  quotas des routes publiques par `LoginAttemptService.consommer` ; type servi d'un fichier déposé =
+  `typeServi()` (`common/storage/type-servi.ts`) ; aucun texte libre ni type protégé dans une notification ou
+  le journal d'audit ; en-têtes de sécurité du web dans `apps/web/next.config.ts` (CSP).
+- Exploitation (2026-10, `docs/Plan_reprise_incident.md`) : supervision = `SupervisionService.services()`
+  (léger : appelé toutes les 10 min et par la sonde publique) — disque (`statfs`), taille de la base ; la chaîne
+  d'audit complète est vérifiée la nuit (`JournalAuditService.verifierNuit`, résultat gardé dans le paramètre
+  `audit.verificationNocturne`), jamais dans `services()`. Sauvegarde des fichiers : `SauvegardeFichiersService`
+  (ZIP en flux, administrateur + `PreuveIdentiteService`, tracée).
 - Écrans : l'API renvoie les droits (`droits`, `peutAjouter`...) et les listes de choix
   (« responsables possibles »...) ; le web n'en calcule aucun.
 

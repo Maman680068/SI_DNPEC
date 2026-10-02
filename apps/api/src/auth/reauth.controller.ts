@@ -1,3 +1,4 @@
+import { adresseClient } from '../common/security/client-ip';
 import { Body, Controller, HttpCode, HttpStatus, Post, Req } from '@nestjs/common';
 import { Request } from 'express';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -13,6 +14,7 @@ export class ReauthController {
   @Post('reauthentification')
   @HttpCode(HttpStatus.OK)
   reauthentifier(@CurrentUser() actor: AuthenticatedUser, @Body() dto: ReauthentificationDto, @Req() req: Request) {
-    return this.auth.reauthentifier(actor, dto, req.ip ?? 'unknown', req.headers['user-agent']);
+    const { ip, fiable } = adresseClient(req);
+    return this.auth.reauthentifier(actor, dto, ip, req.headers['user-agent'], fiable);
   }
 }

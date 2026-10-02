@@ -38,6 +38,7 @@ jobs:
     env:
       DATABASE_URL: postgresql://dnpec:dnpec@localhost:5432/dnpec_ci?schema=public
       JWT_ACCESS_SECRET: secret-de-test-ci-sans-valeur
+      WEB_PROXY_SECRET: secret-proxy-ci-sans-valeur
       JWT_ACCESS_EXPIRES_IN: 2h
       WEB_APP_URL: http://localhost:3100
       NEXT_PUBLIC_API_BASE_URL: http://localhost:3000

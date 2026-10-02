@@ -77,6 +77,12 @@ services:
       # Même valeur que celle utilisée pour dnpec-web ci-dessous.
       - key: WEB_APP_URL
         value: https://dnpec-web.onrender.com
+      # Secret partagé avec dnpec-web (MÊME valeur, 16 caractères au moins) : l'API ne croit
+      # l'adresse IP transmise par le web pour une connexion que s'il l'accompagne (revue de
+      # sécurité 2026-10, apps/api/src/common/security/client-ip.ts). Sans lui, le verrouillage
+      # par adresse IP des connexions est désactivé (le verrouillage par compte reste actif).
+      - key: WEB_PROXY_SECRET
+        sync: false
 
   - type: web
     name: dnpec-web
@@ -104,3 +110,6 @@ services:
         value: https://dnpec-api.onrender.com
       - key: NEXT_PUBLIC_API_BASE_URL
         value: https://dnpec-api.onrender.com
+      # Même valeur que WEB_PROXY_SECRET de dnpec-api (voir ci-dessus).
+      - key: WEB_PROXY_SECRET
+        sync: false

@@ -1,3 +1,4 @@
+import { SauvegardeFichiersService } from './sauvegarde-fichiers.service';
 import { Global, Module } from '@nestjs/common';
 import { CommunicationModule } from '../communication/communication.module';
 import { OrgModule } from '../org/org.module';
@@ -21,7 +22,7 @@ import { ConservationService } from './conservation.service';
 /** Lot N2 : paramètres, tâches planifiées, connexions, journal d'audit, réauthentification, supervision. */
 import { ExportsService } from './exports.service';
 
-const SERVICES_N2 = [ParametresService, TachesPlanifieesService, JournalConnexionsService, JournalAuditService, PreuveIdentiteService, SupervisionService, ConservationService, JoursFeriesService, ExportsService];
+const SERVICES_N2 = [ParametresService, TachesPlanifieesService, JournalConnexionsService, JournalAuditService, PreuveIdentiteService, SupervisionService, ConservationService, JoursFeriesService, ExportsService, SauvegardeFichiersService];
 
 /**
  * Socle NIMBA : organigramme, agents, habilitation à deux axes. Global : la

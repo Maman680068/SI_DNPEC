@@ -1,6 +1,6 @@
 import { EtatBien, ModeReservation, NatureCategorieLogistique, StatutDemandeLogistique, TypeDemandeLogistique, TypeMouvementStock, TypeRessource } from '@prisma/client';
 import { Type } from 'class-transformer';
-import { IsBoolean, IsDateString, IsEnum, IsInt, IsOptional, IsString, Length, Matches, Max, Min, ValidateIf } from 'class-validator';
+import { IsBoolean, IsDateString, IsEnum, IsInt, IsOptional, IsString, Length, Matches, Max, Min, ValidateIf, MaxLength } from 'class-validator';
 
 // ---------------------------------------------------------------- Paramétrage
 
@@ -220,6 +220,7 @@ export class FiltresBiensDto {
   @IsOptional()
   @IsString()
   @Length(1, 100)
+  @MaxLength(100)
   q?: string;
 }
 

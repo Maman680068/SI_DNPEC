@@ -5,6 +5,7 @@ export const listerParametres = () => apiFetch<ListeParametres>('/api/v1/paramet
 export const modifierParametre = (cle: string, valeur: number) =>
   apiFetch<ListeParametres>(`/api/v1/parametres/${encodeURIComponent(cle)}`, { method: 'PATCH', body: JSON.stringify({ valeur }) });
 export const getSupervision = () => apiFetch<Supervision>('/api/v1/supervision');
+export const getInventaireFichiers = () => apiFetch<{ fichiers: number; octets: number }>('/api/v1/supervision/sauvegarde-fichiers');
 export const declarerTestRestauration = (t: { date: string; resultat: 'REUSSI' | 'ECHEC'; commentaire?: string }) =>
   apiFetch<ListeParametres>('/api/v1/supervision/test-restauration', { method: 'POST', body: JSON.stringify(t) });
 export const lireJournalAudit = (f: Record<string, string | number | undefined>) => {
