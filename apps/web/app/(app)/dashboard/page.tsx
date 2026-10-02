@@ -25,10 +25,15 @@ import { BlocsRole } from '../../../components/dashboard/BlocsRole';
  * seul juge (voir assertCanBroadcastToDivision). */
 const CAN_BROADCAST_ROLES = ['DN', 'DNA', 'CHEF_DIVISION'];
 
+/** Suivi des tâches : tâches non closes et closes depuis moins de 30 jours (filtre `suivi` de
+ * l'API), dans la limite de ce nombre, échéances les plus proches d'abord (performance 2026-10). */
+const SUIVI_MAX = 300;
+
 export default function DashboardPage() {
   // Rôle emprunté pendant un intérim (le serveur reste seul juge).
   const { effectiveRole } = useInterim();
   const [tasks, setTasks] = useState<Task[] | null>(null);
+  const [tronque, setTronque] = useState(false);
   const [dashboard, setDashboard] = useState<TaskDashboard | null>(null);
   const [view, setView] = useState<TaskView>('kanban');
   const [error, setError] = useState<string | null>(null);
@@ -53,9 +58,10 @@ export default function DashboardPage() {
   }
 
   const load = useCallback(() => {
-    Promise.all([getTasks(), getDashboard()])
+    Promise.all([getTasks({ suivi: true, limite: SUIVI_MAX + 1 }), getDashboard()])
       .then(([tasksResult, dashboardResult]) => {
-        setTasks(tasksResult);
+        setTronque(tasksResult.length > SUIVI_MAX);
+        setTasks(tasksResult.slice(0, SUIVI_MAX));
         setDashboard(dashboardResult);
       })
       .catch((err) => setError(err instanceof Error ? err.message : 'Impossible de charger les tâches'));
@@ -130,6 +136,10 @@ export default function DashboardPage() {
         <h2 className="text-[16px] font-extrabold">Suivi des tâches</h2>
         <ViewToggle value={view} onChange={setView} />
       </div>
+      <p className="mb-3 text-[12.5px] text-text-muted">
+        Tâches en cours, et tâches terminées depuis moins de 30 jours.
+        {tronque && ` Les ${SUIVI_MAX} aux échéances les plus proches sont affichées ; l'export Excel donne la liste complète.`}
+      </p>
 
       {!tasks ? (
         !error && <div className="text-sm text-text-muted">Chargement des tâches…</div>

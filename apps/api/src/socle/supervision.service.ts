@@ -17,6 +17,15 @@ export type Service = { cle: string; libelle: string; etat: EtatService; detail:
 
 const CLE_DERNIER_ETAT = 'supervision.dernierEtat';
 export const LIEN_SUPERVISION = '/parametrage?onglet=supervision';
+
+/** Quota journalier d'emails (BREVO_QUOTA_JOUR) : dégradé à 80 %, indisponible une fois atteint. */
+export function etatQuotaEmails(envoyes: number, quota: number): { etat: EtatService; detail: string } {
+  const pct = quota > 0 ? Math.floor((envoyes / quota) * 100) : 0;
+  const detail = `${envoyes} email(s) envoyé(s) aujourd’hui (UTC) sur ${quota} (${pct} %)`;
+  if (envoyes >= quota) return { etat: 'INDISPONIBLE', detail: `${detail} : quota atteint, les emails reprendront demain` };
+  if (envoyes * 100 >= quota * 80) return { etat: 'DEGRADE', detail: `${detail} : quota bientôt atteint` };
+  return { etat: 'NOMINAL', detail };
+}
 const JOUR = 864e5;
 const mo = (octets: number) => Math.round(octets / (1024 * 1024)).toLocaleString('fr-FR');
 
@@ -75,6 +84,8 @@ export class SupervisionService {
             ? `Dernier envoi réussi le ${m.dernierEnvoi.toISOString().slice(0, 16).replace('T', ' ')} UTC`
             : 'Configuré ; aucun envoi depuis le démarrage',
     });
+    // Performance 2026-10 : quota journalier du fournisseur d'emails (Brevo), alerte à 80 %.
+    res.push({ cle: 'quota-emails', libelle: 'Quota journalier d’emails', ...etatQuotaEmails(m.envoisDuJour, m.quotaJour) });
     const taches = await this.taches.dernieres();
     const enEchec = taches.filter((t) => t.derniere?.statut === 'ECHEC');
     const enRetard = taches.filter((t) => t.derniere && Date.now() - +t.derniere.debut > 2 * t.periodeMinutes * 60e3 + 60 * 60e3);

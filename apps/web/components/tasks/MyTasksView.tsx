@@ -23,17 +23,20 @@ type Tab = 'assigned' | 'created';
 export function MyTasksView({ initialTaskId = null }: { initialTaskId?: string | null }) {
   const router = useRouter();
   const { user } = useAuth();
+  const userId = user?.id;
   const [tasks, setTasks] = useState<Task[] | null>(null);
   const [tab, setTab] = useState<Tab>('assigned');
   const [view, setView] = useState<TaskView>('kanban');
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(initialTaskId);
   const [error, setError] = useState<string | null>(null);
 
+  // Les tâches de la personne seulement (filtres de l'API), jamais tout son périmètre.
   const load = useCallback(() => {
-    getTasks()
-      .then(setTasks)
+    if (!userId) return;
+    Promise.all([getTasks({ assigneeId: userId }), getTasks({ createdById: userId })])
+      .then(([a, c]) => setTasks([...a, ...c.filter((t) => !a.some((x) => x.id === t.id))]))
       .catch((err) => setError(err instanceof Error ? err.message : 'Impossible de charger les tâches'));
-  }, []);
+  }, [userId]);
 
   useEffect(() => {
     load();
