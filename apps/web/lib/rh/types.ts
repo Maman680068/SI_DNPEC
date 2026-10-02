@@ -83,10 +83,14 @@ export interface Mouvement {
   acte: { id: string; numero: string | null; statut: string } | null;
   appliqueLe: string | null;
   droits: { preparerActe: boolean; annuler: boolean };
+  /** Nomination à un poste de responsabilité : droits du compte (confirmés par l'administrateur). */
+  droitsPoste: { statut: 'EN_ATTENTE' | 'APPLIQUE' | 'REFUSE'; role: string; motifRefus: string | null; decideLe: string | null } | null;
 }
 export interface ListeMouvements {
   mouvements: Mouvement[];
   droits: { preparer: boolean };
+  /** Postes de responsabilité qu'une nomination peut viser : rôle, unité et intitulé de la fonction en découlent. */
+  postes: { cle: string; role: string; divisionId: string | null; sectionId: string | null; celluleId: string | null; fonction: string; titulaire: string | null }[];
   agents: { id: string; firstName: string; lastName: string; role: string }[];
 }
 

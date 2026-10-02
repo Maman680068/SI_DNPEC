@@ -516,6 +516,7 @@
           "etapes": [
             "Avant le premier mouvement : choisissez dans « Familles d’actes » le registre du Courrier de chaque famille (sa séquence de numéros).",
             "« + Nouveau mouvement » : l’agent, le type (nomination, avancement d’échelon, promotion, mutation, fin de contrat), la date d’effet et la nouvelle valeur → « Préparer le mouvement ».",
+            "Nomination à un poste de chef (ou DN, DNA) : choisissez le « Poste visé » dans la liste ; le rôle, l’unité et l’intitulé de la fonction en découlent (« Autre fonction » garde le texte libre, sans effet sur les droits). Après la signature, le mouvement affiche « Droits en attente (administrateur) », puis « Droits appliqués » ou « Droits refusés » avec le motif.",
             "« Préparer l’acte » : l’acte est créé dans le Courrier, avec la décision jointe, et suit le circuit de visa et de signature. Le dossier n’est modifié qu’à la signature par le DN ou la DNA ; l’agent est prévenu.",
             "Une mutation ne concerne qu’un chargé d’études ; pour un chef, un assistant ou un stagiaire, passez par le changement de rôle (Organisation)."
           ],
@@ -618,7 +619,8 @@
             "À la création d’un compte (ou à l’approbation d’une inscription), rattachez-le à son agent : « Agent (dossier RH) » s’il existe déjà, sinon indiquez son matricule s’il est connu ; à défaut, un agent avec un matricule provisoire est créé pour le DRH.",
             "La personne est prévenue par email : inscription approuvée (rôle, unité, bouton « Se connecter »), inscription rejetée (motif facultatif, saisi dans la fenêtre « Rejeter l’inscription »), compte créé par vous (lien pour choisir son mot de passe, valable 7 jours).",
             "Sur un compte : « Changer de rôle » (aperçu des effets, puis confirmation avec un motif), mot de passe temporaire, lien de réinitialisation, « Réinitialiser la double authentification ».",
-            "Chaque nomination d’un chef est suivie le même jour d’un changement de rôle : l’acte signé de nomination met à jour la fonction du dossier, mais pas le rôle ni l’unité du compte (« Changer de rôle », motif : le numéro de l’acte).",
+            "Chaque nomination d’un chef est suivie le même jour d’un changement de rôle : l’acte signé de nomination met à jour la fonction du dossier, puis vous recevez la notification « Nomination à appliquer ». Onglet « Nominations » : le changement de rôle est pré-rempli (nouveau rôle, nouvelle unité, rôle proposé pour l’actuel titulaire du poste) → « Confirmer… » (motif : le numéro de l’acte), ou « Refuser… » avec un motif que le DRH verra.",
+            "Le même onglet liste les écarts entre la fonction du dossier et le rôle du compte, signalés chaque matin et dans la supervision (« Fonction et rôle des comptes »).",
             "Vous n’avez pas accès au contenu métier des agents (tâches, stages, courrier des autres)."
           ],
           "capture": "utilisateurs.png"

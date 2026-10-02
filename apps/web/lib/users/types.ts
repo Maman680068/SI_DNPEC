@@ -150,3 +150,50 @@ export interface ChangementRoleApercu {
     sessionsRevoquees: number;
   };
 }
+
+/** Nomination signée à un poste de responsabilité : changement de rôle à confirmer ou refuser (administrateur). */
+export interface UnitePoste {
+  divisionId: string | null;
+  sectionId: string | null;
+  celluleId: string | null;
+}
+export interface ChangementRoleNomination {
+  id: string;
+  statut: 'EN_ATTENTE' | 'APPLIQUE' | 'REFUSE';
+  acteNumero: string;
+  dateEffet: string;
+  fonction: string | null;
+  creeLe: string;
+  decideLe: string | null;
+  decidePar: string | null;
+  motifRefus: string | null;
+  erreur: string | null;
+  agent: { id: string; nom: string; role: SystemRole; libelleRole: string; unite: string | null; actif: boolean } | null;
+  poste: UnitePoste & { role: SystemRole; libelleRole: string; unite: string | null };
+  ancienTitulaire: {
+    id: string;
+    nom: string;
+    role: SystemRole;
+    libelleRole: string;
+    propose: (UnitePoste & { role: SystemRole; libelleRole: string; unite: string | null }) | null;
+  } | null;
+  droits: { confirmer: boolean; refuser: boolean };
+}
+export interface EcartFonctionRole {
+  userId: string;
+  nom: string;
+  role: SystemRole;
+  fonction: string | null;
+  motif: string;
+  suite: string;
+  changementId: string | null;
+}
+export interface ListeChangementsRole {
+  changements: ChangementRoleNomination[];
+  ecarts: EcartFonctionRole[];
+  choix: {
+    roles: { role: SystemRole; libelle: string }[];
+    divisions: { id: string; code: string; name: string; sections: { id: string; code: string; name: string }[] }[];
+    cellules: { id: string; code: string; name: string }[];
+  };
+}

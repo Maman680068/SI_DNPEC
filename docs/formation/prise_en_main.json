@@ -177,7 +177,7 @@
       ],
       "retenir": [
         "Deux administrateurs au moins, chacun avec la double authentification.",
-        "Chaque nomination d’un chef est suivie le même jour d’un changement de rôle.",
+        "Chaque nomination d’un chef est suivie le même jour d’un changement de rôle : Utilisateurs → « Nominations » → « Confirmer… » ou « Refuser… ».",
         "Après chaque essai de restauration : « Déclarer un test de restauration ».",
         "Le guide d’exploitation (docs/Exploitation.md) décrit sauvegardes, mises à jour et pannes."
       ]

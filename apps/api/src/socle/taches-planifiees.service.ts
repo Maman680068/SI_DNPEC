@@ -15,6 +15,7 @@ export const TACHES_SUIVIES: Record<string, { libelle: string; periodeMinutes: n
   'echeances-taches': { libelle: 'Tâches : alertes la veille de l’échéance et en retard', periodeMinutes: 24 * 60 },
   'relance-instructions': { libelle: 'Instructions de la Direction : relance à 7 jours', periodeMinutes: 24 * 60 },
   'resume-quotidien': { libelle: 'Résumé quotidien des notifications par email', periodeMinutes: 60 },
+  'ecarts-fonction-role': { libelle: 'Fonction du dossier et rôle du compte : écarts signalés', periodeMinutes: 24 * 60 },
   'verification-audit': { libelle: 'Vérification complète du journal d’audit (chaque nuit)', periodeMinutes: 24 * 60 },
 };
 

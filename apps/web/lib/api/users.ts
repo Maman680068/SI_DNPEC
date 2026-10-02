@@ -1,5 +1,6 @@
 import { apiFetch } from './client';
-import type { AdminUser, ApproveUserInput, ChangementRoleApercu, ChangementRoleInput, CreateUserInput, UserStatus } from '../users/types';
+import type { AdminUser, ApproveUserInput, ChangementRoleApercu, ChangementRoleInput, CreateUserInput, ListeChangementsRole, UnitePoste, UserStatus } from '../users/types';
+import type { SystemRole } from '../auth/types';
 
 /** Tous les comptes visibles par l'acteur — pour ADMIN_SYSTEME/DN/DNA (périmètre
  * "top-level" côté CascadeService), équivaut à la liste complète. */
@@ -57,3 +58,10 @@ export function changerRole(id: string, input: ChangementRoleInput): Promise<Cha
 export function resetTwoFa(id: string): Promise<{ message: string }> {
   return apiFetch<{ message: string }>(`/users/${id}/2fa/reset`, { method: 'POST' });
 }
+
+/** Nominations signées à un poste de responsabilité (administrateur système). */
+export const getChangementsRole = () => apiFetch<ListeChangementsRole>('/api/v1/changements-role');
+export const confirmerChangementRole = (id: string, v: { note?: string; ancienTitulaire?: UnitePoste & { role: SystemRole } }) =>
+  apiFetch(`/api/v1/changements-role/${id}/confirmation`, { method: 'POST', body: JSON.stringify(v) });
+export const refuserChangementRole = (id: string, motif: string) =>
+  apiFetch(`/api/v1/changements-role/${id}/refus`, { method: 'POST', body: JSON.stringify({ motif }) });

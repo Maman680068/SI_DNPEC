@@ -11,6 +11,7 @@ import { isComparableRank } from '../suppleances/comparable-rank';
 import { viseurOccupeLePoste } from '../courrier/actes.service';
 import { ChangerRoleDto } from './dto/changer-role.dto';
 import { ROLE_LIBELLE, RattachementRole, rattachementPourRole } from './roles';
+import { titulaireDuPoste } from './postes';
 import { StagesService } from '../stages/stages.service';
 import { detenteursWhere } from '../socle/roles-fonctionnels';
 import { ReprisesN1Service } from '../socle/reprise-n1.service';
@@ -83,104 +84,136 @@ export class RoleChangeService {
   }
 
   async changer(actor: AuthenticatedUser, userId: string, dto: ChangerRoleDto) {
-    const plan = await this.preparer(actor, userId, dto);
-    const { cible, apres } = plan;
+    const [r] = await this.changerEnsemble(actor, [{ userId, dto }]);
+    return r;
+  }
+
+  /**
+   * Plusieurs changements de rôle en une seule transaction (tout ou rien) — nomination d'un chef :
+   * l'actuel titulaire quitte le poste, puis le nommé le prend. Les comptes de la liste qui quittent un
+   * poste ne comptent pas comme titulaires en conflit ; l'unicité est revérifiée sous verrou, dans la
+   * transaction, après les changements précédents. `dansTransaction` : écritures de l'appelant, annulées
+   * avec le reste. Effets après le commit (sessions, notifications…) : ceux du changement de rôle habituel.
+   */
+  async changerEnsemble(
+    actor: AuthenticatedUser,
+    demandes: { userId: string; dto: ChangerRoleDto }[],
+    options: { dansTransaction?: (tx: Prisma.TransactionClient) => Promise<void> } = {},
+  ) {
+    const liberes = new Set(demandes.map((d) => d.userId));
+    const plans: { plan: Plan; dto: ChangerRoleDto; libAvant: string; libApres: string }[] = [];
+    for (const d of demandes) {
+      const plan = await this.preparer(actor, d.userId, d.dto, liberes);
+      plans.push({ plan, dto: d.dto, libAvant: await this.libelleFonction(plan.cible.role, plan.cible), libApres: await this.libelleFonction(plan.apres.role, plan.apres) });
+    }
+    // Une suppléance entre les deux personnes n'est révoquée (et notifiée) qu'une fois.
+    const vues = new Set<string>();
+    for (const { plan } of plans) {
+      plan.suppleancesARevoquer = plan.suppleancesARevoquer.filter((x) => !vues.has(x.id));
+      plan.suppleancesARevoquer.forEach((x) => vues.add(x.id));
+    }
     const now = new Date();
-    const libAvant = await this.libelleFonction(cible.role, cible);
-    const libApres = await this.libelleFonction(apres.role, apres);
-
     await this.prisma.$transaction(async (tx) => {
-      // Garde contre un changement concurrent : le rôle et le rattachement lus
-      // par preparer() doivent être encore ceux de la base.
-      const maj = await tx.user.updateMany({
-        where: { id: cible.id, role: cible.role, status: UserStatus.ACTIF, divisionId: cible.divisionId, sectionId: cible.sectionId, celluleId: cible.celluleId },
-        data: {
-          role: apres.role,
-          divisionId: apres.divisionId,
-          sectionId: apres.sectionId,
-          celluleId: apres.celluleId,
-          supervisorId: apres.supervisorId,
-          ...(dto.jobTitle !== undefined ? { jobTitle: dto.jobTitle } : {}),
-        },
-      });
-      if (maj.count === 0) throw new ConflictException('Ce compte a été modifié entre-temps : recommencez depuis l’aperçu.');
-
-      // Unicité revérifiée DANS la transaction, après verrouillage de l'unité
-      // (deux nominations simultanées ne peuvent pas produire deux chefs).
-      await this.verrouillerEtRevererifierUnicite(tx, cible.id, apres);
-
-      if (plan.celluleQuittee) {
-        await tx.cellule.updateMany({ where: { id: plan.celluleQuittee, chefId: cible.id }, data: { chefId: null } });
-      }
-      if (plan.celluleNommee) {
-        const pose = await tx.cellule.updateMany({
-          where: { id: plan.celluleNommee, OR: [{ chefId: null }, { chefId: cible.id }] },
-          data: { chefId: cible.id },
-        });
-        if (pose.count === 0) throw new ConflictException('Cette cellule a déjà un Chef de Cellule.');
-      }
-
-      for (const s of plan.suppleancesARevoquer) {
-        await tx.suppleance.updateMany({ where: { id: s.id, revokedAt: null }, data: { revokedAt: now, revokedById: actor.id } });
-        await this.audit.log(
-          { actorId: actor.id, action: AuditAction.MODIFICATION, entityType: 'Suppleance', entityId: s.id, metadata: { event: 'revocation_changement_role', userId: cible.id } },
-          tx,
-        );
-      }
-      if (plan.accesARevoquer.length > 0) {
-        await tx.accesDelegueCourrier.updateMany({
-          where: { id: { in: plan.accesARevoquer.map((a) => a.id) }, revoqueAt: null },
-          data: { revoqueAt: now, revoqueParId: actor.id },
-        });
-      }
-
-      await this.history.recordFonctionChange(cible.id, actor.id, libAvant, libApres, tx);
-      await this.history.recordAffectationChange(
-        cible.id,
-        actor.id,
-        { divisionId: cible.divisionId, sectionId: cible.sectionId, celluleId: cible.celluleId },
-        { divisionId: apres.divisionId, sectionId: apres.sectionId, celluleId: apres.celluleId },
-        tx,
-      );
-
-      await this.audit.log(
-        {
-          actorId: actor.id,
-          action: AuditAction.MODIFICATION,
-          entityType: 'User',
-          entityId: cible.id,
-          metadata: {
-            event: 'role_change',
-            motif: dto.motif,
-            avant: { role: cible.role, divisionId: cible.divisionId, sectionId: cible.sectionId, celluleId: cible.celluleId, supervisorId: cible.supervisorId, jobTitle: cible.jobTitle },
-            apres: { role: apres.role, divisionId: apres.divisionId, sectionId: apres.sectionId, celluleId: apres.celluleId, supervisorId: apres.supervisorId, jobTitle: apres.jobTitle },
-            effets: {
-              suppleancesRevoquees: plan.suppleancesARevoquer.map((s) => s.id),
-              accesRevoques: plan.accesARevoquer.map((a) => a.id),
-              celluleQuittee: plan.celluleQuittee,
-              celluleNommee: plan.celluleNommee,
-              circuitsObsoletes: plan.visasDevenusObsoletes.map((v) => v.acteId),
-              sessionsRevoquees: plan.sessionsActives,
-            },
-          },
-        },
-        tx,
-      );
+      for (const p of plans) await this.appliquerPlan(tx, actor, p.plan, p.dto, now, p.libAvant, p.libApres);
+      if (options.dansTransaction) await options.dansTransaction(tx);
     });
 
-    // Socle NIMBA : unité de l'agent et responsables d'unité suivent la nomination.
-    await this.reprise.synchroniserCompte(cible.id);
-    await this.rolesFonctionnels.alignerSurPosition(cible.id, cible.role, apres.role, actor.id);
+    const resultats = [];
+    for (const { plan, libApres } of plans) {
+      // Socle NIMBA : unité de l'agent et responsables d'unité suivent la nomination.
+      await this.reprise.synchroniserCompte(plan.cible.id);
+      await this.rolesFonctionnels.alignerSurPosition(plan.cible.id, plan.cible.role, plan.apres.role, actor.id);
+      // Après le commit : sessions et notifications (un échec d'email ne défait rien, A7).
+      await this.sessions.revokeAllSessions(plan.cible.id);
+      await this.notifier(plan, libApres);
+      resultats.push({ ...this.presenter(plan), applique: true });
+    }
+    return resultats;
+  }
 
-    // Après le commit : sessions et notifications (un échec d'email ne défait rien, A7).
-    await this.sessions.revokeAllSessions(cible.id);
-    await this.notifier(plan, libApres);
-    return { ...this.presenter(plan), applique: true };
+  private async appliquerPlan(tx: Prisma.TransactionClient, actor: AuthenticatedUser, plan: Plan, dto: ChangerRoleDto, now: Date, libAvant: string, libApres: string) {
+    const { cible, apres } = plan;
+    // Garde contre un changement concurrent : le rôle et le rattachement lus
+    // par preparer() doivent être encore ceux de la base.
+    const maj = await tx.user.updateMany({
+      where: { id: cible.id, role: cible.role, status: UserStatus.ACTIF, divisionId: cible.divisionId, sectionId: cible.sectionId, celluleId: cible.celluleId },
+      data: {
+        role: apres.role,
+        divisionId: apres.divisionId,
+        sectionId: apres.sectionId,
+        celluleId: apres.celluleId,
+        supervisorId: apres.supervisorId,
+        ...(dto.jobTitle !== undefined ? { jobTitle: dto.jobTitle } : {}),
+      },
+    });
+    if (maj.count === 0) throw new ConflictException('Ce compte a été modifié entre-temps : recommencez depuis l’aperçu.');
+
+    // Unicité revérifiée DANS la transaction, après verrouillage de l'unité
+    // (deux nominations simultanées ne peuvent pas produire deux chefs).
+    await this.verrouillerEtRevererifierUnicite(tx, cible.id, apres);
+
+    if (plan.celluleQuittee) {
+      await tx.cellule.updateMany({ where: { id: plan.celluleQuittee, chefId: cible.id }, data: { chefId: null } });
+    }
+    if (plan.celluleNommee) {
+      const pose = await tx.cellule.updateMany({
+        where: { id: plan.celluleNommee, OR: [{ chefId: null }, { chefId: cible.id }] },
+        data: { chefId: cible.id },
+      });
+      if (pose.count === 0) throw new ConflictException('Cette cellule a déjà un Chef de Cellule.');
+    }
+
+    for (const s of plan.suppleancesARevoquer) {
+      await tx.suppleance.updateMany({ where: { id: s.id, revokedAt: null }, data: { revokedAt: now, revokedById: actor.id } });
+      await this.audit.log(
+        { actorId: actor.id, action: AuditAction.MODIFICATION, entityType: 'Suppleance', entityId: s.id, metadata: { event: 'revocation_changement_role', userId: cible.id } },
+        tx,
+      );
+    }
+    if (plan.accesARevoquer.length > 0) {
+      await tx.accesDelegueCourrier.updateMany({
+        where: { id: { in: plan.accesARevoquer.map((a) => a.id) }, revoqueAt: null },
+        data: { revoqueAt: now, revoqueParId: actor.id },
+      });
+    }
+
+    await this.history.recordFonctionChange(cible.id, actor.id, libAvant, libApres, tx);
+    await this.history.recordAffectationChange(
+      cible.id,
+      actor.id,
+      { divisionId: cible.divisionId, sectionId: cible.sectionId, celluleId: cible.celluleId },
+      { divisionId: apres.divisionId, sectionId: apres.sectionId, celluleId: apres.celluleId },
+      tx,
+    );
+
+    await this.audit.log(
+      {
+        actorId: actor.id,
+        action: AuditAction.MODIFICATION,
+        entityType: 'User',
+        entityId: cible.id,
+        metadata: {
+          event: 'role_change',
+          motif: dto.motif,
+          avant: { role: cible.role, divisionId: cible.divisionId, sectionId: cible.sectionId, celluleId: cible.celluleId, supervisorId: cible.supervisorId, jobTitle: cible.jobTitle },
+          apres: { role: apres.role, divisionId: apres.divisionId, sectionId: apres.sectionId, celluleId: apres.celluleId, supervisorId: apres.supervisorId, jobTitle: apres.jobTitle },
+          effets: {
+            suppleancesRevoquees: plan.suppleancesARevoquer.map((s) => s.id),
+            accesRevoques: plan.accesARevoquer.map((a) => a.id),
+            celluleQuittee: plan.celluleQuittee,
+            celluleNommee: plan.celluleNommee,
+            circuitsObsoletes: plan.visasDevenusObsoletes.map((v) => v.acteId),
+            sessionsRevoquees: plan.sessionsActives,
+          },
+        },
+      },
+      tx,
+    );
   }
 
   // ------------------------------------------------------------------
 
-  private async preparer(actor: AuthenticatedUser, userId: string, dto: ChangerRoleDto): Promise<Plan> {
+  private async preparer(actor: AuthenticatedUser, userId: string, dto: ChangerRoleDto, liberes: Set<string> = new Set()): Promise<Plan> {
     if (actor.interimForId) throw new ForbiddenException('Un changement de rôle se fait en votre nom propre, jamais en intérim.');
     if (actor.role !== SystemRole.ADMIN_SYSTEME) throw new ForbiddenException('Seul l’administrateur système change le rôle d’un compte.');
     const cible = await this.prisma.user.findUnique({ where: { id: userId }, select: CIBLE_SELECT });
@@ -210,7 +243,10 @@ export class RoleChangeService {
     if (!(r.divisionId === cible.divisionId && r.sectionId === cible.sectionId && r.celluleId === cible.celluleId)) {
       await this.users.assertUnitsActiveForNewAttachment(r);
     }
-    await this.users.assertNoActiveChiefConflict(dto.role, r, cible.id);
+    // Poste libéré par un autre changement de la même transaction (nomination) : pas de conflit ici,
+    // l'unicité est revérifiée sous verrou dans la transaction.
+    const titulaire = await titulaireDuPoste(this.prisma, dto.role, r, cible.id);
+    if (!titulaire || !liberes.has(titulaire.id)) await this.users.assertNoActiveChiefConflict(dto.role, r, cible.id);
 
     if (cible.role === SystemRole.ADMIN_SYSTEME && dto.role !== SystemRole.ADMIN_SYSTEME) {
       const autres = await this.prisma.user.count({ where: { role: SystemRole.ADMIN_SYSTEME, status: UserStatus.ACTIF, id: { not: cible.id } } });

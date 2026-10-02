@@ -6,10 +6,12 @@ import { AuthModule } from '../auth/auth.module';
 import { StagesModule } from '../stages/stages.module';
 import { RoleChangeController } from './role-change.controller';
 import { RoleChangeService } from './role-change.service';
+import { NominationsRoleController } from './nominations-role.controller';
+import { NominationsRoleService } from './nominations-role.service';
 
 @Module({
   imports: [UsersModule, PersonnelModule, CommunicationModule, AuthModule, StagesModule],
-  controllers: [RoleChangeController],
-  providers: [RoleChangeService],
+  controllers: [RoleChangeController, NominationsRoleController],
+  providers: [RoleChangeService, NominationsRoleService],
 })
 export class RoleChangeModule {}

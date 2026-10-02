@@ -16,7 +16,8 @@ export class AppController {
   @Public()
   @Get('health/dependances')
   async dependances() {
-    const services = await this.supervision.services();
+    // Dépendances seulement : l'écart fonction / rôle des comptes est une donnée de gestion, pas une panne.
+    const services = (await this.supervision.services()).filter((s) => s.cle !== 'fonction-role');
     const etat = services.some((s) => s.etat === 'INDISPONIBLE') ? 'INDISPONIBLE' : services.some((s) => s.etat === 'DEGRADE') ? 'DEGRADE' : 'NOMINAL';
     return { etat, services: Object.fromEntries(services.map((s) => [s.cle, s.etat])) };
   }

@@ -3086,8 +3086,47 @@ model MouvementCarriere {
   createdAt   DateTime                @default(now())
   updatedAt   DateTime                @updatedAt
 
+  changementRole ChangementRoleNomination?
+
   @@index([userId])
   @@map("mouvements_carriere")
+}
+
+/// Nomination à un poste de responsabilité (chef d'unité, DN, DNA) : à la signature de l'acte, un
+/// changement de rôle pré-rempli attend la décision de l'administrateur système, qui le confirme
+/// (rôle et unité appliqués par le changement de rôle, ancien titulaire compris) ou le refuse (motif).
+enum StatutChangementRole {
+  EN_ATTENTE
+  APPLIQUE
+  REFUSE
+
+  @@map("statut_changement_role")
+}
+
+model ChangementRoleNomination {
+  id                  String               @id @default(cuid())
+  mouvementId         String               @unique
+  mouvement           MouvementCarriere    @relation(fields: [mouvementId], references: [id])
+  userId              String
+  acteNumero          String
+  roleCible           SystemRole
+  divisionId          String?
+  sectionId           String?
+  celluleId           String?
+  /// Titulaire du poste à la signature (null : poste vacant) et rôle proposé pour lui (null : à choisir).
+  ancienTitulaireId   String?
+  roleAncienTitulaire SystemRole?
+  statut              StatutChangementRole @default(EN_ATTENTE)
+  motifRefus          String?
+  /// Dernier refus du changement de rôle lors d'une confirmation (le changement reste en attente).
+  erreur              String?
+  decideParId         String?
+  decideLe            DateTime?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+
+  @@index([statut])
+  @@map("changements_role_nomination")
 }
 
 /// Fiche de poste rattachée à la fonction, non à la personne.

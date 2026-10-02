@@ -11,6 +11,7 @@ import { AutorisationService } from './autorisation.service';
 import { ParametresService } from './parametres.service';
 import { TachesPlanifieesService } from './taches-planifiees.service';
 import { JournalAuditService } from './journal-audit.service';
+import { ecartsFonctionRole } from './ecarts-fonction-role';
 
 export type EtatService = 'NOMINAL' | 'DEGRADE' | 'INDISPONIBLE';
 export type Service = { cle: string; libelle: string; etat: EtatService; detail: string };
@@ -144,6 +145,17 @@ export class SupervisionService {
       etat: pctBase >= 95 ? 'INDISPONIBLE' : pctBase >= 80 ? 'DEGRADE' : 'NOMINAL',
       detail: `${mo(Number(taille))} Mo sur ${maxMo} Mo prévus (${pctBase} %)`,
     });
+    // Nomination d'un chef (option A) : fonction du dossier et rôle du compte concordent-ils ?
+    const ecarts = await ecartsFonctionRole(this.prisma);
+    const attente = ecarts.filter((e) => e.changementId).length;
+    res.push({
+      cle: 'fonction-role',
+      libelle: 'Fonction et rôle des comptes',
+      etat: ecarts.length ? 'DEGRADE' : 'NOMINAL',
+      detail: ecarts.length
+        ? `${ecarts.length} écart(s) entre la fonction du dossier et le rôle du compte${attente ? `, dont ${attente} nomination(s) en attente de l’administrateur` : ''} (Utilisateurs → Nominations)`
+        : 'Fonction du dossier et rôle du compte concordants',
+    });
     return res;
   }
 
@@ -245,7 +257,8 @@ export class SupervisionService {
     const etats = Object.fromEntries(services.map((s) => [s.cle, s.etat])) as Record<string, EtatService>;
     const ligne = await this.prisma.parametre.findUnique({ where: { cle: CLE_DERNIER_ETAT } });
     const avant = (ligne?.valeur ?? {}) as Record<string, EtatService>;
-    const degrades = services.filter((s) => s.etat !== 'NOMINAL' && avant[s.cle] !== s.etat);
+    // Les écarts fonction / rôle ont leur propre signalement quotidien (tâche « ecarts-fonction-role »).
+    const degrades = services.filter((s) => s.cle !== 'fonction-role' && s.etat !== 'NOMINAL' && avant[s.cle] !== s.etat);
     await this.prisma.parametre.upsert({ where: { cle: CLE_DERNIER_ETAT }, create: { cle: CLE_DERNIER_ETAT, valeur: etats }, update: { valeur: etats } });
     if (degrades.length) {
       const admins = (await this.prisma.user.findMany({ where: { role: SystemRole.ADMIN_SYSTEME, status: UserStatus.ACTIF }, select: { id: true } })).map((u) => u.id);
