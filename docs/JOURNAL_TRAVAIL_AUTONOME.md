@@ -15,8 +15,8 @@ branche de production ni de Render ; une branche et une PR par chantier, basées
 | [#16](https://github.com/Maman680068/SI_DNPEC/pull/16) | `feature/socle-nimba-n6` | Socle NIMBA N6 | `20261003080000_socle_nimba_n6` | **verte** (f8f0b38) |
 | [#17](https://github.com/Maman680068/SI_DNPEC/pull/17) | `feature/conception-domaine-b` | Conception du domaine B (document) | aucune | verte |
 | [#18](https://github.com/Maman680068/SI_DNPEC/pull/18) | `feature/revue-securite` | Revue de sécurité | aucune (variable Render `WEB_PROXY_SECRET`) | verte |
-| [#19](https://github.com/Maman680068/SI_DNPEC/pull/19) | `feature/exploitation` | Exploitation et reprise après incident | aucune | rouge sur 8e67f86 (z_demo_supprimer), corrigée par e385ee1, en cours |
-| [#21](https://github.com/Maman680068/SI_DNPEC/pull/21) | `feature/performance` | Performance, emails par lots et reprise, quota Brevo | aucune (variable `BREVO_QUOTA_JOUR`, non secrète) | en cours |
+| [#19](https://github.com/Maman680068/SI_DNPEC/pull/19) | `feature/exploitation` | Exploitation et reprise après incident | aucune | **verte** (e385ee1, après correction de z_demo_supprimer) |
+| [#21](https://github.com/Maman680068/SI_DNPEC/pull/21) | `feature/performance` | Performance, emails par lots et reprise, quota Brevo | aucune (variable `BREVO_QUOTA_JOUR`, non secrète) | **verte** (e903a75) |
 | [#20](https://github.com/Maman680068/SI_DNPEC/pull/20) | `feature/formation` | Documentation et formation | aucune | verte |
 
 ## Fait
@@ -42,12 +42,12 @@ branche de production ni de Render ; une branche et une PR par chantier, basées
 
 ## En cours
 
-- Suivi de la CI de #19 et #21.
+- Rien : les six PR (#16 à #21) ont une CI verte sur leur dernier commit (02/10/2026, 06:27 UTC).
 
 ## Reste à faire
 
-1. CI verte de #19 et #21 (corriger si rouge).
-2. Récapitulatif final.
+- Décisions du responsable : fusion dans l'ordre conseillé, offre de base Render `basic-1gb`,
+  variable `WEB_PROXY_SECRET`, décisions DB-1 à DB-17 du domaine B.
 
 ## Ordre de déploiement conseillé
 
