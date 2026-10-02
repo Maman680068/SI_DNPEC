@@ -106,7 +106,7 @@ d'obtenir une session de 30 jours.**
 - Constat : mot de passe oublié (rafales d'emails), inscription (comptes en masse), codes 2FA saisis
   depuis une session (ni comptés ni journalisés).
 - Correction :
-  - mot de passe oublié : 5 demandes par adresse email et 10 par adresse IP, par heure ;
+  - mot de passe oublié : 5 demandes par adresse email et 10 par adresse IP (variable `QUOTA_OUBLI_IP`), par heure ; l'envoi n'est plus attendu (même réponse et même délai que pour un compte inconnu), un échec est journalisé ;
   - inscription : 30 par adresse IP et par heure ;
   - codes 2FA d'activation et de désactivation : comptés dans le verrouillage du compte (5 échecs →
     15 min) et journalisés dans `journal_connexions`.

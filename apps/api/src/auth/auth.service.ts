@@ -4,8 +4,7 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
-  UnauthorizedException,
-} from '@nestjs/common';
+  UnauthorizedException, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { AuditAction, SystemRole, User, UserStatus } from '@prisma/client';
@@ -161,7 +160,7 @@ export class AuthService {
     // Le quota est le même que le compte existe ou non (rien ne fuit).
     const trop = 'Trop de demandes de réinitialisation. Réessayez dans une heure.';
     this.loginAttempts.consommer(`oubli:email:${email.trim().toLowerCase()}`, 5, 60 * 60_000, trop);
-    this.loginAttempts.consommer(`oubli:ip:${ip}`, 10, 60 * 60_000, trop);
+    this.loginAttempts.consommer(`oubli:ip:${ip}`, Number(process.env.QUOTA_OUBLI_IP ?? 10), 60 * 60_000, trop);
     const user = await this.prisma.user.findUnique({ where: { email } });
     if (user && user.status === UserStatus.ACTIF) {
       const token = await this.passwordReset.createResetToken(user.id);
@@ -180,7 +179,7 @@ export class AuthService {
         ],
       });
       // Non attendu : le temps de réponse ne dit pas si le compte existe (revue 2026-10).
-      void this.emailService.send(user.email, 'Réinitialisation de votre mot de passe DNPEC', text, html).catch(() => undefined);
+      void this.emailService.send(user.email, 'Réinitialisation de votre mot de passe DNPEC', text, html).catch((e) => new Logger('AuthService').error(`Échec d'envoi de l'email de réinitialisation : ${e instanceof Error ? e.message : e}`));
     }
     return { message: 'Si un compte existe avec cette adresse, un email de réinitialisation a été envoyé.' };
   }
