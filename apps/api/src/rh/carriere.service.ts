@@ -5,6 +5,7 @@ import {
   CourrierConfidentialite,
   NotificationType,
   Prisma,
+  StatutChangementRole,
   RegistreNature,
   RegistrePortee,
   StatutMouvementCarriere,
@@ -19,7 +20,8 @@ import { NotificationsService } from '../communication/notifications/notificatio
 import { ActesService } from '../courrier/actes.service';
 import { ReprisesN1Service } from '../socle/reprise-n1.service';
 import { estDrh } from '../socle/roles-fonctionnels';
-import { rattachementPourRole } from '../role-change/roles';
+import { ROLE_LIBELLE, rattachementPourRole } from '../role-change/roles';
+import { POSTES_RESPONSABILITE, fonctionDuPoste, listePostes, propositionPourAncienTitulaire, titulaireDuPoste } from '../role-change/postes';
 import { dateFr, renduPdf, slug } from '../generateur/mise-en-page';
 import { FamilleRegistreDto, MouvementDto } from './dto/rh.dto';
 
@@ -116,7 +118,7 @@ export class CarriereService implements OnModuleInit {
     const lignes = await this.prisma.mouvementCarriere.findMany({
       where,
       orderBy: [{ dateEffet: 'desc' }, { createdAt: 'desc' }],
-      select: { id: true, userId: true, type: true, avant: true, apres: true, dateEffet: true, motif: true, statut: true, familleCode: true, acteId: true, appliqueLe: true, createdAt: true, acte: { select: { id: true, numero: true, statut: true } } },
+      select: { id: true, userId: true, type: true, avant: true, apres: true, dateEffet: true, motif: true, statut: true, familleCode: true, acteId: true, appliqueLe: true, createdAt: true, acte: { select: { id: true, numero: true, statut: true } }, changementRole: { select: { statut: true, motifRefus: true, roleCible: true, decideLe: true } } },
     });
     const noms = new Map((await this.prisma.user.findMany({ where: { id: { in: [...new Set(lignes.map((l) => l.userId))] } }, select: { id: true, firstName: true, lastName: true } })).map((u) => [u.id, `${u.firstName} ${u.lastName}`]));
     const drh = estDrh(actor);
@@ -124,6 +126,8 @@ export class CarriereService implements OnModuleInit {
       mouvements: lignes.map((m) => ({
         ...m,
         libelleType: LIBELLE_TYPE[m.type],
+        // Nomination à un poste de responsabilité : droits du compte appliqués, en attente ou refusés.
+        droitsPoste: tout && m.changementRole ? { statut: m.changementRole.statut, role: m.changementRole.roleCible, motifRefus: m.changementRole.motifRefus, decideLe: m.changementRole.decideLe } : null,
         agent: noms.get(m.userId) ?? null,
         droits: {
           preparerActe: drh && (m.statut === StatutMouvementCarriere.PREPARE || (m.statut === StatutMouvementCarriere.EN_ACTE && m.acte?.statut === ActeStatut.ANNULE)),
@@ -131,6 +135,8 @@ export class CarriereService implements OnModuleInit {
         },
       })),
       droits: { preparer: drh },
+      // Postes de responsabilité qu'une nomination peut viser (rôle, unité et intitulé en découlent).
+      postes: drh ? await listePostes(this.prisma) : [],
       agents: drh ? await this.prisma.user.findMany({ where: { status: UserStatus.ACTIF, role: { not: SystemRole.STAGIAIRE } }, select: { id: true, firstName: true, lastName: true, role: true }, orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }] }) : [],
     };
   }
@@ -167,10 +173,25 @@ export class CarriereService implements OnModuleInit {
     let apres: Valeurs;
     const f = u.personnelFileBasic;
     switch (dto.type) {
-      case TypeMouvementCarriere.NOMINATION:
+      case TypeMouvementCarriere.NOMINATION: {
         avant = { fonction: u.agent?.fonction ?? u.jobTitle ?? null };
-        apres = { fonction: texte('fonction', 'Fonction') };
+        // Poste de responsabilité choisi dans la liste (option A) : le rôle, l'unité et l'intitulé de la
+        // fonction en découlent ; à la signature, un changement de rôle pré-rempli attend l'administrateur.
+        // Sinon, fonction en texte libre, sans effet sur les droits.
+        const poste = typeof a.role === 'string' && a.role ? (a.role as SystemRole) : null;
+        if (poste) {
+          if (!POSTES_RESPONSABILITE.includes(poste)) throw new BadRequestException('Poste de responsabilité : DN, DNA, Chef de Division, de Section ou de Cellule.');
+          const r = rattachementPourRole(poste, { divisionId: a.divisionId ?? null, sectionId: a.sectionId ?? null, celluleId: a.celluleId ?? null });
+          await this.verifierRattachement(r);
+          const fonction = await fonctionDuPoste(this.prisma, poste, r);
+          if (!fonction) throw new BadRequestException('Ce poste n’existe pas (unité suspendue ou inconnue).');
+          avant = { ...avant, role: u.role, divisionId: u.divisionId, sectionId: u.sectionId, celluleId: u.celluleId };
+          apres = { fonction, role: poste, divisionId: r.divisionId, sectionId: r.sectionId, celluleId: r.celluleId };
+        } else {
+          apres = { fonction: texte('fonction', 'Fonction') };
+        }
         break;
+      }
       case TypeMouvementCarriere.AVANCEMENT_ECHELON:
         avant = { echelon: f?.echelon ?? null };
         apres = { echelon: texte('echelon', 'Échelon') };
@@ -268,9 +289,10 @@ export class CarriereService implements OnModuleInit {
   }
 
   private async lignesChangement(avant: Valeurs, apres: Valeurs): Promise<string[][]> {
-    const libelles: Record<string, string> = { fonction: 'Fonction', echelon: 'Échelon', grade: 'Grade', categorie: 'Catégorie', divisionId: 'Division', sectionId: 'Section', celluleId: 'Cellule', dateFinPrevue: 'Fin de contrat' };
+    const libelles: Record<string, string> = { fonction: 'Fonction', role: 'Poste (droits)', echelon: 'Échelon', grade: 'Grade', categorie: 'Catégorie', divisionId: 'Division', sectionId: 'Section', celluleId: 'Cellule', dateFinPrevue: 'Fin de contrat' };
     const nomUnite = async (cle: string, v: string | null) => {
       if (!v) return '—';
+      if (cle === 'role') return ROLE_LIBELLE[v as SystemRole] ?? v;
       if (cle === 'divisionId') return (await this.prisma.division.findUnique({ where: { id: v }, select: { name: true } }))?.name ?? v;
       if (cle === 'sectionId') return (await this.prisma.section.findUnique({ where: { id: v }, select: { name: true } }))?.name ?? v;
       if (cle === 'celluleId') return (await this.prisma.cellule.findUnique({ where: { id: v }, select: { name: true } }))?.name ?? v;
@@ -282,16 +304,50 @@ export class CarriereService implements OnModuleInit {
     return lignes;
   }
 
+  /**
+   * Nomination à un poste de responsabilité : changement de rôle pré-rempli, en attente de
+   * l'administrateur (ou d'emblée « appliqué » si le compte a déjà ce poste). L'actuel titulaire
+   * du poste et le rôle qui lui est proposé sont relevés pour l'écran de confirmation.
+   */
+  private async changementDeRole(
+    tx: Prisma.TransactionClient,
+    mouvementId: string,
+    numero: string,
+    u: { id: string; role: SystemRole; divisionId: string | null; sectionId: string | null; celluleId: string | null },
+    apres: Valeurs,
+  ): Promise<{ role: SystemRole; id: string } | null> {
+    const role = apres.role as SystemRole;
+    const unite = { divisionId: apres.divisionId ?? null, sectionId: apres.sectionId ?? null, celluleId: apres.celluleId ?? null };
+    const deja = u.role === role && u.divisionId === unite.divisionId && u.sectionId === unite.sectionId && u.celluleId === unite.celluleId;
+    const titulaire = deja ? null : await titulaireDuPoste(tx, role, unite, u.id);
+    const c = await tx.changementRoleNomination.create({
+      data: {
+        mouvementId,
+        userId: u.id,
+        acteNumero: numero,
+        roleCible: role,
+        ...unite,
+        ancienTitulaireId: titulaire?.id ?? null,
+        roleAncienTitulaire: titulaire ? propositionPourAncienTitulaire(role, unite)?.role ?? null : null,
+        statut: deja ? StatutChangementRole.APPLIQUE : StatutChangementRole.EN_ATTENTE,
+        decideLe: deja ? new Date() : null,
+      },
+    });
+    return deja ? null : { role, id: c.id };
+  }
+
   /** Écouteur de signature : applique le mouvement porté par l'acte, dans la transaction de signature. */
   private async appliquer(tx: Prisma.TransactionClient, acteId: string, numero: string, actor: AuthenticatedUser) {
     const m = await tx.mouvementCarriere.findUnique({ where: { acteId } });
     if (!m || m.statut !== StatutMouvementCarriere.EN_ACTE) return;
     const apres = m.apres as Valeurs;
-    const u = await tx.user.findUniqueOrThrow({ where: { id: m.userId }, select: { id: true, agentId: true } });
+    const u = await tx.user.findUniqueOrThrow({ where: { id: m.userId }, select: { id: true, agentId: true, firstName: true, lastName: true, role: true, divisionId: true, sectionId: true, celluleId: true } });
+    let droitsEnAttente: { role: SystemRole; id: string } | null = null;
     switch (m.type) {
       case TypeMouvementCarriere.NOMINATION:
         await tx.user.update({ where: { id: u.id }, data: { jobTitle: apres.fonction } });
         if (u.agentId) await tx.agent.update({ where: { id: u.agentId }, data: { fonction: apres.fonction } });
+        if (apres.role) droitsEnAttente = await this.changementDeRole(tx, m.id, numero, u, apres);
         break;
       case TypeMouvementCarriere.AVANCEMENT_ECHELON:
         await tx.personnelFileBasic.upsert({ where: { userId: u.id }, update: { echelon: apres.echelon, echelonDepuis: m.dateEffet, source: 'DRH' }, create: { userId: u.id, echelon: apres.echelon, echelonDepuis: m.dateEffet, source: 'DRH' } });
@@ -312,6 +368,18 @@ export class CarriereService implements OnModuleInit {
     await this.audit.log({ actorId: actor.id, action: AuditAction.VALIDATION, entityType: 'MouvementCarriere', entityId: m.id, metadata: { event: 'applique', acteId, numero, type: m.type, apres } }, tx);
     return async () => {
       if (m.type === TypeMouvementCarriere.MUTATION) await this.reprise.synchroniserCompte(m.userId);
+      if (droitsEnAttente) {
+        const admins = await this.prisma.user.findMany({ where: { role: SystemRole.ADMIN_SYSTEME, status: UserStatus.ACTIF }, select: { id: true } });
+        await this.notifications.notifyMany(
+          admins.map((a) => a.id),
+          NotificationType.ROLE_MODIFIE,
+          `Nomination à appliquer — acte n° ${numero}`,
+          `${u.firstName} ${u.lastName} est nommé(e) ${ROLE_LIBELLE[droitsEnAttente.role]}. Confirmez le changement de rôle pré-rempli (effet sur l’actuel titulaire du poste compris) ou refusez-le avec un motif, le jour même.`,
+          '/users?onglet=nominations',
+          undefined,
+          { libelleBouton: 'Examiner', urgent: true },
+        );
+      }
       const direction = await this.prisma.user.findMany({ where: { role: { in: [SystemRole.DN, SystemRole.DNA] }, status: UserStatus.ACTIF }, select: { id: true } });
       const titre = `${LIBELLE_TYPE[m.type]} appliqué(e) — acte n° ${numero}`;
       for (const d of direction) {

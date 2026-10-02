@@ -11,9 +11,10 @@ import { CreateUserModal } from '../../../components/users/CreateUserModal';
 import { ApproveRegistrationModal } from '../../../components/users/ApproveRegistrationModal';
 import { Button } from '../../../components/ui/Button';
 import { RolesFonctionnels } from '../../../components/socle/RolesFonctionnels';
+import { NominationsRole } from '../../../components/users/NominationsRole';
 import { Chargement, ErreurChargement, messageChargement } from '../../../components/ui/ErreurChargement';
 
-type Tab = 'all' | 'pending' | 'roles';
+type Tab = 'all' | 'pending' | 'roles' | 'nominations';
 
 export default function UsersPage() {
   const { user: currentUser } = useAuth();
@@ -30,6 +31,11 @@ export default function UsersPage() {
   const loadAll = useCallback(() => {
     listAllUsers().then(setAllUsers).catch((err) => setErreurChargement(messageChargement(err)));
   }, []);
+
+  // Lien des notifications de nomination : /users?onglet=nominations.
+  useEffect(() => {
+    if (isAdmin && new URLSearchParams(window.location.search).get('onglet') === 'nominations') setTab('nominations');
+  }, [isAdmin]);
 
   useEffect(() => {
     if (!hasAccess) return;
@@ -88,6 +94,7 @@ export default function UsersPage() {
               { key: 'all', label: 'Tous les comptes' },
               { key: 'pending', label: 'Inscriptions en attente' },
               { key: 'roles', label: 'Rôles fonctionnels' },
+              { key: 'nominations', label: 'Nominations' },
             ] as const
           ).map((option) => (
             <button
@@ -108,7 +115,9 @@ export default function UsersPage() {
         </div>
       )}
 
-      {tab === 'roles' && isAdmin ? (
+      {tab === 'nominations' && isAdmin ? (
+        <NominationsRole />
+      ) : tab === 'roles' && isAdmin ? (
         <RolesFonctionnels />
       ) : tab === 'all' || !isAdmin ? (
         allUsers === null ? (

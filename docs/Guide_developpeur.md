@@ -156,6 +156,16 @@ fonctionnalité ajoute sa suite (`tests/e2e/api/`, `tests/e2e/ui/`) et sa ligne 
   (`globals.css`), assombries dans `.contraste-aa` (application) seulement — accueil et connexion gardent
   la maquette ; audit axe `n6_accessibilite_ui`. Images Docker `apps/api/Dockerfile`, `apps/web/Dockerfile`
   (Render ne les utilise pas).
+- Nomination d'un chef (lot n7, option A, `role-change/nominations-role.*`, `socle/ecarts-fonction-role.ts`) : une
+  NOMINATION peut viser un poste de la liste (`listePostes`, `role-change/postes.ts` : rôle, unité et intitulé de
+  fonction en découlent ; sinon texte libre, sans effet sur les droits) ; à la
+  signature, `CarriereService` crée un `ChangementRoleNomination` **en attente** (ou appliqué si le poste est
+  déjà tenu) et notifie les administrateurs ; `api/v1/changements-role` (admin seul, jamais en intérim) :
+  confirmation = `RoleChangeService.changerEnsemble` (actuel titulaire puis nommé, **une seule transaction, tout
+  ou rien**, motif « Acte de nomination n° … » ; fonction de l'ancien titulaire = `fonctionPourRole`, historique
+  « suite à l'acte n° … »), échec gardé dans `erreur` ; refus motivé → DRH. Le DRH voit `droitsPoste` sur le
+  mouvement. Écarts fonction du dossier / rôle du compte calculés à la lecture (supervision
+  `fonction-role`, hors sonde publique ; tâche quotidienne `ecarts-fonction-role`).
 - Stages (`stages/`, D6) : job quotidien `StagesRotationService.executer(now)` (appelable avec une
   date simulée) ; attestation finale = acte du Courrier (`ActesService`).
   Réglages (capacités, modèle d'attestation) : DRH **et** administrateur système

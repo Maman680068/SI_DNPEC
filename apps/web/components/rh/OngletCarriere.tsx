@@ -13,15 +13,22 @@ import {
 import type { Familles, ListeMouvements, Mouvement, StatutMouvement, TypeMouvement } from '../../lib/rh/types';
 import { LIBELLE_STATUT_MOUVEMENT, LIBELLE_TYPE_MOUVEMENT } from '../../lib/rh/types';
 import { useOrg } from '../../lib/org/OrgProvider';
+import { ROLE_LABEL } from '../../lib/users/types';
+import type { SystemRole } from '../../lib/auth/types';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
 import { Fenetre } from '../ui/Fenetre';
 import { Chargement, ErreurChargement, messageChargement } from '../ui/ErreurChargement';
 
 const champ = 'mt-1 w-full rounded-md border border-line bg-surface px-3 py-2 text-[13px]';
+const DROITS: Record<'EN_ATTENTE' | 'APPLIQUE' | 'REFUSE', { libelle: string; ton: 'gold' | 'sage' | 'clay' }> = {
+  APPLIQUE: { libelle: 'Droits appliqués', ton: 'sage' },
+  EN_ATTENTE: { libelle: 'Droits en attente (administrateur)', ton: 'gold' },
+  REFUSE: { libelle: 'Droits refusés', ton: 'clay' },
+};
 const TON: Record<StatutMouvement, 'accent' | 'gold' | 'sage' | 'clay' | 'muted'> = { PREPARE: 'gold', EN_ACTE: 'accent', APPLIQUE: 'sage', ANNULE: 'muted' };
 const LIBELLE_CHAMP: Record<string, string> = {
-  fonction: 'Fonction', echelon: 'Échelon', grade: 'Grade', categorie: 'Catégorie', divisionId: 'Division', sectionId: 'Section', celluleId: 'Cellule', dateFinPrevue: 'Fin de contrat',
+  fonction: 'Fonction', role: 'Poste (droits)', echelon: 'Échelon', grade: 'Grade', categorie: 'Catégorie', divisionId: 'Division', sectionId: 'Section', celluleId: 'Cellule', dateFinPrevue: 'Fin de contrat',
 };
 
 /** Carrière et actes (A3.6) : mouvements datés, acte numéroté du Courrier, application à la signature. */
@@ -39,7 +46,7 @@ export function OngletCarriere({ userId, voirFamilles }: { userId?: string; voir
     charger();
   }, [charger]);
   const valeur = (cle: string, v: string | null) =>
-    !v ? '—' : cle === 'divisionId' ? getDivisionName(v) ?? v : cle === 'sectionId' ? getSectionName(v) ?? v : cle === 'celluleId' ? getCelluleName(v) ?? v : v;
+    !v ? '—' : cle === 'role' ? ROLE_LABEL[v as SystemRole] ?? v : cle === 'divisionId' ? getDivisionName(v) ?? v : cle === 'sectionId' ? getSectionName(v) ?? v : cle === 'celluleId' ? getCelluleName(v) ?? v : v;
   const agir = (p: Promise<unknown>) => {
     setErreur(null);
     p.then(charger).catch((x) => setErreur(messageChargement(x)));
@@ -75,11 +82,15 @@ export function OngletCarriere({ userId, voirFamilles }: { userId?: string; voir
                 </div>
                 <div className="flex flex-wrap items-center gap-1.5">
                   <Badge tone={TON[m.statut]}>{LIBELLE_STATUT_MOUVEMENT[m.statut]}</Badge>
+                  {m.droitsPoste && <Badge tone={DROITS[m.droitsPoste.statut].ton} data-testid="droits-poste">{DROITS[m.droitsPoste.statut].libelle}</Badge>}
                   {m.acte && <Link href={`/courrier?acte=${m.acte.id}`} className="text-[12.5px] font-semibold text-accent">Voir l’acte</Link>}
                   {m.droits.preparerActe && <Button variant="outline" className="!px-3 !py-1 !text-[12px]" onClick={() => agir(preparerActeMouvement(m.id))}>Préparer l’acte</Button>}
                   {m.droits.annuler && <Button variant="outline" className="!px-3 !py-1 !text-[12px]" onClick={() => agir(annulerMouvement(m.id))}>Annuler</Button>}
                 </div>
               </div>
+              {m.droitsPoste?.statut === 'REFUSE' && m.droitsPoste.motifRefus && (
+                <p className="mt-1 text-[12px] text-clay">Motif du refus de l’administrateur : {m.droitsPoste.motifRefus}</p>
+              )}
             </li>
           ))}
         </ul>
@@ -117,12 +128,13 @@ export function OngletCarriere({ userId, voirFamilles }: { userId?: string; voir
 
 function FenetreMouvement({ liste, onClose, onFait }: { liste: ListeMouvements; onClose: () => void; onFait: () => void }) {
   const { divisions, sections, cellules } = useOrg();
-  const [v, setV] = useState({ userId: '', type: 'AVANCEMENT_ECHELON' as TypeMouvement, dateEffet: new Date().toISOString().slice(0, 10), motif: '', fonction: '', echelon: '', grade: '', categorie: '', divisionId: '', sectionId: '', celluleId: '' });
+  const [v, setV] = useState({ userId: '', type: 'AVANCEMENT_ECHELON' as TypeMouvement, dateEffet: new Date().toISOString().slice(0, 10), motif: '', fonction: '', poste: '', echelon: '', grade: '', categorie: '', divisionId: '', sectionId: '', celluleId: '' });
   const [erreur, setErreur] = useState<string | null>(null);
   const [enCours, setEnCours] = useState(false);
+  const poste = liste.postes.find((x) => x.cle === v.poste) ?? null;
   const set = (k: keyof typeof v) => (e: { target: { value: string } }) => setV((x) => ({ ...x, [k]: e.target.value }));
   const apres: Record<TypeMouvement, Record<string, string | null>> = {
-    NOMINATION: { fonction: v.fonction },
+    NOMINATION: poste ? { role: poste.role, divisionId: poste.divisionId, sectionId: poste.sectionId, celluleId: poste.celluleId } : { fonction: v.fonction },
     AVANCEMENT_ECHELON: { echelon: v.echelon },
     PROMOTION: { grade: v.grade, echelon: v.echelon || null, categorie: v.categorie || null },
     MUTATION: { divisionId: v.divisionId || null, sectionId: v.sectionId || null, celluleId: v.celluleId || null },
@@ -168,7 +180,28 @@ function FenetreMouvement({ liste, onClose, onFait }: { liste: ListeMouvements; 
           <input type="date" required value={v.dateEffet} onChange={set('dateEffet')} className={champ} />
         </label>
       </div>
-      {v.type === 'NOMINATION' && <label className="mb-3 block text-[12.5px] font-semibold">Nouvelle fonction<input required value={v.fonction} onChange={set('fonction')} className={champ} /></label>}
+      {v.type === 'NOMINATION' && (
+        <>
+          <label className="mb-3 block text-[12.5px] font-semibold">
+            Poste visé
+            <select value={v.poste} onChange={set('poste')} className={champ}>
+              <option value="">Autre fonction (texte libre, sans effet sur les droits)</option>
+              {liste.postes.map((x) => (
+                <option key={x.cle} value={x.cle}>{x.fonction}{x.titulaire ? ` (actuel : ${x.titulaire})` : ' (vacant)'}</option>
+              ))}
+            </select>
+          </label>
+          {poste ? (
+            <p className="mb-3 text-[12px] text-text-muted" data-testid="poste-vise">
+              Fonction au dossier : <strong>{poste.fonction}</strong>. À la signature de l’acte, l’administrateur reçoit le changement de rôle pré-rempli
+              {poste.titulaire ? ` (${poste.titulaire} redevient Chargé(e) d’Études dans la même unité, sauf choix contraire de l’administrateur)` : ''} et le confirme ou le refuse ;
+              l’état des droits s’affiche sur le mouvement.
+            </p>
+          ) : (
+            <label className="mb-3 block text-[12.5px] font-semibold">Nouvelle fonction<input required value={v.fonction} onChange={set('fonction')} className={champ} /></label>
+          )}
+        </>
+      )}
       {(v.type === 'AVANCEMENT_ECHELON' || v.type === 'PROMOTION') && (
         <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
           {v.type === 'PROMOTION' && <label className="block text-[12.5px] font-semibold">Nouveau grade<input required value={v.grade} onChange={set('grade')} className={champ} /></label>}

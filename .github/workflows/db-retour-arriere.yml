@@ -22,6 +22,7 @@ on:
           - n4
           - n5
           - n6
+          - n7
       confirm:
         description: 'Tapez "retour-arriere" suivi du lot (ex. « retour-arriere n1 ») pour confirmer'
         required: true
