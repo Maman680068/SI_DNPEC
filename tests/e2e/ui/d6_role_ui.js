@@ -44,8 +44,8 @@ async function attendre(f) { for (let i = 0; i < 40; i++) { if (await f()) retur
     check('tableau de bord : ni « Nouvelle tâche », ni export, ni carte Courrier', (await p.getByRole('button', { name: /Nouvelle tâche|Exporter/ }).count()) === 0 && (await p.locator('[data-testid=carte-courrier]').count()) === 0 && (await p.getByText('Courrier : compteurs').count()) === 0);
     await p.screenshot({ path: `${SHOTS}/d6_stagiaire_tableau_de_bord_${suffixe}.png`, fullPage: true });
     await p.goto(`${WEB}/communication`);
-    await p.getByRole('button', { name: 'Annonces' }).waitFor();
-    check('communication : pas d’onglet Sondages', (await p.getByRole('button', { name: 'Sondages' }).count()) === 0);
+    await p.getByRole('tab', { name: 'Annonces' }).waitFor();
+    check('communication : pas d’onglet Sondages', (await p.getByRole('tab', { name: 'Sondages' }).count()) === 0);
     await p.goto(`${WEB}/personnel`);
     await p.locator('[data-testid=ligne-personnel]').first().waitFor();
     check('dossier du personnel : le sien seulement', (await p.locator('[data-testid=ligne-personnel]').count()) === 1);

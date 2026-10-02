@@ -16,10 +16,11 @@ import { PollList } from '../../../components/communication/PollList';
 import { PollDetailDrawer } from '../../../components/communication/PollDetailDrawer';
 import { CreatePollModal } from '../../../components/communication/CreatePollModal';
 import { Button } from '../../../components/ui/Button';
+import { FilsDiscussion } from '../../../components/communication/FilsDiscussion';
 import { Chargement, ErreurChargement, messageChargement } from '../../../components/ui/ErreurChargement';
 import { estStagiaire } from '../../../lib/auth/stagiaire';
 
-type Tab = 'messages' | 'announcements' | 'polls';
+type Tab = 'messages' | 'fils' | 'announcements' | 'polls';
 
 // Même ciblage cascade que les annonces (AnnouncementScope) : même ensemble de
 // rôles peut créer l'un ou l'autre, voir PollsService.resolveAudienceAndAuthorize.
@@ -34,6 +35,7 @@ export default function CommunicationPage() {
 
   const [conversations, setConversations] = useState<Conversation[] | null>(null);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [filInitial, setFilInitial] = useState<string | null>(null);
 
   const [announcements, setAnnouncements] = useState<Announcement[] | null>(null);
   const [selectedAnnouncementId, setSelectedAnnouncementId] = useState<string | null>(null);
@@ -71,6 +73,12 @@ export default function CommunicationPage() {
     const params = new URLSearchParams(window.location.search);
     const withId = params.get('with');
     if (withId) setSelectedUserId(withId);
+    // Socle N5 : lien des notifications de fil (« /communication?fil=<id> »).
+    const fil = params.get('fil');
+    if (fil) {
+      setTab('fils');
+      setFilInitial(fil);
+    }
     const pollId = params.get('pollId');
     if (pollId) {
       setTab('polls');
@@ -113,16 +121,19 @@ export default function CommunicationPage() {
         )}
       </div>
 
-      <div className="mb-4 flex flex-wrap gap-0.5 rounded-md border border-line bg-bg p-0.5" style={{ width: 'fit-content' }}>
+      <div role="tablist" className="mb-4 flex flex-wrap gap-0.5 rounded-md border border-line bg-bg p-0.5" style={{ width: 'fit-content' }}>
         {(
           [
             { key: 'messages', label: 'Messagerie' },
+            { key: 'fils', label: 'Fils de discussion' },
             { key: 'announcements', label: 'Annonces' },
             { key: 'polls', label: 'Sondages' },
           ] as const
         ).filter((option) => !stagiaire || option.key !== 'polls').map((option) => (
           <button
             key={option.key}
+            role="tab"
+            aria-selected={tab === option.key}
             onClick={() => setTab(option.key)}
             className={`rounded-[6px] px-4 py-1.5 text-[12.5px] font-semibold ${
               tab === option.key ? 'bg-surface text-ink shadow-sm' : 'text-text-muted'
@@ -133,7 +144,10 @@ export default function CommunicationPage() {
         ))}
       </div>
 
-      {tab === 'messages' ? (
+      {tab === 'fils' ? (
+        // Joindre un objet passe par la recherche transverse, fermée aux stagiaires.
+        <FilsDiscussion filInitial={filInitial} peutJoindre={!stagiaire} />
+      ) : tab === 'messages' ? (
         <div className="flex h-[calc(100vh-260px)] min-h-[420px] overflow-hidden rounded-lg border border-line bg-surface">
           {/* Sur mobile, la liste et le fil sont mutuellement exclusifs (un seul
            * panneau plein écran à la fois) — les deux côte à côte comme sur

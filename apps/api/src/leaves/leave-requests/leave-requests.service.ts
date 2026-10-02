@@ -19,6 +19,7 @@ import { PreuveIdentiteService } from '../../socle/preuve-identite.service';
 import { ajouterHeuresOuvrees, heuresOuvreesEntre } from '../../socle/heures-ouvrees';
 import { JoursFeriesService } from '../../socle/jours-feries.service';
 import { StorageService } from '../../common/storage/storage.service';
+import { chefsLesPlusProches } from '../../socle/chefs-proches';
 
 const LEAVE_REQUEST_SELECT = {
   id: true,
@@ -98,18 +99,8 @@ export class LeaveRequestsService {
    * la cellule ou de la section, puis chef de la division, enfin DN ou DNA. Le premier niveau pourvu
    * d'un compte actif (autre que le demandeur) donne l'avis ; les niveaux au-dessus ne le donnent pas.
    */
-  private async avisants(target: LeaveRequestWithUser['user']): Promise<string[]> {
-    const niveaux: Prisma.UserWhereInput[] = [];
-    if (target.supervisorId) niveaux.push({ id: target.supervisorId });
-    if (target.celluleId) niveaux.push({ role: SystemRole.CHEF_CELLULE, celluleId: target.celluleId });
-    if (target.divisionId && target.sectionId) niveaux.push({ role: SystemRole.CHEF_SECTION, divisionId: target.divisionId, sectionId: target.sectionId });
-    if (target.divisionId) niveaux.push({ role: SystemRole.CHEF_DIVISION, divisionId: target.divisionId });
-    niveaux.push({ role: { in: [SystemRole.DN, SystemRole.DNA] } });
-    for (const niveau of niveaux) {
-      const ids = (await this.prisma.user.findMany({ where: { AND: [niveau, { status: UserStatus.ACTIF, id: { not: target.id } }] }, select: { id: true } })).map((u) => u.id);
-      if (ids.length) return ids;
-    }
-    return [];
+  private avisants(target: LeaveRequestWithUser['user']): Promise<string[]> {
+    return chefsLesPlusProches(this.prisma, target);
   }
 
   private async peutDonnerAvis(actor: AuthenticatedUser, r: LeaveRequestWithUser): Promise<boolean> {

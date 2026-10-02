@@ -6,6 +6,8 @@ import { useAuth } from '../../lib/auth/AuthProvider';
 import { getTasks } from '../../lib/api/tasks';
 import type { Task } from '../../lib/tasks/types';
 import { KanbanBoard } from './KanbanBoard';
+import { CalendarView } from './CalendarView';
+import { ViewToggle, type TaskView } from './ViewToggle';
 import { TaskDetailDrawer } from './TaskDetailDrawer';
 
 type Tab = 'assigned' | 'created';
@@ -23,6 +25,7 @@ export function MyTasksView({ initialTaskId = null }: { initialTaskId?: string |
   const { user } = useAuth();
   const [tasks, setTasks] = useState<Task[] | null>(null);
   const [tab, setTab] = useState<Tab>('assigned');
+  const [view, setView] = useState<TaskView>('kanban');
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(initialTaskId);
   const [error, setError] = useState<string | null>(null);
 
@@ -60,7 +63,8 @@ export function MyTasksView({ initialTaskId = null }: { initialTaskId?: string |
 
       {error && <div className="mb-5 rounded-md bg-clay-soft px-4 py-3 text-sm text-clay">{error}</div>}
 
-      <div role="tablist" className="mb-4 flex w-fit gap-0.5 rounded-md border border-line bg-bg p-0.5">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+      <div role="tablist" className="flex w-fit gap-0.5 rounded-md border border-line bg-bg p-0.5">
         {(
           [
             { key: 'assigned', label: 'Assignées à moi', count: assigned.length },
@@ -81,11 +85,15 @@ export function MyTasksView({ initialTaskId = null }: { initialTaskId?: string |
           </button>
         ))}
       </div>
+      <ViewToggle value={view} onChange={setView} />
+      </div>
 
       {!tasks ? (
         <div className="text-sm text-text-muted">Chargement des tâches…</div>
-      ) : (
+      ) : view === 'kanban' ? (
         <KanbanBoard tasks={shown} onSelect={setSelectedTaskId} />
+      ) : (
+        <CalendarView tasks={shown} onSelect={setSelectedTaskId} />
       )}
 
       <TaskDetailDrawer taskId={selectedTaskId} onClose={handleClose} onTaskChanged={handleTaskChanged} />

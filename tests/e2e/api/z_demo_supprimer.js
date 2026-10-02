@@ -32,6 +32,8 @@ const demo = { email: { endsWith: `@${D.DOMAINE}` } };
     demandes: await prisma.demandeLogistique.count({ where: { demandeur: demo } }),
     habilitations: (await prisma.habilitationCourrier.count({ where: { user: demo } })) + (await prisma.habilitationLogistique.count({ where: { user: demo } })),
     typesCongéTEST: await prisma.leaveType.count({ where: { name: { startsWith: 'TEST — ' } } }),
+    objectifsPlan: await prisma.objectif.count({ where: { libelle: { startsWith: 'TEST — ' } } }),
+    filsDiscussion: await prisma.filMessages.count({ where: { objet: { startsWith: 'TEST — ' } } }),
     actesNonNumérotés: await prisma.acteCourrier.count({ where: { registre: { code: 'TEST-DEP' }, numero: null } }),
   };
   for (const [k, v] of Object.entries(zero)) check(`${k} : 0`, v === 0, `${v}`);

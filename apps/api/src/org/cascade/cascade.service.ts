@@ -162,9 +162,9 @@ export class CascadeService {
    * assertCanSetTaskConfidentiality) : ceux-ci continuent de juger sur le
    * rôle propre de l'Assistant, par décision de conception (l'Assistant voit
    * plus, mais n'hérite d'aucun pouvoir d'action ni d'un niveau de
-   * confidentialité supérieur).
+   * confidentialité supérieur). Public pour le plan de travail (socle N5), même usage : lecture seule.
    */
-  private getVisibilityActor(actor: AuthenticatedUser): AuthenticatedUser {
+  getVisibilityActor(actor: AuthenticatedUser): AuthenticatedUser {
     if (actor.role !== SystemRole.ASSISTANT_DIRECTION || !actor.supervisorRole) {
       return actor;
     }

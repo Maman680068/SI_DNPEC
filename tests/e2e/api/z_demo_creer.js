@@ -88,6 +88,12 @@ const compte = async () => ({
   check('stage : 2 périodes, évaluation visée', stage?.periodes.length === 2 && stage.periodes.some((p) => p.evaluation?.statut === 'VISEE'));
   check('logistique : 3 biens inventoriés (catégorie TST), demandes, réservations', n.biens === 3 && (await prisma.demandeLogistique.count({ where: { demandeur: demo } })) === 3 && n.reservations >= 2);
   check('numérotation d’inventaire propre à la démonstration (TST-…)', (await prisma.bien.findMany({ where: { categorie: { code: 'TST' } } })).every((b) => b.numeroInventaire.startsWith('TST-')));
+  const idsDemo = (await prisma.user.findMany({ where: demo, select: { id: true } })).map((x) => x.id);
+  const objectifs = await prisma.objectif.findMany({ where: { creeParId: { in: idsDemo } }, include: { activites: true } });
+  const actIds = objectifs.flatMap((o) => o.activites.map((a) => a.id));
+  check('plan de travail (N5) : 1 objectif, 2 activités, 2 tâches rattachées', objectifs.length === 1 && actIds.length === 2 && (await prisma.task.count({ where: { activiteId: { in: actIds } } })) === 2);
+  const fils = await prisma.filMessages.findMany({ where: { creeParId: { in: idsDemo } }, include: { messages: true, participants: true } });
+  check('fil de discussion (N5) : 3 participants, 2 messages, une tâche jointe', fils.length === 1 && fils[0].participants.length === 3 && fils[0].messages.length === 2 && fils[0].messages.some((m) => m.lienType === 'TACHE'));
 
   console.log('— Données réelles intactes');
   const apres = await D.empreinte(prisma);

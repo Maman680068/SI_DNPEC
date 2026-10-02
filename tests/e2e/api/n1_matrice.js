@@ -31,8 +31,6 @@ async function caseMatrice({ objet, profil, action, annexe, appel, attendu, ecar
 }
 
 const LOTS = [
-  ['Activité / plan de travail', 'N5 (plan de travail objectif → activité → tâche)'],
-  ['Instruction de la Direction', 'N5'],
   ['Mouvement de carrière et acte RH, effectifs et alertes RH', 'N6'],
   ['Campagne et bulletin de paie, élément de rémunération, ordre de paiement', 'hors périmètre (D5, finances SAF)'],
   ['Objets du domaine modélisation (annexe 1.3)', 'hors périmètre (domaine B)'],
@@ -227,9 +225,42 @@ const LOTS = [
     await caseMatrice({ objet: 'Document — statut de diffusion', profil, action: 'rendre diffusable', annexe: direction ? 'V (DN, DNA)' : '—', attendu: direction, appel: () => call(profil, 'POST', `/documents/${id}/statut`, { vers: 'DIFFUSABLE' }) });
   }
 
+  console.log('— Plan de travail (N5) : lire = unité et au-dessus (assistant comme son superviseur) ; gérer = chef de l’unité, chef de division, DN, DNA');
+  const uSSR = organigramme.body.unites.find((u) => u.code === 'SSR') || organigramme.body.unites.find((u) => /SSR/.test(u.code || '') || /SSR/.test(u.libelle || ''));
+  const lecteurs = ['dn', 'dna', 'chefdpe', 'chefssr', 'agent1', 'assdn'];
+  for (const profil of Object.keys(PROFILS)) {
+    const lit = lecteurs.includes(profil);
+    await caseMatrice({ objet: 'Activité / plan de travail', profil, action: 'lire le plan de la section', annexe: lit ? 'L(P) — unité, unités au-dessus, périmètre' : '—', attendu: lit, appel: () => call(profil, 'GET', `/api/v1/plan-travail?uniteId=${uSSR.id}`) });
+  }
+  const gestionnaires = ['dn', 'dna', 'chefdpe', 'chefssr'];
+  for (const profil of Object.keys(PROFILS)) {
+    const gere = gestionnaires.includes(profil);
+    let cree;
+    await caseMatrice({
+      objet: 'Activité / plan de travail', profil, action: 'créer un objectif de la section', annexe: gere ? 'CLM(P) — chef de l’unité, Direction' : 'L(P) ou —', attendu: gere,
+      appel: async () => (cree = await call(profil, 'POST', '/api/v1/plan-travail/objectifs', { annee: new Date().getFullYear(), uniteId: uSSR.id, libelle: `Matrice ${S} ${profil}` })),
+    });
+    if (gere && cree.body && cree.body.id) await call(profil, 'DELETE', `/api/v1/plan-travail/objectifs/${cree.body.id}`);
+  }
+
+  console.log('— Instruction de la Direction (N5) : émise par DN, DNA ; lue par l’émetteur, le destinataire, la Direction');
+  for (const profil of Object.keys(PROFILS)) {
+    const emet = profil === 'dn' || profil === 'dna';
+    await caseMatrice({ objet: 'Instruction de la Direction', profil, action: 'émettre', annexe: emet ? 'C (DN, DNA)' : '—', attendu: emet, appel: () => call(profil, 'POST', '/api/v1/instructions', { objet: `Matrice ${S} ${profil}`, texte: 'Instruction de la matrice.', destinataireId: profil === 'chefdpe' ? ids.chefssr : ids.chefdpe }) });
+  }
+  const ins = (await call('dn', 'POST', '/api/v1/instructions', { objet: `Matrice ${S} lecture`, texte: 'Instruction de la matrice.', destinataireId: ids.chefssr, agentConcerneId: ids.agent1 })).body;
+  for (const profil of Object.keys(PROFILS)) {
+    const lit = ['dn', 'dna', 'chefssr'].includes(profil);
+    await caseMatrice({
+      objet: 'Instruction de la Direction', profil, action: 'lire (agent concerné : pas avant l’exécution)', annexe: lit ? 'L (émetteur, destinataire, Direction)' : '— (inexistante pour lui : 404)', attendu: lit,
+      appel: async () => { const r = await call(profil, 'GET', `/api/v1/instructions/${ins.id}`); return { status: r.status === 404 ? 403 : r.status }; },
+    });
+  }
+  await call('chefssr', 'POST', `/api/v1/instructions/${ins.id}/rejet`, { motif: 'Instruction de test de la matrice.' });
+
   // Rapport lisible : tableau des cases jouées + objets renvoyés à un lot ultérieur.
   const md = [
-    '# Matrice des habilitations — état N4',
+    '# Matrice des habilitations — état N5',
     '',
     'Généré par `tests/e2e/api/n1_matrice.js` (annexe 1 du cahier NIMBA v2.2). « ÉCART » : comportement actuel conservé en N1 et vérifié tel quel.',
     '',

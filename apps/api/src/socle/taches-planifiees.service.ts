@@ -12,6 +12,9 @@ export const TACHES_SUIVIES: Record<string, { libelle: string; periodeMinutes: n
   'avis-conges': { libelle: 'Congés : avis attendus, rappels, avis tacites', periodeMinutes: 15 },
   'purge-messages': { libelle: 'Purge des messages de plus de 3 ans', periodeMinutes: 24 * 60 },
   'jours-feries': { libelle: 'Calendrier des jours fériés : alerte si l’année suivante est vide', periodeMinutes: 24 * 60 },
+  'echeances-taches': { libelle: 'Tâches : alertes la veille de l’échéance et en retard', periodeMinutes: 24 * 60 },
+  'relance-instructions': { libelle: 'Instructions de la Direction : relance à 7 jours', periodeMinutes: 24 * 60 },
+  'resume-quotidien': { libelle: 'Résumé quotidien des notifications par email', periodeMinutes: 60 },
 };
 
 /**

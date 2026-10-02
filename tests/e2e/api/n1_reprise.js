@@ -15,7 +15,7 @@ const E = require('../config');
 const { check, bilan } = require('../lib');
 const { PrismaClient } = require('@prisma/client');
 // Colonnes des lots suivants (N3), appliqués par le même « migrate deploy » : hors comparaison.
-const MOINS_N3 = ['avisEtat', 'avisParId', 'avisMotif', 'avisLe', 'avisEcheance', 'alerteAvisAt', 'encadrantPrincipalId', 'rapportFileKey', 'rapportFileName', 'rapportDeposeLe', 'rapportStatut', 'rapportMotif', 'rapportValideLe', 'rapportValideParId', 'progressPercent', 'certificatFileKey', 'certificatFileName', 'certificatDeposeLe', 'statutDiffusion', 'typeDocument', 'dateDocument', 'periodeDebut', 'periodeFin', 'sourceMeetingId'].map((c) => ` - '${c}'`).join('');
+const MOINS_N3 = ['avisEtat', 'avisParId', 'avisMotif', 'avisLe', 'avisEcheance', 'alerteAvisAt', 'encadrantPrincipalId', 'rapportFileKey', 'rapportFileName', 'rapportDeposeLe', 'rapportStatut', 'rapportMotif', 'rapportValideLe', 'rapportValideParId', 'progressPercent', 'certificatFileKey', 'certificatFileName', 'certificatDeposeLe', 'statutDiffusion', 'typeDocument', 'dateDocument', 'periodeDebut', 'periodeFin', 'sourceMeetingId', 'activiteId', 'alerteVeilleAt', 'alerteRetardAt', 'aEnvoyerLe'].map((c) => ` - '${c}'`).join('');
 const prisma = new PrismaClient();
 
 const MODE = process.env.N1_MODE || 'apres';

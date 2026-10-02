@@ -172,6 +172,16 @@ export class MeetingsService {
     });
   }
 
+  /** Recherche transverse (socle N5) : mêmes règles de visibilité que l'écran des réunions. */
+  rechercher(actor: AuthenticatedUser, q: string, take: number) {
+    return this.prisma.meeting.findMany({
+      where: { AND: [this.getMeetingVisibilityWhere(actor), { title: { contains: q, mode: 'insensitive' } }] },
+      select: { id: true, title: true, startAt: true },
+      orderBy: { startAt: 'desc' },
+      take,
+    });
+  }
+
   async findOneVisibleTo(actor: AuthenticatedUser, id: string): Promise<MeetingWithParticipants> {
     const meeting = await this.prisma.meeting.findFirst({
       where: { id, ...this.getMeetingVisibilityWhere(actor) },

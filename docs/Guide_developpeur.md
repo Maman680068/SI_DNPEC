@@ -3,7 +3,7 @@
 Système d'information interne de la DNPEC (Guinée), **en production** sur Render
 (PostgreSQL, API NestJS et frontend Next.js en services distincts, emails réels via Brevo).
 Référence fonctionnelle : cahier des charges v2.5 (§2.2 « besoin d'en connaître », §3.2 changement
-de rôle, §4.10 suppléance, §4.11 courrier et actes, §4.15 socle NIMBA N1, §4.16 N2, §4.17 N3, §4.18 N4, Annexe B = journal des décisions) : `docs/Cahier_des_charges_DNPEC_SI.docx`.
+de rôle, §4.10 suppléance, §4.11 courrier et actes, §4.15 socle NIMBA N1, §4.16 N2, §4.17 N3, §4.18 N4, §4.19 N5, Annexe B = journal des décisions) : `docs/Cahier_des_charges_DNPEC_SI.docx`.
 Programme en cours : socle NIMBA, lots N1 → N6 (`docs/NIMBA_Cahier_des_charges_v2.2.docx`), une PR par lot,
 déployés dans l'ordre ; conception N1 : `docs/conception_N1_socle_NIMBA.md`.
 
@@ -119,6 +119,19 @@ fonctionnalité ajoute sa suite (`tests/e2e/api/`, `tests/e2e/ui/`) et sa ligne 
   modèle de page commun `mise-en-page.ts` (PDF et Word identiques), attestation de travail, ordre de
   mission, rapport d'activité ; acte du Courrier pour les documents opposables, éditions comptées
   (`documents_generes`, « DUPLICATA ») ; montants en lettres `socle/montant-en-lettres.ts`.
+- Socle N5 (pilotage, collaboration) : plan de travail (`plan-travail/`, routes `api/v1`) objectif →
+  activité (responsable, indicateur) → tâche (`Task.activiteId`), géré par unité (chef de l'unité, chef de
+  division pour ses sections, DN/DNA), lu par son unité et au-dessus (assistant : `getVisibilityActor`),
+  **avancement calculé** (moyenne des tâches principales). Alertes d'échéance (`EcheancesTachesService`,
+  7 h) : veille → assignés, retard → `chefsLesPlusProches` (`socle/chefs-proches.ts`, aussi utilisé pour
+  les avis de congé), une seule fois (`alerteVeilleAt`, `alerteRetardAt`). Notifications :
+  `notify(..., { urgent })` ; emails immédiats = `NOTIFICATIONS_IMMEDIATES` (liste fermée) ou `urgent`,
+  les autres en **résumé quotidien** (`aEnvoyerLe`, `ResumeQuotidienService`, tâche horaire
+  `resume-quotidien`, préférences `api/v1/notifications/preferences`). Fils de discussion et recherche
+  transverse (`collaboration/`) : un objet cité ou trouvé passe par `ObjetsPlateformeService` /
+  la requête de son module (jamais plus que l'écran ; pli personnel exclu). Instructions de la Direction
+  (`instructions/`) : DN/DNA émettent, invisibles pour l'agent concerné avant l'exécution (acte signé),
+  relance à 7 jours (`relance-instructions`).
 - Stages (`stages/`, D6) : job quotidien `StagesRotationService.executer(now)` (appelable avec une
   date simulée) ; attestation finale = acte du Courrier (`ActesService`).
   Réglages (capacités, modèle d'attestation) : DRH **et** administrateur système

@@ -69,7 +69,11 @@ export default function DocumentsPage() {
 
   // Ouverture profonde « /documents?id=<id> » (dépôt depuis un document généré, liens).
   useEffect(() => {
-    const id = new URLSearchParams(window.location.search).get('id');
+    const params = new URLSearchParams(window.location.search);
+    // « Voir tout » de la recherche transverse (socle N5) : filtre de recherche du module prérempli.
+    const recherche = params.get('q');
+    if (recherche) setQ(recherche);
+    const id = params.get('id');
     if (id) getDocument(id).then(setSelectedDoc).catch((err) => setErreurChargement(messageChargement(err)));
   }, []);
 
