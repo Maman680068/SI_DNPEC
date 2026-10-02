@@ -1,4 +1,6 @@
-import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query, Res } from '@nestjs/common';
+import type { Response } from 'express';
+import { SauvegardeFichiersService } from './sauvegarde-fichiers.service';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { AuthenticatedUser } from '../common/types/auth-user.type';
 import { UnitesService } from './unites.service';
@@ -26,6 +28,7 @@ export class SocleController {
     private readonly parametres: ParametresService,
     private readonly supervision: SupervisionService,
     private readonly journalAudit: JournalAuditService,
+    private readonly sauvegarde: SauvegardeFichiersService,
   ) {}
 
   // Paramétrage et supervision (lot N2, §13.6, SOC-SUP)
@@ -42,6 +45,17 @@ export class SocleController {
   @Get('supervision')
   supervisionTableau(@CurrentUser() u: AuthenticatedUser) {
     return this.supervision.tableau(u);
+  }
+
+  // Sauvegarde du stockage des fichiers (exploitation 2026-10) : administrateur, mot de passe confirmé.
+  @Get('supervision/sauvegarde-fichiers')
+  inventaireFichiers(@CurrentUser() u: AuthenticatedUser) {
+    return this.sauvegarde.inventaire(u);
+  }
+
+  @Get('supervision/sauvegarde-fichiers/archive')
+  async archiveFichiers(@CurrentUser() u: AuthenticatedUser, @Res() res: Response) {
+    await this.sauvegarde.telecharger(u, res);
   }
 
   @Post('supervision/test-restauration')

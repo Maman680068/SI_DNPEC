@@ -8,6 +8,7 @@ import { optionsCors } from './common/cors';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter';
 import { PrismaService } from './prisma/prisma.service';
+import { JournalAuditService } from './socle/journal-audit.service';
 
 async function bootstrap() {
   // Revue de sécurité 2026-10 : sans secret de signature (ou avec un secret trop court), aucun jeton
@@ -53,6 +54,8 @@ async function bootstrap() {
 
   const port = process.env.PORT ? Number(process.env.PORT) : 3000;
   await app.listen(port);
+  // Exploitation 2026-10 : vérification du journal d'audit si la dernière est trop ancienne (serveur seulement).
+  app.get(JournalAuditService).verifierAuDemarrage();
 }
 
 bootstrap();

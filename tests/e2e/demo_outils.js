@@ -30,7 +30,10 @@ async function empreinte(prisma) {
     if (HORS_EMPREINTE.has(t)) continue;
     // audit_logs : le scellement (socle N2) complète rang et empreintes, sans rien changer d'autre.
     const expr = t === 'audit_logs' ? "md5((to_jsonb(x) - 'rang' - 'empreinte' - 'empreintePrecedente')::text)" : 'md5(x::text)';
-    const lignes = await prisma.$queryRawUnsafe(`SELECT ${expr} AS h FROM "${t}" x`);
+    // parametres : le résultat de la vérification du journal d'audit est réécrit par le serveur lui-même
+    // (chaque nuit, ou à un démarrage quand il date de plus de 26 h, cas de l'API décalée d'un an).
+    const filtre = t === 'parametres' ? ` WHERE cle <> 'audit.verificationNocturne'` : '';
+    const lignes = await prisma.$queryRawUnsafe(`SELECT ${expr} AS h FROM "${t}" x${filtre}`);
     res[t] = lignes.map((l) => l.h);
   }
   return res;
