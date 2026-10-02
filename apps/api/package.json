@@ -15,7 +15,8 @@
     "db:seed": "ts-node prisma/seed.ts",
     "db:seed-admin": "ts-node prisma/seed-admin.ts",
     "db:parametrage": "ts-node prisma/parametrage.ts",
-    "db:demo": "ts-node prisma/demo.ts"
+    "db:demo": "ts-node prisma/demo.ts",
+    "db:qualite": "ts-node prisma/qualite-donnees.ts"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"

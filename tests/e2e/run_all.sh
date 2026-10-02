@@ -141,6 +141,7 @@ lancer "38n. CHROMIUM — ACCESSIBILITÉ WCAG 2.1 AA DES ÉCRANS PRINCIPAUX (AXE
 # Liens : après toutes les suites, pour contrôler aussi les notifications et emails réellement produits.
 lancer "39a. LIENS DE L'API VERS LE WEB (CODE, NOTIFICATIONS, EMAILS) ET ANCIENS FORMATS" api/i_liens.js
 lancer "39b. CHROMIUM — ANCIENS LIENS (CONNECTÉ, NON CONNECTÉ) ET PAGE 404" ui/i_liens_ui.js
+lancer "39b-bis. RAPPORT DE QUALITÉ DES DONNÉES (LECTURE SEULE, CHIFFRES EXACTS, SANS NOMS POUR LE WORKFLOW)" api/q_qualite_donnees.js
 lancer "39c. CONFIGURATION DE PRODUCTION : CORS STRICT, ORIGINES REFUSÉES, VERSION DÉPLOYÉE" api/j_production.js
 lancer "39d. CHROMIUM — CLOCHE EN CONDITIONS DE PRODUCTION, ORIGINE REFUSÉE, API INJOIGNABLE" ui/j_cloche_production_ui.js
 lancer "39e. CHROMIUM — ACCUEIL PUBLIC COMPACT (4 ÉCRANS, TÉLÉPHONE, TABLETTE)" ui/k_accueil_ui.js

@@ -184,6 +184,9 @@ fonctionnalité ajoute sa suite (`tests/e2e/api/`, `tests/e2e/ui/`) et sa ligne 
   Contenu : `apps/web/lib/aide/guides.json`, captures `apps/web/public/aide/` ; toute évolution
   d'écran qui change un libellé cité doit mettre le guide à jour, puis régénérer captures et PDF
   (`tests/e2e/outils/captures_aide.js`, `guide_pdf.js`).
+- Formation (2026-10, `docs/formation/`) : fiches d'une page par profil (`prise_en_main.json` →
+  `tests/e2e/outils/prise_en_main_pdf.js`), à régénérer avec les captures de l'aide ; rapport de qualité des
+  données `prisma/qualite-donnees.ts` (transaction `READ ONLY`, `--sans-noms` pour le workflow `db-qualite.yml`).
 - Écrans : l'API renvoie les droits (`droits`, `peutAjouter`...) et les listes de choix
   (« responsables possibles »...) ; le web n'en calcule aucun.
 
