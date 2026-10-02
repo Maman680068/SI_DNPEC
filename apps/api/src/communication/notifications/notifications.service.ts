@@ -92,6 +92,9 @@ export const NOTIFICATIONS_IMMEDIATES: ReadonlySet<NotificationType> = new Set<N
   NotificationType.REUNION_ANNULEE,
 ]);
 
+/** Délai avant de renvoyer un email immédiat refusé par le serveur d'envoi (performance 2026-10). */
+export const REPRISE_EMAIL_MS = 15 * 60_000;
+
 /** Prochaine heure pleine `heure` (heure de Conakry = UTC) strictement après `apres`. */
 export function prochainResume(apres: Date, heure: number): Date {
   const d = new Date(Date.UTC(apres.getUTCFullYear(), apres.getUTCMonth(), apres.getUTCDate(), heure));
@@ -152,7 +155,8 @@ export class NotificationsService {
     const pref = user?.preferenceNotification ?? { resumeQuotidien: true, heureResume: 7 };
     const immediat = options?.urgent || NOTIFICATIONS_IMMEDIATES.has(type) || !pref.resumeQuotidien;
     const maintenant = new Date();
-    await this.prisma.notification.create({
+    const ligneEmail = await this.prisma.notification.create({
+      select: { id: true },
       data: {
         userId, type, channel: NotificationChannel.EMAIL, title, body, link,
         // Email regroupé : envoyé par le résumé quotidien (sentAt posé à l'envoi).
@@ -182,6 +186,11 @@ export class NotificationsService {
             error instanceof Error ? error.message : String(error)
           }`,
         );
+        // Reprise (performance 2026-10) : l'email repart avec le prochain passage du résumé
+        // (tâche horaire `resume-quotidien`), au plus tôt dans REPRISE_EMAIL_MS.
+        await this.prisma.notification
+          .update({ where: { id: ligneEmail.id }, data: { sentAt: null, aEnvoyerLe: new Date(Date.now() + REPRISE_EMAIL_MS) } })
+          .catch(() => undefined);
       }
     }
   }

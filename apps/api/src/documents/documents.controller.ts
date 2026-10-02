@@ -43,7 +43,7 @@ export class DocumentsController {
 
   @Get()
   findAll(@Query() filters: DocumentFiltersDto, @CurrentUser() actor: AuthenticatedUser) {
-    return this.documentsService.findAllVisibleTo(actor, filters).then((ds) => Promise.all(ds.map((d) => this.documentsService.presenter(actor, d))));
+    return this.documentsService.findAllVisibleTo(actor, filters).then((ds) => this.documentsService.presenterListe(actor, ds));
   }
 
   @Get(':id')

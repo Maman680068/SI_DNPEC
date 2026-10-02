@@ -19,7 +19,10 @@ import { PreuveIdentiteService } from '../../socle/preuve-identite.service';
 import { ajouterHeuresOuvrees, heuresOuvreesEntre } from '../../socle/heures-ouvrees';
 import { JoursFeriesService } from '../../socle/jours-feries.service';
 import { StorageService } from '../../common/storage/storage.service';
-import { chefsLesPlusProches } from '../../socle/chefs-proches';
+import { chefsLesPlusProches, chefsLesPlusProchesMemo, MemoChefs } from '../../socle/chefs-proches';
+
+/** Durée de vie du cache des chefs avisants d'une requête (voir avisantsPour). */
+const MEMO_AVISANTS_MS = 5_000;
 
 const LEAVE_REQUEST_SELECT = {
   id: true,
@@ -103,9 +106,20 @@ export class LeaveRequestsService {
     return chefsLesPlusProches(this.prisma, target);
   }
 
+  /** Chefs avisants vus d'une même requête (une liste de congés, le tableau de bord) : lus une fois
+   * par niveau au lieu d'une fois par ligne (performance 2026-10). L'acteur est propre à la requête ;
+   * la durée de vie bornée protège les appelants qui gardent le même acteur (script de démonstration). */
+  private readonly memoAvisants = new WeakMap<AuthenticatedUser, { le: number; memo: MemoChefs }>();
+
+  private avisantsPour(actor: AuthenticatedUser, target: LeaveRequestWithUser['user']): Promise<string[]> {
+    let entree = this.memoAvisants.get(actor);
+    if (!entree || Date.now() - entree.le > MEMO_AVISANTS_MS) this.memoAvisants.set(actor, (entree = { le: Date.now(), memo: new Map() }));
+    return chefsLesPlusProchesMemo(this.prisma, target, entree.memo);
+  }
+
   private async peutDonnerAvis(actor: AuthenticatedUser, r: LeaveRequestWithUser): Promise<boolean> {
     if (r.userId === actor.id) return false;
-    return (await this.avisants(r.user)).some((id) => this.cascade.isActingFor(actor, id));
+    return (await this.avisantsPour(actor, r.user)).some((id) => this.cascade.isActingFor(actor, id));
   }
 
   /** Décideur : le DRH ; pour la demande d'un titulaire du rôle DRH, le DN ou la DNA. */
@@ -133,7 +147,7 @@ export class LeaveRequestsService {
   private async estAvisant(actor: AuthenticatedUser, r: LeaveRequestWithUser): Promise<boolean> {
     if (r.userId === actor.id) return false;
     if (r.avisParId && this.cascade.isActingFor(actor, r.avisParId)) return true;
-    return (await this.avisants(r.user)).some((id) => this.cascade.isActingFor(actor, id));
+    return (await this.avisantsPour(actor, r.user)).some((id) => this.cascade.isActingFor(actor, id));
   }
 
   private async vue(actor: AuthenticatedUser, r: LeaveRequestWithUser, noms?: Map<string, string>): Promise<LeaveRequestView> {

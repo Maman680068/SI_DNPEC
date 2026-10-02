@@ -132,6 +132,14 @@ fonctionnalité ajoute sa suite (`tests/e2e/api/`, `tests/e2e/ui/`) et sa ligne 
   la requête de son module (jamais plus que l'écran ; pli personnel exclu). Instructions de la Direction
   (`instructions/`) : DN/DNA émettent, invisibles pour l'agent concerné avant l'exécution (acte signé),
   relance à 7 jours (`relance-instructions`).
+- Performance (2026-10, `docs/Performance_2026-10.md`) : une liste ne renvoie jamais tout un périmètre à
+  un écran qui n'en montre qu'une partie (`GET /tasks?suivi=true&limite=` pour le tableau de bord,
+  `assigneeId`/`createdById` pour « Mes tâches ») ; un droit calculé par ligne lit ses données une fois pour
+  la liste (`chefsLesPlusProchesMemo`, `DocumentsService.presenterListe`), jamais une requête par ligne.
+  Email refusé par le serveur d'envoi : remis en file (`sentAt` nul, `aEnvoyerLe`), renvoyé par
+  `resume-quotidien` jusqu’à 72 h (`AGE_MAX_REPRISE_MS`), par lots (`EMAIL_LOT`, `EMAIL_PAUSE_MS`) ;
+  quota `BREVO_QUOTA_JOUR` en supervision (`quota-emails`). Mesures : `tests/e2e/outils/volume.js`
+  (jeu gonflé, base locale) et `tests/e2e/outils/charge.js` (100 utilisateurs simultanés).
 - Socle N6 (RH, véhicules, tableaux de bord) : `rh/` (routes `api/v1/rh`, onglets renvoyés par l'API) —
   effectifs (DRH, DN, DNA) et **alertes calculées à la lecture, jamais stockées** (fins de contrat et de
   stage, avancement d'échelon après `rh.avancementEchelonMois`, dossier incomplet selon la liste des
