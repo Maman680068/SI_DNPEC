@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { AuditAction, Prisma, SystemRole } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
@@ -38,7 +38,7 @@ export type FiltresAudit = { du?: string; au?: string; acteurId?: string; entity
 export const CLE_VERIFICATION_NOCTURNE = 'audit.verificationNocturne';
 
 @Injectable()
-export class JournalAuditService implements OnApplicationBootstrap {
+export class JournalAuditService {
   private readonly logger = new Logger('JournalAudit');
 
   constructor(
@@ -80,9 +80,10 @@ export class JournalAuditService implements OnApplicationBootstrap {
    * gardé pour la supervision ; une chaîne rompue met la tâche en échec, et la supervision alerte
    * les administrateurs.
    */
-  /** Au démarrage (après un déploiement), une vérification complète si la dernière date de plus de
-   * 26 heures ou n'existe pas encore — en arrière-plan, sans retarder le démarrage. */
-  onApplicationBootstrap(): void {
+  /** Au démarrage du serveur (après un déploiement, appelé par main.ts), une vérification complète si
+   * la dernière date de plus de 26 heures ou n'existe pas encore — en arrière-plan, sans retarder le
+   * démarrage. Jamais dans un script (démonstration, paramétrage) : il ne modifie aucun paramètre. */
+  verifierAuDemarrage(): void {
     void this.etatRapide()
       .then((e) => (e.ancienne ? this.taches.suivre('verification-audit', () => this.verifierEtGarder()) : undefined))
       .catch(() => undefined);
