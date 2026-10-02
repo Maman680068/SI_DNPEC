@@ -145,7 +145,7 @@ export class TableauDeBordService {
       titre: 'Demandes de congé en attente de votre avis',
       valeur: l.length,
       elements: l.slice(0, 5).map((r) => ({ libelle: `${r.user.firstName} ${r.user.lastName}`, detail: r.avisEcheance ? `avis avant le ${new Date(r.avisEcheance).toLocaleString('fr-FR', { timeZone: 'Africa/Conakry', dateStyle: 'short', timeStyle: 'short' })}` : null, lien: `/leaves?id=${r.id}` })),
-      lien: '/leaves?onglet=a-traiter',
+      lien: '/leaves?onglet=validation',
       vide: 'Aucun avis attendu de vous.',
     };
   }
@@ -157,7 +157,7 @@ export class TableauDeBordService {
       titre: 'Demandes en attente de votre décision',
       valeur: l.length,
       elements: l.slice(0, 5).map((r) => ({ libelle: `${r.user.firstName} ${r.user.lastName}`, detail: `${r.leaveType.name} · ${r.daysCount} j · avis ${r.avisEtat === 'DEFAVORABLE' ? 'défavorable' : 'favorable'}`, lien: `/leaves?id=${r.id}` })),
-      lien: '/leaves?onglet=a-traiter',
+      lien: '/leaves?onglet=validation',
       vide: 'Aucune décision attendue.',
     };
   }
@@ -171,7 +171,7 @@ export class TableauDeBordService {
     const stages = await this.prisma.stage.findMany({ where: { encadrantPrincipalId: actor.id, statut: { not: 'INTERROMPU' } }, select: { id: true, rapportStatut: true, stagiaire: { select: { firstName: true, lastName: true } } } });
     if (!stages.length) return null;
     const aValider = stages.filter((s) => s.rapportStatut === 'DEPOSE');
-    return { cle: 'encadrement', titre: 'Stagiaires encadrés', valeur: stages.length, sousTitre: `${aValider.length} rapport(s) à valider`, elements: stages.slice(0, 5).map((s) => ({ libelle: `${s.stagiaire.firstName} ${s.stagiaire.lastName}`, detail: s.rapportStatut === 'DEPOSE' ? 'rapport à valider' : null, lien: `/stages?id=${s.id}` })), lien: '/stages' };
+    return { cle: 'encadrement', titre: 'Stagiaires encadrés', valeur: stages.length, sousTitre: `${aValider.length} rapport(s) à valider`, elements: stages.slice(0, 5).map((s) => ({ libelle: `${s.stagiaire.firstName} ${s.stagiaire.lastName}`, detail: s.rapportStatut === 'DEPOSE' ? 'rapport à valider' : null, lien: `/stages/${s.id}` })), lien: '/stages' };
   }
 
   private async monSolde(actor: AuthenticatedUser, maintenant: Date): Promise<Bloc> {

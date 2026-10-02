@@ -186,7 +186,7 @@ export class EffectifsService {
           libelle: 'Dossier incomplet',
           detail: `Manque : ${manquantes.join(', ')}.`,
           echeance: null,
-          lien: `/personnel?userId=${u.id}`,
+          lien: `/personnel/${u.id}`,
         });
       }
       const depuis = f?.echelonDepuis ?? f?.serviceStartDate ?? null;
