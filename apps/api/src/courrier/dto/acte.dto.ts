@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsBoolean, IsEnum, IsIn, IsInt, IsOptional, IsString, Length, Max, Min } from 'class-validator';
+import { IsBoolean, IsEnum, IsIn, IsInt, IsOptional, IsString, Length, Max, Min, MaxLength } from 'class-validator';
 import { ActeStatut, CourrierConfidentialite } from '@prisma/client';
 
 const CONFIDENTIALITES_ACTE = [CourrierConfidentialite.ORDINAIRE, CourrierConfidentialite.CONFIDENTIEL];
@@ -108,5 +108,6 @@ export class ActeFiltresDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(100)
   q?: string;
 }

@@ -16,4 +16,15 @@ export class PasswordService {
   verify(hash: string, plain: string): Promise<boolean> {
     return argon2.verify(hash, plain);
   }
+
+  // Hachage d'un mot de passe aléatoire, calculé une fois : comparé quand le compte n'existe pas, il
+  // rend le temps de réponse de la connexion identique (revue de sécurité 2026-10, énumération).
+  private factice: Promise<string> | null = null;
+
+  /** Vérification « à blanc » quand le compte est inconnu : même coût qu'une vraie, toujours faux. */
+  async verifierFactice(plain: string): Promise<false> {
+    this.factice ??= argon2.hash(`factice-${Math.random()}`, { type: argon2.argon2id });
+    await argon2.verify(await this.factice, plain).catch(() => false);
+    return false;
+  }
 }

@@ -35,20 +35,51 @@ const LOCK_DURATION_MS = 15 * 60 * 1000;
 export class LoginAttemptService {
   private readonly accountAttempts = new Map<string, AttemptRecord>();
   private readonly ipAttempts = new Map<string, AttemptRecord>();
+  // Quotas des autres routes publiques (revue de sécurité 2026-10) : mot de passe oublié,
+  // inscription. Clé → nombre d'appels dans la fenêtre en cours.
+  private readonly quotas = new Map<string, { count: number; debut: number; fenetre: number }>();
+  private dernierNettoyage = Date.now();
 
-  assertNotLocked(email: string, ip: string): void {
+  /** Compte un appel ; au-delà de `max` dans la fenêtre, 429 avec le message donné. */
+  consommer(cle: string, max: number, fenetreMs: number, message: string): void {
+    this.nettoyer();
+    const now = Date.now();
+    const q = this.quotas.get(cle);
+    if (!q || now - q.debut > q.fenetre) {
+      this.quotas.set(cle, { count: 1, debut: now, fenetre: fenetreMs });
+      return;
+    }
+    q.count += 1;
+    if (q.count > max) throw new HttpException(message, HttpStatus.TOO_MANY_REQUESTS);
+  }
+
+  /** Purge des entrées expirées (au plus toutes les 10 min) : les tables en mémoire ne grossissent
+   * pas sans fin quand on essaie des adresses ou des comptes toujours différents. */
+  private nettoyer(): void {
+    const now = Date.now();
+    if (now - this.dernierNettoyage < 10 * 60_000) return;
+    this.dernierNettoyage = now;
+    for (const store of [this.accountAttempts, this.ipAttempts]) {
+      for (const [k, r] of store) if ((r.lockedUntil ?? 0) < now && now - r.firstFailureAt > WINDOW_MS) store.delete(k);
+    }
+    for (const [k, q] of this.quotas) if (now - q.debut > q.fenetre) this.quotas.delete(k);
+  }
+
+  // `ip` à null : adresse non attribuable (connexion relayée par le web sans secret partagé, voir
+  // common/security/client-ip.ts) — seul le verrouillage par compte s'applique.
+  assertNotLocked(email: string, ip: string | null): void {
     this.assertKeyNotLocked(this.accountAttempts, email.toLowerCase(), 'compte');
-    this.assertKeyNotLocked(this.ipAttempts, ip, 'adresse IP');
+    if (ip) this.assertKeyNotLocked(this.ipAttempts, ip, 'adresse IP');
   }
 
-  recordFailure(email: string, ip: string): void {
+  recordFailure(email: string, ip: string | null): void {
     this.registerFailure(this.accountAttempts, email.toLowerCase());
-    this.registerFailure(this.ipAttempts, ip);
+    if (ip) this.registerFailure(this.ipAttempts, ip);
   }
 
-  recordSuccess(email: string, ip: string): void {
+  recordSuccess(email: string, ip: string | null): void {
     this.accountAttempts.delete(email.toLowerCase());
-    this.ipAttempts.delete(ip);
+    if (ip) this.ipAttempts.delete(ip);
   }
 
   private assertKeyNotLocked(store: Map<string, AttemptRecord>, key: string, label: string): void {
@@ -68,6 +99,7 @@ export class LoginAttemptService {
   }
 
   private registerFailure(store: Map<string, AttemptRecord>, key: string): void {
+    this.nettoyer();
     const now = Date.now();
     const record = store.get(key);
 

@@ -10,7 +10,18 @@ import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter'
 import { PrismaService } from './prisma/prisma.service';
 
 async function bootstrap() {
+  // Revue de sécurité 2026-10 : sans secret de signature (ou avec un secret trop court), aucun jeton
+  // ne serait sûr — l'API refuse de démarrer plutôt que de tourner ainsi.
+  if ((process.env.JWT_ACCESS_SECRET ?? '').length < 16) {
+    throw new Error('JWT_ACCESS_SECRET manquant ou trop court (16 caractères au moins) : démarrage refusé.');
+  }
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  if (process.env.NODE_ENV === 'production' && !process.env.CORS_ORIGIN) {
+    console.warn('[sécurité] CORS_ORIGIN est vide en production : toutes les origines sont acceptées.');
+  }
+  if (process.env.NODE_ENV === 'production' && !process.env.WEB_PROXY_SECRET) {
+    console.warn('[sécurité] WEB_PROXY_SECRET est vide : le verrouillage par adresse IP des connexions relayées par le web est désactivé (le verrouillage par compte reste actif).');
+  }
 
   // Nécessaire derrière le reverse proxy de Render pour que req.ip reflète
   // l'IP réelle du client (X-Forwarded-For) — utilisé par le verrouillage

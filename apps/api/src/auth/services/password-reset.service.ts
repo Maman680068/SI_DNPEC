@@ -24,6 +24,8 @@ export class PasswordResetService {
 
   async createResetToken(userId: string): Promise<string> {
     const plainToken = this.generateToken();
+    // Revue de sécurité 2026-10 : un nouveau lien remplace les précédents (un seul lien valable).
+    await this.prisma.passwordResetToken.updateMany({ where: { userId, usedAt: null }, data: { usedAt: new Date() } });
     await this.prisma.passwordResetToken.create({
       data: {
         userId,
@@ -37,16 +39,20 @@ export class PasswordResetService {
   /** Valide le jeton (non expiré, non déjà utilisé), le marque comme utilisé
    * (usage unique) et renvoie l'id de l'utilisateur concerné. */
   async consumeToken(plainToken: string): Promise<string> {
-    const record = await this.prisma.passwordResetToken.findFirst({
-      where: { tokenHash: this.hashToken(plainToken), usedAt: null, expiresAt: { gt: new Date() } },
+    const tokenHash = this.hashToken(plainToken);
+    const maintenant = new Date();
+    // Consommation atomique (revue de sécurité 2026-10) : deux requêtes simultanées ne peuvent pas
+    // utiliser le même lien — une seule voit sa mise à jour aboutir.
+    const { count } = await this.prisma.passwordResetToken.updateMany({
+      where: { tokenHash, usedAt: null, expiresAt: { gt: maintenant } },
+      data: { usedAt: maintenant },
     });
+    const record = count === 1 ? await this.prisma.passwordResetToken.findFirst({ where: { tokenHash }, select: { userId: true } }) : null;
     if (!record) {
       throw new UnauthorizedException('Lien de réinitialisation invalide ou expiré');
     }
-    await this.prisma.passwordResetToken.update({
-      where: { id: record.id },
-      data: { usedAt: new Date() },
-    });
+    // Les autres liens encore valables du compte deviennent caducs.
+    await this.prisma.passwordResetToken.updateMany({ where: { userId: record.userId, usedAt: null }, data: { usedAt: maintenant } });
     return record.userId;
   }
 }
