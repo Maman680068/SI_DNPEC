@@ -184,6 +184,12 @@ fonctionnalité ajoute sa suite (`tests/e2e/api/`, `tests/e2e/ui/`) et sa ligne 
   Contenu : `apps/web/lib/aide/guides.json`, captures `apps/web/public/aide/` ; toute évolution
   d'écran qui change un libellé cité doit mettre le guide à jour, puis régénérer captures et PDF
   (`tests/e2e/outils/captures_aide.js`, `guide_pdf.js`).
+- Sécurité (revue 2026-10, `docs/Revue_securite_2026-10.md`) : routes publiques = liste fermée vérifiée par
+  `s1_routes` (toute nouvelle route publique doit y être ajoutée) ; adresse du client des connexions relayées
+  par le web = `adresseClient(req)` (`common/security/client-ip.ts`, secret partagé `WEB_PROXY_SECRET`) ;
+  quotas des routes publiques par `LoginAttemptService.consommer` ; type servi d'un fichier déposé =
+  `typeServi()` (`common/storage/type-servi.ts`) ; aucun texte libre ni type protégé dans une notification ou
+  le journal d'audit ; en-têtes de sécurité du web dans `apps/web/next.config.ts` (CSP).
 - Formation (2026-10, `docs/formation/`) : fiches d'une page par profil (`prise_en_main.json` →
   `tests/e2e/outils/prise_en_main_pdf.js`), à régénérer avec les captures de l'aide ; rapport de qualité des
   données `prisma/qualite-donnees.ts` (transaction `READ ONLY`, `--sans-noms` pour le workflow `db-qualite.yml`).

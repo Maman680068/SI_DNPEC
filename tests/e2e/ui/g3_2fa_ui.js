@@ -18,6 +18,14 @@ async function saisir(page, email) {
   await page.getByRole('button', { name: /connecter/i }).click();
 }
 
+/** Revue de sécurité 2026-10 : configurer la 2FA demande le mot de passe (fenêtre de réauthentification). */
+async function confirmerIdentite(p) {
+  const f = p.getByRole('dialog', { name: 'Confirmez votre identité' });
+  await f.getByLabel('Votre mot de passe').fill('Password123!');
+  await f.getByRole('button', { name: 'Confirmer' }).click();
+  await f.waitFor({ state: 'detached' });
+}
+
 (async () => {
   const u = await call('admin', 'POST', '/users', { email: EMAIL, password: 'Password123!', firstName: 'Double', lastName: `Auth${S}`, role: 'AGENT' });
   check('compte de test créé', u.status === 201);
@@ -33,6 +41,7 @@ async function saisir(page, email) {
   await p.getByRole('heading', { name: 'Sécurité du compte' }).waitFor();
   check('état affiché : désactivée', /Désactivée/.test(await p.getByTestId('double-auth').innerText()));
   await p.getByRole('button', { name: 'Activer la double authentification' }).click();
+  await confirmerIdentite(p);
   const secret = (await p.getByTestId('cle-manuelle').innerText()).trim();
   check('QR code et clé manuelle affichés', secret.length >= 16 && (await p.getByAltText('QR code de la double authentification').count()) === 1);
   await p.screenshot({ path: `${E.SHOTS}/securite.png`, fullPage: true });
@@ -76,6 +85,7 @@ async function saisir(page, email) {
 
   console.log('— Réinitialisation par l’administrateur');
   await p.getByRole('button', { name: 'Activer la double authentification' }).click();
+  await confirmerIdentite(p);
   const secret2 = (await p.getByTestId('cle-manuelle').innerText()).trim();
   await p.getByLabel(/Code à 6 chiffres/).fill(await code(secret2));
   await p.getByRole('button', { name: 'Confirmer l’activation' }).click();

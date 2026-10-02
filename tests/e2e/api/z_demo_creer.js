@@ -120,13 +120,15 @@ const compte = async () => ({
   check('« mot de passe oublié » d’un compte de démonstration : aucun envoi, journalisé', r.status === 200 && j.includes(`Email non envoyé (compte de démonstration) — destinataire=${D.email('agent.conde')}`) && !j.includes(`Email non envoyé (SMTP non configuré) — destinataire=${D.email('agent.conde')}`));
   // Avec un SMTP configuré mais injoignable : un envoi réel échouerait (500) ; le domaine de démonstration n'est jamais tenté.
   const sortie = fs.openSync(path.join(E.OUT, 'logs', 'api-demo-smtp.log'), 'w');
-  const proc = spawn('node', ['dist/main.js'], { cwd: E.API_DIR, env: { ...process.env, PORT: '3002', SMTP_HOST: '127.0.0.1', SMTP_PORT: '1' }, stdio: ['ignore', sortie, sortie] });
+  const proc = spawn('node', ['dist/main.js'], { cwd: E.API_DIR, env: { ...process.env, PORT: '3002', SMTP_HOST: '127.0.0.1', SMTP_PORT: '1', QUOTA_OUBLI_IP: '100' }, stdio: ['ignore', sortie, sortie] });
   try {
     let pret = false;
     for (let i = 0; i < 60 && !pret; i++) { await new Promise((x) => setTimeout(x, 1000)); pret = await fetch('http://localhost:3002/health').then((x) => x.ok, () => false); }
     const oubli = (adresse) => fetch('http://localhost:3002/auth/forgot-password', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: adresse }) }).then((x) => x.status);
     check('SMTP configuré : le domaine de démonstration n’est jamais tenté (200)', pret && (await oubli(D.email('agent.barry'))) === 200);
-    check('témoin : un compte réel, lui, déclenche un envoi (qui échoue ici)', (await oubli('agent1@test.local')) >= 500);
+    // Revue de sécurité 2026-10 : l'envoi n'est plus attendu (même réponse que pour un compte inconnu) ;
+    // la tentative se lit dans le journal.
+    check('témoin : un compte réel, lui, déclenche un envoi (réponse 200 identique, échec journalisé)', (await oubli('agent1@test.local')) === 200 && (await new Promise((x) => setTimeout(x, 1500)), /Échec d'envoi de l'email de réinitialisation/.test(fs.readFileSync(path.join(E.OUT, 'logs', 'api-demo-smtp.log'), 'utf8'))));
     for (const c of COMPTES) await oubli(D.email(c));
     const jj = fs.readFileSync(path.join(E.OUT, 'logs', 'api-demo-smtp.log'), 'utf8');
     check('13 comptes de démonstration : 0 tentative d’envoi', COMPTES.every((c) => jj.includes(`destinataire=${D.email(c)}`)) && !COMPTES.some((c) => new RegExp(`ECONNREFUSED[^\\n]*${D.email(c)}`).test(jj)));

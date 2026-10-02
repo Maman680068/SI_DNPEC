@@ -1,4 +1,4 @@
-import { IsEmail, IsEnum, IsOptional, IsString, MinLength } from 'class-validator';
+import { IsEmail, IsEnum, IsOptional, IsString, MinLength, MaxLength } from 'class-validator';
 import { SystemRole } from '@prisma/client';
 
 export class CreateUserDto {
@@ -7,6 +7,7 @@ export class CreateUserDto {
 
   @IsString()
   @MinLength(8, { message: 'Le mot de passe doit contenir au moins 8 caractères' })
+  @MaxLength(200, { message: 'Mot de passe trop long (200 caractères au plus).' })
   password!: string;
 
   @IsString()

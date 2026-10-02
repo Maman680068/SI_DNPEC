@@ -1,5 +1,5 @@
 import { Transform, Type } from 'class-transformer';
-import { IsBoolean, IsDateString, IsEnum, IsIn, IsInt, IsOptional, IsString, Length, Max, Min } from 'class-validator';
+import { IsBoolean, IsDateString, IsEnum, IsIn, IsInt, IsOptional, IsString, Length, Max, Min, MaxLength } from 'class-validator';
 import { ArriveeStatut, CourrierConfidentialite, ImputationNature } from '@prisma/client';
 
 export class CreateArriveeDto {
@@ -176,5 +176,6 @@ export class ArriveeFiltresDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(100)
   q?: string;
 }
