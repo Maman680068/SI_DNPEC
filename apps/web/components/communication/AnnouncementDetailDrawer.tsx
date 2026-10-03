@@ -8,6 +8,7 @@ import type { Announcement, AnnouncementReadReceipt } from '../../lib/communicat
 import { SCOPE_LABEL } from '../../lib/communication/types';
 import { Badge } from '../ui/Badge';
 import { Chargement, ErreurChargement, messageChargement } from '../ui/ErreurChargement';
+import { FenetreDetail } from '../ui/FenetreDetail';
 
 const LEADERSHIP_ROLES = ['DN', 'DNA', 'ADMIN_SYSTEME'];
 
@@ -43,14 +44,10 @@ export function AnnouncementDetailDrawer({
   }, [announcement.id]);
 
   return (
-    <div className="fixed inset-0 z-40 flex items-stretch justify-end bg-[rgba(20,26,38,0.42)]" onClick={onClose}>
-      <div
-        className="h-full w-full max-w-[92vw] overflow-y-auto bg-surface px-[26px] pb-10 pt-[26px] sm:w-[460px]"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <FenetreDetail titre={announcement.title} onClose={onClose} sansEntete largeur={720}>
         <div className="mb-4 flex items-start justify-between">
           <Badge tone="accent">{SCOPE_LABEL[announcement.scope]}</Badge>
-          <button onClick={onClose} className="flex h-[30px] w-[30px] items-center justify-center rounded-md bg-bg text-text-muted">
+          <button onClick={onClose} aria-label="Fermer" className="flex h-[30px] w-[30px] items-center justify-center rounded-md bg-bg text-text-muted">
             ✕
           </button>
         </div>
@@ -87,7 +84,6 @@ export function AnnouncementDetailDrawer({
             )}
           </div>
         )}
-      </div>
-    </div>
+    </FenetreDetail>
   );
 }

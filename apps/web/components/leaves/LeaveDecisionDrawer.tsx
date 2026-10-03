@@ -8,6 +8,7 @@ import { LIBELLE_AVIS, LIBELLE_ETAPE } from '../../lib/leaves/types';
 import type { LeaveBalanceView, LeaveRequest } from '../../lib/leaves/types';
 import { Button } from '../ui/Button';
 import { Chargement, messageChargement } from '../ui/ErreurChargement';
+import { FenetreDetail } from '../ui/FenetreDetail';
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
@@ -85,14 +86,10 @@ export function LeaveDecisionDrawer({
   }
 
   return (
-    <div className="fixed inset-0 z-40 flex items-stretch justify-end bg-[rgba(20,26,38,0.42)]" onClick={onClose}>
-      <div
-        className="h-full w-full max-w-[92vw] overflow-y-auto bg-surface px-[26px] pb-10 pt-[26px] sm:w-[460px]"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <FenetreDetail titre={`Demande de congé — ${getUserLabel(request.userId)}`} onClose={onClose} sansEntete largeur={720}>
         <div className="mb-4 flex items-start justify-between">
           <div className="text-xs text-text-faint">Demande de congé</div>
-          <button onClick={onClose} className="flex h-[30px] w-[30px] items-center justify-center rounded-md bg-bg text-text-muted">
+          <button onClick={onClose} aria-label="Fermer" className="flex h-[30px] w-[30px] items-center justify-center rounded-md bg-bg text-text-muted">
             ✕
           </button>
         </div>
@@ -247,7 +244,6 @@ export function LeaveDecisionDrawer({
           </div>
         )}
         {error && <div className="mt-4 rounded-md bg-clay-soft px-3.5 py-2.5 text-[13px] text-clay">{error}</div>}
-      </div>
-    </div>
+    </FenetreDetail>
   );
 }

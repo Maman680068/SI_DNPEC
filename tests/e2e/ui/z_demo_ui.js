@@ -60,7 +60,7 @@ const ECRANS = [
   const a = await connecter(b, 'agent.keita', BUREAU);
   let cloche;
   for (let i = 0; i < 20 && !cloche; i++) {
-    cloche = ((await a.locator('body').innerText()).match(/🔔\s*(\d+)/) || [])[1];
+    cloche = (await a.getByTestId('compteur-notifications').count()) ? (await a.getByTestId('compteur-notifications').innerText()).replace('+', '') : undefined;
     if (!cloche) await a.waitForTimeout(250);
   }
   check(`notifications non lues (${cloche})`, Number(cloche) > 0);

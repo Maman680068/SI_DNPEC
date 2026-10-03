@@ -2,7 +2,7 @@
 // tous, création et fermeture d'une unité par le DRH), agents (liste, points de reprise, fiche ouverte
 // par ?id=, fin de contrat proche, prolongation), rôles fonctionnels (attribution et retrait par
 // l'administrateur), menus selon le rôle, aucun défilement horizontal sur téléphone.
-const { browser, loginPage, check, bilan, WEB } = require('./helpers');
+const { browser, loginPage, check, bilan, WEB, ouvrirPlus } = require('./helpers');
 const { call, ids } = require('../lib');
 const E = require('../config');
 
@@ -31,6 +31,7 @@ const sansDefilementHorizontal = (p) => p.evaluate(() => document.documentElemen
   await p.context().close();
 
   p = await loginPage(b, 'drh');
+  await ouvrirPlus(p);
   await p.locator('a[href="/organisation"]').first().waitFor();
   check('DRH : menu « Agents » présent', (await p.locator('a[href="/agents"]').count()) === 1);
   await p.goto(`${WEB}/organisation`);

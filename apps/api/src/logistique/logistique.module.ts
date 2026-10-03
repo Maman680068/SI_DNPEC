@@ -15,6 +15,6 @@ import { VehiculesController } from './vehicules.controller';
   controllers: [LogistiqueController, VehiculesController],
   providers: [GestionnairesLogistiqueService, ReferentielLogistiqueService, InventaireService, DemandesLogistiqueService, ReservationsService, VehiculesService],
   // ReservationsService : salle réservée depuis une réunion (MeetingsModule).
-  exports: [GestionnairesLogistiqueService, ReservationsService],
+  exports: [GestionnairesLogistiqueService, ReservationsService, DemandesLogistiqueService],
 })
 export class LogistiqueModule {}

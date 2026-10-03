@@ -10,6 +10,7 @@ import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
 import { DecisionsSection } from './DecisionsSection';
 import { DocumentsIssus } from '../documents/DocumentsIssus';
+import { FenetreDetail } from '../ui/FenetreDetail';
 
 function formatWhen(iso: string): string {
   return new Date(iso).toLocaleString('fr-FR', { dateStyle: 'long', timeStyle: 'short' });
@@ -62,17 +63,13 @@ export function MeetingDetailDrawer({
   }
 
   return (
-    <div className="fixed inset-0 z-40 flex items-stretch justify-end bg-[rgba(20,26,38,0.42)]" onClick={onClose}>
-      <div
-        className="h-full w-full max-w-[92vw] overflow-y-auto bg-surface px-[26px] pb-10 pt-[26px] sm:w-[460px]"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <FenetreDetail titre={meeting.title} onClose={onClose} sansEntete largeur={720}>
         <div className="mb-4 flex items-start justify-between">
           <div className="flex flex-wrap items-center gap-2">
             {meeting.status === 'ANNULEE' && <Badge tone="clay">Annulée</Badge>}
             {isOrganizer && <Badge tone="gold">Vous êtes l’organisateur</Badge>}
           </div>
-          <button onClick={onClose} className="flex h-[30px] w-[30px] flex-shrink-0 items-center justify-center rounded-md bg-bg text-text-muted">
+          <button onClick={onClose} aria-label="Fermer" className="flex h-[30px] w-[30px] flex-shrink-0 items-center justify-center rounded-md bg-bg text-text-muted">
             ✕
           </button>
         </div>
@@ -156,7 +153,6 @@ export function MeetingDetailDrawer({
             </Button>
           )}
         </div>
-      </div>
-    </div>
+    </FenetreDetail>
   );
 }

@@ -32,6 +32,6 @@ const compte = async (k) => (await call(k, 'GET', '/messages/unread-count')).bod
   check('conversation ouverte : pastille retirée', await attendre(async () => (await pastille.count()) === 0));
   check('API : 0 non lu', (await compte('agent2')) === 0);
   const q = await loginPage(b, 'agent1', { width: 390, height: 844 });
-  check('sans message non lu : aucune pastille (mobile)', await attendre(async () => (await q.getByRole('link', { name: /^Messagerie/ }).count()) === 1) && (await q.locator('[data-testid=compteur-messages]').count()) === (avantAgent1 > 0 ? 1 : 0));
+  check('sans message non lu : aucune pastille (mobile)', await attendre(async () => (await q.locator('header').getByRole('link', { name: /^Messagerie/ }).count()) === 1) && (await q.locator('[data-testid=compteur-messages]').count()) === (avantAgent1 > 0 ? 1 : 0));
   await b.close(); await prisma.$disconnect(); bilan();
 })().catch((e) => { console.error(e); process.exit(2); });

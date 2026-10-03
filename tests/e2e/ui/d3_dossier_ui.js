@@ -1,7 +1,7 @@
 // Lot D3 — écrans : /personnel et /personnel/:id (personne, DRH, chef, DN), niveau 2 jamais
 // transmis au navigateur d'un chef ou du DN, import Excel, bureau et mobile.
 const E = require('../config');
-const { browser, loginPage, check, bilan, WEB } = require('./helpers');
+const { browser, loginPage, check, bilan, WEB, ouvrirPlus } = require('./helpers');
 const { call, ids } = require('../lib');
 const ExcelJS = require('exceljs');
 const fs = require('fs');
@@ -35,6 +35,7 @@ function espion(page) {
   console.log('— La personne (bureau)');
   const p = await loginPage(b, 'agent1');
   p.on('dialog', (d) => d.accept());
+  await ouvrirPlus(p);
   await p.getByRole('link', { name: 'Dossier du personnel' }).click();
   await p.getByRole('button', { name: 'Mon dossier' }).click();
   await p.waitForURL(`**/personnel/${a1}`);

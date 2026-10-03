@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import type { Task } from '../../lib/tasks/types';
+import { STATUT_LIBELLE, STATUT_PASTILLE, estEnRetard } from '../../lib/tasks/affichage';
 import { Button } from '../ui/Button';
 
 const WEEKDAYS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
@@ -26,11 +27,6 @@ function sameDay(a: Date, b: Date): boolean {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 }
 
-const PRIORITY_DOT: Record<Task['priority'], string> = {
-  URGENT: 'bg-clay',
-  NORMAL: 'bg-accent',
-  FAIBLE: 'bg-text-faint',
-};
 
 export function CalendarView({ tasks, onSelect }: { tasks: Task[]; onSelect: (id: string) => void }) {
   const [cursor, setCursor] = useState(() => startOfMonth(new Date()));
@@ -75,9 +71,10 @@ export function CalendarView({ tasks, onSelect }: { tasks: Task[]; onSelect: (id
                 <button
                   key={task.id}
                   onClick={() => onSelect(task.id)}
-                  className="mb-1 flex w-full items-center gap-1 truncate text-left text-[10.5px] hover:underline"
+                  title={`${task.title} — ${estEnRetard(task) ? 'en retard' : STATUT_LIBELLE[task.status]}`}
+                  className={`mb-1 flex w-full items-center gap-1 truncate rounded-[5px] px-1.5 py-0.5 text-left text-[10.5px] font-semibold hover:underline ${estEnRetard(task) ? 'bg-clay-50 text-clay' : STATUT_PASTILLE[task.status]}`}
                 >
-                  <span className={`h-1.5 w-1.5 flex-shrink-0 rounded-full ${PRIORITY_DOT[task.priority]}`} />
+                  <span aria-hidden className="h-1.5 w-1.5 flex-shrink-0 rounded-full bg-current" />
                   <span className="truncate">{task.title}</span>
                 </button>
               ))}

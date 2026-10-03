@@ -29,6 +29,7 @@ import {
 } from './FenetresArrivee';
 import { enRetard } from './Lignes';
 import { Erreur, messageErreur } from './ui';
+import { FenetreDetail } from '../ui/FenetreDetail';
 
 type Fenetre =
   | { type: 'imputer' }
@@ -46,24 +47,18 @@ export function Info({ label, children }: { label: string; children: React.React
   );
 }
 
+/** Fenêtre de détail du courrier (arrivée, acte) : cadre commun FenetreDetail (refonte de l'interface). */
 export function Tiroir({ onClose, titre, children }: { onClose: () => void; titre: string; children: React.ReactNode }) {
   return (
-    <div className="fixed inset-0 z-40 flex items-stretch justify-end bg-[rgba(20,26,38,0.42)]" onClick={onClose}>
-      <div
-        role="dialog"
-        aria-label={titre}
-        className="h-full w-full overflow-y-auto overflow-x-hidden bg-surface px-5 pb-10 pt-5 sm:w-[520px] sm:px-[26px] sm:pt-[26px]"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="mb-1.5 flex items-start justify-between gap-3">
-          <div className="text-xs text-text-faint">{titre}</div>
-          <button onClick={onClose} aria-label="Fermer" className="flex h-[30px] w-[30px] flex-shrink-0 items-center justify-center rounded-md bg-bg text-text-muted">
-            ✕
-          </button>
-        </div>
-        {children}
+    <FenetreDetail titre={titre} onClose={onClose} sansEntete largeur={720}>
+      <div className="mb-1.5 flex items-start justify-between gap-3">
+        <div className="text-xs text-text-faint">{titre}</div>
+        <button onClick={onClose} aria-label="Fermer" className="flex h-[30px] w-[30px] flex-shrink-0 items-center justify-center rounded-md bg-bg text-text-muted">
+          ✕
+        </button>
       </div>
-    </div>
+      {children}
+    </FenetreDetail>
   );
 }
 

@@ -224,6 +224,15 @@ fonctionnalité ajoute sa suite (`tests/e2e/api/`, `tests/e2e/ui/`) et sa ligne 
   List, Card), `lib/api/<module>.ts` (`apiFetch`), `lib/<module>/types.ts`.
 - Tokens Tailwind (`ink`, `gold`, `sage`, `clay`, `line`, `text-muted`...) issus de la maquette ;
   navigation dans `components/layout/Sidebar.tsx` ; ouverture profonde via `?id=`.
+- Cadre (refonte de l'interface, étapes 1 et 2) : menu 240 px `ink-900` (icônes `lucide-react`, groupes
+  Mon travail / Échanges / Ressources / Plus repliable / Aide), barre du haut (`Topbar`, Ctrl K, menu « Créer »).
+  Pastilles, « À traiter » du tableau de bord, entrées de « Créer » et onglet « Mon périmètre » viennent de
+  `GET api/v1/navigation` (`tableau-de-bord/navigation.service.ts`, lu par `NavigationProvider`) : chaque
+  compteur passe par le service de son module. Une page ouverte par « Créer » lit son paramètre avec
+  `useDemandeCreation` (`lib/navigation/creer.ts`). Bande tricolore : pages publiques seulement.
+- Fiches de détail : `components/ui/FenetreDetail.tsx` (fenêtre centrée 960 px, Échap, clic sur le fond,
+  focus gardé, plein écran sur téléphone) — plus aucun panneau latéral ; fiche de tâche `FenetreTache`.
+  Mes tâches : vues Liste / Kanban / Calendrier (`useVueTaches`, dernier choix retenu dans le navigateur).
 - Liens vers le web (notifications, emails) : chaque lien de l'API doit viser une page
   existante qui lit ses paramètres (contrôlé par `tests/e2e/api/i_liens.js`). Renommer ou
   supprimer une page déjà visée par des liens envoyés : ajouter l'ancien format à

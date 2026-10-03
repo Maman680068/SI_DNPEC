@@ -1,12 +1,13 @@
 // Écrans du paramétrage : réglages des stages par l'administrateur (sans planning) et le DRH,
 // modèle par défaut affiché, renommage d'une catégorie logistique.
-const { browser, loginPage, check, bilan, WEB } = require('./helpers');
+const { browser, loginPage, check, bilan, WEB, ouvrirPlus } = require('./helpers');
 const E = require('../config');
 const SHOTS = E.SHOTS;
 const S = Date.now().toString(36).slice(-5);
 (async () => {
   const b = await browser();
   const adm = await loginPage(b, 'admin');
+  await ouvrirPlus(adm);
   await adm.locator('a[href="/stages/parametres"]').click();
   await adm.getByRole('heading', { name: 'Réglages des stages' }).waitFor();
   await adm.getByTestId('capacites').getByText(/Division Prévisions : /).waitFor();

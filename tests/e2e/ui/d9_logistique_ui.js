@@ -3,7 +3,7 @@
 // traiter, ressource), agent mobile (demande, panne, réservation), chef (validation, priorité
 // hiérarchique annoncée = API), réunion avec salle prise en priorité, stagiaire sans logistique.
 const E = require('../config');
-const { browser, loginPage, check, bilan, WEB } = require('./helpers');
+const { browser, loginPage, check, bilan, WEB, ouvrirPlus } = require('./helpers');
 const { call, ids } = require('../lib');
 const { PrismaClient } = require('@prisma/client'); const prisma = new PrismaClient();
 const SHOTS = E.SHOTS;
@@ -22,6 +22,7 @@ const sansDefilement = async (p) => (await p.evaluate(() => document.documentEle
 
   console.log('— Administrateur (bureau) : catégories et habilitation');
   const adm = await loginPage(b, 'admin');
+  await ouvrirPlus(adm);
   await adm.locator('a[href="/logistique/administration"]').click();
   await adm.waitForURL('**/logistique/administration');
   await adm.waitForFunction(() => document.querySelectorAll('select[aria-label="Personne à habiliter"] option').length > 1);
@@ -35,7 +36,7 @@ const sansDefilement = async (p) => (await p.evaluate(() => document.documentEle
     await adm.getByLabel('Code').fill(code);
     await adm.getByLabel('Libellé').fill(lib);
     await adm.getByLabel('Nature').selectOption(nature);
-    await adm.getByRole('button', { name: 'Créer' }).click();
+    await adm.locator('main').getByRole('button', { name: 'Créer', exact: true }).click();
     await adm.getByText('Catégorie créée.').waitFor();
   }
   check('catégories créées avec validation du chef', (await prisma.categorieLogistique.count({ where: { code: { in: [`PA${L}`, `IN${L}`] }, validationChefRequise: true } })) === 2);
@@ -139,10 +140,12 @@ const sansDefilement = async (p) => (await p.evaluate(() => document.documentEle
   await carteP.getByText('Occupée').waitFor();
   check('pair : salle occupée, objet masqué, aucun bouton de priorité', (await carteP.getByRole('button').count()) === 0 && !(await carteP.innerText()).includes('Atelier'));
   const c = await loginPage(b, 'chefssr');
-  const carte = await c.getByTestId('carte-logistique').innerText();
+  // Refonte de l'interface : ligne « Demandes logistiques à valider » du bloc « À traiter ».
+  const ligneLog = c.getByTestId('a-traiter-logistique-valider');
+  const carte = (await ligneLog.innerText()).replace(/\s+/g, ' ');
   const nAv = (await call('chefssr', 'GET', '/logistique/tableau-de-bord')).body.aValider;
-  check(`carte « Logistique » = compteur de l’API (${nAv} à valider)`, nAv >= 2 && carte.includes(`${nAv} demandes à valider`), carte);
-  await c.getByTestId('carte-logistique').getByRole('link', { name: 'Ouvrir →' }).click();
+  check(`« À traiter » = compteur de l’API (${nAv} à valider)`, nAv >= 2 && carte.includes(`${nAv} Demandes logistiques à valider`), carte);
+  await ligneLog.click();
   await c.getByRole('button', { name: 'À valider' }).click();
   await c.getByText(`Ramettes pour la note ${S}`).click();
   await pan(c).getByRole('button', { name: 'Valider' }).click();

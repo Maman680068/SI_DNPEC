@@ -14,7 +14,13 @@ async function loginPage(b, key, viewport = { width: 1366, height: 860 }) {
   await page.waitForURL('**/dashboard');
   return page;
 }
+// Refonte de l'interface : dossier du personnel, RH, stagiaires, administration… sont dans le groupe
+// repliable « Plus » du menu ; l'ouvrir avant d'y cliquer un lien.
+async function ouvrirPlus(page) {
+  const bouton = page.getByRole('button', { name: /^(Personnel et RH|Administration)$/ });
+  if ((await bouton.count()) && (await bouton.getAttribute('aria-expanded')) !== 'true') await bouton.click();
+}
 let ok = 0, ko = 0;
 function check(label, cond, detail = '') { cond ? ok++ : ko++; console.log(`${cond ? 'OK ' : 'KO!'} ${label}${detail ? ' — ' + detail : ''}`); }
 function bilan() { console.log(`\nBilan : ${ok} conformes, ${ko} non conformes`); }
-module.exports = { browser, loginPage, check, bilan, WEB };
+module.exports = { browser, loginPage, check, bilan, WEB, ouvrirPlus };

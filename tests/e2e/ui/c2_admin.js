@@ -17,6 +17,7 @@ const an = new Date().getFullYear();
 
   const p = await loginPage(b, 'admin');
   p.on('dialog', (d) => d.accept());
+  await p.getByRole('button', { name: /^(Personnel et RH|Administration)$/ }).click();
   await p.locator('aside a[href="/courrier/administration"]').click();
   await p.waitForURL('**/courrier/administration');
   await p.locator('[data-testid=registre]').first().waitFor();

@@ -7,6 +7,7 @@ import { closePoll, getPoll, votePoll } from '../../lib/api/polls';
 import type { Poll } from '../../lib/polls/types';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
+import { FenetreDetail } from '../ui/FenetreDetail';
 
 // Pas d'infrastructure temps réel dans le projet (ni WebSocket ni SSE) — un
 // rafraîchissement léger toutes les 15s tant que le tiroir reste ouvert donne
@@ -91,17 +92,13 @@ export function PollDetailDrawer({
   }
 
   return (
-    <div className="fixed inset-0 z-40 flex items-stretch justify-end bg-[rgba(20,26,38,0.42)]" onClick={onClose}>
-      <div
-        className="h-full w-full max-w-[92vw] overflow-y-auto bg-surface px-[26px] pb-10 pt-[26px] sm:w-[460px]"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <FenetreDetail titre={poll.question} onClose={onClose} sansEntete largeur={720}>
         <div className="mb-4 flex items-start justify-between">
           <div className="flex flex-wrap items-center gap-2">
             {poll.isClosed && <Badge tone="clay">Clôturé</Badge>}
             {isAuthor && <Badge tone="gold">Vous êtes l’auteur</Badge>}
           </div>
-          <button onClick={onClose} className="flex h-[30px] w-[30px] flex-shrink-0 items-center justify-center rounded-md bg-bg text-text-muted">
+          <button onClick={onClose} aria-label="Fermer" className="flex h-[30px] w-[30px] flex-shrink-0 items-center justify-center rounded-md bg-bg text-text-muted">
             ✕
           </button>
         </div>
@@ -179,7 +176,6 @@ export function PollDetailDrawer({
             Clôturer le sondage
           </Button>
         )}
-      </div>
-    </div>
+    </FenetreDetail>
   );
 }

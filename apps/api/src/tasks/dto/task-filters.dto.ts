@@ -71,4 +71,10 @@ export class TaskFiltersDto {
   @Min(1)
   @Max(2000)
   limite?: number;
+
+  // Refonte de l'interface — tâches soumises que l'acteur peut valider ou rejeter (onglet « À valider »).
+  @IsOptional()
+  @Type(() => String)
+  @IsBooleanString()
+  aValider?: string;
 }

@@ -12,6 +12,7 @@ import { UploadDocumentModal } from '../../../components/documents/UploadDocumen
 import { DocumentDetailDrawer } from '../../../components/documents/DocumentDetailDrawer';
 import { Button } from '../../../components/ui/Button';
 import { Chargement, ErreurChargement, messageChargement } from '../../../components/ui/ErreurChargement';
+import { useDemandeCreation } from '../../../lib/navigation/creer';
 
 type Tab = 'division' | 'published';
 const LEADERSHIP_ROLES = ['DN', 'DNA'];
@@ -44,6 +45,16 @@ export default function DocumentsPage() {
 
   const [documents, setDocuments] = useState<DnpecDocument[] | null>(null);
   const [showUpload, setShowUpload] = useState(false);
+  // Menu « Créer » de la barre du haut (« /documents?nouveau=1 ») : dépôt dans l'espace de l'unité,
+  // une fois l'espace connu.
+  useDemandeCreation(
+    'document',
+    () => {
+      setTab('division');
+      setShowUpload(true);
+    },
+    !!espace,
+  );
   const [selectedDoc, setSelectedDoc] = useState<DnpecDocument | null>(null);
 
   const load = useCallback(() => {

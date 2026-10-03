@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
+import { Bell } from 'lucide-react';
 import { getNombreNonLues, getNotifications, marquerLue, marquerToutLu } from '../../lib/api/notifications';
 import type { NotificationItem } from '../../lib/notifications/types';
 
@@ -102,11 +103,11 @@ export function NotificationBell() {
         onClick={basculer}
         aria-label={nonLues > 0 ? `Notifications : ${nonLues} non lue${nonLues > 1 ? 's' : ''}` : 'Notifications'}
         aria-expanded={ouvert}
-        className="relative flex h-9 w-9 items-center justify-center rounded-md border border-line text-text-muted"
+        className="relative grid h-[38px] w-[38px] place-items-center rounded-[10px] text-ink hover:bg-bg"
       >
-        🔔
+        <Bell aria-hidden size={20} strokeWidth={1.8} />
         {nonLues > 0 && (
-          <span data-testid="compteur-notifications" className="absolute -right-1.5 -top-1.5 min-w-[18px] rounded-full bg-clay px-1 text-center text-[10.5px] font-bold leading-[18px] text-white">
+          <span data-testid="compteur-notifications" className="absolute right-1 top-[5px] grid h-[17px] min-w-[17px] place-items-center rounded-[9px] border-2 border-white bg-clay px-1 text-[10.5px] font-bold leading-none text-white">
             {nonLues > 99 ? '99+' : nonLues}
           </span>
         )}
@@ -115,7 +116,7 @@ export function NotificationBell() {
         <div
           role="dialog"
           aria-label="Notifications"
-          className="fixed inset-x-2 top-16 z-50 max-h-[75vh] overflow-y-auto rounded-lg border border-line bg-surface shadow-lg sm:absolute sm:inset-x-auto sm:right-0 sm:top-11 sm:w-[380px]"
+          className="fixed inset-x-2 top-[62px] z-50 max-h-[75vh] overflow-y-auto rounded-lg border border-line bg-surface shadow-lg sm:absolute sm:inset-x-auto sm:right-0 sm:top-12 sm:w-[380px]"
         >
           <div className="sticky top-0 flex items-center justify-between border-b border-line bg-surface px-4 py-3">
             <span className="text-[13.5px] font-bold">Notifications</span>

@@ -2,7 +2,7 @@
 // profil, effectifs, alertes, mouvement de carrière préparé puis appliqué à la signature de l'acte,
 // fiche de poste, besoin de formation retenu), véhicules (ajout, plein, affectation à une mission,
 // retour) et tableau de bord par rôle.
-const { browser, loginPage, check, bilan, WEB } = require('./helpers');
+const { browser, loginPage, check, bilan, WEB, ouvrirPlus } = require('./helpers');
 const { call, ids, login } = require('../lib');
 const E = require('../config');
 const { PrismaClient } = require('@prisma/client'); const prisma = new PrismaClient();
@@ -42,6 +42,7 @@ async function signerActe(acteId) {
 
   console.log('— DRH (bureau) : onglets, effectifs, alertes');
   let p = await loginPage(b, 'drh');
+  await ouvrirPlus(p);
   check('menu : « Ressources humaines »', (await p.locator('a[href="/rh"]').count()) === 1);
   await p.goto(`${WEB}/rh?onglet=effectifs`);
   await p.locator('[data-testid=effectifs]').waitFor();
@@ -112,8 +113,14 @@ async function signerActe(acteId) {
   check('le DRH retient le besoin dans le plan de formation', enBase.statut === 'RETENU', enBase.statut);
   await p.screenshot({ path: `${E.SHOTS}/n6_formation_bureau.png` });
   await p.goto(`${WEB}/dashboard`);
-  await p.locator('[data-testid=blocs-role]').waitFor();
-  check('tableau de bord du DRH : alertes RH et décisions de congé', (await p.locator('[data-testid=bloc-alertes-rh]').count()) === 1 && (await p.locator('[data-testid=bloc-conges-decision]').count()) === 1);
+  // Refonte de l'interface : décisions de congé dans « À traiter », alertes RH en ligne compacte (masquée à zéro).
+  await p.getByTestId('a-traiter').waitFor();
+  await p.waitForTimeout(1000);
+  const tbDrh = (await call('drh', 'GET', '/api/v1/tableau-de-bord')).body;
+  const navDrh = (await call('drh', 'GET', '/api/v1/navigation')).body;
+  const nAlertes = tbDrh.blocs.find((x) => x.cle === 'alertes-rh').valeur;
+  const nDecisions = (navDrh.aTraiter.find((x) => x.cle === 'conges-decision') || { nombre: 0 }).nombre;
+  check(`tableau de bord du DRH : alertes RH (${nAlertes}) et décisions de congé (${nDecisions}) = API`, (await p.locator('[data-testid=bloc-alertes-rh]').count()) === (nAlertes > 0 ? 1 : 0) && (await p.getByTestId('a-traiter-conges-decision').count()) === (nDecisions > 0 ? 1 : 0));
   await p.screenshot({ path: `${E.SHOTS}/n6_tableau_bord_bureau.png` });
   await p.context().close();
 
@@ -127,9 +134,9 @@ async function signerActe(acteId) {
   check('téléphone : sans défilement horizontal (RH)', await sansDefilementHorizontal(p));
   await p.screenshot({ path: `${E.SHOTS}/n6_carriere_mobile.png`, fullPage: true });
   await p.goto(`${WEB}/dashboard`);
-  await p.locator('[data-testid=blocs-role]').waitFor();
-  const blocsAgent = await p.locator('[data-testid=blocs-role] > article').evaluateAll((l) => l.map((e) => e.dataset.testid));
-  check('tableau de bord de l’agent : solde, demandes, réunions (tâches déjà en tête), sans alertes RH', ['bloc-solde', 'bloc-demandes', 'bloc-reunions'].every((c) => blocsAgent.includes(c)) && !blocsAgent.includes('bloc-alertes-rh'), blocsAgent.join(', '));
+  // Refonte de l'interface : solde et demandes (« Mes congés »), réunions (« Agenda ») en colonne droite.
+  await p.getByTestId('boite-conges').waitFor();
+  check('tableau de bord de l’agent : congés, agenda, sans alertes RH', (await p.getByTestId('boite-agenda').count()) === 1 && (await p.locator('[data-testid=bloc-alertes-rh]').count()) === 0);
   check('téléphone : sans défilement horizontal (tableau de bord)', await sansDefilementHorizontal(p));
   await p.screenshot({ path: `${E.SHOTS}/n6_tableau_bord_mobile.png`, fullPage: true });
   await p.context().close();

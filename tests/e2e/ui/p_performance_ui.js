@@ -28,7 +28,7 @@ async function requetes(p, prefixe, action) {
   let p = await loginPage(b, 'chefssr');
   let vues = await requetes(p, '/tasks', async () => {
     await p.reload();
-    await p.getByText(`Perf écran ${S}`).first().waitFor({ timeout: 20000 });
+    await p.getByTestId('suivi-equipe').getByTestId('ligne-priorite').first().waitFor({ timeout: 20000 });
   });
   check('tableau de bord : vue de suivi demandée (suivi, limite 301)', vues.some((u) => /^\/tasks\?.*suivi=true/.test(u) && /limite=301/.test(u)), vues.join(' '));
   check('… jamais la liste complète du périmètre', !vues.some((u) => u === '/tasks' || u === '/tasks?'), vues.join(' '));
@@ -60,9 +60,10 @@ async function requetes(p, prefixe, action) {
   });
   check('« Mes tâches » : assignées à moi et créées par moi demandées séparément', vues.some((u) => u.includes(`assigneeId=${ids.agent1}`)) && vues.some((u) => u.includes(`createdById=${ids.agent1}`)), vues.join(' '));
   check('… jamais la liste complète du périmètre', !vues.some((u) => u === '/tasks' || u === '/tasks?'));
-  const nAssignees = (await call('agent1', 'GET', `/tasks?assigneeId=${ids.agent1}`)).body.length;
+  // Refonte de l'interface : l'onglet compte les tâches assignées ouvertes (les closes sont sous « Terminées »).
+  const nAssignees = (await call('agent1', 'GET', `/tasks?assigneeId=${ids.agent1}`)).body.filter((t) => t.status !== 'TERMINEE').length;
   const onglet = await p.getByRole('tab', { name: /Assignées à moi/ }).innerText();
-  check('compteur « Assignées à moi » = tâches assignées (API)', onglet.includes(String(nAssignees)), `${onglet.trim()} / ${nAssignees}`);
+  check('compteur « Assignées à moi » = tâches assignées ouvertes (API)', onglet.includes(String(nAssignees)), `${onglet.trim()} / ${nAssignees}`);
   await p.context().close();
 
   console.log('— Cloche et messages : pas d’interrogation quand l’onglet est caché');

@@ -8,6 +8,7 @@ import { CreateMeetingModal } from '../../../components/meetings/CreateMeetingMo
 import { MeetingDetailDrawer } from '../../../components/meetings/MeetingDetailDrawer';
 import { Button } from '../../../components/ui/Button';
 import { Chargement, ErreurChargement, messageChargement } from '../../../components/ui/ErreurChargement';
+import { useDemandeCreation } from '../../../lib/navigation/creer';
 
 export default function ReunionsPage() {
   const [meetings, setMeetings] = useState<Meeting[] | null>(null);
@@ -30,6 +31,9 @@ export default function ReunionsPage() {
     const id = new URLSearchParams(window.location.search).get('id');
     if (id) setSelectedId(id);
   }, []);
+
+  // Menu « Créer » de la barre du haut (« /reunions?nouvelle=1 »).
+  useDemandeCreation('reunion', () => setShowCreateModal(true));
 
   const selected = meetings?.find((m) => m.id === selectedId) ?? null;
 

@@ -522,7 +522,7 @@ function FicheActivite({
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
               <h3 className="text-[14px] font-bold">Tâches ({a.nombreTaches})</h3>
               <div className="flex flex-wrap items-center gap-2">
-                <ViewToggle value={vue} onChange={setVue} />
+                <ViewToggle value={vue} onChange={setVue} vues={['kanban', 'calendar']} />
                 <Button className={petit} onClick={() => setNouvelleTache(true)}>
                   + Nouvelle tâche
                 </Button>

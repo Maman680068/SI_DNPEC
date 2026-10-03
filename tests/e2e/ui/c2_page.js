@@ -5,10 +5,12 @@ const { call, ids } = require('../lib');
   const b = await browser();
   const admin = await loginPage(b, 'admin');
   check('témoin : le lien « Tableau de bord » est trouvé', (await admin.getByRole('link', { name: /^\S*\s*Tableau de bord$/ }).count()) === 1);
+  // Refonte de l'interface : l'administration est dans le groupe repliable « Plus ».
+  await admin.getByRole('button', { name: /^(Personnel et RH|Administration)$/ }).click();
   check('ADMIN_SYSTEME : lien « Courrier » (son courrier personnel) et Administration → Courrier', (await admin.locator('aside a[href="/courrier"]').count()) === 1 && (await admin.locator('aside a[href="/courrier/administration"]').count()) === 1);
   await admin.goto(WEB + '/courrier/administration');
   await admin.locator('[data-testid=registre]').first().waitFor();
-  const allumes = await admin.locator('aside a.bg-accent-soft').evaluateAll((els) => els.map((e) => e.getAttribute('href')));
+  const allumes = await admin.locator('aside a[aria-current=page]').evaluateAll((els) => els.map((e) => e.getAttribute('href')));
   check('barre latérale : seule l’entrée Administration → Courrier est active', allumes.join() === '/courrier/administration', allumes.join());
   await admin.locator('aside a[href="/courrier"]').click();
   await admin.getByRole('heading', { name: 'Mon courrier' }).waitFor();

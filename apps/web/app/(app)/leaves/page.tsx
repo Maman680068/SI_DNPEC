@@ -13,6 +13,7 @@ import { LeaveDecisionDrawer } from '../../../components/leaves/LeaveDecisionDra
 import { Button } from '../../../components/ui/Button';
 import { JoursFeries } from '../../../components/leaves/JoursFeries';
 import { Chargement, ErreurChargement, messageChargement } from '../../../components/ui/ErreurChargement';
+import { useDemandeCreation } from '../../../lib/navigation/creer';
 
 type Tab = 'mine' | 'validation' | 'suivi' | 'feries';
 
@@ -52,6 +53,12 @@ export default function LeavesPage() {
     const onglet = new URLSearchParams(window.location.search).get('onglet');
     if (canValidate && (onglet === 'validation' || onglet === 'suivi')) setTab(onglet);
   }, [canValidate]);
+
+  // Menu « Créer » de la barre du haut (« /leaves?nouvelle=1 ») : « Mes congés », puis la demande.
+  useDemandeCreation('conge', () => {
+    setTab('mine');
+    setShowCreateModal(true);
+  });
 
   const loadRequests = useCallback(() => {
     getLeaveRequests().then(setRequests).catch((err) => setErreurChargement(messageChargement(err)));
