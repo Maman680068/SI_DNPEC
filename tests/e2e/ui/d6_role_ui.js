@@ -35,8 +35,9 @@ async function attendre(f) { for (let i = 0; i < 40; i++) { if (await f()) retur
     const erreurs = []; p.on('response', (r) => { if (r.url().startsWith('http://localhost:3000') && r.status() === 403) erreurs.push(r.url()); });
     if (viewport) await p.getByRole('button', { name: 'Ouvrir le menu' }).click();
     const nav = await p.locator('aside a').allInnerTexts();
-    const entrees = nav.map((t) => t.replace(/^\S+\s*/, '').trim()).filter(Boolean);
-    check(`navigation limitée (${entrees.join(', ')})`, ['Tableau de bord', 'Mes tâches', 'Communication', 'Dossier du personnel'].every((e) => entrees.includes(e)) && !entrees.some((e) => /Courrier|Réunions|Archives|Congés|Annuaire|suggestions|Utilisateurs/.test(e)));
+    // Refonte de l'interface : icônes dessinées (plus de caractère en tête), pastille de compteur en fin.
+    const entrees = nav.map((t) => t.replace(/\s+\d+$/, '').trim()).filter(Boolean);
+    check(`navigation limitée (${entrees.join(', ')})`, ['Tableau de bord', 'Mes tâches', 'Messagerie', 'Dossier du personnel', 'Mon stage'].every((e) => entrees.includes(e)) && !entrees.some((e) => /Courrier|Réunions|Archives|Congés|Annuaire|suggestions|Utilisateurs/.test(e)));
     if (viewport) await p.keyboard.press('Escape');
     await p.goto(`${WEB}/dashboard`);
     await p.getByText(`Préparer la note de conjoncture ${S}`).first().waitFor();

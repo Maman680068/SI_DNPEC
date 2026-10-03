@@ -23,7 +23,7 @@ const sansDefilementHorizontal = (p) => p.evaluate(() => document.documentElemen
   await p.getByRole('button', { name: '+ Nouveau document' }).click();
   await p.getByLabel('Titre', { exact: true }).fill(`Note N4 ${S}`);
   const envoyer = p.getByRole('button', { name: 'Envoyer' });
-  await p.getByLabel('Fichier').setInputFiles(fichier);
+  await p.getByLabel('Fichier', { exact: true }).setInputFiles(fichier);
   check('sans type ni période : envoi impossible', await envoyer.isDisabled());
   await p.locator('#doc-type').selectOption('NOTE_CONJONCTURE');
   await p.locator('#doc-debut').fill('2026-07-01');
@@ -61,7 +61,7 @@ const sansDefilementHorizontal = (p) => p.evaluate(() => document.documentElemen
   check('formulaire prérempli : « Issu de : tâche … »', new RegExp(`Synthèse N4 ${S}`).test(await p.locator('[data-testid=source-depot]').innerText()));
   await p.getByLabel('Titre', { exact: true }).fill(`Livrable ${S}`);
   await p.locator('#doc-type').selectOption('RAPPORT');
-  await p.getByLabel('Fichier').setInputFiles(fichier);
+  await p.getByLabel('Fichier', { exact: true }).setInputFiles(fichier);
   await p.getByRole('button', { name: 'Envoyer' }).click();
   await issus.getByText(`Livrable ${S}`).waitFor();
   check('document listé dans la tâche, lien vers la GED', (await issus.getByRole('link', { name: `Livrable ${S}` }).getAttribute('href')).startsWith('/documents?id='));
@@ -130,7 +130,7 @@ const sansDefilementHorizontal = (p) => p.evaluate(() => document.documentElemen
   check('agent de cellule : onglet « Mon espace cellule », espace de sa cellule', /Cellule :/.test(await p.locator('body').innerText()));
   await p.getByRole('button', { name: '+ Nouveau document' }).click();
   await p.getByLabel('Titre', { exact: true }).fill(`Note SAF ${S}`);
-  await p.getByLabel('Fichier').setInputFiles(fichier);
+  await p.getByLabel('Fichier', { exact: true }).setInputFiles(fichier);
   await p.locator('#doc-type').selectOption('NOTE_TECHNIQUE');
   await p.locator('#doc-debut').fill('2026-07-01');
   await p.locator('#doc-fin').fill('2026-09-30');

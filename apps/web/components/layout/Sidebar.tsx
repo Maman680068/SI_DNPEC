@@ -177,7 +177,6 @@ function Pastille({ n, dore, id }: { n: number; dore?: boolean; id?: string }) {
       className={`ml-auto grid h-5 min-w-[22px] place-items-center rounded-[10px] px-1.5 text-[11.5px] font-bold ${dore ? 'bg-gold text-ink-900' : 'bg-white/[.12] text-white'}`}
     >
       {n > 99 ? '99+' : n}
-      <span className="sr-only"> à traiter</span>
     </span>
   );
 }
@@ -214,7 +213,7 @@ export function Sidebar({ open = false, onClose }: { open?: boolean; onClose?: (
   const compteurs = navigation?.compteurs;
   const nPlus = plus.reduce((s, i) => s + (i.compteur && compteurs ? compteurs[i.compteur] : 0), 0);
   // Libellé du groupe repliable : l'administration y figure pour l'administrateur, le DN et la DNA.
-  const libellePlus = plus.some((i) => i.href === '/parametrage') ? 'Personnel et administration' : 'Personnel et RH';
+  const libellePlus = plus.some((i) => i.href === '/parametrage') ? 'Administration' : 'Personnel et RH';
 
   // Dernier état du groupe « Plus » (confort personnel, navigateur seulement).
   useEffect(() => {
@@ -241,7 +240,9 @@ export function Sidebar({ open = false, onClose }: { open?: boolean; onClose?: (
     setMenuCompte(false);
   }, [pathname]);
 
-  const plusVisible = plusOuvert || plusActif;
+  // Deux entrées au plus (stagiaire : dossier, Mon stage) : affichées directement, sans repli.
+  const repliable = plus.length > 2;
+  const plusVisible = !repliable || plusOuvert || plusActif;
 
   return (
     <>
@@ -276,20 +277,22 @@ export function Sidebar({ open = false, onClose }: { open?: boolean; onClose?: (
             </div>
           ))}
           <div className="px-2.5 pb-1.5 pt-3.5 text-[11.5px] font-semibold text-[#8189B5]">Plus</div>
-          <button
-            type="button"
-            onClick={basculerPlus}
-            aria-expanded={plusVisible}
-            aria-controls="menu-plus"
-            className="flex h-[35px] w-full items-center gap-[11px] rounded-lg px-2.5 text-left text-[14px] font-medium text-[#D3D7EC] hover:bg-white/[.05] hover:text-white"
-          >
-            <Ellipsis aria-hidden size={18} strokeWidth={1.8} className="flex-none" />
-            <span className="truncate">{libellePlus}</span>
-            {!plusVisible && nPlus > 0 && <Pastille n={nPlus} />}
-            <ChevronDown aria-hidden size={16} className={`flex-none opacity-60 transition-transform ${nPlus > 0 && !plusVisible ? '' : 'ml-auto'} ${plusVisible ? 'rotate-180' : ''}`} />
-          </button>
+          {repliable && (
+            <button
+              type="button"
+              onClick={basculerPlus}
+              aria-expanded={plusVisible}
+              aria-controls="menu-plus"
+              className="flex h-[35px] w-full items-center gap-[11px] rounded-lg px-2.5 text-left text-[14px] font-medium text-[#D3D7EC] hover:bg-white/[.05] hover:text-white"
+            >
+              <Ellipsis aria-hidden size={18} strokeWidth={1.8} className="flex-none" />
+              <span className="truncate">{libellePlus}</span>
+              {!plusVisible && nPlus > 0 && <Pastille n={nPlus} />}
+              <ChevronDown aria-hidden size={16} className={`flex-none opacity-60 transition-transform ${nPlus > 0 && !plusVisible ? '' : 'ml-auto'} ${plusVisible ? 'rotate-180' : ''}`} />
+            </button>
+          )}
           {plusVisible && (
-            <div id="menu-plus" className="ml-3 border-l border-white/10 pl-2">
+            <div id="menu-plus" className={repliable ? 'ml-3 border-l border-white/10 pl-2' : ''}>
               {plus.map((item) => (
                 <Entree key={item.href} item={item} actif={item.href === actif} compteurs={compteurs} />
               ))}

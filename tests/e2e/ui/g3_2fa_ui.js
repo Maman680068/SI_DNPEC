@@ -37,6 +37,8 @@ async function confirmerIdentite(p) {
   await p.waitForURL('**/dashboard');
 
   console.log('— Activation depuis la page Sécurité du compte');
+  // Refonte de l'interface : « Sécurité du compte » dans le menu de la carte utilisateur.
+  await p.getByRole('button', { name: 'Mon compte' }).click();
   await p.getByRole('link', { name: 'Sécurité du compte' }).click();
   await p.getByRole('heading', { name: 'Sécurité du compte' }).waitFor();
   check('état affiché : désactivée', /Désactivée/.test(await p.getByTestId('double-auth').innerText()));

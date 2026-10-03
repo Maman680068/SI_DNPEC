@@ -23,9 +23,9 @@
         {
           "titre": "Se repérer",
           "etapes": [
-            "Le menu de gauche liste les modules auxquels vous avez accès : vous ne voyez que ceux qui vous concernent.",
+            "Le menu de gauche regroupe vos modules en « Mon travail », « Échanges », « Ressources » et « Plus » (à déplier) : vous ne voyez que ceux qui vous concernent, et une pastille indique ce qui vous attend.",
             "Sur téléphone, le menu s’ouvre avec le bouton ☰ en haut à gauche.",
-            "La cloche 🔔 (en haut) affiche vos notifications non lues : cliquez sur l’une d’elles pour ouvrir directement l’élément concerné.",
+            "La cloche (en haut à droite) affiche vos notifications non lues : cliquez sur l’une d’elles pour ouvrir directement l’élément concerné.",
             "Personnel → « Organisation » : l’organigramme de la DNPEC (Direction, divisions, sections, cellules), avec le responsable et l’effectif de chaque unité.",
             "L’enveloppe ✉ ouvre la messagerie ; une pastille rouge indique des messages non lus.",
             "Un lien reçu par e-mail ouvre directement la bonne page, même s’il faut d’abord se reconnecter."
@@ -35,7 +35,7 @@
         {
           "titre": "Sécuriser son compte",
           "etapes": [
-            "Cliquez sur le cadenas 🔒 en bas du menu, à côté de votre nom : page « Sécurité du compte ».",
+            "Cliquez sur votre nom en bas du menu, puis sur « Sécurité du compte ».",
             "Cliquez sur « Activer la double authentification », scannez le QR code avec une application (Google Authenticator, Microsoft Authenticator, FreeOTP…), saisissez le code affiché et cliquez sur « Confirmer l’activation ».",
             "Pour la désactiver, saisissez un code actuel de l’application et cliquez sur « Désactiver ».",
             "Éléments protégés (informations personnelles de votre dossier, diplômes, pièces) : cliquez sur « Afficher les données protégées » et confirmez votre mot de passe (et le code de l’application si la double authentification est active). La confirmation vaut 10 minutes.",
@@ -59,7 +59,7 @@
             "Barre du haut : tapez au moins 3 caractères puis Entrée ; les résultats sont groupés par tâches, documents, courrier, annuaire et réunions, et ne montrent que ce que vous avez le droit de voir.",
             "« Voir tout dans le module » ouvre l’écran concerné avec ses propres filtres.",
             "La cloche affiche toujours vos notifications immédiatement. Par email, vous recevez chaque jour un « Résumé quotidien » ; les alertes urgentes (sécurité, décision sur une demande, acte à signer, instruction de la Direction, tâche en retard, réunion) partent tout de suite.",
-            "Icône 🔔 en bas du menu → « Préférences de notification » : heure du résumé, ou « Tout immédiatement »."
+            "Votre nom en bas du menu → « Préférences de notification » : heure du résumé, ou « Tout immédiatement »."
           ],
           "capture": "recherche.png"
         },
@@ -104,9 +104,9 @@
           "capture": "conges.png"
         },
         {
-          "titre": "Communication, réunions, documents",
+          "titre": "Messagerie, réunions, documents",
           "etapes": [
-            "« Communication » : messagerie directe avec n’importe quel collègue, annonces et sondages qui vous sont adressés.",
+            "« Messagerie » : messagerie directe avec n’importe quel collègue, annonces et sondages qui vous sont adressés.",
             "« Réunions » : vos invitations ; répondez « Confirmer ma présence » ou « Décliner ». Vous pouvez aussi créer une réunion et réserver une salle.",
             "« Archives & documents » : les documents de votre division et les documents publiés. Au dépôt, indiquez le type, la date et la période couverte ; chaque document porte un statut (Brouillon, Validé, Diffusable) repris sur le fichier téléchargé."
           ],
@@ -147,8 +147,8 @@
           "etapes": [
             "Général → « Plan de travail » : les objectifs de l’année de votre unité et des unités au-dessus, leurs activités (responsable, période, indicateur) et leur avancement, calculé à partir des tâches.",
             "En créant une tâche, choisissez l’« Activité du plan de travail » à laquelle elle contribue.",
-            "Mes tâches : bouton « Kanban » ou « Calendrier » pour changer de vue. La veille d’une échéance, vous êtes prévenu ; en cas de retard, votre chef l’est.",
-            "Communication → « Fils de discussion » : « + Nouveau fil » (objet, plusieurs destinataires, message) ; « Joindre un objet » renvoie vers une tâche, un document, un courrier ou une réunion — seuls ceux qui y ont droit peuvent l’ouvrir.",
+            "Mes tâches : boutons « Liste », « Kanban » ou « Calendrier » pour changer de vue (le dernier choix est retenu). La veille d’une échéance, vous êtes prévenu ; en cas de retard, votre chef l’est.",
+            "Messagerie → « Fils de discussion » : « + Nouveau fil » (objet, plusieurs destinataires, message) ; « Joindre un objet » renvoie vers une tâche, un document, un courrier ou une réunion — seuls ceux qui y ont droit peuvent l’ouvrir.",
             "Sous chaque message : « Lu par … le … » pour chaque destinataire."
           ],
           "capture": "fils.png"
@@ -173,7 +173,7 @@
         {
           "titre": "Piloter les tâches de la section",
           "etapes": [
-            "« Mes tâches » → « + Nouvelle tâche » : titre, échéance, priorité, confidentialité, puis « Assigner à » un ou plusieurs agents de votre section.",
+            "Bouton doré « Créer » (en haut) → « Nouvelle tâche » : titre, échéance, priorité, confidentialité, puis « Assigner à » un ou plusieurs agents de votre section.",
             "Le tableau de bord montre l’avancement, les retards et les tâches à valider.",
             "Ouvrez une tâche soumise pour la valider ou la rejeter avec un commentaire."
           ],
@@ -339,8 +339,8 @@
         {
           "titre": "Paramétrage, supervision et journal d’audit",
           "etapes": [
-            "Administration → « Paramétrage et supervision » : vous consultez les paramètres et l’état des services (lecture seule ; l’administrateur système les modifie).",
-            "Administration → « Journal d’audit » : toutes les actions de la Direction, sans jamais le contenu des éléments protégés."
+            "Plus → « Administration » → « Paramétrage et supervision » : vous consultez les paramètres et l’état des services (lecture seule ; l’administrateur système les modifie).",
+            "Plus → « Administration » → « Journal d’audit » : toutes les actions de la Direction, sans jamais le contenu des éléments protégés."
           ],
           "capture": "parametres.png"
         },
@@ -393,7 +393,7 @@
           "titre": "Organiser",
           "etapes": [
             "Réunions → « Nouvelle réunion » : invitez les participants et réservez une salle en indiquant le début et la fin.",
-            "Communication : messagerie avec tous les agents."
+            "Messagerie : messagerie avec tous les agents."
           ],
           "capture": "reunions.png"
         },
@@ -597,7 +597,7 @@
           "titre": "Au quotidien",
           "etapes": [
             "« Mes tâches » : les tâches que votre tuteur ou votre chef vous confie.",
-            "« Communication » : messagerie et annonces.",
+            "« Messagerie » : messagerie et annonces.",
             "Les autres modules (courrier, documents internes, logistique) ne sont pas ouverts aux stagiaires."
           ],
           "capture": "taches.png"
@@ -615,7 +615,7 @@
         {
           "titre": "Comptes",
           "etapes": [
-            "Administration → « Utilisateurs » : « + Nouveau compte », approbation des inscriptions, suspension, désactivation (un compte n’est jamais supprimé).",
+            "Plus → « Administration » → « Utilisateurs » : « + Nouveau compte », approbation des inscriptions, suspension, désactivation (un compte n’est jamais supprimé).",
             "À la création d’un compte (ou à l’approbation d’une inscription), rattachez-le à son agent : « Agent (dossier RH) » s’il existe déjà, sinon indiquez son matricule s’il est connu ; à défaut, un agent avec un matricule provisoire est créé pour le DRH.",
             "La personne est prévenue par email : inscription approuvée (rôle, unité, bouton « Se connecter »), inscription rejetée (motif facultatif, saisi dans la fenêtre « Rejeter l’inscription »), compte créé par vous (lien pour choisir son mot de passe, valable 7 jours).",
             "Sur un compte : « Changer de rôle » (aperçu des effets, puis confirmation avec un motif), mot de passe temporaire, lien de réinitialisation, « Réinitialiser la double authentification ».",
@@ -628,7 +628,7 @@
         {
           "titre": "Rôles fonctionnels",
           "etapes": [
-            "Administration → « Utilisateurs » → onglet « Rôles fonctionnels » : « + Attribuer un rôle » (personne, rôle, dates et motif facultatifs) ; « Retirer » demande un motif. La personne est prévenue.",
+            "Plus → « Administration » → « Utilisateurs » → onglet « Rôles fonctionnels » : « + Attribuer un rôle » (personne, rôle, dates et motif facultatifs) ; « Retirer » demande un motif. La personne est prévenue.",
             "Un rôle (DRH, Gestionnaire RH, Chef du SAF, Validateur…) donne une capacité, jamais une visibilité plus large que celle de la personne ; pendant un intérim, le suppléant n’hérite jamais des rôles du titulaire.",
             "Agent du courrier et Gestionnaire logistique s’attribuent depuis Courrier et Logistique (administration) : ils apparaissent ici, « géré dans son module »."
           ],
@@ -637,10 +637,10 @@
         {
           "titre": "Paramétrage et supervision",
           "etapes": [
-            "Administration → « Paramétrage et supervision », onglet « Paramètres » : longueur minimale du mot de passe, conservation des journaux de connexion, expiration de session, alerte avant une fin de stage ou de contrat. « Modifier » : la valeur reste dans ses bornes et s’applique aussitôt ; chaque changement est tracé.",
+            "Plus → « Administration » → « Paramétrage et supervision », onglet « Paramètres » : longueur minimale du mot de passe, conservation des journaux de connexion, expiration de session, alerte avant une fin de stage ou de contrat. « Modifier » : la valeur reste dans ses bornes et s’applique aussitôt ; chaque changement est tracé.",
             "Onglet « Supervision » : état de la base, du stockage des fichiers, des emails, des tâches planifiées et du journal d’audit (nominal, dégradé, indisponible), sessions ouvertes, connexions, comptes à surveiller, accès refusés. Vous êtes prévenu (notification et email) dès qu’un service se dégrade.",
             "Après chaque essai de restauration d’une sauvegarde : « Déclarer un test de restauration » (date, résultat). Un test tous les 6 mois est recommandé.",
-            "Administration → « Journal d’audit » : toutes les actions, filtrables ; « Vérifier l’intégrité » contrôle que personne n’a altéré le journal."
+            "Plus → « Administration » → « Journal d’audit » : toutes les actions, filtrables ; « Vérifier l’intégrité » contrôle que personne n’a altéré le journal."
           ],
           "capture": "supervision.png"
         },

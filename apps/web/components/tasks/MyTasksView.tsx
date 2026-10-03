@@ -305,6 +305,18 @@ export function MyTasksView({ initialTaskId = null }: { initialTaskId?: string |
         <CalendarView tasks={filtrees} onSelect={setSelectedTaskId} />
       ) : (
         <div className="overflow-hidden rounded-xl border border-line bg-surface" data-testid="liste-taches">
+          {filtrees.length === 0 && (
+              <p className="px-4 py-6 text-center text-[13.5px] text-text-muted">
+                {source.length === 0
+                  ? onglet === 'a-valider'
+                    ? 'Aucune tâche n’attend votre validation.'
+                    : onglet === 'terminees'
+                      ? 'Aucune tâche terminée.'
+                      : 'Aucune tâche dans cet onglet.'
+                  : 'Aucune tâche ne correspond aux filtres.'}
+              </p>
+            )}
+          {filtrees.length > 0 && (
           <div role="table" aria-label="Tâches" className="overflow-x-auto">
             <div role="rowgroup">
               <div role="row" className="hidden h-[38px] grid-cols-[24px_minmax(0,1fr)_124px_84px_92px_120px_74px_176px] items-center gap-3 border-b border-line bg-[#F7F8FB] px-4 text-[12px] font-semibold text-text-muted lg:grid">
@@ -320,17 +332,6 @@ export function MyTasksView({ initialTaskId = null }: { initialTaskId?: string |
                 <span role="columnheader">Activité du plan</span>
               </div>
             </div>
-            {filtrees.length === 0 && (
-              <p className="px-4 py-6 text-center text-[13.5px] text-text-muted">
-                {source.length === 0
-                  ? onglet === 'a-valider'
-                    ? 'Aucune tâche n’attend votre validation.'
-                    : onglet === 'terminees'
-                      ? 'Aucune tâche terminée.'
-                      : 'Aucune tâche dans cet onglet.'
-                  : 'Aucune tâche ne correspond aux filtres.'}
-              </p>
-            )}
             {groupes
               .filter((g) => g.taches.length > 0)
               .map((g) => (
@@ -401,6 +402,7 @@ export function MyTasksView({ initialTaskId = null }: { initialTaskId?: string |
                 </div>
               ))}
           </div>
+          )}
           <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 text-[13px] text-text-muted">
             <span>
               {filtrees.length} tâche{filtrees.length > 1 ? 's' : ''} · cliquez sur une ligne pour l’ouvrir

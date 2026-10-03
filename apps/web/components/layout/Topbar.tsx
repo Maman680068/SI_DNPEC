@@ -81,7 +81,7 @@ export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
       </form>
       <div className="ml-auto flex flex-none items-center gap-1 md:ml-0 md:gap-1.5">
         {recherche && (
-          <Link href="/recherche" aria-label="Rechercher" className="grid h-[38px] w-[38px] place-items-center rounded-[10px] text-ink md:hidden">
+          <Link href="/recherche" aria-label="Ouvrir la recherche" className="grid h-[38px] w-[38px] place-items-center rounded-[10px] text-ink md:hidden">
             <Search aria-hidden size={20} />
           </Link>
         )}

@@ -56,8 +56,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 function InterimScopedContent({ children }: { children: React.ReactNode }) {
   const { interim } = useInterim();
   return (
-    <div key={interim?.titulaireId ?? 'self'} className="flex-1 overflow-y-auto overflow-x-hidden p-4 pb-16 md:px-7 md:pb-8 md:pt-6">
+    <main key={interim?.titulaireId ?? 'self'} className="flex-1 overflow-y-auto overflow-x-hidden p-4 pb-16 md:px-7 md:pb-8 md:pt-6">
       {children}
-    </div>
+    </main>
   );
 }

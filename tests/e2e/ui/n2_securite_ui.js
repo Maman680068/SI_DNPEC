@@ -2,7 +2,7 @@
 // le niveau 2 du dossier du personnel (mot de passe faux puis juste), journal d'audit (portée,
 // vérification d'intégrité), « Paramétrage et supervision » (paramètre modifié par l'administrateur,
 // lecture seule pour le DN, services, test de restauration déclaré), menus selon le rôle.
-const { browser, loginPage, check, bilan, WEB } = require('./helpers');
+const { browser, loginPage, check, bilan, WEB, ouvrirPlus } = require('./helpers');
 const { call, ids } = require('../lib');
 const E = require('../config');
 
@@ -14,6 +14,7 @@ const sansDefilementHorizontal = (p) => p.evaluate(() => document.documentElemen
 
   console.log('— Réauthentification (bureau)');
   let p = await loginPage(b, 'agent1');
+  await ouvrirPlus(p);
   check('menu : « Journal d’audit » (ses propres actions), pas de paramétrage', (await p.locator('a[href="/journal-audit"]').count()) === 1 && (await p.locator('a[href="/parametrage"]').count()) === 0);
   await p.goto(`${WEB}/personnel/${ids.agent1}`);
   const verrou = p.locator('[data-testid=niveau-2-verrouille]');
@@ -39,6 +40,7 @@ const sansDefilementHorizontal = (p) => p.evaluate(() => document.documentElemen
 
   console.log('— Paramétrage et supervision (administrateur, bureau)');
   p = await loginPage(b, 'admin');
+  await ouvrirPlus(p);
   check('menu Administration : « Paramétrage et supervision » et « Journal d’audit »', (await p.locator('a[href="/parametrage"]').count()) === 1 && (await p.locator('a[href="/journal-audit"]').count()) === 1);
   await p.goto(`${WEB}/parametrage`);
   await p.locator('[data-testid=parametre]').first().waitFor();

@@ -89,6 +89,7 @@ export class NavigationService {
     ajouter('courrier-signer', 'Actes à signer', courrier.aSigner, '/courrier?rubrique=aSigner');
     ajouter('courrier-expedier', 'Actes à expédier', courrier.aExpedier, '/courrier?rubrique=aExpedier');
     ajouter('courrier-connaissance', 'Actes à prendre en connaissance', courrier.priseDeConnaissance, '/courrier?rubrique=priseDeConnaissance');
+    ajouter('courrier-brouillons', 'Brouillons à reprendre', courrier.brouillons, '/courrier?rubrique=brouillons');
     ajouter('logistique-valider', 'Demandes logistiques à valider', logistique.aValider, '/logistique?onglet=demandes');
     ajouter('logistique-traiter', 'Demandes logistiques à traiter', logistique.aTraiter, '/logistique?onglet=demandes');
     ajouter('stock-bas', 'Articles sous le seuil d’alerte', logistique.stockBas, '/logistique?onglet=fournitures');

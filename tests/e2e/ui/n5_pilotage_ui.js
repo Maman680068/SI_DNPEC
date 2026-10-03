@@ -46,7 +46,7 @@ const sansDefilementHorizontal = (p) => p.evaluate(() => document.documentElemen
   await p.getByLabel('Titre').fill(`Collecte ${S}`);
   check('tâche : activité présélectionnée', (await p.locator('#tache-activite').inputValue()).length > 0);
   await p.getByLabel('Échéance').fill(jour(3));
-  await p.getByRole('button', { name: /Créer/ }).click();
+  await p.getByRole('button', { name: 'Créer la tâche' }).click();
   await fiche.getByText(`Collecte ${S}`).first().waitFor();
   check('Kanban : la tâche apparaît dans la fiche de l’activité', true);
   await fiche.getByRole('button', { name: 'Calendrier' }).click();
