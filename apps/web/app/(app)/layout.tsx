@@ -10,6 +10,7 @@ import { InterimBanner } from '../../components/interim/InterimBanner';
 import { Sidebar } from '../../components/layout/Sidebar';
 import { Topbar } from '../../components/layout/Topbar';
 import { ReauthProvider } from '../../lib/securite/ReauthProvider';
+import { NavigationProvider } from '../../lib/navigation/NavigationProvider';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -31,19 +32,18 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     <OrgProvider>
       <InterimProvider>
        <ReauthProvider>
-        <div className="contraste-aa flex h-screen overflow-hidden">
+        <NavigationProvider>
+        {/* Refonte de l'interface : menu fixe à gauche (son propre défilement), barre du haut
+         * toujours visible ; seule la page défile. La bande tricolore reste sur les pages publiques. */}
+        <div className="contraste-aa flex h-screen overflow-hidden bg-bg">
           <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
           <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-            <div className="flag-stripe">
-              <span className="flag-r" />
-              <span className="flag-y" />
-              <span className="flag-g" />
-            </div>
             <Topbar onMenuClick={() => setSidebarOpen(true)} />
             <InterimBanner />
             <InterimScopedContent>{children}</InterimScopedContent>
           </div>
         </div>
+        </NavigationProvider>
        </ReauthProvider>
       </InterimProvider>
     </OrgProvider>
@@ -56,7 +56,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 function InterimScopedContent({ children }: { children: React.ReactNode }) {
   const { interim } = useInterim();
   return (
-    <div key={interim?.titulaireId ?? 'self'} className="flex-1 overflow-y-auto overflow-x-hidden p-4 pb-16 md:p-7">
+    <div key={interim?.titulaireId ?? 'self'} className="flex-1 overflow-y-auto overflow-x-hidden p-4 pb-16 md:px-7 md:pb-8 md:pt-6">
       {children}
     </div>
   );

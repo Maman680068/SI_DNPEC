@@ -1,14 +1,19 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../../lib/auth/AuthProvider';
 import { searchUsers } from '../../lib/api/org';
 import type { BasicUserInfo } from '../../lib/org/types';
 
-export function NewConversationSearch({ onPick }: { onPick: (userId: string) => void }) {
+/** `focus` : chaque nouvelle valeur (non nulle) place le curseur dans la recherche (menu « Créer »). */
+export function NewConversationSearch({ onPick, focus = 0 }: { onPick: (userId: string) => void; focus?: number }) {
   const { user: currentUser } = useAuth();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<BasicUserInfo[]>([]);
+  const champ = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (focus) champ.current?.focus();
+  }, [focus]);
 
   useEffect(() => {
     if (!query.trim()) {
@@ -30,6 +35,8 @@ export function NewConversationSearch({ onPick }: { onPick: (userId: string) => 
   return (
     <div className="relative border-b border-line p-3">
       <input
+        ref={champ}
+        aria-label="Nouvelle conversation : rechercher un nom"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         placeholder="Nouvelle conversation — rechercher un nom…"

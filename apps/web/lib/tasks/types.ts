@@ -42,6 +42,12 @@ export interface Task {
   createdAt: string;
   updatedAt: string;
   assignees: TaskAssignee[];
+  /** Liste GET /tasks (refonte de l'interface) : ce qu'affiche une ligne de « Mes tâches ». */
+  activiteLibelle?: string | null;
+  nbCommentaires?: number;
+  nbPiecesJointes?: number;
+  nbSousTaches?: number;
+  nbSousTachesFaites?: number;
 }
 
 export interface TaskDashboard {
@@ -55,7 +61,7 @@ export interface TaskDashboard {
 export const KANBAN_COLUMNS: { status: TaskStatus; label: string }[] = [
   { status: 'A_FAIRE', label: 'À faire' },
   { status: 'EN_COURS', label: 'En cours' },
-  { status: 'SOUMISE_VALIDATION', label: 'Soumises' },
+  { status: 'SOUMISE_VALIDATION', label: 'En validation' },
   { status: 'TERMINEE', label: 'Terminées' },
 ];
 

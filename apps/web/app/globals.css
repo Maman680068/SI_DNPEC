@@ -9,10 +9,14 @@
   :root {
     --couleur-sage: #1c8b4b;
     --couleur-texte-faint: #9298a8;
+    --couleur-fond: #f5f6fa;
+    --couleur-trait: #e2e4ee;
   }
   .contraste-aa {
     --couleur-sage: #197c43;
     --couleur-texte-faint: #666e80;
+    --couleur-fond: #f3f4f8;
+    --couleur-trait: #e3e5ee;
   }
   body {
     @apply bg-bg text-text antialiased;

@@ -16,6 +16,7 @@ import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
 import { Field } from '../ui/Input';
 import { Choix, Fenetre, Texte } from '../ui/Fenetre';
+import { FenetreDetail } from '../ui/FenetreDetail';
 
 export const TON_STATUT: Record<StatutAgent, 'sage' | 'clay' | 'muted'> = {
   EN_ACTIVITE: 'sage',
@@ -53,13 +54,7 @@ export function AgentPanneau({ agent, onClose, onChange }: { agent: AgentDetail;
 
   return (
     <>
-      <div className="fixed inset-0 z-40 bg-[rgba(20,26,38,0.3)]" onClick={onClose} />
-      <aside
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={idTitre}
-        className="fixed inset-y-0 right-0 z-40 w-full max-w-[520px] overflow-y-auto border-l border-line bg-surface p-5 shadow-xl"
-      >
+      <FenetreDetail titre={`Agent — ${agent.prenoms} ${agent.nom}`} onClose={onClose} sansEntete largeur={720}>
         <div className="mb-4 flex items-start justify-between gap-3">
           <div>
             <div className="text-[11px] font-bold uppercase tracking-wide text-sage">Agent</div>
@@ -129,7 +124,7 @@ export function AgentPanneau({ agent, onClose, onChange }: { agent: AgentDetail;
             </li>
           ))}
         </ul>
-      </aside>
+      </FenetreDetail>
 
       {action === 'MODIFIER' && <FenetreModifierAgent agent={agent} onClose={() => setAction(null)} onFait={fait} />}
       {action && action !== 'MODIFIER' && <FenetreActionAgent agent={agent} action={action} titre={libelle(action)} onClose={() => setAction(null)} onFait={fait} />}

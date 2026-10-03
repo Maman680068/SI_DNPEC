@@ -8,6 +8,7 @@ import type { Announcement, Conversation } from '../../../lib/communication/type
 import type { Poll } from '../../../lib/polls/types';
 import { ConversationList } from '../../../components/communication/ConversationList';
 import { NewConversationSearch } from '../../../components/communication/NewConversationSearch';
+import { useDemandeCreation } from '../../../lib/navigation/creer';
 import { MessageThread } from '../../../components/communication/MessageThread';
 import { AnnouncementList } from '../../../components/communication/AnnouncementList';
 import { AnnouncementDetailDrawer } from '../../../components/communication/AnnouncementDetailDrawer';
@@ -92,6 +93,15 @@ export default function CommunicationPage() {
     }
   }, []);
 
+  // Menu « Créer » de la barre du haut (« /communication?nouveau=message ») : onglet Messages, curseur
+  // dans la recherche d'un destinataire.
+  const [nouveauMessage, setNouveauMessage] = useState(0);
+  useDemandeCreation('message', () => {
+    setTab('messages');
+    setSelectedUserId(null);
+    setNouveauMessage((n) => n + 1);
+  });
+
   const selectedAnnouncement = useMemo(
     () => announcements?.find((a) => a.id === selectedAnnouncementId) ?? null,
     [announcements, selectedAnnouncementId],
@@ -157,7 +167,7 @@ export default function CommunicationPage() {
               selectedUserId ? 'hidden' : ''
             }`}
           >
-            <NewConversationSearch onPick={setSelectedUserId} />
+            <NewConversationSearch onPick={setSelectedUserId} focus={nouveauMessage} />
             {conversations === null ? (
               <Chargement erreur={erreurChargement} className="px-4 py-6 text-center text-[13px] text-text-muted" />
             ) : (

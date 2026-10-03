@@ -10,8 +10,9 @@ function formatWhen(iso: string): string {
   const date = new Date(iso);
   const today = new Date();
   const isToday = date.toDateString() === today.toDateString();
+  const hier = new Date(today.getTime() - 86_400_000).toDateString() === date.toDateString();
   const time = date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-  return isToday ? `Aujourd'hui, ${time}` : `${date.toLocaleDateString('fr-FR')}, ${time}`;
+  return isToday ? `aujourd’hui, ${time}` : hier ? `hier, ${time}` : `${date.toLocaleDateString('fr-FR')}, ${time}`;
 }
 
 export function CommentThread({
@@ -73,29 +74,28 @@ export function CommentThread({
   return (
     <div>
       {comments.map((comment) => (
-        <div key={comment.id} className="mb-4 flex gap-2.5">
-          <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md bg-accent-soft text-[11px] font-bold text-accent">
+        <div key={comment.id} className="mb-2.5 flex gap-2.5">
+          <div className="grid h-7 w-7 flex-shrink-0 place-items-center rounded-full bg-ink-50 text-[10.5px] font-bold text-ink">
             {getUserInitials(comment.authorId)}
           </div>
-          <div className="min-w-0">
-            <div className="mb-0.5 text-xs font-bold">
-              {getUserLabel(comment.authorId)}{' '}
-              <span className="ml-1 text-[10.5px] font-medium text-text-faint">{formatWhen(comment.createdAt)}</span>
+          <div className="min-w-0 flex-1 rounded-[10px] bg-[#F4F5F9] px-[11px] py-2 text-[13px] leading-[1.45]">
+            <div>
+              <b className="text-[12.5px]">{getUserLabel(comment.authorId)}</b>
+              <small className="ml-1.5 text-[11.5px] text-text-faint">{formatWhen(comment.createdAt)}</small>
             </div>
-            <div className="rounded-lg bg-bg px-3 py-2 text-[13px] leading-relaxed">
-              {renderBodyWithMentions(comment.body)}
-            </div>
+            {renderBodyWithMentions(comment.body)}
           </div>
         </div>
       ))}
-      {comments.length === 0 && <p className="mb-4 text-[13px] text-text-faint">Aucun commentaire pour l&apos;instant.</p>}
+      {comments.length === 0 && <p className="mb-3 text-[13px] text-text-faint">Aucun commentaire pour l&apos;instant.</p>}
 
-      <form onSubmit={handleSubmit} className="relative mt-4">
+      <form onSubmit={handleSubmit} className="relative mt-2.5">
         <input
+          aria-label="Écrire un commentaire"
           value={body}
           onChange={(e) => setBody(e.target.value)}
           placeholder="Écrire un commentaire… (@ pour mentionner)"
-          className="w-full rounded-md border border-line bg-surface px-3.5 py-2.5 text-sm focus:border-accent focus:outline focus:outline-2 focus:outline-accent"
+          className="h-10 w-full rounded-[10px] border border-line bg-surface px-3 text-[13.5px] focus:border-accent focus:outline focus:outline-2 focus:outline-accent"
         />
         {suggestions.length > 0 && (
           <div className="absolute bottom-full left-0 z-10 mb-1 w-full rounded-md border border-line bg-surface py-1 shadow-lg">

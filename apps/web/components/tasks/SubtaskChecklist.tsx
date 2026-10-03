@@ -4,6 +4,7 @@ import { useState, type FormEvent } from 'react';
 import { useOrg } from '../../lib/org/OrgProvider';
 import { createSubtask, toggleSubtask } from '../../lib/api/tasks';
 import type { Task } from '../../lib/tasks/types';
+import { Check } from 'lucide-react';
 
 export function SubtaskChecklist({
   parentId,
@@ -44,22 +45,24 @@ export function SubtaskChecklist({
 
   return (
     <div>
-      <div className="mb-2.5 text-xs font-bold uppercase tracking-wide text-text-muted">
-        Sous-tâches ({done}/{subtasks.length})
-      </div>
+      <h3 className="mb-2 flex items-center gap-2 text-[13px] font-bold text-ink-900">
+        Sous-tâches <span className="font-semibold text-text-faint">{done}/{subtasks.length}</span>
+      </h3>
       {subtasks.map((subtask) => (
-        <div key={subtask.id} className="flex items-center gap-2.5 border-b border-line py-2.5 text-[13px] last:border-none">
+        <div key={subtask.id} className="flex items-center gap-2.5 border-b border-[#F0F1F6] py-[7px] text-[13.5px]">
           <button
             onClick={() => handleToggle(subtask)}
             disabled={busyId === subtask.id}
             aria-label={subtask.status === 'TERMINEE' ? 'Décocher' : 'Cocher comme terminée'}
-            className={`h-[17px] w-[17px] flex-shrink-0 rounded-[5px] border-[1.6px] text-[11px] leading-none disabled:opacity-60 ${
-              subtask.status === 'TERMINEE' ? 'border-sage bg-sage text-white' : 'border-line bg-surface'
+            role="checkbox"
+            aria-checked={subtask.status === 'TERMINEE'}
+            className={`grid h-[17px] w-[17px] flex-shrink-0 place-items-center rounded-[5px] border-[1.6px] disabled:opacity-60 ${
+              subtask.status === 'TERMINEE' ? 'border-sage bg-sage text-white' : 'border-[#B9BFD2] bg-surface'
             }`}
           >
-            {subtask.status === 'TERMINEE' ? '✓' : ''}
+            {subtask.status === 'TERMINEE' && <Check aria-hidden size={12} strokeWidth={3} />}
           </button>
-          <span className={subtask.status === 'TERMINEE' ? 'text-text-faint line-through' : ''}>{subtask.title}</span>
+          <span className={subtask.status === 'TERMINEE' ? 'text-text-muted line-through' : ''}>{subtask.title}</span>
           {subtask.assignees[0] && (
             <span className="ml-auto text-[10.5px] text-text-faint">{getUserLabel(subtask.assignees[0].userId)}</span>
           )}
@@ -73,7 +76,8 @@ export function SubtaskChecklist({
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Ajouter une sous-tâche…"
-          className="flex-1 rounded-md border border-line bg-surface px-3 py-1.5 text-[12.5px] focus:border-accent focus:outline focus:outline-2 focus:outline-accent"
+          aria-label="Ajouter une sous-tâche"
+          className="flex-1 rounded-[9px] border border-line bg-surface px-3 py-1.5 text-[13px] focus:border-accent focus:outline focus:outline-2 focus:outline-accent"
         />
       </form>
     </div>

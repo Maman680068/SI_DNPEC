@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
+import { MessageSquare } from 'lucide-react';
 import { EVENEMENT_MESSAGES_LUS, getNombreMessagesNonLus } from '../../lib/api/communication';
 
 const INTERVALLE_MS = 60_000;
@@ -41,11 +42,11 @@ export function MessagesIcon() {
     <Link
       href="/communication"
       aria-label={nonLus > 0 ? `Messagerie : ${nonLus} message${nonLus > 1 ? 's' : ''} non lu${nonLus > 1 ? 's' : ''}` : 'Messagerie'}
-      className="relative flex h-9 w-9 items-center justify-center rounded-md border border-line text-text-muted"
+      className="relative grid h-[38px] w-[38px] place-items-center rounded-[10px] text-ink hover:bg-bg"
     >
-      ✉
+      <MessageSquare aria-hidden size={20} strokeWidth={1.8} />
       {nonLus > 0 && (
-        <span data-testid="compteur-messages" className="absolute -right-1.5 -top-1.5 min-w-[18px] rounded-full bg-clay px-1 text-center text-[10.5px] font-bold leading-[18px] text-white">
+        <span data-testid="compteur-messages" className="absolute right-1 top-[5px] grid h-[17px] min-w-[17px] place-items-center rounded-[9px] border-2 border-white bg-clay px-1 text-[10.5px] font-bold leading-none text-white">
           {nonLus > 99 ? '99+' : nonLus}
         </span>
       )}

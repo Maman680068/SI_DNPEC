@@ -9,6 +9,8 @@ export interface FiltresTaches {
   suivi?: boolean;
   /** Nombre maximal de tâches (échéances les plus proches d'abord). */
   limite?: number;
+  /** Tâches soumises que la personne peut valider ou rejeter (onglet « À valider »). */
+  aValider?: boolean;
 }
 
 export function getTasks(filtres: FiltresTaches = {}): Promise<Task[]> {
@@ -17,6 +19,7 @@ export function getTasks(filtres: FiltresTaches = {}): Promise<Task[]> {
   if (filtres.createdById) p.set('createdById', filtres.createdById);
   if (filtres.suivi) p.set('suivi', 'true');
   if (filtres.limite) p.set('limite', String(filtres.limite));
+  if (filtres.aValider) p.set('aValider', 'true');
   const qs = p.toString();
   return apiFetch<Task[]>(`/tasks${qs ? `?${qs}` : ''}`);
 }

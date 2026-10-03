@@ -70,6 +70,23 @@ const TASK_SELECT = {
 
 type TaskWithAssignees = Prisma.TaskGetPayload<{ select: typeof TASK_SELECT }>;
 
+/** Liste des tâches (GET /tasks) : la tâche, plus ce qu'affiche une ligne de « Mes tâches » (refonte de l'interface). */
+const TASK_LIST_SELECT = {
+  ...TASK_SELECT,
+  activite: { select: { libelle: true } },
+  _count: {
+    select: {
+      comments: true,
+      attachments: true,
+      subTasks: true,
+    },
+  },
+  subTasks: { where: { status: { in: [TaskStatus.TERMINEE, TaskStatus.VALIDEE] } }, select: { id: true } },
+} satisfies Prisma.TaskSelect;
+
+/** Statuts d'une tâche close. */
+const STATUTS_CLOS: TaskStatus[] = [TaskStatus.TERMINEE, TaskStatus.VALIDEE];
+
 type OrgAttachmentInput = {
   divisionId: string | null;
   sectionId: string | null;
@@ -208,7 +225,7 @@ export class TasksService {
     return tasks;
   }
 
-  async findAllVisibleTo(actor: AuthenticatedUser, filters: TaskFiltersDto): Promise<TaskWithAssignees[]> {
+  async findAllVisibleTo(actor: AuthenticatedUser, filters: TaskFiltersDto) {
     const dueDate: Prisma.DateTimeFilter | undefined =
       filters.dueBefore || filters.dueAfter
         ? {
@@ -235,12 +252,46 @@ export class TasksService {
         : {}),
     });
 
-    return this.prisma.task.findMany({
+    const taches = await this.prisma.task.findMany({
       where,
-      select: TASK_SELECT,
+      select: TASK_LIST_SELECT,
       orderBy: [{ dueDate: 'asc' }, { createdAt: 'desc' }],
       take: filters.limite,
     });
+    const liste = taches.map(({ subTasks, _count, activite, ...t }) => ({
+      ...t,
+      activiteLibelle: activite?.libelle ?? null,
+      nbCommentaires: _count.comments,
+      nbPiecesJointes: _count.attachments,
+      nbSousTaches: _count.subTasks,
+      nbSousTachesFaites: subTasks.length,
+    }));
+    // « À valider » : tâches soumises que l'acteur peut valider ou rejeter (même règle que l'action).
+    if (filters.aValider === 'true') return this.filtrerAValider(actor, liste);
+    return liste;
+  }
+
+  /** Tâches soumises (de premier niveau) que l'acteur peut valider ou rejeter : même règle que l'action (§4.1). */
+  private async filtrerAValider<T extends TaskWithAssignees>(actor: AuthenticatedUser, taches: T[]): Promise<T[]> {
+    const retenues: T[] = [];
+    for (const t of taches) {
+      if (t.status !== TaskStatus.SOUMISE_VALIDATION || t.parentTaskId) continue;
+      if (await this.assertCanDecideValidation(actor, t).then(() => true, () => false)) retenues.push(t);
+    }
+    return retenues;
+  }
+
+  /**
+   * Compteurs du menu et du tableau de bord (refonte de l'interface) : tâches ouvertes assignées à
+   * l'acteur, et tâches soumises qu'il peut valider. Même périmètre que la liste.
+   */
+  async compteursNavigation(actor: AuthenticatedUser) {
+    const [ouvertes, soumises] = await Promise.all([
+      this.prisma.task.count({ where: this.scopedWhere(actor, { parentTaskId: null, status: { notIn: STATUTS_CLOS }, assignees: { some: { userId: actor.id } } }) }),
+      this.prisma.task.findMany({ where: this.scopedWhere(actor, { parentTaskId: null, status: TaskStatus.SOUMISE_VALIDATION }), select: TASK_SELECT, take: 500 }),
+    ]);
+    // perimetre : l'acteur voit d'autres tâches que les siennes (onglet « Mon périmètre » de Mes tâches).
+    return { ouvertes, aValider: (await this.filtrerAValider(actor, soumises)).length, perimetre: this.cascade.getTaskOrgScopeWhere(actor) !== null };
   }
 
   /** Recherche transverse (socle N5) : mêmes règles de visibilité que l'écran des tâches. */

@@ -9,6 +9,7 @@ import { CATEGORY_LABEL, STATUT_LABEL, STATUT_TON, TYPE_DOCUMENT_LABEL } from '.
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
 import { Chargement, messageChargement } from '../ui/ErreurChargement';
+import { FenetreDetail } from '../ui/FenetreDetail';
 
 function formatDateTime(iso: string): string {
   return new Date(iso).toLocaleString('fr-FR', { dateStyle: 'long', timeStyle: 'short' });
@@ -69,11 +70,7 @@ export function DocumentDetailDrawer({
   const precedent: Record<StatutDiffusion, StatutDiffusion> = { BROUILLON: 'BROUILLON', VALIDE: 'BROUILLON', DIFFUSABLE: 'VALIDE' };
 
   return (
-    <div className="fixed inset-0 z-40 flex items-stretch justify-end bg-[rgba(20,26,38,0.42)]" onClick={onClose}>
-      <div
-        className="h-full w-full max-w-[92vw] overflow-y-auto bg-surface px-[26px] pb-10 pt-[26px] sm:w-[480px]"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <FenetreDetail titre={doc.title} onClose={onClose} sansEntete largeur={720}>
         <div className="mb-4 flex items-start justify-between">
           <div className="flex flex-wrap gap-1.5">
             <Badge tone={STATUT_TON[doc.statutDiffusion]} data-testid="statut-document">
@@ -281,7 +278,6 @@ export function DocumentDetailDrawer({
             </ul>
           </>
         )}
-      </div>
-    </div>
+    </FenetreDetail>
   );
 }
