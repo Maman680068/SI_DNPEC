@@ -47,8 +47,10 @@ async function signerActe(acteId) {
     await p.goto(`${WEB}/rh?onglet=carriere`);
     await p.getByRole('button', { name: 'Nouveau mouvement', exact: true }).click();
     const d = p.getByRole('dialog');
-    await d.getByLabel('Agent').selectOption(a);
-    await d.getByLabel('Mouvement').selectOption('NOMINATION');
+    // Refonte (étape 9) : agent choisi par recherche (taper le nom, cliquer la suggestion), mouvement en un clic.
+    await d.getByRole('combobox', { name: 'Agent', exact: true }).fill(`NUA Écran ${S}`);
+    await d.getByRole('option', { name: `NUA Écran ${S}` }).click();
+    await d.getByRole('radio', { name: 'Nomination' }).click();
     check('sans poste : fonction en texte libre', await d.getByLabel('Nouvelle fonction').isVisible());
     await d.getByLabel('Poste visé').selectOption(`CHEF_SECTION:${sec.id}`);
     const vise = await d.locator('[data-testid=poste-vise]').innerText();
@@ -84,6 +86,7 @@ async function signerActe(acteId) {
     await dc.getByRole('button', { name: 'Appliquer les droits' }).click();
     await p.locator('[data-testid=nominations-traitees]', { hasText: `NUA Écran ${S}` }).waitFor();
     check('nomination passée en « traitées », droits appliqués', /Droits appliqués/.test(await p.locator('[data-testid=nominations-traitees]').innerText()) && (await ligne.count()) === 0);
+    check('message de confirmation « Nomination appliquée »', /Nomination appliquée/.test(await p.getByTestId('toast').innerText()));
     const [ua, uc] = await Promise.all([prisma.user.findUnique({ where: { id: a } }), prisma.user.findUnique({ where: { id: chef } })]);
     check('rôles en base : nommé Chef de Section, ancien chef Chargé d’Études', ua.role === 'CHEF_SECTION' && uc.role === 'AGENT' && uc.sectionId === sec.id);
     await p.context().close();
@@ -104,6 +107,7 @@ async function signerActe(acteId) {
     await dr.getByLabel(/Motif/).fill('Acte à reprendre : division erronée');
     await dr.getByRole('button', { name: 'Rejeter', exact: true }).click();
     await p.locator('[data-testid=nominations-traitees]', { hasText: `NUB Écran ${S}` }).waitFor();
+    check('message de confirmation « Nomination rejetée »', /Nomination rejetée/.test(await p.getByTestId('toast').innerText()));
     check('refus listé avec son motif', /Acte à reprendre : division erronée/.test(await p.locator('[data-testid=nominations-traitees]').innerText()));
     check('écart désormais : fonction de chef sur un Chargé d’Études', /poste de responsabilité que le rôle du compte ne porte pas/.test(await p.locator('[data-testid=ecart]', { hasText: `NUB Écran ${S}` }).innerText()));
     await p.context().close();

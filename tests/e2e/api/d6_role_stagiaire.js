@@ -22,6 +22,8 @@ const OUVERTES = new Set([
   'GET /api/v1/navigation',
   // Refonte de l'interface (étape 6) : fiche de l'interlocuteur d'une conversation (filtrée par ses droits).
   'GET /api/v1/messages/avec/:userId/contexte',
+  // Refonte de l'interface (étape 9) : sa page « Mon profil » (son propre profil seulement).
+  'GET /api/v1/profil',
 ]);
 // Socle N5 : fils de discussion et préférences de notification ouverts aux stagiaires.
 const CLASSES_OUVERTES = ['/auth', '/messages', '/notifications', '/personnel-files', '/stages', '/aide', '/api/v1/fils', '/api/v1/notifications/preferences'];

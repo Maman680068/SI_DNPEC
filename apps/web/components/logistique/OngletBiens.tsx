@@ -2,16 +2,19 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { FileSpreadsheet, Plus } from 'lucide-react';
-import { searchUsers } from '../../lib/api/org';
+import { getDirectory } from '../../lib/api/org';
 import { affecterBien, changerEtatBien, creerBien, exporterInventaire, getBien, getBiens, getCategories, modifierBien, retourBien } from '../../lib/api/logistique';
-import type { BasicUserInfo } from '../../lib/org/types';
+import type { DirectoryUser } from '../../lib/org/types';
 import type { Bien, Categorie, EtatBien, FicheBien, TypeMouvementBien } from '../../lib/logistique/types';
 import { ETAT_LABEL } from '../../lib/logistique/types';
-import { Erreur, Fenetre, SELECT_CLASS, TEXTAREA_CLASS } from '../courrier/ui';
 import { ChoixUnite } from '../stages/FenetresStage';
 import { ErreurChargement, messageChargement } from '../ui/ErreurChargement';
-import { BTN_PRINCIPAL, BTN_SECONDAIRE, BarreOutils, CleValeur, EtatVide, SectionFenetre, FiltreSelect, LigneTableau, Pastille, Recherche, Tableau, type TonPastille } from '../ui/Charte';
-import { Champ, Info, Panneau, dateCourte, dateHeure, nom, useAction } from './commun';
+import { BTN_PRINCIPAL, BTN_SECONDAIRE, BarreOutils, CleValeur, EtatVide, SectionFenetre, Filtres, FiltreSelect, LigneTableau, Pastille, Recherche, Tableau, type TonPastille } from '../ui/Charte';
+import { ChampDate, ChoixSegment, FenetreFormulaire, Grille2, Liste, MessageErreurChamp, Saisie, SelecteurPersonnes, ZoneTexte } from '../ui/Formulaire';
+import { SqueletteListe } from '../ui/Squelette';
+import { messageErreur, useToast } from '../ui/Toast';
+import { jourLocal, nomDe, useEnvoi, versPersonne } from '../courrier/formulaire';
+import { Panneau, dateCourte, dateHeure, nom } from './commun';
 
 const TON: Record<EtatBien, TonPastille> = { EN_SERVICE: 'vert', EN_PANNE: 'rouge', EN_REPARATION: 'ambre', REFORME: 'gris' };
 const GRILLE = 'lg:grid-cols-[150px_minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_120px]';
@@ -44,13 +47,13 @@ function detail(type: TypeMouvementBien, d: Record<string, unknown>): string {
 }
 
 export function OngletBiens({ gestionnaire, ouvrirId, onSignaler }: { gestionnaire: boolean; ouvrirId: string | null; onSignaler: (b: Bien) => void }) {
+  const toast = useToast();
   const [liste, setListe] = useState<Bien[] | null>(null);
   const [categories, setCategories] = useState<Categorie[]>([]);
   const [f, setF] = useState({ q: '', categorieId: '', etat: '' });
   const [erreur, setErreur] = useState<string | null>(null);
   const [ouvert, setOuvert] = useState<FicheBien | null>(null);
   const [creation, setCreation] = useState(false);
-  const [info, setInfo] = useState<string | null>(null);
   const charger = useCallback(() => {
     getBiens({ q: f.q.trim() || undefined, categorieId: f.categorieId || undefined, etat: f.etat || undefined })
       .then(setListe)
@@ -73,11 +76,18 @@ export function OngletBiens({ gestionnaire, ouvrirId, onSignaler }: { gestionnai
   return (
     <div data-testid="onglet-biens">
       <ErreurChargement message={erreur} />
-      <Info message={info} />
       <BarreOutils
         droite={
           <>
-            <button type="button" className={BTN_SECONDAIRE} onClick={() => void exporterInventaire({ q: f.q.trim() || undefined, categorieId: f.categorieId || undefined, etat: f.etat || undefined })}>
+            <button
+              type="button"
+              className={BTN_SECONDAIRE}
+              onClick={() =>
+                exporterInventaire({ q: f.q.trim() || undefined, categorieId: f.categorieId || undefined, etat: f.etat || undefined })
+                  .then(() => toast.succes('Inventaire exporté', { detail: 'Fichier Excel téléchargé.' }))
+                  .catch((e) => toast.erreur('Export impossible', messageErreur(e)))
+              }
+            >
               <FileSpreadsheet aria-hidden size={16} />
               Exporter
             </button>
@@ -91,10 +101,14 @@ export function OngletBiens({ gestionnaire, ouvrirId, onSignaler }: { gestionnai
         }
       >
         <Recherche value={f.q} onChange={(q) => setF({ ...f, q })} placeholder="N°, désignation, série…" label="Rechercher un bien" />
-        <FiltreSelect label="Catégorie" value={f.categorieId} defaut="" onChange={(categorieId) => setF({ ...f, categorieId })} options={[{ value: '', label: 'Catégorie : toutes' }, ...categories.map((c) => ({ value: c.id, label: c.libelle }))]} />
-        <FiltreSelect label="État" value={f.etat} defaut="" onChange={(etat) => setF({ ...f, etat })} options={[{ value: '', label: 'État : tous' }, ...(Object.keys(ETAT_LABEL) as EtatBien[]).map((e) => ({ value: e, label: ETAT_LABEL[e] }))]} />
+        <Filtres actifs={[f.categorieId, f.etat].filter(Boolean).length} onEffacer={() => setF({ ...f, categorieId: '', etat: '' })}>
+          <FiltreSelect label="Catégorie" value={f.categorieId} defaut="" onChange={(categorieId) => setF({ ...f, categorieId })} options={[{ value: '', label: 'Catégorie : toutes' }, ...categories.map((c) => ({ value: c.id, label: c.libelle }))]} />
+          <FiltreSelect label="État" value={f.etat} defaut="" onChange={(etat) => setF({ ...f, etat })} options={[{ value: '', label: 'État : tous' }, ...(Object.keys(ETAT_LABEL) as EtatBien[]).map((e) => ({ value: e, label: ETAT_LABEL[e] }))]} />
+        </Filtres>
       </BarreOutils>
-      {!liste ? null : (
+      {!liste ? (
+        !erreur && <SqueletteListe lignes={6} colonnes={5} />
+      ) : (
         <Tableau
           label={gestionnaire ? 'Inventaire des biens' : 'Mes biens'}
           grille={GRILLE}
@@ -122,7 +136,7 @@ export function OngletBiens({ gestionnaire, ouvrirId, onSignaler }: { gestionnai
           onClose={() => setOuvert(null)}
           onChange={(b, m) => {
             setOuvert(b);
-            setInfo(m);
+            toast.succes(m.titre, { detail: m.detail });
             charger();
           }}
           onSignaler={() => {
@@ -137,7 +151,7 @@ export function OngletBiens({ gestionnaire, ouvrirId, onSignaler }: { gestionnai
           onClose={() => setCreation(false)}
           onCreated={(b) => {
             setCreation(false);
-            setInfo(`Bien enregistré sous le numéro ${b.numeroInventaire}.`);
+            toast.succes('Bien enregistré', { detail: `Numéro d’inventaire : ${b.numeroInventaire}.` });
             setOuvert(b);
             charger();
           }}
@@ -149,65 +163,59 @@ export function OngletBiens({ gestionnaire, ouvrirId, onSignaler }: { gestionnai
 
 function FenetreNouveauBien({ categories, onClose, onCreated }: { categories: Categorie[]; onClose: () => void; onCreated: (b: FicheBien) => void }) {
   const [v, setV] = useState({ categorieId: '', designation: '', marque: '', numeroSerie: '', emplacement: '', dateAcquisition: '' });
-  const { enCours, erreur, lancer } = useAction();
+  const { enCours, erreur, envoyer } = useEnvoi();
   return (
-    <Fenetre
+    <FenetreFormulaire
       titre="Nouveau bien"
       sousTitre="Le numéro d’inventaire est attribué automatiquement (catégorie, année, rang)."
       onClose={onClose}
-      valider="Enregistrer"
+      libelleValider="Enregistrer le bien"
+      largeur={720}
       enCours={enCours}
+      erreur={erreur}
+      pied="Le bien entre à l’inventaire « En service », sans affectation."
+      valider={() => (v.designation.trim().length === 1 ? { 'bi-des': 'Indiquez au moins 2 caractères.' } : {})}
       onSubmit={async () => {
         const opt = (x: string) => x.trim() || undefined;
-        const b = await lancer(
-          () => creerBien({ categorieId: v.categorieId, designation: v.designation.trim(), marque: opt(v.marque), numeroSerie: opt(v.numeroSerie), emplacement: opt(v.emplacement), dateAcquisition: opt(v.dateAcquisition) }),
-          'Enregistrement impossible',
+        const r = await envoyer(() =>
+          creerBien({ categorieId: v.categorieId, designation: v.designation.trim(), marque: opt(v.marque), numeroSerie: opt(v.numeroSerie), emplacement: opt(v.emplacement), dateAcquisition: opt(v.dateAcquisition) }),
         );
-        if (b) onCreated(b);
+        if (r.ok) onCreated(r.valeur);
       }}
     >
-      <Erreur message={erreur} />
-      <Champ id="bi-cat" label="Catégorie">
-        <select id="bi-cat" className={SELECT_CLASS} value={v.categorieId} onChange={(e) => setV({ ...v, categorieId: e.target.value })} required>
-          <option value="">Choisir…</option>
-          {categories.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.code} — {c.libelle}
-            </option>
-          ))}
-        </select>
-      </Champ>
-      <Champ id="bi-des" label="Désignation">
-        <input id="bi-des" className={SELECT_CLASS} value={v.designation} onChange={(e) => setV({ ...v, designation: e.target.value })} minLength={2} required />
-      </Champ>
-      <div className="grid grid-cols-2 gap-3">
-        <Champ id="bi-marque" label="Marque">
-          <input id="bi-marque" className={SELECT_CLASS} value={v.marque} onChange={(e) => setV({ ...v, marque: e.target.value })} />
-        </Champ>
-        <Champ id="bi-serie" label="N° de série">
-          <input id="bi-serie" className={SELECT_CLASS} value={v.numeroSerie} onChange={(e) => setV({ ...v, numeroSerie: e.target.value })} />
-        </Champ>
-        <Champ id="bi-empl" label="Emplacement">
-          <input id="bi-empl" className={SELECT_CLASS} value={v.emplacement} onChange={(e) => setV({ ...v, emplacement: e.target.value })} />
-        </Champ>
-        <Champ id="bi-date" label="Acquis le">
-          <input id="bi-date" type="date" className={SELECT_CLASS} value={v.dateAcquisition} onChange={(e) => setV({ ...v, dateAcquisition: e.target.value })} />
-        </Champ>
-      </div>
-    </Fenetre>
+      <Grille2>
+        <Liste
+          id="bi-cat"
+          label="Catégorie"
+          value={v.categorieId}
+          onChange={(categorieId) => setV({ ...v, categorieId })}
+          vide="Choisir…"
+          options={categories.map((c) => ({ value: c.id, label: `${c.code} — ${c.libelle}` }))}
+          required
+          messageObligatoire="Choisissez la catégorie."
+        />
+        <Saisie id="bi-des" label="Désignation" value={v.designation} onChange={(designation) => setV({ ...v, designation })} required maxLength={300} messageObligatoire="Indiquez la désignation du bien." />
+        <Saisie id="bi-marque" label="Marque" facultatif value={v.marque} onChange={(marque) => setV({ ...v, marque })} />
+        <Saisie id="bi-serie" label="N° de série" facultatif value={v.numeroSerie} onChange={(numeroSerie) => setV({ ...v, numeroSerie })} />
+        <Saisie id="bi-empl" label="Emplacement" facultatif value={v.emplacement} onChange={(emplacement) => setV({ ...v, emplacement })} />
+        <ChampDate id="bi-date" label="Acquis le" facultatif value={v.dateAcquisition} max={jourLocal(0)} onChange={(dateAcquisition) => setV({ ...v, dateAcquisition })} />
+      </Grille2>
+    </FenetreFormulaire>
   );
 }
 
 type Action = 'affecter' | 'retour' | 'etat' | 'modifier' | null;
 
-function FicheBienPanneau({ bien: b, onClose, onChange, onSignaler }: { bien: FicheBien; onClose: () => void; onChange: (b: FicheBien, m: string) => void; onSignaler: () => void }) {
+type Message = { titre: string; detail?: string };
+
+function FicheBienPanneau({ bien: b, onClose, onChange, onSignaler }: { bien: FicheBien; onClose: () => void; onChange: (b: FicheBien, m: Message) => void; onSignaler: () => void }) {
   const [action, setAction] = useState<Action>(null);
-  const fini = (nb: FicheBien, m: string) => {
+  const fini = (nb: FicheBien, m: Message) => {
     setAction(null);
     onChange(nb, m);
   };
   if (action === 'affecter') return <FenetreAffecter bien={b} onClose={() => setAction(null)} onDone={fini} />;
-  if (action === 'retour') return <FenetreMotifBien titre="Retour du bien" requis={false} valider="Enregistrer le retour" onClose={() => setAction(null)} action={(m) => retourBien(b.id, m)} onDone={(nb) => fini(nb, 'Retour enregistré.')} />;
+  if (action === 'retour') return <FenetreMotifBien titre="Retour du bien" requis={false} valider="Enregistrer le retour" onClose={() => setAction(null)} action={(m) => retourBien(b.id, m)} onDone={(nb) => fini(nb, { titre: 'Retour enregistré', detail: `${nb.numeroInventaire} n’est plus affecté.` })} />;
   if (action === 'etat') return <FenetreEtat bien={b} onClose={() => setAction(null)} onDone={fini} />;
   if (action === 'modifier') return <FenetreModifierBien bien={b} onClose={() => setAction(null)} onDone={fini} />;
   return (
@@ -278,158 +286,152 @@ function FicheBienPanneau({ bien: b, onClose, onChange, onSignaler }: { bien: Fi
   );
 }
 
-function FenetreAffecter({ bien, onClose, onDone }: { bien: FicheBien; onClose: () => void; onDone: (b: FicheBien, m: string) => void }) {
+function FenetreAffecter({ bien, onClose, onDone }: { bien: FicheBien; onClose: () => void; onDone: (b: FicheBien, m: Message) => void }) {
   const [mode, setMode] = useState<'personne' | 'unite'>('personne');
-  const [q, setQ] = useState('');
-  const [resultats, setResultats] = useState<BasicUserInfo[]>([]);
-  const [personne, setPersonne] = useState<BasicUserInfo | null>(null);
+  const [annuaire, setAnnuaire] = useState<DirectoryUser[]>([]);
+  const [personne, setPersonne] = useState('');
   const [unite, setUnite] = useState({ divisionId: null as string | null, sectionId: null as string | null, celluleId: null as string | null });
-  const { enCours, erreur, lancer } = useAction();
+  const { enCours, erreur, envoyer } = useEnvoi();
   useEffect(() => {
-    if (!q.trim() || personne) return setResultats([]);
-    const t = setTimeout(() => searchUsers(q).then(setResultats).catch(() => setResultats([])), 200);
-    return () => clearTimeout(t);
-  }, [q, personne]);
+    getDirectory()
+      .then(setAnnuaire)
+      .catch(() => setAnnuaire([]));
+  }, []);
+  const personnes = annuaire.map((u) => versPersonne(u));
   return (
-    <Fenetre
+    <FenetreFormulaire
       titre={`Affecter ${bien.numeroInventaire}`}
-      sousTitre={bien.affectation ? `Actuellement : ${bien.affectation.libelle} (le retour sera enregistré).` : undefined}
+      sousTitre={bien.affectation ? `Actuellement : ${bien.affectation.libelle} (le retour sera enregistré).` : bien.designation}
       onClose={onClose}
-      valider="Affecter"
+      libelleValider="Affecter"
+      largeur={620}
       enCours={enCours}
+      erreur={erreur}
+      pied="L’affectation est datée et inscrite dans l’historique du bien."
+      valider={() => (mode === 'unite' && !unite.divisionId && !unite.celluleId ? { 'af-unite': 'Choisissez la division ou la cellule.' } : {})}
       onSubmit={async () => {
-        const input = mode === 'personne' ? { userId: personne?.id } : { divisionId: unite.divisionId ?? undefined, sectionId: unite.sectionId ?? undefined, celluleId: unite.celluleId ?? undefined };
-        const b = await lancer(() => affecterBien(bien.id, input), 'Affectation impossible');
-        if (b) onDone(b, `Bien affecté à ${b.affectation?.libelle ?? ''}.`);
+        const input = mode === 'personne' ? { userId: personne } : { divisionId: unite.divisionId ?? undefined, sectionId: unite.sectionId ?? undefined, celluleId: unite.celluleId ?? undefined };
+        const r = await envoyer(() => affecterBien(bien.id, input));
+        if (r.ok) onDone(r.valeur, { titre: 'Bien affecté', detail: `${r.valeur.numeroInventaire} → ${r.valeur.affectation?.libelle ?? nomDe(personnes, personne)}.` });
       }}
     >
-      <Erreur message={erreur} />
-      <div className="mb-3 flex gap-0.5 rounded-md border border-line bg-bg p-0.5" style={{ width: 'fit-content' }}>
-        {(
-          [
-            ['personne', 'Une personne'],
-            ['unite', 'Une unité'],
-          ] as const
-        ).map(([k, l]) => (
-          <button key={k} type="button" onClick={() => setMode(k)} className={`rounded-[6px] px-3 py-1.5 text-[12px] font-semibold ${mode === k ? 'bg-surface text-ink shadow-sm' : 'text-text-muted'}`}>
-            {l}
-          </button>
-        ))}
-      </div>
+      <ChoixSegment<'personne' | 'unite'>
+        id="af-mode"
+        label="Affecter à"
+        value={mode}
+        onChange={setMode}
+        options={[
+          { value: 'personne', label: 'Une personne' },
+          { value: 'unite', label: 'Une unité' },
+        ]}
+      />
       {mode === 'personne' ? (
-        <Champ id="af-personne" label="Personne">
-          {personne ? (
-            <div className="flex items-center justify-between rounded-md border border-line px-3 py-2 text-[13px]">
-              {nom(personne)}
-              <button type="button" className="text-accent underline" onClick={() => { setPersonne(null); setQ(''); }}>
-                Changer
-              </button>
-            </div>
-          ) : (
-            <div className="relative">
-              <input id="af-personne" className={SELECT_CLASS} placeholder="Nom de la personne…" value={q} onChange={(e) => setQ(e.target.value)} required />
-              {resultats.length > 0 && (
-                <div className="absolute left-0 right-0 top-full z-10 mt-1 max-h-[180px] overflow-y-auto rounded-md border border-line bg-surface py-1 shadow-lg">
-                  {resultats.map((u) => (
-                    <button key={u.id} type="button" onClick={() => setPersonne(u)} className="block w-full px-3 py-2 text-left text-[13px] hover:bg-bg">
-                      {nom(u)}
-                      {u.jobTitle && <span className="ml-1.5 text-text-faint">· {u.jobTitle}</span>}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-        </Champ>
+        <SelecteurPersonnes
+          id="af-personne"
+          label="Personne"
+          options={personnes}
+          valeurs={personne ? [personne] : []}
+          onChange={(ids) => setPersonne(ids[0] ?? '')}
+          multiple={false}
+          required
+          messageObligatoire="Choisissez la personne."
+        />
       ) : (
-        <ChoixUnite value={unite} onChange={setUnite} />
+        <div id="af-unite" tabIndex={-1}>
+          <ChoixUnite value={unite} onChange={setUnite} />
+          <div className="-mt-2 mb-3">
+            <MessageErreurChamp id="af-unite" />
+          </div>
+        </div>
       )}
-    </Fenetre>
+    </FenetreFormulaire>
   );
 }
 
 function FenetreMotifBien({ titre, requis, valider, onClose, action, onDone }: { titre: string; requis: boolean; valider: string; onClose: () => void; action: (m: string) => Promise<FicheBien>; onDone: (b: FicheBien) => void }) {
   const [motif, setMotif] = useState('');
-  const { enCours, erreur, lancer } = useAction();
+  const { enCours, erreur, envoyer } = useEnvoi();
   return (
-    <Fenetre titre={titre} onClose={onClose} valider={valider} enCours={enCours} onSubmit={async () => { const b = await lancer(() => action(motif.trim()), 'Action impossible'); if (b) onDone(b); }}>
-      <Erreur message={erreur} />
-      <Champ id="bi-motif" label={requis ? 'Motif' : 'Motif (facultatif)'}>
-        <textarea id="bi-motif" className={TEXTAREA_CLASS} value={motif} onChange={(e) => setMotif(e.target.value)} required={requis} />
-      </Champ>
-    </Fenetre>
-  );
-}
-
-function FenetreEtat({ bien, onClose, onDone }: { bien: FicheBien; onClose: () => void; onDone: (b: FicheBien, m: string) => void }) {
-  const [etat, setEtat] = useState<EtatBien>(bien.etat === 'EN_SERVICE' ? 'EN_PANNE' : 'EN_SERVICE');
-  const [motif, setMotif] = useState('');
-  const { enCours, erreur, lancer } = useAction();
-  return (
-    <Fenetre
-      titre={`État de ${bien.numeroInventaire}`}
+    <FenetreFormulaire
+      titre={titre}
       onClose={onClose}
-      valider={etat === 'REFORME' ? 'Réformer définitivement' : 'Enregistrer'}
-      danger={etat === 'REFORME'}
+      libelleValider={valider}
+      largeur={560}
       enCours={enCours}
+      erreur={erreur}
+      pied="Inscrit dans l’historique du bien."
       onSubmit={async () => {
-        const b = await lancer(() => changerEtatBien(bien.id, etat, motif.trim()), 'Changement impossible');
-        if (b) onDone(b, `État : ${ETAT_LABEL[b.etat]}.`);
+        const r = await envoyer(() => action(motif.trim()));
+        if (r.ok) onDone(r.valeur);
       }}
     >
-      <Erreur message={erreur} />
-      <Champ id="bi-etat" label="Nouvel état">
-        <select id="bi-etat" className={SELECT_CLASS} value={etat} onChange={(e) => setEtat(e.target.value as EtatBien)}>
-          {(Object.keys(ETAT_LABEL) as EtatBien[])
-            .filter((e) => e !== bien.etat)
-            .map((e) => (
-              <option key={e} value={e}>
-                {ETAT_LABEL[e]}
-              </option>
-            ))}
-        </select>
-      </Champ>
-      {etat === 'REFORME' && <p className="mb-3 text-[12.5px] text-clay">La réforme est définitive : le bien garde son numéro, sort du parc, et son affectation est close.</p>}
-      <Champ id="bi-etat-motif" label={etat === 'REFORME' ? 'Motif' : 'Motif (facultatif)'}>
-        <textarea id="bi-etat-motif" className={TEXTAREA_CLASS} value={motif} onChange={(e) => setMotif(e.target.value)} required={etat === 'REFORME'} />
-      </Champ>
-    </Fenetre>
+      <ZoneTexte id="bi-motif" label="Motif" facultatif={!requis} value={motif} onChange={setMotif} required={requis} />
+    </FenetreFormulaire>
   );
 }
 
-function FenetreModifierBien({ bien, onClose, onDone }: { bien: FicheBien; onClose: () => void; onDone: (b: FicheBien, m: string) => void }) {
-  const [v, setV] = useState({ designation: bien.designation, marque: bien.marque ?? '', numeroSerie: bien.numeroSerie ?? '', emplacement: bien.emplacement ?? '' });
-  const { enCours, erreur, lancer } = useAction();
+function FenetreEtat({ bien, onClose, onDone }: { bien: FicheBien; onClose: () => void; onDone: (b: FicheBien, m: Message) => void }) {
+  const [etat, setEtat] = useState<EtatBien>(bien.etat === 'EN_SERVICE' ? 'EN_PANNE' : 'EN_SERVICE');
+  const [motif, setMotif] = useState('');
+  const { enCours, erreur, envoyer } = useEnvoi();
+  const reforme = etat === 'REFORME';
   return (
-    <Fenetre
+    <FenetreFormulaire
+      titre={`État de ${bien.numeroInventaire}`}
+      sousTitre={`Actuellement : ${ETAT_LABEL[bien.etat]}.`}
+      onClose={onClose}
+      libelleValider={reforme ? 'Réformer définitivement' : 'Enregistrer'}
+      danger={reforme}
+      largeur={600}
+      enCours={enCours}
+      erreur={erreur}
+      pied={reforme ? 'La réforme est définitive : le bien garde son numéro, sort du parc, et son affectation est close.' : 'Le changement est inscrit dans l’historique du bien.'}
+      onSubmit={async () => {
+        const r = await envoyer(() => changerEtatBien(bien.id, etat, motif.trim()));
+        if (r.ok) onDone(r.valeur, { titre: reforme ? 'Bien réformé' : 'État enregistré', detail: `${r.valeur.numeroInventaire} : ${ETAT_LABEL[r.valeur.etat]}.` });
+      }}
+    >
+      <ChoixSegment<EtatBien>
+        id="bi-etat"
+        label="Nouvel état"
+        value={etat}
+        onChange={setEtat}
+        options={(Object.keys(ETAT_LABEL) as EtatBien[]).filter((e) => e !== bien.etat).map((e) => ({ value: e, label: ETAT_LABEL[e] }))}
+      />
+      <ZoneTexte id="bi-etat-motif" label="Motif" facultatif={!reforme} value={motif} onChange={setMotif} required={reforme} messageObligatoire="Indiquez le motif de la réforme." />
+    </FenetreFormulaire>
+  );
+}
+
+function FenetreModifierBien({ bien, onClose, onDone }: { bien: FicheBien; onClose: () => void; onDone: (b: FicheBien, m: Message) => void }) {
+  const [v, setV] = useState({ designation: bien.designation, marque: bien.marque ?? '', numeroSerie: bien.numeroSerie ?? '', emplacement: bien.emplacement ?? '' });
+  const { enCours, erreur, envoyer } = useEnvoi();
+  return (
+    <FenetreFormulaire
       titre={`Modifier ${bien.numeroInventaire}`}
       sousTitre="Le numéro d’inventaire et la catégorie ne changent jamais."
       onClose={onClose}
-      valider="Enregistrer"
+      libelleValider="Enregistrer"
+      largeur={640}
       enCours={enCours}
+      erreur={erreur}
+      pied="La modification est inscrite dans l’historique du bien."
+      valider={() => (v.designation.trim().length === 1 ? { 'bm-des': 'Indiquez au moins 2 caractères.' } : {})}
       onSubmit={async () => {
         const changes: Record<string, string | null> = {};
         if (v.designation.trim() !== bien.designation) changes.designation = v.designation.trim();
         for (const k of ['marque', 'numeroSerie', 'emplacement'] as const) if ((v[k].trim() || null) !== bien[k]) changes[k] = v[k].trim() || null;
-        const b = await lancer(() => modifierBien(bien.id, changes), 'Modification impossible');
-        if (b) onDone(b, 'Bien modifié.');
+        if (Object.keys(changes).length === 0) return onClose();
+        const r = await envoyer(() => modifierBien(bien.id, changes));
+        if (r.ok) onDone(r.valeur, { titre: 'Bien modifié', detail: r.valeur.numeroInventaire });
       }}
     >
-      <Erreur message={erreur} />
-      <Champ id="bm-des" label="Désignation">
-        <input id="bm-des" className={SELECT_CLASS} value={v.designation} onChange={(e) => setV({ ...v, designation: e.target.value })} minLength={2} required />
-      </Champ>
-      <div className="grid grid-cols-2 gap-3">
-        <Champ id="bm-marque" label="Marque">
-          <input id="bm-marque" className={SELECT_CLASS} value={v.marque} onChange={(e) => setV({ ...v, marque: e.target.value })} />
-        </Champ>
-        <Champ id="bm-serie" label="N° de série">
-          <input id="bm-serie" className={SELECT_CLASS} value={v.numeroSerie} onChange={(e) => setV({ ...v, numeroSerie: e.target.value })} />
-        </Champ>
-      </div>
-      <Champ id="bm-empl" label="Emplacement">
-        <input id="bm-empl" className={SELECT_CLASS} value={v.emplacement} onChange={(e) => setV({ ...v, emplacement: e.target.value })} />
-      </Champ>
-    </Fenetre>
+      <Saisie id="bm-des" label="Désignation" value={v.designation} onChange={(designation) => setV({ ...v, designation })} required maxLength={300} />
+      <Grille2>
+        <Saisie id="bm-marque" label="Marque" facultatif value={v.marque} onChange={(marque) => setV({ ...v, marque })} />
+        <Saisie id="bm-serie" label="N° de série" facultatif value={v.numeroSerie} onChange={(numeroSerie) => setV({ ...v, numeroSerie })} />
+      </Grille2>
+      <Saisie id="bm-empl" label="Emplacement" facultatif value={v.emplacement} onChange={(emplacement) => setV({ ...v, emplacement })} />
+    </FenetreFormulaire>
   );
 }

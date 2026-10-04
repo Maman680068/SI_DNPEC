@@ -4,7 +4,8 @@ import { useState } from 'react';
 import { changerFormat, enregistrerEvaluation, soumettreEvaluation, viserEvaluation } from '../../lib/api/stages';
 import type { FormatEvaluation, Niveau, Periode, Stage } from '../../lib/stages/types';
 import { CRITERES, EVALUATION_STATUT_LABEL, FORMAT_LABEL, NIVEAU_LABEL } from '../../lib/stages/types';
-import { Erreur, SELECT_CLASS, TEXTAREA_CLASS, messageErreur } from '../courrier/ui';
+import { SELECT_CLASS, TEXTAREA_CLASS } from '../courrier/ui';
+import { messageErreur, useToast } from '../ui/Toast';
 import { BTN_LIGNE, BTN_LIGNE_PRINCIPAL, Pastille } from '../ui/Charte';
 
 
@@ -15,18 +16,15 @@ export function BlocEvaluation({ stage, periode, onChange, onRenvoyer }: { stage
   const [criteres, setCriteres] = useState<Record<string, string>>((ev?.criteres as Record<string, string>) ?? {});
   const [appreciation, setAppreciation] = useState(ev?.appreciation ?? '');
   const [enCours, setEnCours] = useState(false);
-  const [erreur, setErreur] = useState<string | null>(null);
-  const [info, setInfo] = useState<string | null>(null);
+  const toast = useToast();
 
-  async function agir(fn: () => Promise<Stage>, ok?: string) {
+  async function agir(fn: () => Promise<Stage>, ok?: { titre: string; detail?: string; annuler?: () => void }) {
     setEnCours(true);
-    setErreur(null);
-    setInfo(null);
     try {
       onChange(await fn());
-      if (ok) setInfo(ok);
+      if (ok) toast.succes(ok.titre, { detail: ok.detail, annuler: ok.annuler });
     } catch (e) {
-      setErreur(messageErreur(e, 'Action impossible'));
+      toast.erreur('Action impossible', messageErreur(e, 'Action impossible'));
     } finally {
       setEnCours(false);
     }
@@ -51,7 +49,15 @@ export function BlocEvaluation({ stage, periode, onChange, onRenvoyer }: { stage
             className={`${SELECT_CLASS} !w-auto !py-1.5`}
             value={periode.formatEvaluation}
             disabled={enCours}
-            onChange={(e) => agir(() => changerFormat(stage.id, periode.id, e.target.value as FormatEvaluation), 'Format enregistré.')}
+            onChange={(e) => {
+              const avant = periode.formatEvaluation;
+              const apres = e.target.value as FormatEvaluation;
+              void agir(() => changerFormat(stage.id, periode.id, apres), {
+                titre: 'Format enregistré',
+                detail: FORMAT_LABEL[apres],
+                annuler: () => void agir(() => changerFormat(stage.id, periode.id, avant)),
+              });
+            }}
           >
             {(Object.keys(FORMAT_LABEL) as FormatEvaluation[]).map((f) => (
               <option key={f} value={f}>
@@ -66,7 +72,7 @@ export function BlocEvaluation({ stage, periode, onChange, onRenvoyer }: { stage
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            void agir(enregistrer, 'Brouillon enregistré.');
+            void agir(enregistrer, { titre: 'Brouillon enregistré', detail: 'Vous pouvez le reprendre avant de le soumettre.' });
           }}
         >
           {ev?.statut === 'RENVOYEE' && ev.motifRenvoi && <p className="mb-2 text-[12.5px] text-clay">Renvoyée : {ev.motifRenvoi}</p>}
@@ -103,7 +109,7 @@ export function BlocEvaluation({ stage, periode, onChange, onRenvoyer }: { stage
                 agir(async () => {
                   await enregistrer();
                   return soumettreEvaluation(stage.id, periode.id);
-                }, 'Évaluation soumise au responsable de l’unité.')
+                }, { titre: 'Évaluation soumise', detail: 'Le responsable de l’unité est prévenu pour le visa.' })
               }
             >
               Soumettre au visa
@@ -139,15 +145,11 @@ export function BlocEvaluation({ stage, periode, onChange, onRenvoyer }: { stage
           <button type="button" className={`${BTN_LIGNE} disabled:opacity-50`} disabled={enCours} onClick={onRenvoyer}>
             Renvoyer au tuteur
           </button>
-          <button type="button" className={`${BTN_LIGNE_PRINCIPAL} disabled:opacity-50`} disabled={enCours} onClick={() => agir(() => viserEvaluation(stage.id, periode.id), 'Évaluation visée : le stagiaire peut la lire.')}>
+          <button type="button" className={`${BTN_LIGNE_PRINCIPAL} disabled:opacity-50`} disabled={enCours} onClick={() => agir(() => viserEvaluation(stage.id, periode.id), { titre: 'Évaluation visée', detail: 'Le stagiaire peut la lire.' })}>
             Viser
           </button>
         </div>
       )}
-      {info && <p className="mt-2 text-[12.5px] text-sage">{info}</p>}
-      <div className="mt-2">
-        <Erreur message={erreur} />
-      </div>
     </div>
   );
 }

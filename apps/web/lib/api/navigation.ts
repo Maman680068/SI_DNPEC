@@ -19,6 +19,9 @@ export interface ATraiter {
   libelle: string;
   nombre: number;
   lien: string;
+  /** Point de supervision (administrateur) : précision et gravité. */
+  detail?: string;
+  gravite?: 'DEGRADE' | 'INDISPONIBLE';
 }
 export interface Navigation {
   compteurs: CompteursNavigation;

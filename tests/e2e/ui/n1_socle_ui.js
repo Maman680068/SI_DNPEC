@@ -49,13 +49,16 @@ const sansDefilementHorizontal = (p) => p.evaluate(() => document.documentElemen
   const dpe = p.locator('[data-testid=unite][data-code=DPE]').first();
   await dpe.waitFor();
   await dpe.locator(':scope > div').getByRole('button', { name: 'Sous-unité', exact: true }).click();
-  const fen = p.getByRole('dialog', { name: 'Nouvelle unité sous DPE' });
+  // Refonte (étape 9) : fenêtre de formulaire « Nouvelle unité » (rattachement en sous-titre), message de confirmation.
+  const fen = p.getByRole('dialog', { name: 'Nouvelle unité' });
   await fen.waitFor();
+  check('fenêtre : rattachement à DPE indiqué', /Rattachée à DPE/.test(await fen.innerText()));
   await fen.getByLabel('Code').fill(`UI${S}`);
   await fen.getByLabel('Libellé').fill(`Section d’essai ${S}`);
   await fen.getByRole('button', { name: 'Créer l’unité' }).click();
   const nouvelle = p.locator(`[data-testid=unite][data-code=UI${S}]`);
   await nouvelle.waitFor();
+  check('message de confirmation « Unité créée »', /Unité créée/.test(await p.getByTestId('toast').innerText()));
   check('DRH : section créée sous DPE, affichée sans responsable', (await nouvelle.innerText()).includes('Pas de responsable désigné') && (await nouvelle.innerText()).includes('SECTION'));
   await p.screenshot({ path: `${E.SHOTS}/n1_organigramme_bureau.png`, fullPage: true });
   await nouvelle.getByRole('button', { name: 'Fermer', exact: true }).click();
@@ -79,6 +82,12 @@ const sansDefilementHorizontal = (p) => p.evaluate(() => document.documentElemen
   await p.goto(`${WEB}/agents?matriculeProvisoire=true`);
   await p.locator('[data-testid=ligne-agent]').first().waitFor();
   check('?matriculeProvisoire=true : filtre actif, seules les lignes à matricule provisoire', (await p.getByRole('button', { name: 'Matricule provisoire', exact: true }).getAttribute('aria-pressed')) === 'true' && (await p.locator('[data-testid=ligne-agent]').count()) === (await p.locator('[data-testid=ligne-agent]', { hasText: '(provisoire)' }).count()));
+  await p.getByRole('button', { name: 'Nouvel agent', exact: true }).click();
+  const fNouvel = p.getByRole('dialog', { name: 'Nouvel agent' });
+  await fNouvel.getByRole('button', { name: 'Créer l’agent' }).click();
+  await fNouvel.getByText('Choisissez l’unité de l’agent.').waitFor();
+  check('nouvel agent, envoi vide : messages sous le nom, les prénoms et l’unité', (await fNouvel.getByTestId('erreur-champ').count()) === 3);
+  await fNouvel.getByRole('button', { name: 'Annuler' }).click();
   await p.goto(`${WEB}/agents?id=${cdd.body.id}`);
   const fiche = p.getByRole('dialog', { name: `Mariama Contrat${S}` });
   await fiche.waitFor();
@@ -89,11 +98,12 @@ const sansDefilementHorizontal = (p) => p.evaluate(() => document.documentElemen
   await fiche.getByRole('button', { name: 'Prolonger le contrat' }).click();
   const fProl = p.getByRole('dialog', { name: /^Prolonger le contrat/ });
   const nouvelleFin = iso(Date.now() + 100 * JOUR);
-  await fProl.getByLabel('Nouvelle date de fin').fill(nouvelleFin);
-  await fProl.getByLabel('Motif').fill('Renouvellement du contrat');
+  await fProl.getByLabel('Nouvelle date de fin', { exact: true }).fill(nouvelleFin);
+  await fProl.getByLabel('Motif', { exact: true }).fill('Renouvellement du contrat');
   await fProl.getByRole('button', { name: 'Prolonger le contrat' }).click();
   await fProl.waitFor({ state: 'detached' });
   await p.waitForTimeout(300);
+  check('message de confirmation « Contrat prolongé »', /Contrat prolongé/.test(await p.getByTestId('toast').innerText()));
   const date = new Date(nouvelleFin).toLocaleDateString('fr-FR', { timeZone: 'UTC' });
   check(`prolongation : nouvelle fin (${date}) affichée, mouvement « Prolongation » à l’historique`, (await fin.innerText()).includes(date) && (await fiche.innerText()).includes('Renouvellement du contrat'));
   await p.context().close();
@@ -107,12 +117,21 @@ const sansDefilementHorizontal = (p) => p.evaluate(() => document.documentElemen
   check('rôles repris visibles (Validateur, DRH, Assistant…)', /Validateur/.test(await p.locator('tbody').innerText()));
   await p.getByRole('button', { name: 'Attribuer un rôle', exact: true }).click();
   const fAttr = p.getByRole('dialog', { name: /Attribuer un rôle/ });
-  await fAttr.getByLabel('Personne').selectOption(ids.agent2);
+  const ag2 = (await call('admin', 'GET', '/users')).body.find((u) => u.id === ids.agent2);
+  await fAttr.getByRole('combobox', { name: 'Personne', exact: true }).fill(`${ag2.firstName} ${ag2.lastName}`);
+  await fAttr.getByRole('option', { name: `${ag2.firstName} ${ag2.lastName}` }).first().click();
   await fAttr.getByLabel('Rôle').selectOption('GESTIONNAIRE_RH');
   await fAttr.getByLabel('Motif (facultatif)').fill('Appui au DRH');
+  await fAttr.getByLabel('Début (facultatif)', { exact: true }).fill(iso(Date.now() + 10 * JOUR));
+  await fAttr.getByLabel('Fin (facultatif)', { exact: true }).fill(iso(Date.now()));
+  await fAttr.getByRole('button', { name: /Attribuer/ }).last().click();
+  check('fin avant le début : message sous le champ, fenêtre ouverte', (await fAttr.getByText('La fin ne peut pas précéder le début.').count()) === 1);
+  // Vider un champ date déjà rempli : le mettre au point, puis effacer.
+  for (const l of ['Début (facultatif)', 'Fin (facultatif)']) { await fAttr.getByLabel(l, { exact: true }).click(); await fAttr.getByLabel(l, { exact: true }).fill(''); }
   await fAttr.getByRole('button', { name: /Attribuer/ }).last().click();
   await fAttr.waitFor({ state: 'detached' });
   await p.waitForFunction((n) => document.querySelectorAll('[data-testid=attribution]').length > n, avant);
+  check('message de confirmation « Rôle attribué »', /Rôle attribué/.test(await p.getByTestId('toast').innerText()));
   const ligne = p.locator('[data-testid=attribution]', { hasText: 'Gestionnaire RH' }).first();
   check('attribution affichée : Gestionnaire RH, attribué par l’administrateur', (await ligne.count()) === 1);
   await p.screenshot({ path: `${E.SHOTS}/n1_roles_bureau.png`, fullPage: true });
@@ -135,6 +154,11 @@ const sansDefilementHorizontal = (p) => p.evaluate(() => document.documentElemen
   await p.goto(`${WEB}/agents`);
   await p.locator('[data-testid=ligne-agent]').first().waitFor();
   check('agents sur téléphone : page sans défilement horizontal (lignes en pile)', await sansDefilementHorizontal(p));
+  check('agents sur téléphone : filtres repliés derrière « Filtres »', (await p.getByTestId('bouton-filtres').isVisible()) && !(await p.getByLabel('Statut', { exact: true }).isVisible()));
+  await p.getByTestId('bouton-filtres').click();
+  await p.getByRole('button', { name: 'Fin dans 15 jours' }).click();
+  await p.getByRole('button', { name: 'Appliquer' }).click();
+  check('agents sur téléphone : « Filtres (1) » après « Fin dans 15 jours »', (await p.getByTestId('bouton-filtres').innerText()).trim() === 'Filtres (1)');
   await p.screenshot({ path: `${E.SHOTS}/n1_agents_mobile.png`, fullPage: true });
   await p.goto(`${WEB}/agents?id=${cdd.body.id}`);
   await p.getByRole('dialog', { name: `Mariama Contrat${S}` }).waitFor();

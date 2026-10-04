@@ -1,13 +1,12 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import { useState } from 'react';
 import { createDocument } from '../../lib/api/documents';
 import type { DnpecDocument, DocumentCategory, TypeDocument } from '../../lib/documents/types';
 import { CATEGORY_LABEL, TYPE_DOCUMENT_LABEL } from '../../lib/documents/types';
-import { Field } from '../ui/Input';
-import { Button } from '../ui/Button';
-
-const aujourdhui = () => new Date().toISOString().slice(0, 10);
+import { ChampDate, ChoixSegment, FenetreFormulaire, Grille2, Liste, Saisie, ZoneDepot, ZoneTexte } from '../ui/Formulaire';
+import { useToast } from '../ui/Toast';
+import { jourLocal, useEnvoi } from '../courrier/formulaire';
 
 /** Dépôt d'un document (GED). Métadonnées obligatoires (socle N4) : type, date, période couverte.
  * `source` : dépôt direct depuis une tâche ou une réunion (lien vers l'objet d'origine). */
@@ -33,158 +32,77 @@ export function UploadDocumentModal({
   /** Dossier de destination, rappelé sous le titre du formulaire. */
   dossierLibelle?: string | null;
 }) {
+  const toast = useToast();
   const [title, setTitle] = useState(fichierInitial ? fichierInitial.name.replace(/\.[^.]+$/, '') : '');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState<DocumentCategory>('AUTRE');
   const [typeDocument, setTypeDocument] = useState<TypeDocument | ''>(source?.type ?? '');
-  const [dateDocument, setDateDocument] = useState(aujourdhui());
+  const [dateDocument, setDateDocument] = useState(jourLocal(0));
   const [periodeDebut, setPeriodeDebut] = useState(source?.periodeDebut ?? '');
   const [periodeFin, setPeriodeFin] = useState(source?.periodeFin ?? '');
-  const [file, setFile] = useState<File | null>(fichierInitial ?? null);
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function handleSubmit(event: FormEvent) {
-    event.preventDefault();
-    if (!file || !typeDocument) return;
-    setSubmitting(true);
-    setError(null);
-    try {
-      const doc = await createDocument({
-        title: title.trim(),
-        description: description.trim() || undefined,
-        category,
-        divisionId: divisionId ?? undefined,
-        celluleId: celluleId ?? undefined,
-        folderId: folderId ?? undefined,
-        typeDocument,
-        dateDocument,
-        periodeDebut,
-        periodeFin,
-        sourceTaskId: source?.tacheId,
-        sourceMeetingId: source?.reunionId,
-        file,
-      });
-      onCreated(doc);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Impossible d'envoyer le document");
-    } finally {
-      setSubmitting(false);
-    }
-  }
+  const [fichiers, setFichiers] = useState<File[]>(fichierInitial ? [fichierInitial] : []);
+  const { enCours, erreur, envoyer } = useEnvoi();
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(20,26,38,0.42)] p-4" onClick={onClose}>
-      <form
-        onSubmit={handleSubmit}
-        onClick={(e) => e.stopPropagation()}
-        className="max-h-[92vh] w-full max-w-[480px] overflow-y-auto rounded-lg bg-surface p-6"
-      >
-        <h2 className="mb-1 text-[19px] font-semibold">Nouveau document</h2>
-        {source ? (
-          <p className="mb-4 text-[12.5px] text-text-muted" data-testid="source-depot">
-            Issu de : {source.libelle}
-          </p>
-        ) : dossierLibelle ? (
-          <p className="mb-4 text-[12.5px] text-text-muted">Dans « {dossierLibelle} »</p>
-        ) : (
-          <div className="mb-4" />
-        )}
-
-        <Field label="Titre" value={title} onChange={(e) => setTitle(e.target.value)} required autoFocus />
-
-        <div className="mb-4">
-          <label className="mb-1.5 block text-[12.5px] font-semibold text-text">Description (optionnel)</label>
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            rows={2}
-            className="w-full rounded-md border border-line bg-surface px-3.5 py-2.5 text-sm focus:border-accent focus:outline focus:outline-2 focus:outline-accent"
-          />
-        </div>
-
-        <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <div>
-            <label htmlFor="doc-type" className="mb-1.5 block text-[12.5px] font-semibold text-text">
-              Type
-            </label>
-            <select
-              id="doc-type"
-              value={typeDocument}
-              onChange={(e) => setTypeDocument(e.target.value as TypeDocument)}
-              required
-              className="w-full rounded-md border border-line bg-surface px-3 py-2.5 text-sm"
-            >
-              <option value="">Choisir…</option>
-              {(Object.keys(TYPE_DOCUMENT_LABEL) as TypeDocument[]).map((t) => (
-                <option key={t} value={t}>
-                  {TYPE_DOCUMENT_LABEL[t]}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label htmlFor="doc-date" className="mb-1.5 block text-[12.5px] font-semibold text-text">
-              Date du document
-            </label>
-            <input id="doc-date" type="date" value={dateDocument} onChange={(e) => setDateDocument(e.target.value)} required className="w-full rounded-md border border-line bg-surface px-3 py-2 text-sm" />
-          </div>
-          <div>
-            <label htmlFor="doc-debut" className="mb-1.5 block text-[12.5px] font-semibold text-text">
-              Période couverte : du
-            </label>
-            <input id="doc-debut" type="date" value={periodeDebut} onChange={(e) => setPeriodeDebut(e.target.value)} required className="w-full rounded-md border border-line bg-surface px-3 py-2 text-sm" />
-          </div>
-          <div>
-            <label htmlFor="doc-fin" className="mb-1.5 block text-[12.5px] font-semibold text-text">
-              au
-            </label>
-            <input id="doc-fin" type="date" value={periodeFin} min={periodeDebut || undefined} onChange={(e) => setPeriodeFin(e.target.value)} required className="w-full rounded-md border border-line bg-surface px-3 py-2 text-sm" />
-          </div>
-        </div>
-
-        <div className="mb-4">
-          <label className="mb-1.5 block text-[12.5px] font-semibold text-text">Catégorie (classement)</label>
-          <select
-            value={category}
-            onChange={(e) => setCategory(e.target.value as DocumentCategory)}
-            className="w-full rounded-md border border-line bg-surface px-3 py-2.5 text-sm"
-          >
-            {(Object.keys(CATEGORY_LABEL) as DocumentCategory[]).map((c) => (
-              <option key={c} value={c}>
-                {CATEGORY_LABEL[c]}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="mb-4">
-          <label htmlFor="doc-fichier" className="mb-1.5 block text-[12.5px] font-semibold text-text">Fichier</label>
-          {fichierInitial && file === fichierInitial && (
-            <p className="mb-1.5 text-[13px]" data-testid="fichier-depose">
-              <span className="font-semibold">{file.name}</span> <span className="text-text-muted">— ou choisissez un autre fichier :</span>
-            </p>
-          )}
-          <input
-            id="doc-fichier"
-            type="file"
-            required={!file}
-            onChange={(e) => setFile(e.target.files?.[0] ?? fichierInitial ?? null)}
-            className="w-full text-[13px]"
-          />
-        </div>
-
-        {error && <div className="mb-4 rounded-md bg-clay-soft px-3 py-2.5 text-[13px] text-clay">{error}</div>}
-
-        <div className="flex justify-end gap-2.5">
-          <Button type="button" variant="outline" onClick={onClose}>
-            Annuler
-          </Button>
-          <Button type="submit" variant="solid" disabled={submitting || !title.trim() || !file || !typeDocument || !periodeDebut || !periodeFin}>
-            {submitting ? 'Envoi…' : 'Envoyer'}
-          </Button>
-        </div>
-      </form>
-    </div>
+    <FenetreFormulaire
+      titre="Déposer un document"
+      sousTitre={source ? <span data-testid="source-depot">Issu de : {source.libelle}</span> : dossierLibelle ? `Dans « ${dossierLibelle} »` : undefined}
+      libelleValider="Déposer le document"
+      testid="fenetre-depot"
+      enCours={enCours}
+      erreur={erreur}
+      onClose={onClose}
+      pied="Le document est déposé au statut « Brouillon », visible de votre unité seulement."
+      valider={() => (periodeDebut && periodeFin && periodeFin < periodeDebut ? { 'doc-fin': 'La fin de la période ne peut pas précéder son début.' } : {})}
+      onSubmit={async () => {
+        const fichier = fichiers[0]!;
+        const r = await envoyer(() =>
+          createDocument({
+            title: title.trim(),
+            description: description.trim() || undefined,
+            category,
+            divisionId: divisionId ?? undefined,
+            celluleId: celluleId ?? undefined,
+            folderId: folderId ?? undefined,
+            typeDocument: typeDocument as TypeDocument,
+            dateDocument,
+            periodeDebut,
+            periodeFin,
+            sourceTaskId: source?.tacheId,
+            sourceMeetingId: source?.reunionId,
+            file: fichier,
+          }),
+        );
+        if (!r.ok) return;
+        toast.succes('Document déposé', { detail: `« ${r.valeur.title} » est en brouillon.` });
+        onCreated(r.valeur);
+      }}
+    >
+      <Saisie id="doc-titre" label="Titre" value={title} onChange={setTitle} required maxLength={300} messageObligatoire="Indiquez le titre du document." />
+      <ZoneDepot id="doc-fichier" label="Fichier" fichiers={fichiers} onChange={setFichiers} required />
+      <Grille2>
+        <Liste
+          id="doc-type"
+          label="Type"
+          value={typeDocument}
+          onChange={(v) => setTypeDocument(v as TypeDocument)}
+          vide="Choisir…"
+          options={(Object.keys(TYPE_DOCUMENT_LABEL) as TypeDocument[]).map((t) => ({ value: t, label: TYPE_DOCUMENT_LABEL[t] }))}
+          required
+          messageObligatoire="Choisissez le type du document."
+        />
+        <ChampDate id="doc-date" label="Date du document" value={dateDocument} onChange={setDateDocument} required messageObligatoire="Indiquez la date du document." />
+        <ChampDate id="doc-debut" label="Période couverte : du" value={periodeDebut} onChange={setPeriodeDebut} required messageObligatoire="Indiquez le début de la période couverte." />
+        <ChampDate id="doc-fin" label="Au" value={periodeFin} onChange={setPeriodeFin} min={periodeDebut || undefined} required messageObligatoire="Indiquez la fin de la période couverte." />
+      </Grille2>
+      <ChoixSegment<DocumentCategory>
+        id="doc-categorie"
+        label="Classement"
+        value={category}
+        onChange={setCategory}
+        options={(Object.keys(CATEGORY_LABEL) as DocumentCategory[]).map((c) => ({ value: c, label: CATEGORY_LABEL[c] }))}
+      />
+      <ZoneTexte id="doc-description" label="Description" facultatif value={description} onChange={setDescription} lignes={2} />
+    </FenetreFormulaire>
   );
 }

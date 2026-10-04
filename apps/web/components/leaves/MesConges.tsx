@@ -7,9 +7,11 @@ import { CODE_CONGE_ANNUEL, CODE_CONGE_MALADIE, LIBELLE_AVIS } from '../../lib/l
 import type { JourFerie, LeaveBalanceView, LeaveRequest } from '../../lib/leaves/types';
 import { Anneau, BTN_PRINCIPAL, BTN_SECONDAIRE, Circuit, EtatVide, LigneTableau, Pastille, Tableau, type EtatEtape } from '../ui/Charte';
 import { Chargement, messageChargement } from '../ui/ErreurChargement';
+import { ZoneDepot } from '../ui/Formulaire';
+import { Barre } from '../ui/Squelette';
+import { messageErreur, useToast } from '../ui/Toast';
 import { dateCourte, echeanceCourte, jourIso, jours, pastilleEtape, periode, typeEnPhrase } from './format';
 
-const message = (err: unknown, defaut: string) => (err instanceof Error && err.message ? err.message : defaut);
 const anneeDe = (iso: string) => new Date(iso).getUTCFullYear();
 const HISTORIQUE_COURT = 5;
 
@@ -160,7 +162,7 @@ function BandeSoldes({ balances, requests, year, erreur }: { balances: LeaveBala
 function DemandeEnCours({ request: r, premiere, highlight, onChange, onOpen }: { request: LeaveRequest; premiere: boolean; highlight: boolean; onChange: (r: LeaveRequest) => void; onOpen: (r: LeaveRequest) => void }) {
   const [chef, setChef] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [erreur, setErreur] = useState<string | null>(null);
+  const toast = useToast();
   const bloc = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -190,11 +192,11 @@ function DemandeEnCours({ request: r, premiere, highlight, onChange, onOpen }: {
 
   async function annuler() {
     setBusy(true);
-    setErreur(null);
     try {
       onChange(await cancelLeaveRequest(r.id));
+      toast.succes('Demande annulée', { detail: `${r.leaveType.name} · ${jours(r.daysCount)}${chef ? ` · ${chef} n’a plus d’avis à donner` : ''}.` });
     } catch (err) {
-      setErreur(message(err, 'Impossible d’annuler cette demande'));
+      toast.erreur('Action impossible', messageErreur(err, 'La demande n’a pas pu être annulée.'));
     } finally {
       setBusy(false);
     }
@@ -230,11 +232,6 @@ function DemandeEnCours({ request: r, premiere, highlight, onChange, onOpen }: {
         )}
       </div>
       {(r.droits?.deposerCertificat || r.certificat) && <Certificat request={r} onChange={onChange} />}
-      {erreur && (
-        <p role="alert" className="mt-2 text-[12.5px] text-clay">
-          {erreur}
-        </p>
-      )}
     </div>
   );
 }
@@ -254,36 +251,42 @@ function periodeLongue(debut: string, fin: string): string {
 /** Certificat médical d'un congé maladie : l'agent le joint ; lui et le DRH le lisent. */
 function Certificat({ request: r, onChange }: { request: LeaveRequest; onChange: (r: LeaveRequest) => void }) {
   const [busy, setBusy] = useState(false);
-  const [erreur, setErreur] = useState<string | null>(null);
+  const toast = useToast();
+  function deposer(fichiers: File[]) {
+    const f = fichiers[0];
+    if (!f || busy) return;
+    setBusy(true);
+    deposerCertificat(r.id, f)
+      .then((maj) => {
+        onChange(maj);
+        toast.succes(r.certificat ? 'Certificat remplacé' : 'Certificat médical joint', { detail: 'Visible de vous et du DRH seulement.' });
+      })
+      .catch((err) => toast.erreur('Action impossible', messageErreur(err, 'Le certificat n’a pas pu être déposé.')))
+      .finally(() => setBusy(false));
+  }
   return (
-    <div className="mt-2.5 flex flex-wrap items-center gap-2 text-[12.5px]" data-testid="certificat-medical">
+    <div className="mt-2.5 text-[12.5px]" data-testid="certificat-medical">
       {r.certificat ? (
-        <button type="button" className="inline-flex items-center gap-1.5 font-semibold text-ink underline" onClick={() => telechargerCertificat(r.id).catch((e) => setErreur(message(e, 'Téléchargement impossible')))}>
+        <button
+          type="button"
+          className="mb-2 inline-flex items-center gap-1.5 font-semibold text-ink underline"
+          onClick={() => telechargerCertificat(r.id).catch((e) => toast.erreur('Téléchargement impossible', messageErreur(e)))}
+        >
           <Paperclip aria-hidden size={14} />
           Certificat médical : {r.certificat.nom}
         </button>
       ) : (
-        <span className="text-text-muted">Aucun certificat médical joint (visible de vous et du DRH seulement).</span>
+        <p className="mb-2 text-text-muted">Aucun certificat médical joint (visible de vous et du DRH seulement).</p>
       )}
       {r.droits?.deposerCertificat && (
-        <label className={`${BTN_SECONDAIRE} cursor-pointer !h-8 !text-[12.5px] focus-within:outline focus-within:outline-2 focus-within:outline-ink ${busy ? 'opacity-50' : ''}`}>
-          {r.certificat ? 'Remplacer le certificat' : 'Joindre le certificat médical'}
-          <input
-            type="file"
-            className="sr-only"
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (!f) return;
-              setBusy(true);
-              deposerCertificat(r.id, f)
-                .then(onChange)
-                .catch((err) => setErreur(message(err, 'Dépôt impossible')))
-                .finally(() => setBusy(false));
-            }}
-          />
-        </label>
+        <ZoneDepot
+          id={`certificat-${r.id}`}
+          label={r.certificat ? 'Remplacer le certificat' : 'Joindre le certificat médical'}
+          fichiers={[]}
+          onChange={deposer}
+          aide={busy ? 'Envoi en cours…' : 'PDF ou image · 25 Mo au plus'}
+        />
       )}
-      {erreur && <span className="text-clay">{erreur}</span>}
     </div>
   );
 }
@@ -459,7 +462,11 @@ function ProchainsFeries({ feries, chargerFeries, onVoirFeries }: { feries: Reco
         </button>
       </div>
       {!charge ? (
-        <p className="mt-2 text-[13px] text-text-muted">Chargement…</p>
+        <div role="status" aria-label="Chargement en cours" className="mt-3 space-y-3" data-testid="squelette">
+          <Barre className="h-3 w-[70%]" />
+          <Barre className="h-3 w-[55%]" />
+          <Barre className="h-3 w-[62%]" />
+        </div>
       ) : prochains.length === 0 ? (
         <p className="mt-2 text-[13px] text-text-muted">Aucun jour férié saisi pour les prochains mois.</p>
       ) : (

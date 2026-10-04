@@ -22,7 +22,10 @@ import { AFaire } from '../../../components/courrier/AFaire';
 import { CompteursCourrier, RUBRIQUES, totalAFaire, type Rubrique } from '../../../components/courrier/CompteursCourrier';
 import { Filtres, type FiltresValeur } from '../../../components/courrier/Filtres';
 import { COLONNES_ACTES, COLONNES_ARRIVEES, GRILLE_ACTES, GRILLE_ARRIVEES, LigneActe, LigneArrivee } from '../../../components/courrier/Lignes';
-import { Erreur, messageErreur } from '../../../components/courrier/ui';
+import { messageErreur } from '../../../components/courrier/ui';
+import { ErreurChargement } from '../../../components/ui/ErreurChargement';
+import { SqueletteListe } from '../../../components/ui/Squelette';
+import { messageErreur as messageAction, useToast } from '../../../components/ui/Toast';
 import { TiroirArrivee } from '../../../components/courrier/TiroirArrivee';
 import { FenetreEnregistrer } from '../../../components/courrier/FenetresArrivee';
 import { TiroirActe } from '../../../components/courrier/TiroirActe';
@@ -43,6 +46,7 @@ const SANS_TROU = 'Numérotation continue, sans trou';
 
 export default function CourrierPage() {
   const router = useRouter();
+  const toast = useToast();
   const { user } = useAuth();
   /** Administrateur système : son seul courrier personnel (l'API ne lui renvoie rien d'autre). */
   const personnel = user?.role === 'ADMIN_SYSTEME';
@@ -187,12 +191,12 @@ export default function CourrierPage() {
   };
 
   async function exporter() {
-    setErreur(null);
     try {
       if (onglet === 'actes') await exporterActes({ ...filtresActes, statut: filtresActes.statut as ActeStatut | undefined });
       else await exporterArrivees({ ...filtresArr, statut: filtresArr.statut as ArriveeStatut | undefined });
+      toast.succes('Registre exporté', { detail: 'Fichier Excel téléchargé.' });
     } catch (e) {
-      setErreur(messageErreur(e, 'Export impossible'));
+      toast.erreur('Export impossible', messageAction(e));
     }
   }
 
@@ -276,7 +280,7 @@ export default function CourrierPage() {
 
       <Onglets label="Courrier" onglets={onglets} actif={onglet} onChange={choisirOnglet} />
 
-      <Erreur message={erreur} />
+      <ErreurChargement message={erreur} />
 
       {onglet === 'a-faire' && (
         <>
@@ -284,7 +288,7 @@ export default function CourrierPage() {
           {aFaire ? (
             <AFaire arrivees={aFaire.arrivees} actes={aFaire.actes} rubrique={rubrique} unite={libelleUnite} ouvrirArrivee={ouvrirArrivee} ouvrirActe={ouvrirActe} />
           ) : (
-            <p className="text-sm text-text-muted">Chargement…</p>
+            !erreur && <SqueletteListe lignes={5} colonnes={4} />
           )}
         </>
       )}
@@ -303,7 +307,7 @@ export default function CourrierPage() {
             placeholder="Numéro, objet, expéditeur…"
           />
           {arriveesAffichees === null ? (
-            <p className="text-sm text-text-muted">Chargement…</p>
+            !erreur && <SqueletteListe lignes={6} colonnes={6} />
           ) : (
             <Tableau
               label={personnel ? 'Mes plis personnels' : 'Registre des arrivées'}
@@ -350,7 +354,7 @@ export default function CourrierPage() {
             }
           />
           {actes === null ? (
-            <p className="text-sm text-text-muted">Chargement…</p>
+            !erreur && <SqueletteListe lignes={6} colonnes={6} />
           ) : (
             <Tableau
               label={personnel ? 'Mes actes' : 'Registre des départs et actes'}

@@ -1,9 +1,13 @@
 'use client';
 
-import { forwardRef, useImperativeHandle, useRef, useState } from 'react';
+import { forwardRef, useImperativeHandle, useState } from 'react';
 import { Folder as IconeDossier, Plus } from 'lucide-react';
 import { createFolder } from '../../lib/api/documents';
 import type { Folder } from '../../lib/documents/types';
+import { FenetreFormulaire, Saisie } from '../ui/Formulaire';
+import { Barre } from '../ui/Squelette';
+import { useToast } from '../ui/Toast';
+import { useEnvoi } from '../courrier/formulaire';
 
 export interface FolderNavHandle {
   /** Ouvre la saisie d'un nouveau dossier (bouton « Nouveau dossier » de l'en-tête). */
@@ -28,35 +32,29 @@ export const FolderNav = forwardRef<
     onCreated: (folder: Folder) => void;
   }
 >(function FolderNav({ divisionId, dossiers, erreur, compteurs, total, currentFolderId, onNavigate, onCreated }, ref) {
+  const toast = useToast();
   const [creation, setCreation] = useState(false);
   const [nom, setNom] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [erreurCreation, setErreurCreation] = useState<string | null>(null);
-  const champ = useRef<HTMLInputElement>(null);
+  const { enCours, erreur: erreurCreation, setErreur: setErreurCreation, envoyer } = useEnvoi();
 
   useImperativeHandle(ref, () => ({
-    nouveauDossier: () => {
-      setCreation(true);
-      setTimeout(() => champ.current?.focus(), 0);
-    },
+    nouveauDossier: () => setCreation(true),
   }));
 
   const parent = dossiers?.find((f) => f.id === currentFolderId) ?? null;
+  const fermer = () => {
+    setCreation(false);
+    setNom('');
+    setErreurCreation(null);
+  };
 
   async function creer() {
-    if (!nom.trim() || !divisionId) return;
-    setBusy(true);
-    setErreurCreation(null);
-    try {
-      const cree = await createFolder({ name: nom.trim(), divisionId, parentFolderId: currentFolderId ?? undefined });
-      onCreated(cree);
-      setNom('');
-      setCreation(false);
-    } catch (err) {
-      setErreurCreation(err instanceof Error ? err.message : 'Création impossible');
-    } finally {
-      setBusy(false);
-    }
+    if (!divisionId) return;
+    const r = await envoyer(() => createFolder({ name: nom.trim(), divisionId, parentFolderId: currentFolderId ?? undefined }));
+    if (!r.ok) return;
+    onCreated(r.valeur);
+    toast.succes('Dossier créé', { detail: parent ? `« ${r.valeur.name} » dans « ${parent.name} ».` : `« ${r.valeur.name} ».` });
+    fermer();
   }
 
   // Dossiers dans l'ordre de l'arbre (parents puis enfants), avec leur profondeur.
@@ -101,44 +99,35 @@ export const FolderNav = forwardRef<
         {lignes.map(({ f, niveau }) => ligne(f.id, f.name, compteurs.get(f.id) ?? 0, niveau))}
       </ul>
       {erreur && <p className="px-2 py-1.5 text-[12.5px] text-text-muted">{erreur}</p>}
-      {dossiers === null && !erreur && <p className="px-2 py-1.5 text-[12.5px] text-text-muted">Chargement des dossiers…</p>}
+      {dossiers === null && !erreur && (
+        <div role="status" aria-label="Chargement en cours" className="space-y-2.5 px-2 py-2" data-testid="squelette">
+          <span className="sr-only">Chargement en cours</span>
+          <Barre className="h-3 w-[70%]" />
+          <Barre className="h-3 w-[55%]" />
+          <Barre className="h-3 w-[62%]" />
+        </div>
+      )}
       {dossiers && divisionId && (
         <div className="mt-1.5 border-t border-[#F0F1F6] pt-1.5">
-          {!creation ? (
-            <button type="button" onClick={() => (setCreation(true), setTimeout(() => champ.current?.focus(), 0))} className="flex w-full items-center gap-2 rounded-lg p-2 text-left text-[13px] font-semibold text-ink hover:bg-bg">
-              <Plus aria-hidden size={15} /> Nouveau dossier
-            </button>
-          ) : (
-            <form
-              className="p-1"
-              onSubmit={(e) => {
-                e.preventDefault();
-                void creer();
-              }}
-            >
-              <label htmlFor="nom-dossier" className="mb-1 block text-[12px] font-semibold text-text">
-                {parent ? `Nouveau dossier dans « ${parent.name} »` : 'Nouveau dossier'}
-              </label>
-              <input
-                id="nom-dossier"
-                ref={champ}
-                value={nom}
-                onChange={(e) => setNom(e.target.value)}
-                placeholder="Nom du dossier"
-                className="mb-1.5 h-8 w-full rounded-[7px] border border-line px-2.5 text-[13px] focus:border-ink focus:outline-none"
-              />
-              {erreurCreation && <p className="mb-1.5 text-[12px] text-clay">{erreurCreation}</p>}
-              <div className="flex gap-1.5">
-                <button type="submit" disabled={busy || !nom.trim()} className="h-[30px] rounded-[7px] bg-ink px-3 text-[12.5px] font-bold text-white disabled:opacity-50">
-                  Créer
-                </button>
-                <button type="button" onClick={() => (setCreation(false), setNom(''), setErreurCreation(null))} className="h-[30px] rounded-[7px] border border-line px-3 text-[12.5px] font-bold text-ink hover:bg-bg">
-                  Annuler
-                </button>
-              </div>
-            </form>
-          )}
+          <button type="button" onClick={() => setCreation(true)} className="flex w-full items-center gap-2 rounded-lg p-2 text-left text-[13px] font-semibold text-ink hover:bg-bg">
+            <Plus aria-hidden size={15} /> Nouveau dossier
+          </button>
         </div>
+      )}
+      {creation && (
+        <FenetreFormulaire
+          titre="Nouveau dossier"
+          sousTitre={parent ? `Dans « ${parent.name} »` : 'À la racine de l’espace'}
+          libelleValider="Créer le dossier"
+          largeur={520}
+          enCours={enCours}
+          erreur={erreurCreation}
+          onClose={fermer}
+          pied="Le dossier est visible des membres de la division."
+          onSubmit={creer}
+        >
+          <Saisie id="nom-dossier" label="Nom du dossier" value={nom} onChange={setNom} required maxLength={200} messageObligatoire="Indiquez le nom du dossier." placeholder="Rapports trimestriels, Notes…" />
+        </FenetreFormulaire>
       )}
     </nav>
   );

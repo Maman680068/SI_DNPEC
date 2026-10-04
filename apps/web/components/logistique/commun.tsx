@@ -1,40 +1,31 @@
 'use client';
 
 import { useState, type ReactNode } from 'react';
-import { Libelle, messageErreur } from '../courrier/ui';
 import { FenetreDetail } from '../ui/FenetreDetail';
+import { messageRefus } from '../courrier/formulaire';
 
 export const dateHeure = (iso: string) =>
   new Date(iso).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 export const dateCourte = (iso: string) => new Date(iso).toLocaleDateString('fr-FR', { dateStyle: 'medium' });
 export const nom = (u: { firstName: string; lastName: string } | null | undefined) => (u ? `${u.firstName} ${u.lastName}` : '');
 
-/** Exécute une action ; le refus de l'API est affiché tel quel. */
+/**
+ * Action directe d'une fiche (valider, prendre en charge…) : résultat ou message d'erreur en
+ * français (jamais technique), que l'appelant affiche dans un message bref (`toast.erreur`).
+ */
 export function useAction() {
   const [enCours, setEnCours] = useState(false);
-  const [erreur, setErreur] = useState<string | null>(null);
-  async function lancer<T>(fn: () => Promise<T>, defaut: string): Promise<T | undefined> {
+  async function lancer<T>(fn: () => Promise<T>, defaut: string): Promise<{ ok: true; valeur: T } | { ok: false; erreur: string }> {
     setEnCours(true);
-    setErreur(null);
     try {
-      return await fn();
+      return { ok: true, valeur: await fn() };
     } catch (e) {
-      setErreur(messageErreur(e, defaut));
-      return undefined;
+      return { ok: false, erreur: messageRefus(e, defaut) };
     } finally {
       setEnCours(false);
     }
   }
-  return { enCours, erreur, setErreur, lancer };
-}
-
-export function Champ({ id, label, children }: { id: string; label: string; children: ReactNode }) {
-  return (
-    <div className="mb-3.5">
-      <Libelle htmlFor={id}>{label}</Libelle>
-      {children}
-    </div>
-  );
+  return { enCours, lancer };
 }
 
 /** Choix de vue segmenté (maquette : `.seg`) : boutons à bascule, la vue active en bleu nuit. */
@@ -52,15 +43,6 @@ export function SousOnglets<K extends string>({ valeur, options, onChange, label
           {o.libelle}
         </button>
       ))}
-    </div>
-  );
-}
-
-export function Info({ message }: { message: string | null }) {
-  if (!message) return null;
-  return (
-    <div role="status" className="mb-3.5 rounded-[10px] border border-[#A9D5B7] bg-sage-50 px-3.5 py-2.5 text-[13.5px] text-sage">
-      {message}
     </div>
   );
 }

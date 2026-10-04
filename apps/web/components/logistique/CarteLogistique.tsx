@@ -24,7 +24,7 @@ export function CarteLogistique() {
   if (elements.length === 0) return null;
   return (
     <section className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-line bg-surface px-4 py-3.5" data-testid="carte-logistique">
-      <h2 className="text-[14px] font-extrabold">🧰 Logistique — {elements.join(' · ')}</h2>
+      <h2 className="text-[14px] font-extrabold">Logistique — {elements.join(' · ')}</h2>
       <Link href="/logistique" className="text-[12.5px] font-semibold text-accent hover:underline">
         Ouvrir →
       </Link>

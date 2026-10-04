@@ -4,7 +4,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { FileSpreadsheet, Plus } from 'lucide-react';
 import { exporterDemandes, getTableauLogistique } from '../../../lib/api/logistique';
 import type { Bien, TableauLogistique } from '../../../lib/logistique/types';
-import { Chargement, ErreurChargement, messageChargement } from '../../../components/ui/ErreurChargement';
+import { ErreurChargement, messageChargement } from '../../../components/ui/ErreurChargement';
+import { SquelettePage } from '../../../components/ui/Squelette';
+import { messageErreur, useToast } from '../../../components/ui/Toast';
 import { BTN_PRINCIPAL, BTN_SECONDAIRE, BandeCompteurs, EnTetePage, Onglets, type Compteur, type Onglet as OngletCharte } from '../../../components/ui/Charte';
 import { OngletDemandes, type VueDemandes } from '../../../components/logistique/OngletDemandes';
 import { OngletReservations } from '../../../components/logistique/OngletReservations';
@@ -23,6 +25,7 @@ const jourMois = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleDateStrin
  * ?onglet=inventaire&id=<bien>, ?onglet=fournitures&id=<article>, ?vue=a_valider|a_traiter|miennes.
  */
 export default function LogistiquePage() {
+  const toast = useToast();
   const [tableau, setTableau] = useState<TableauLogistique | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
   const [onglet, setOnglet] = useState<Onglet>('demandes');
@@ -60,7 +63,15 @@ export default function LogistiquePage() {
     charger();
   }, [charger]);
 
-  if (!tableau || !vue) return <Chargement erreur={erreur} />;
+  if (!tableau || !vue)
+    return erreur ? (
+      <div>
+        <EnTetePage titre="Logistique" />
+        <ErreurChargement message={erreur} />
+      </div>
+    ) : (
+      <SquelettePage />
+    );
   const g = tableau.gestionnaire;
   const v = tableau.vehicules;
   const aller = (o: Onglet, vueDemandes?: VueDemandes) => () => {
@@ -116,7 +127,11 @@ export default function LogistiquePage() {
         actions={
           <>
             {onglet === 'demandes' && (
-              <button type="button" className={BTN_SECONDAIRE} onClick={() => void exporterDemandes(vue).catch((e) => setErreur(messageChargement(e)))}>
+              <button type="button" className={BTN_SECONDAIRE} onClick={() =>
+                  void exporterDemandes(vue)
+                    .then(() => toast.succes('Demandes exportées', { detail: 'Fichier Excel téléchargé.' }))
+                    .catch((e) => toast.erreur('Export impossible', messageErreur(e)))
+                }>
                 <FileSpreadsheet aria-hidden size={16} />
                 Exporter
               </button>

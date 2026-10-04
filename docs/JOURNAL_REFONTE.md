@@ -83,3 +83,67 @@ Reprise après interruption : lire ce journal de haut en bas, puis la dernière 
   vert sur base neuve). Captures de l'aide (30) et PDF régénérés ; `captures_aide.js` suit les nouveaux sélecteurs.
 - Captures avant/après (33 + 33) dans `docs/refonte_interface/captures/etapes_3_8/`.
 - Commit sur `feature/ui-refonte-etapes-3-8`, puis push et PR vers la production.
+
+### 2026-10-04 — PR ouverte
+- PR https://github.com/Maman680068/SI_DNPEC/pull/24 (feature/ui-refonte-etapes-3-8 → production), abonnement
+  aux événements. CI `e2e` en file. À faire : attendre la CI ; si rouge, corriger et pousser. Ne rien fusionner.
+
+## Étape 9 — finitions (branche `feature/ui-finitions`, partie de la production b155b75)
+
+### 2026-10-04 — démarrage
+- Maquettes : scratchpad `maquettes9/` (profil, form-tache, form-conge, cloche, recherche, toast-squelette).
+- Captures « avant » : scratchpad `ecrans9_avant/` (22 fichiers : vérification + profil introuvable, erreur
+  d'imputation, Instructions vide, barres de défilement), prises sur la base locale `dnpec_verif` (code = production).
+- Fait par moi : API — points de supervision dans « À traiter » de l'administrateur
+  (`SupervisionService.pointsATraiter`, cache 1 min ; `ATraiter.detail/gravite`), route de lecture
+  `GET api/v1/conges/simulation` (règle de `create`) ; web — kit commun `components/ui/Formulaire.tsx`
+  (FenetreFormulaire, Champ, Saisie, ZoneTexte, Liste, ChoixSegment, ChampDate, ZoneDepot, SelecteurPersonnes,
+  Case, validation dans la fenêtre), `Toast.tsx` (ToastProvider dans le layout), `Squelette.tsx` (Chargement →
+  squelette, démarrage → SqueletteApplication), `Filtres` (Charte), barres de défilement (globals.css, limitées à
+  `.contraste-aa`) + `DefilementVisible`, `Fenetre` = nouveau modèle ; tableau de bord : prénom sans « TEST — »,
+  « À traiter » avec points de supervision.
+- Agents lancés (brief scratchpad `BRIEF_ETAPE_9.md`) : A tâches/congés/réunions/instructions/plan/tableau de bord
+  (3510/3520), B courrier/documents/documents générés/logistique (3530/3540), C RH/personnel/agents/organisation/
+  stages/utilisateurs/suppléances/paramétrage/journal (3550/3560), D communication/suggestions/annuaire/recherche/aide
+  (3570/3580).
+- À faire moi : page Mon profil + redirections, cloche, recherche de la barre du haut, démo (instructions).
+
+### 2026-10-04 — ma part de l'étape 9 (pendant que les agents travaillent)
+- API : `GET api/v1/profil` (module `profil/`, son propre profil seulement, ouvert aux stagiaires, ajouté à la
+  liste blanche de `d6_role_stagiaire`), lien de l'email de résumé → `/compte?section=notifications`.
+- Web : page `/compte` « Mon profil » (identité, unité, chef direct, matricule, complétude ; Sécurité : mot de passe
+  par lien envoyé (route existante forgot-password), double authentification, sessions ouvertes (routes existantes) ;
+  Notifications ; Aide). Anciennes pages supprimées, redirigées (`anciens-liens.json`). Menu « Mon compte » →
+  Mon profil / Sécurité / Préférences. Cloche refaite (jours, filtres, icônes). Recherche pendant la frappe dans
+  la barre du haut. Démo : bloc « Instructions de la Direction » (DN de démonstration seulement), testé
+  création + suppression sur base jetable `dnpec_demo9` ; contrôle ajouté à `z_demo_creer`.
+- Tests : `api/u_profil.js`, `ui/u_finitions_ui.js` (ajoutés à run_all), `ui/g3_2fa_ui.js` adapté.
+- Reste moi : n5_pilotage_ui (préférences → profil) et captures_aide (securite.png) après l'agent A ; guide.
+
+### 2026-10-04 — retour des agents et intégration
+- A (tâches, congés, réunions, instructions, plan, tableau de bord), B (courrier dont imputation, archives, documents
+  générés, logistique), C (RH, personnel, agents, organisation, stages, utilisateurs, suppléances, paramétrage,
+  journal), D (communication, suggestions, annuaire, recherche, aide) : formulaires convertis, toasts, squelettes,
+  `Filtres` ; tests UI adaptés ; nouvelle suite `api/u_conges_simulation.js` (ajoutée à run_all).
+- Composants communs corrigés d'après leurs retours : `ChampDate` (calendrier en position fixe, jamais coupé par la
+  fenêtre ; saisie qui remplace la date affichée ; date hors bornes → message), `SelecteurPersonnes` (liste ouverte
+  au clic ou à la frappe, nommée « Personnes proposées »), Échap qui ne ferme plus une fiche quand une liste est
+  ouverte, `messageErreur` sans message anglais de validation, `Saisie` avec `step`/`inputMode`, messages des
+  champs retirés effacés.
+- Guide : libellés repris (congé, réunion, plan, instructions, tâche, jours fériés, attestation, stage, mouvement).
+- Typecheck API et web verts ; `n6_accessibilite_ui` couvre aussi `/compte`, `/recherche`, tableau de bord admin.
+- Suite complète lancée.
+
+### 2026-10-04 — validation et livraison
+- Suite complète locale : 122 suites, 4 245 contrôles conformes, 0 non conforme (après correction : contrôles de
+  `u_profil` — le DN lit la supervision, règle N2 inchangée ; cache d'une minute —, `u_finitions_ui` — précision de
+  supervision variable —, `n4_documents_ui` — message de date hors bornes —, `i_liens` — sections de « Mon profil »).
+  Un premier passage avait échoué parce qu'un serveur web de capture tournait encore sur le port 3100 (pages
+  périmées) : arrêt systématique des serveurs entre deux étapes.
+- Rejeu fonctionnel (81 suites, 3 473 conformes), captures du guide et PDF régénérés.
+- Matrice des habilitations régénérée : identique (mêmes 4 écarts connus, aucun non conforme) ; le document datait
+  de N5 et est rafraîchi depuis la sortie de `n1_matrice.js`, inchangé dans cette branche.
+- Captures avant/après : `docs/refonte_interface/captures/etape_9/` (22 + 37, `LISTE.md`). Point 11 : Chromium
+  sans fenêtre masque les barres ; « avant » reconstituée en retirant les seules règles de l'étape 9.
+- Instructions : état vide sans droit d'émettre ni archives → lien « Comment fonctionnent les instructions ».
+- Commit sur `feature/ui-finitions`, push, PR vers la production.

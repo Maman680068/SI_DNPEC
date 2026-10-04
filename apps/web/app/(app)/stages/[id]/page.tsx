@@ -21,7 +21,10 @@ import {
 } from '../../../../lib/api/stages';
 import type { Periode, Stage } from '../../../../lib/stages/types';
 import { FORMAT_LABEL, PERIODE_STATUT_LABEL, RAPPORT_STATUT_LABEL, STAGE_STATUT_LABEL } from '../../../../lib/stages/types';
-import { Erreur, messageErreur } from '../../../../components/courrier/ui';
+import { ErreurChargement } from '../../../../components/ui/ErreurChargement';
+import { SquelettePage } from '../../../../components/ui/Squelette';
+import { FenetreFormulaire, ZoneDepot } from '../../../../components/ui/Formulaire';
+import { messageErreur, useToast } from '../../../../components/ui/Toast';
 import { BlocEvaluation } from '../../../../components/stages/BlocEvaluation';
 import {
   FenetreActeAttestation,
@@ -46,7 +49,40 @@ type Fenetre =
   | { t: 'acte' }
   | { t: 'encadrant' }
   | { t: 'renvoyerRapport' }
+  | { t: 'deposerRapport' }
   | null;
+
+/** Dépôt du rapport de stage (stagiaire) : un fichier, l'encadreur est prévenu. */
+function FenetreRapport({ stage, nouvelleVersion, onClose, onDone }: { stage: Stage; nouvelleVersion: boolean; onClose: () => void; onDone: (s?: Stage) => void }) {
+  const [fichiers, setFichiers] = useState<File[]>([]);
+  const [enCours, setEnCours] = useState(false);
+  const [erreur, setErreur] = useState<string | null>(null);
+  return (
+    <FenetreFormulaire
+      titre={nouvelleVersion ? 'Déposer une nouvelle version' : 'Déposer mon rapport'}
+      sousTitre="Rapport de stage"
+      onClose={onClose}
+      largeur={600}
+      libelleValider="Déposer le rapport"
+      enCours={enCours}
+      erreur={erreur}
+      pied="Votre encadreur principal est prévenu et valide le rapport ou demande une reprise."
+      onSubmit={async () => {
+        setEnCours(true);
+        setErreur(null);
+        try {
+          const r = await deposerRapport(stage.id, fichiers[0]!);
+          onDone(r && typeof r === 'object' && 'periodes' in r ? (r as Stage) : undefined);
+        } catch (e) {
+          setErreur(messageErreur(e, 'Dépôt impossible'));
+          setEnCours(false);
+        }
+      }}
+    >
+      <ZoneDepot id="rapport-fichier" label="Fichier du rapport" required fichiers={fichiers} onChange={setFichiers} aide="PDF ou Word · 25 Mo au plus" />
+    </FenetreFormulaire>
+  );
+}
 
 function tonPeriode(p: Periode): TonPastille {
   if (p.statut === 'EN_COURS') return 'bleu';
@@ -62,7 +98,7 @@ export default function StagePage() {
   const { id } = useParams<{ id: string }>();
   const [stage, setStage] = useState<Stage | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
-  const [info, setInfo] = useState<string | null>(null);
+  const toast = useToast();
   const [fenetre, setFenetre] = useState<Fenetre>(null);
   const [enCours, setEnCours] = useState(false);
   const requete = useRef(0);
@@ -77,25 +113,25 @@ export default function StagePage() {
     charger();
   }, [charger]);
 
-  async function agir(fn: () => Promise<unknown>, ok?: string) {
+  async function agir(fn: () => Promise<unknown>, ok?: { titre: string; detail?: string }) {
     setEnCours(true);
-    setErreur(null);
-    setInfo(null);
     try {
       const r = await fn();
       if (r && typeof r === 'object' && 'periodes' in r) setStage(r as Stage);
       else charger();
-      if (ok) setInfo(ok);
+      if (ok) toast.succes(ok.titre, { detail: ok.detail });
     } catch (e) {
-      setErreur(messageErreur(e, 'Action impossible'));
+      toast.erreur('Action impossible', messageErreur(e, 'Action impossible'));
     } finally {
       setEnCours(false);
     }
   }
-  const fermer = (s?: Stage) => {
+  /** Fermeture d'une fenêtre après une action réussie : stage à jour et message de confirmation. */
+  const fermer = (titre?: string, detail?: string) => (s?: Stage) => {
     setFenetre(null);
     if (s) setStage(s);
     else charger();
+    if (titre) toast.succes(titre, { detail });
   };
 
   if (!stage) {
@@ -104,8 +140,8 @@ export default function StagePage() {
         <Link href="/stages" className="mb-3 inline-flex items-center gap-1 text-[13px] font-semibold text-ink hover:underline">
           <ChevronLeft aria-hidden size={15} /> Stagiaires
         </Link>
-        <Erreur message={erreur} />
-        {!erreur && <p className="text-sm text-text-muted">Chargement…</p>}
+        <ErreurChargement message={erreur} />
+        {!erreur && <SquelettePage />}
       </div>
     );
   }
@@ -131,8 +167,7 @@ export default function StagePage() {
       {stage.motifInterruption && (
         <Bandeau ton="rouge">Stage interrompu : {stage.motifInterruption}</Bandeau>
       )}
-      <Erreur message={erreur} />
-      {info && <Bandeau ton="vert">{info}</Bandeau>}
+      <ErreurChargement message={erreur} />
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_300px]">
         <div className="min-w-0 space-y-4">
@@ -202,7 +237,7 @@ export default function StagePage() {
                             type="button"
                             className={`${BTN_LIGNE} disabled:opacity-50`}
                             disabled={enCours}
-                            onClick={() => window.confirm('Retirer cette période du plan ?') && agir(() => retirerPeriode(stage.id, p.id), 'Période retirée du plan.')}
+                            onClick={() => window.confirm('Retirer cette période du plan ?') && agir(() => retirerPeriode(stage.id, p.id), { titre: 'Période retirée du plan', detail: p.unite })}
                           >
                             Retirer du plan
                           </button>
@@ -262,20 +297,9 @@ export default function StagePage() {
                     </button>
                   )}
                   {rapport.droits.deposer && stage.encadrantPrincipal && (
-                    <label className={`${BTN_LIGNE_PRINCIPAL} relative cursor-pointer focus-within:outline focus-within:outline-2 focus-within:outline-ink`}>
+                    <button type="button" className={BTN_LIGNE_PRINCIPAL} disabled={enCours} onClick={() => setFenetre({ t: 'deposerRapport' })}>
                       {rapport.statut ? 'Déposer une nouvelle version' : 'Déposer mon rapport'}
-                      <input
-                        type="file"
-                        className="sr-only"
-                        aria-label="Fichier du rapport"
-                        disabled={enCours}
-                        onChange={(e) => {
-                          const f = e.target.files?.[0];
-                          e.target.value = '';
-                          if (f) agir(() => deposerRapport(stage.id, f), 'Rapport déposé : votre encadreur est prévenu.');
-                        }}
-                      />
-                    </label>
+                    </button>
                   )}
                   {rapport.droits.telecharger && (
                     <button type="button" className={BTN_LIGNE} onClick={() => agir(() => telechargerRapport(stage.id))}>
@@ -284,7 +308,7 @@ export default function StagePage() {
                   )}
                   {rapport.droits.valider && (
                     <>
-                      <button type="button" className={`${BTN_LIGNE_PRINCIPAL} disabled:opacity-50`} disabled={enCours} onClick={() => agir(() => validerRapport(stage.id), 'Rapport validé.')}>
+                      <button type="button" className={`${BTN_LIGNE_PRINCIPAL} disabled:opacity-50`} disabled={enCours} onClick={() => agir(() => validerRapport(stage.id), { titre: 'Rapport validé', detail: 'Le stagiaire est prévenu.' })}>
                         Valider le rapport
                       </button>
                       <button type="button" className={BTN_LIGNE} onClick={() => setFenetre({ t: 'renvoyerRapport' })}>
@@ -344,7 +368,7 @@ export default function StagePage() {
                     </button>
                   )}
                   {attestation.droits.prendreConnaissance && (
-                    <button type="button" className={`${BTN_LIGNE_PRINCIPAL} disabled:opacity-50`} disabled={enCours} onClick={() => agir(() => prendreConnaissanceAttestation(stage.id), 'Prise de connaissance enregistrée.')}>
+                    <button type="button" className={`${BTN_LIGNE_PRINCIPAL} disabled:opacity-50`} disabled={enCours} onClick={() => agir(() => prendreConnaissanceAttestation(stage.id), { titre: 'Prise de connaissance enregistrée' })}>
                       J’ai pris connaissance de mon attestation
                     </button>
                   )}
@@ -363,7 +387,7 @@ export default function StagePage() {
                 </button>
               )}
               {droits.cloturer && (
-                <button type="button" className={BTN_SECONDAIRE} disabled={enCours} onClick={() => window.confirm('Clôturer ce stage ?') && agir(() => cloturerStage(stage.id), 'Stage clôturé.')}>
+                <button type="button" className={BTN_SECONDAIRE} disabled={enCours} onClick={() => window.confirm('Clôturer ce stage ?') && agir(() => cloturerStage(stage.id), { titre: 'Stage clôturé', detail: 'Le dossier est conservé ; l’attestation finale peut être préparée.' })}>
                   Clôturer
                 </button>
               )}
@@ -395,16 +419,16 @@ export default function StagePage() {
         </aside>
       </div>
 
-      {fenetre?.t === 'modifier' && <FenetreModifierStage stage={stage} onClose={() => setFenetre(null)} onDone={fermer} />}
-      {fenetre?.t === 'periode' && <FenetrePeriode stage={stage} periode={fenetre.periode} onClose={() => setFenetre(null)} onDone={fermer} />}
+      {fenetre?.t === 'modifier' && <FenetreModifierStage stage={stage} onClose={() => setFenetre(null)} onDone={fermer('Stage modifié')} />}
+      {fenetre?.t === 'periode' && <FenetrePeriode stage={stage} periode={fenetre.periode} onClose={() => setFenetre(null)} onDone={fermer(fenetre.periode ? 'Période modifiée' : 'Période ajoutée', fenetre.periode ? undefined : 'L’unité d’accueil est prévenue pour l’accepter.')} />}
       {(fenetre?.t === 'accepter' || fenetre?.t === 'tuteur') && (
-        <FenetreTuteur stage={stage} periode={fenetre.periode} mode={fenetre.t === 'accepter' ? 'accepter' : 'changer'} onClose={() => setFenetre(null)} onDone={fermer} />
+        <FenetreTuteur stage={stage} periode={fenetre.periode} mode={fenetre.t === 'accepter' ? 'accepter' : 'changer'} onClose={() => setFenetre(null)} onDone={fermer(fenetre.t === 'accepter' ? 'Période acceptée' : 'Tuteur changé', 'Le tuteur et le stagiaire sont prévenus.')} />
       )}
       {fenetre?.t === 'refuser' && (
-        <FenetreMotif titre="Rejeter la période" sousTitre="Le DRH est prévenu et corrige le plan." valider="Rejeter" action={(m) => refuserPeriode(stage.id, fenetre.periode.id, m)} onClose={() => setFenetre(null)} onDone={fermer} />
+        <FenetreMotif titre="Rejeter la période" sousTitre="Le DRH est prévenu et corrige le plan." valider="Rejeter" action={(m) => refuserPeriode(stage.id, fenetre.periode.id, m)} onClose={() => setFenetre(null)} onDone={fermer('Période rejetée', 'Le DRH est prévenu.')} />
       )}
       {fenetre?.t === 'renvoyer' && (
-        <FenetreMotif titre="Renvoyer l’évaluation au tuteur" valider="Renvoyer" action={(m) => renvoyerEvaluation(stage.id, fenetre.periode.id, m)} onClose={() => setFenetre(null)} onDone={fermer} />
+        <FenetreMotif titre="Renvoyer l’évaluation au tuteur" valider="Renvoyer" action={(m) => renvoyerEvaluation(stage.id, fenetre.periode.id, m)} onClose={() => setFenetre(null)} onDone={fermer('Évaluation renvoyée', 'Le tuteur est prévenu.')} />
       )}
       {fenetre?.t === 'interrompre' && (
         <FenetreMotif
@@ -413,14 +437,17 @@ export default function StagePage() {
           valider="Interrompre"
           action={(m) => interrompreStage(stage.id, m)}
           onClose={() => setFenetre(null)}
-          onDone={fermer}
+          onDone={fermer('Stage interrompu', 'Le dossier est conservé.')}
         />
       )}
-      {fenetre?.t === 'encadrant' && <FenetreEncadrant stage={stage} onClose={() => setFenetre(null)} onDone={fermer} />}
+      {fenetre?.t === 'encadrant' && <FenetreEncadrant stage={stage} onClose={() => setFenetre(null)} onDone={fermer('Encadreur principal désigné', 'Il est prévenu.')} />}
       {fenetre?.t === 'renvoyerRapport' && (
-        <FenetreMotif titre="Demander une reprise du rapport" sousTitre="Le stagiaire est prévenu et dépose une nouvelle version." valider="Renvoyer" action={(m) => renvoyerRapport(stage.id, m)} onClose={() => setFenetre(null)} onDone={fermer} />
+        <FenetreMotif titre="Demander une reprise du rapport" sousTitre="Le stagiaire est prévenu et dépose une nouvelle version." valider="Renvoyer" action={(m) => renvoyerRapport(stage.id, m)} onClose={() => setFenetre(null)} onDone={fermer('Reprise demandée', 'Le stagiaire est prévenu.')} />
       )}
-      {fenetre?.t === 'acte' && <FenetreActeAttestation stage={stage} onClose={() => setFenetre(null)} onDone={() => fermer()} />}
+      {fenetre?.t === 'acte' && <FenetreActeAttestation stage={stage} onClose={() => setFenetre(null)} onDone={() => fermer('Acte préparé', 'Il suit le circuit du Courrier jusqu’à la signature.')()} />}
+      {fenetre?.t === 'deposerRapport' && (
+        <FenetreRapport stage={stage} nouvelleVersion={!!rapport.statut} onClose={() => setFenetre(null)} onDone={fermer('Rapport déposé', 'Votre encadreur est prévenu.')} />
+      )}
     </div>
   );
 }

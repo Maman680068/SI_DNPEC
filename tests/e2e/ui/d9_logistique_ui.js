@@ -1,7 +1,9 @@
 // D9 — écrans de la logistique sous Chromium (bureau et mobile) : administration (catégories,
 // habilitations = liste de l'API), gestionnaire (article, stock, bien numéroté, affectation, file à
 // traiter, ressource), agent mobile (demande, panne, réservation), chef (validation, priorité
-// hiérarchique annoncée = API), réunion avec salle prise en priorité, stagiaire sans logistique.
+// hiérarchique annoncée = API), réunion avec salle prise en priorité, stagiaire sans logistique. Étape 9 :
+// fenêtres au nouveau modèle (champs vérifiés dans la fenêtre, sélecteur de personnes, dates en français),
+// messages de confirmation (dont « Annuler » d'une demande), filtres repliés sur téléphone.
 const E = require('../config');
 const { browser, loginPage, check, bilan, WEB, ouvrirPlus } = require('./helpers');
 const { call, ids } = require('../lib');
@@ -10,8 +12,16 @@ const SHOTS = E.SHOTS;
 const S = Date.now().toString(36).slice(-5);
 const L = S.toUpperCase().replace(/\d/g, (x) => 'ABCDEFGHIJ'[x]);
 const MOBILE = { width: 390, height: 844 };
-const dlg = (p) => p.locator('form[role=dialog]');
-const pan = (p) => p.locator('div[role=dialog]');
+const dlg = (p) => p.locator('div[role=dialog]:has(> form)');
+const pan = (p) => p.locator('div[role=dialog]:not(:has(> form))');
+const toast = async (p, motif) => { const t = p.getByTestId('toast').filter({ hasText: motif }); await t.waitFor(); return t.innerText(); };
+// Recherche de disponibilités : jour (date en français, déjà rempli : cliquer puis remplir), heures.
+async function creneau(p, de, a) {
+  await p.getByLabel('Jour', { exact: true }).click();
+  await p.getByLabel('Jour', { exact: true }).fill(JOUR);
+  await p.getByLabel('De', { exact: true }).fill(de);
+  await p.getByLabel('À', { exact: true }).fill(a);
+}
 const J = new Date(Date.UTC(new Date().getUTCFullYear() + 3, 2, 3) + Math.floor(Math.random() * 250) * 864e5);
 const JOUR = J.toISOString().slice(0, 10);
 const sansDefilement = async (p) => (await p.evaluate(() => document.documentElement.scrollWidth)) <= 390;
@@ -25,20 +35,30 @@ const sansDefilement = async (p) => (await p.evaluate(() => document.documentEle
   await ouvrirPlus(adm);
   await adm.locator('a[href="/logistique/administration"]').click();
   await adm.waitForURL('**/logistique/administration');
-  await adm.waitForFunction(() => document.querySelectorAll('select[aria-label="Personne à habiliter"] option').length > 1);
-  const opts = (await adm.getByLabel('Personne à habiliter').locator('option').allTextContents()).length - 1;
+  await adm.getByTestId('categorie').first().waitFor();
+  await adm.getByRole('button', { name: 'Habiliter', exact: true }).click();
+  await dlg(adm).getByRole('button', { name: 'Habiliter', exact: true }).click();
+  check('habilitation sans personne : message sous le champ', (await dlg(adm).getByTestId('erreur-champ').innerText()) === 'Choisissez la personne à habiliter.');
+  const choixHab = dlg(adm).getByRole('combobox', { name: 'Personne à habiliter' });
+  await choixHab.click();
+  await dlg(adm).getByRole('option').first().waitFor();
+  // Liste limitée à 30 suggestions : on compare au nombre renvoyé par l'API (borné à 30).
+  const opts = await dlg(adm).getByRole('option').count();
   const cands = (await call('admin', 'GET', '/logistique/habilitations/candidats')).body;
-  check(`personnes proposées = liste de l’API (${cands.length})`, opts === cands.length, `${opts} affichées`) && check('aucun stagiaire proposé', true && !cands.some((c) => c.role === 'STAGIAIRE'));
-  await adm.getByLabel('Personne à habiliter').selectOption(ids.agentsaf);
-  await adm.getByRole('button', { name: 'Habiliter' }).click();
-  await adm.getByText('Habilitation accordée.').waitFor();
-  for (const [code, lib, nature, v] of [[`PA${L}`, `Papeterie ${S}`, 'FOURNITURE', true], [`IN${L}`, `Informatique ${S}`, 'BIEN', true]]) {
-    await adm.getByLabel('Code').fill(code);
-    await adm.getByLabel('Libellé').fill(lib);
-    await adm.getByLabel('Nature').selectOption(nature);
-    await adm.locator('main').getByRole('button', { name: 'Créer', exact: true }).click();
-    await adm.getByText('Catégorie créée.').waitFor();
+  check(`personnes proposées = liste de l’API (${cands.length})`, opts === Math.min(30, cands.length), `${opts} affichées`) && check('aucun stagiaire proposé', true && !cands.some((c) => c.role === 'STAGIAIRE'));
+  await choixHab.fill('AGENTSAF');
+  await dlg(adm).getByRole('option', { name: /AGENTSAF/ }).first().click();
+  await dlg(adm).getByRole('button', { name: 'Habiliter', exact: true }).click();
+  await toast(adm, 'Habilitation accordée');
+  for (const [code, lib, nature] of [[`PA${L}`, `Papeterie ${S}`, 'Fournitures'], [`IN${L}`, `Informatique ${S}`, 'Biens inventoriés']]) {
+    await adm.getByRole('button', { name: 'Nouvelle catégorie' }).click();
+    await dlg(adm).getByLabel('Code', { exact: true }).fill(code);
+    await dlg(adm).getByLabel('Libellé', { exact: true }).fill(lib);
+    await dlg(adm).getByRole('radio', { name: nature }).click();
+    await dlg(adm).getByRole('button', { name: 'Créer la catégorie' }).click();
+    await adm.getByTestId('categorie').filter({ hasText: code }).waitFor();
   }
+  check('toast « Catégorie créée »', /Catégorie créée/.test(await toast(adm, 'Catégorie créée')));
   check('catégories créées avec validation du chef', (await prisma.categorieLogistique.count({ where: { code: { in: [`PA${L}`, `IN${L}`] }, validationChefRequise: true } })) === 2);
   await adm.screenshot({ path: `${SHOTS}/d9_administration_desktop.png`, fullPage: true });
 
@@ -53,24 +73,25 @@ const sansDefilement = async (p) => (await p.evaluate(() => document.documentEle
   check('bande du gestionnaire : 4 compteurs de l’API', bande.includes(`${tbG.aTraiter} Demandes à traiter`) && bande.includes(`${tbG.reservationsDuJour} Réservations aujourd’hui`) && bande.includes(`${tbG.stockBas} Fournitures sous le seuil`) && bande.includes(`${tbG.vehicules.disponibles} / ${tbG.vehicules.total} Véhicules disponibles`), bande);
   await g.getByRole('tab', { name: /^Fournitures/ }).click();
   await g.getByRole('button', { name: 'Nouvel article' }).click();
+  await dlg(g).getByRole('button', { name: 'Créer l’article' }).click();
+  check('article vide : messages sous les champs, rien d’envoyé', (await dlg(g).getByTestId('erreur-champ').allInnerTexts()).includes('Choisissez la catégorie.'));
   await dlg(g).getByLabel('Catégorie').selectOption({ label: `Papeterie ${S}` });
   await dlg(g).getByLabel('Libellé').fill(`Ramette A4 ${S}`);
   await dlg(g).getByLabel('Unité').fill('ramette');
   await dlg(g).getByLabel(/Suivre le stock/).check();
   await dlg(g).getByLabel('Seuil d’alerte (facultatif)').fill('5');
-  await dlg(g).getByRole('button', { name: 'Enregistrer' }).click();
-  await g.getByText('Article créé.').waitFor();
+  await dlg(g).getByRole('button', { name: 'Créer l’article' }).click();
+  await toast(g, 'Article créé');
   await g.getByText(`Ramette A4 ${S}`).click();
   await pan(g).getByRole('button', { name: 'Entrée' }).click();
   await dlg(g).getByLabel('Quantité (ramette)').fill('10');
-  await dlg(g).getByRole('button', { name: 'Enregistrer' }).click();
-  await g.getByText('Entrée enregistrée.').waitFor();
+  await dlg(g).getByRole('button', { name: 'Enregistrer l’entrée' }).click();
+  check('toast « Entrée en stock enregistrée — Stock : 10 ramette »', /Stock : 10 ramette/.test(await toast(g, 'Entrée en stock enregistrée')));
   await pan(g).getByRole('button', { name: 'Sortie' }).click();
   await dlg(g).getByLabel('Quantité (ramette)').fill('50');
   await dlg(g).getByLabel('Motif').fill('Test');
-  await dlg(g).getByRole('button', { name: 'Enregistrer' }).click();
-  await dlg(g).getByText(/Stock insuffisant/).waitFor();
-  check('sortie supérieure au stock : refus de l’API affiché (409)', true);
+  await dlg(g).getByRole('button', { name: 'Enregistrer la sortie' }).click();
+  check('sortie supérieure au stock : refusée dans la fenêtre (message sous la quantité)', /Le stock ne compte que 10 ramette/.test(await dlg(g).getByTestId('erreur-champ').innerText()));
   await dlg(g).getByRole('button', { name: 'Annuler' }).click();
   await g.keyboard.press('Escape');
   await g.goto(`${WEB}/logistique?onglet=inventaire`);
@@ -78,15 +99,16 @@ const sansDefilement = async (p) => (await p.evaluate(() => document.documentEle
   await dlg(g).getByLabel('Catégorie').selectOption({ label: `IN${L} — Informatique ${S}` });
   await dlg(g).getByLabel('Désignation').fill(`Ordinateur portable ${S}`);
   await dlg(g).getByLabel('Marque').fill('Dell');
-  await dlg(g).getByRole('button', { name: 'Enregistrer' }).click();
+  await dlg(g).getByRole('button', { name: 'Enregistrer le bien' }).click();
   const an = new Date().getFullYear();
-  await g.getByText(`Bien enregistré sous le numéro IN${L}-${an}-0001.`).waitFor();
-  check(`numéro attribué : IN${L}-${an}-0001`, true);
+  check(`numéro attribué : IN${L}-${an}-0001 (message de confirmation)`, (await toast(g, 'Bien enregistré')).includes(`IN${L}-${an}-0001`));
   await pan(g).getByRole('button', { name: 'Affecter' }).click();
-  await dlg(g).getByLabel('Personne').fill('AGENT1');
-  await dlg(g).getByRole('button', { name: /AGENT1 Test/ }).first().click();
-  await dlg(g).getByRole('button', { name: 'Affecter' }).click();
-  await g.getByText('Bien affecté à AGENT1 Test.').waitFor();
+  await dlg(g).getByRole('button', { name: 'Affecter', exact: true }).click();
+  check('affectation sans personne : message sous le champ', (await dlg(g).getByTestId('erreur-champ').innerText()) === 'Choisissez la personne.');
+  await dlg(g).getByRole('combobox', { name: 'Personne' }).fill('AGENT1');
+  await dlg(g).getByRole('option', { name: /AGENT1 Test/ }).first().click();
+  await dlg(g).getByRole('button', { name: 'Affecter', exact: true }).click();
+  check('toast « Bien affecté … AGENT1 Test »', /AGENT1 Test/.test(await toast(g, 'Bien affecté')));
   check('historique : entrée à l’inventaire puis affectation', /Entrée à l’inventaire[\s\S]*|Affectation/.test(await pan(g).getByTestId('historique-bien').innerText()) && (await pan(g).getByTestId('historique-bien').locator('li').count()) === 2);
   await g.screenshot({ path: `${SHOTS}/d9_fiche_bien_desktop.png`, fullPage: true });
   await pan(g).getByRole('button', { name: 'Fermer' }).click();
@@ -95,7 +117,8 @@ const sansDefilement = async (p) => (await p.evaluate(() => document.documentEle
   await g.getByRole('button', { name: 'Nouvelle ressource' }).click();
   await dlg(g).getByLabel('Nom').fill(`Salle de conférence ${S}`);
   await dlg(g).getByLabel('Capacité (facultatif)').fill('30');
-  await dlg(g).getByRole('button', { name: 'Enregistrer' }).click();
+  await dlg(g).getByRole('button', { name: 'Créer la ressource' }).click();
+  await toast(g, 'Ressource créée');
   await g.getByText(`Salle de conférence ${S}`).waitFor();
   const salle = await prisma.ressourceReservable.findUnique({ where: { nom: `Salle de conférence ${S}` } });
   check('ressource créée (confirmation immédiate)', salle && salle.mode === 'IMMEDIATE');
@@ -113,33 +136,37 @@ const sansDefilement = async (p) => (await p.evaluate(() => document.documentEle
   check('circuit annoncé : chef puis gestionnaire', await dlg(a).getByText('Circuit : votre chef valide, puis un gestionnaire traite.').isVisible());
   await a.screenshot({ path: `${SHOTS}/d9_nouvelle_demande_mobile.png`, fullPage: true });
   await dlg(a).getByRole('button', { name: 'Envoyer la demande' }).click();
-  await a.getByText('Demande envoyée à votre chef pour validation.').waitFor();
+  check('toast « Demande envoyée — votre chef est prévenu », avec « Annuler »', /Votre chef est prévenu/.test(await toast(a, 'Demande envoyée')) && (await a.getByTestId('toast').getByRole('button', { name: 'Annuler' }).count()) === 1);
   check('mobile : pas de défilement horizontal', await sansDefilement(a));
+  check('mobile : filtres des demandes repliés derrière « Filtres »', (await a.getByTestId('bouton-filtres').isVisible()) && !(await a.getByRole('combobox', { name: 'Catégorie' }).isVisible()));
   await a.getByRole('tab', { name: 'Mes biens' }).click();
   await a.getByText(`Ordinateur portable ${S}`).click();
   check('fiche du bien (agent) : aucune action de gestion', (await pan(a).getByRole('button', { name: /Affecter|Réaffecter|Changer l’état|Modifier/ }).count()) === 0);
   await pan(a).getByRole('button', { name: 'Signaler une panne' }).click();
   await dlg(a).getByLabel('Objet').waitFor();
-  check('demande d’intervention pré-remplie sur le bien', (await dlg(a).getByLabel('Type').inputValue()) === 'INTERVENTION' && /Panne/.test(await dlg(a).getByLabel('Objet').inputValue()));
+  check('demande d’intervention pré-remplie sur le bien', (await dlg(a).getByRole('radio', { name: 'Intervention' }).getAttribute('aria-checked')) === 'true' && /Panne/.test(await dlg(a).getByLabel('Objet').inputValue()));
   await dlg(a).getByRole('button', { name: 'Envoyer la demande' }).click();
-  await a.getByText('Demande envoyée à votre chef pour validation.').waitFor();
+  await toast(a, 'Demande envoyée');
+  // « Annuler » du message : la demande est annulée par la route existante (le demandeur annule sa demande).
+  await a.getByTestId('toast').getByRole('button', { name: 'Annuler' }).click();
+  await toast(a, 'Demande annulée');
+  const panne = await prisma.demandeLogistique.findFirst({ where: { demandeurId: ids.agent1, type: 'INTERVENTION' }, orderBy: { createdAt: 'desc' } });
+  check('« Annuler » du message : demande d’intervention annulée', panne && panne.statut === 'ANNULEE', panne && panne.statut);
   await a.getByRole('tab', { name: /^Réservations/ }).click();
-  await a.getByLabel('Jour').fill(JOUR);
-  await a.getByLabel('De').fill('09:00');
-  await a.getByLabel('À').fill('11:00');
+  await creneau(a, '09:00', '11:00');
   await a.getByRole('button', { name: 'Voir les disponibilités' }).click();
   const carteA = a.getByTestId('ressource').filter({ hasText: `Salle de conférence ${S}` });
   await carteA.getByRole('button', { name: 'Réserver' }).click();
   await dlg(a).getByLabel('Objet').fill(`Atelier conjoncture ${S}`);
   await dlg(a).getByRole('button', { name: 'Réserver' }).click();
-  await a.getByText('Réservation confirmée.').waitFor();
+  await toast(a, 'Réservation confirmée');
   check('réservation confirmée (mobile)', true);
   await a.screenshot({ path: `${SHOTS}/d9_reservations_agent_mobile.png`, fullPage: true });
 
   console.log('— Pair (bureau) : pas de priorité ; chef (bureau) : validation et priorité');
   const p2 = await loginPage(b, 'agent2');
   await p2.goto(`${WEB}/logistique?onglet=reservations`);
-  await p2.getByLabel('Jour').fill(JOUR); await p2.getByLabel('De').fill('10:00'); await p2.getByLabel('À').fill('12:00');
+  await creneau(p2, '10:00', '12:00');
   await p2.getByRole('button', { name: 'Voir les disponibilités' }).click();
   const carteP = p2.getByTestId('ressource').filter({ hasText: `Salle de conférence ${S}` });
   await carteP.getByText('Occupée').waitFor();
@@ -155,9 +182,9 @@ const sansDefilement = async (p) => (await p.evaluate(() => document.documentEle
   check('demande du chef : « Valider » sur la ligne (droit de l’API)', (await c.getByTestId('ligne-demande').filter({ hasText: `Ramettes pour la note ${S}` }).getByRole('button', { name: 'Valider' }).count()) === 1);
   await c.getByText(`Ramettes pour la note ${S}`).click();
   await pan(c).getByRole('button', { name: 'Valider' }).click();
-  await c.getByText('Demande validée : transmise aux gestionnaires.').waitFor();
+  await toast(c, 'Demande validée');
   await c.getByRole('tab', { name: /^Réservations/ }).click();
-  await c.getByLabel('Jour').fill(JOUR); await c.getByLabel('De').fill('10:00'); await c.getByLabel('À').fill('12:00');
+  await creneau(c, '10:00', '12:00');
   await c.getByRole('button', { name: 'Voir les disponibilités' }).click();
   const carteC = c.getByTestId('ressource').filter({ hasText: `Salle de conférence ${S}` });
   await carteC.getByText(`Atelier conjoncture ${S}`).waitFor();
@@ -168,7 +195,7 @@ const sansDefilement = async (p) => (await p.evaluate(() => document.documentEle
   await dlg(c).getByLabel('Objet').fill(`Point de section ${S}`);
   await c.screenshot({ path: `${SHOTS}/d9_priorite_chef_desktop.png`, fullPage: true });
   await dlg(c).getByRole('button', { name: 'Prendre le créneau' }).click();
-  await c.getByText('Réservation confirmée.').waitFor();
+  check('priorité : message de confirmation sans « Annuler » (les réservations évincées ne reviennent pas)', /évincés sont prévenus/.test(await toast(c, 'Réservation confirmée')) && (await c.getByTestId('toast').getByRole('button', { name: 'Annuler' }).count()) === 0);
   await a.reload();
   await a.getByRole('tab', { name: /^Réservations/ }).click();
   await a.getByRole('button', { name: 'Mes réservations', exact: true }).click();
@@ -182,7 +209,7 @@ const sansDefilement = async (p) => (await p.evaluate(() => document.documentEle
   check('file du gestionnaire : « Traiter » sur la ligne', (await g.getByTestId('ligne-demande').filter({ hasText: `Ramettes pour la note ${S}` }).getByRole('button', { name: 'Traiter' }).count()) === 1);
   await g.getByText(`Ramettes pour la note ${S}`).click();
   await pan(g).getByRole('button', { name: 'Prendre en charge' }).click();
-  await g.getByText('Demande prise en charge.').waitFor();
+  await toast(g, 'Demande prise en charge');
   // La liste se recharge en arrière-plan : rouvrir la ligne seulement une fois son nouveau statut affiché
   // (sinon la fiche s'ouvre sur l'état d'avant la prise en charge, sans le bouton « Traiter »).
   const aTraiter = g.getByTestId('ligne-demande').filter({ hasText: `Ramettes pour la note ${S}` });
@@ -191,7 +218,7 @@ const sansDefilement = async (p) => (await p.evaluate(() => document.documentEle
   await pan(g).getByRole('button', { name: 'Traiter' }).click();
   await dlg(g).getByLabel('Compte rendu (facultatif)').fill('Remis au bureau');
   await dlg(g).getByRole('button', { name: 'Marquer traitée' }).click();
-  await g.getByText('Demande traitée.').waitFor();
+  await toast(g, 'Demande traitée');
   const art = await prisma.articleFourniture.findFirst({ where: { libelle: `Ramette A4 ${S}` } });
   check('stock : 10 → 8 après traitement', art.stock === 8);
   await g.screenshot({ path: `${SHOTS}/d9_demandes_gestionnaire_desktop.png`, fullPage: true });
@@ -200,15 +227,18 @@ const sansDefilement = async (p) => (await p.evaluate(() => document.documentEle
   const dpe = await loginPage(b, 'chefdpe');
   await dpe.goto(`${WEB}/reunions`);
   await dpe.getByRole('button', { name: /Nouvelle réunion/ }).click();
-  await dpe.getByLabel('Titre').fill(`Comité de division ${S}`);
-  await dpe.getByLabel('Début').fill(`${JOUR}T10:30`);
-  await dpe.getByLabel('Fin (optionnel)').fill(`${JOUR}T11:30`);
+  // Étape 9 : date (champ date) puis heures de début et de fin.
+  const fr = dpe.getByRole('dialog', { name: 'Nouvelle réunion' });
+  await fr.getByLabel('Titre').fill(`Comité de division ${S}`);
+  await fr.getByLabel('Date', { exact: true }).fill(JOUR);
+  await fr.getByLabel('Début', { exact: true }).fill('10:30');
+  await fr.getByLabel(/^Fin/).fill('11:30');
   await dpe.waitForFunction(() => document.querySelectorAll('#reunion-salle option').length > 1);
   const proposees = (await dpe.locator('#reunion-salle option').allTextContents()).slice(1);
   const apiSalles = (await call('chefdpe', 'GET', `/logistique/ressources/disponibilite?debut=${new Date(`${JOUR}T10:30`).toISOString()}&fin=${new Date(`${JOUR}T11:30`).toISOString()}&type=SALLE`)).body.filter((r) => r.libre || r.prioritePossible);
   check(`salles proposées = API (libres ou priorité possible : ${apiSalles.length})`, proposees.length === apiSalles.length);
   await dpe.locator('#reunion-salle').selectOption(salle.id);
-  check('avertissement de priorité nommant le chef SSR', /CHEFSSR Test/.test(await dpe.locator('form').filter({ hasText: 'Nouvelle réunion' }).innerText()));
+  check('avertissement de priorité nommant le chef SSR', /CHEFSSR Test/.test(await fr.getByTestId('avertissement-priorite').innerText()));
   await dpe.screenshot({ path: `${SHOTS}/d9_reunion_salle_desktop.png`, fullPage: true });
   await dpe.getByRole('button', { name: 'Créer la réunion' }).click();
   await dpe.getByText(`Comité de division ${S}`).first().waitFor();

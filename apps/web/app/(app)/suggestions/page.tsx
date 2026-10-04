@@ -10,7 +10,7 @@ import { SuggestionInboxList } from '../../../components/suggestions/SuggestionI
 import { SuggestionDecisionDrawer } from '../../../components/suggestions/SuggestionDecisionDrawer';
 import { CreateSuggestionModal } from '../../../components/suggestions/CreateSuggestionModal';
 import { Plus } from 'lucide-react';
-import { BandeCompteurs, BarreOutils, BTN_PRINCIPAL, EnTetePage, FiltreSelect, Onglets, Recherche } from '../../../components/ui/Charte';
+import { BandeCompteurs, BarreOutils, BTN_PRINCIPAL, EnTetePage, Filtres, FiltreSelect, Onglets, Recherche } from '../../../components/ui/Charte';
 import { Chargement, ErreurChargement, messageChargement } from '../../../components/ui/ErreurChargement';
 
 type Tab = 'mine' | 'inbox';
@@ -104,13 +104,15 @@ export default function SuggestionsPage() {
 
       <BarreOutils>
         <Recherche value={recherche} onChange={setRecherche} placeholder="Rechercher dans les suggestions…" label="Rechercher une suggestion" />
-        <FiltreSelect<SuggestionStatus | ''>
-          label="Statut"
-          value={statut}
-          defaut=""
-          onChange={setStatut}
-          options={[{ value: '', label: 'Statut : tous' }, ...(['RECUE', 'EN_ETUDE', 'RETENUE', 'NON_RETENUE'] as const).map((st) => ({ value: st, label: STATUS_LABEL[st] }))]}
-        />
+        <Filtres actifs={statut ? 1 : 0} onEffacer={() => setStatut('')}>
+          <FiltreSelect<SuggestionStatus | ''>
+            label="Statut"
+            value={statut}
+            defaut=""
+            onChange={setStatut}
+            options={[{ value: '', label: 'Statut : tous' }, ...(['RECUE', 'EN_ETUDE', 'RETENUE', 'NON_RETENUE'] as const).map((st) => ({ value: st, label: STATUS_LABEL[st] }))]}
+          />
+        </Filtres>
       </BarreOutils>
 
       {tab === 'mine' || !isLeadership ? (

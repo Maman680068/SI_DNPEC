@@ -82,6 +82,17 @@ export interface LeaveBalanceView {
   remainingDays: number;
 }
 
+/** GET api/v1/conges/simulation : bandeau du formulaire de demande (calculé par l'API). */
+export interface SimulationConge {
+  leaveType: { id: string; name: string };
+  jours: number;
+  feries: { date: string; libelle: string }[];
+  reprise: string;
+  solde: { annee: number; avant: number; apres: number } | null;
+  avisants: { id: string; nom: string }[];
+  delaiAvisHeures: number;
+}
+
 export interface CreateLeaveRequestInput {
   leaveTypeId: string;
   startDate: string;

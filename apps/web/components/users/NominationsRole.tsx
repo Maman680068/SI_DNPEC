@@ -6,10 +6,10 @@ import type { ChangementRoleNomination, ListeChangementsRole } from '../../lib/u
 import type { SystemRole } from '../../lib/auth/types';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
-import { Fenetre } from '../ui/Fenetre';
+import { FenetreFormulaire, Grille2, Liste, ZoneTexte } from '../ui/Formulaire';
+import { messageErreur, useToast } from '../ui/Toast';
 import { Chargement, ErreurChargement, messageChargement } from '../ui/ErreurChargement';
 
-const champ = 'mt-1 w-full rounded-md border border-line bg-surface px-3 py-2 text-[13px]';
 const date = (d: string | null) => (d ? new Date(d).toLocaleDateString('fr-FR', { timeZone: 'UTC' }) : '');
 const STATUT: Record<ChangementRoleNomination['statut'], { libelle: string; ton: 'gold' | 'sage' | 'clay' }> = {
   EN_ATTENTE: { libelle: 'En attente', ton: 'gold' },
@@ -27,6 +27,7 @@ export function NominationsRole() {
   const [erreur, setErreur] = useState<string | null>(null);
   const [confirmer, setConfirmer] = useState<ChangementRoleNomination | null>(null);
   const [refuser, setRefuser] = useState<ChangementRoleNomination | null>(null);
+  const toast = useToast();
   const charger = useCallback(() => {
     getChangementsRole().then(setL).catch((x) => setErreur(messageChargement(x)));
   }, []);
@@ -36,10 +37,11 @@ export function NominationsRole() {
   if (!l) return <><ErreurChargement message={erreur} /><Chargement erreur={erreur} /></>;
   const enAttente = l.changements.filter((c) => c.statut === 'EN_ATTENTE');
   const traites = l.changements.filter((c) => c.statut !== 'EN_ATTENTE');
-  const fait = () => {
+  const fait = (titre: string, detail: string) => () => {
     setConfirmer(null);
     setRefuser(null);
     charger();
+    toast.succes(titre, { detail });
   };
 
   return (
@@ -124,8 +126,8 @@ export function NominationsRole() {
         </>
       )}
 
-      {confirmer && <FenetreConfirmer c={confirmer} choix={l.choix} onClose={() => setConfirmer(null)} onFait={fait} />}
-      {refuser && <FenetreRefuser c={refuser} onClose={() => setRefuser(null)} onFait={fait} />}
+      {confirmer && <FenetreConfirmer c={confirmer} choix={l.choix} onClose={() => setConfirmer(null)} onFait={fait('Nomination appliquée', `${confirmer.agent?.nom ?? 'La personne'} est ${confirmer.poste.libelleRole} ; ses sessions sont fermées.`)} />}
+      {refuser && <FenetreRefuser c={refuser} onClose={() => setRefuser(null)} onFait={fait('Nomination rejetée', 'Le DRH voit le motif sur le mouvement.')} />}
     </div>
   );
 }
@@ -137,13 +139,14 @@ function FenetreConfirmer({ c, choix, onClose, onFait }: { c: ChangementRoleNomi
   const [enCours, setEnCours] = useState(false);
   const division = choix.divisions.find((d) => d.id === v.divisionId);
   return (
-    <Fenetre
+    <FenetreFormulaire
       titre="Confirmer la nomination"
+      sousTitre={`Acte n° ${c.acteNumero}`}
       onClose={onClose}
-      largeur={560}
       enCours={enCours}
       erreur={erreur}
       libelleValider="Appliquer les droits"
+      pied="Les sessions sont fermées ; chacun se reconnecte avec ses nouveaux droits."
       onSubmit={async () => {
         setEnCours(true);
         setErreur(null);
@@ -154,53 +157,29 @@ function FenetreConfirmer({ c, choix, onClose, onFait }: { c: ChangementRoleNomi
           });
           onFait();
         } catch (x) {
-          setErreur(messageChargement(x));
+          setErreur(messageErreur(x));
         } finally {
           setEnCours(false);
         }
       }}
     >
-      <p className="mb-3 text-[13px]">
-        <strong>{c.agent?.nom}</strong> devient <strong>{c.poste.libelleRole}{c.poste.unite ? ` — ${c.poste.unite}` : ''}</strong> (acte n° {c.acteNumero}).
-        Ses sessions sont fermées ; il ou elle se reconnecte avec ses nouveaux droits.
+      <p className="mb-3.5 text-[13px]">
+        <strong>{c.agent?.nom}</strong> devient <strong>{c.poste.libelleRole}{c.poste.unite ? ` — ${c.poste.unite}` : ''}</strong>.
       </p>
       {c.ancienTitulaire && (
-        <fieldset className="mb-3 rounded-md border border-line p-3">
-          <legend className="px-1 text-[12.5px] font-semibold">Nouveau rôle de {c.ancienTitulaire.nom} ({c.ancienTitulaire.libelleRole})</legend>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <label className="block text-[12.5px] font-semibold">Rôle
-              <select required value={v.role} onChange={(e) => setV((x) => ({ ...x, role: e.target.value as SystemRole }))} className={champ}>
-                <option value="">— Choisir —</option>
-                {choix.roles.map((r) => <option key={r.role} value={r.role}>{r.libelle}</option>)}
-              </select>
-            </label>
-            <label className="block text-[12.5px] font-semibold">Division
-              <select value={v.divisionId} onChange={(e) => setV((x) => ({ ...x, divisionId: e.target.value, sectionId: '', celluleId: e.target.value ? '' : x.celluleId }))} className={champ}>
-                <option value="">—</option>
-                {choix.divisions.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
-              </select>
-            </label>
-            <label className="block text-[12.5px] font-semibold">Section
-              <select value={v.sectionId} onChange={(e) => setV((x) => ({ ...x, sectionId: e.target.value }))} className={champ} disabled={!division}>
-                <option value="">—</option>
-                {(division?.sections ?? []).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-              </select>
-            </label>
-            <label className="block text-[12.5px] font-semibold">Cellule
-              <select value={v.celluleId} onChange={(e) => setV((x) => ({ ...x, celluleId: e.target.value, divisionId: e.target.value ? '' : x.divisionId, sectionId: '' }))} className={champ}>
-                <option value="">—</option>
-                {choix.cellules.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
-              </select>
-            </label>
-          </div>
-          <p className="mt-2 text-[12px] text-text-muted">Son rôle change d’abord (le poste est libéré), avec le même motif.</p>
+        <fieldset className="mb-3.5 rounded-[10px] border border-line px-3.5 pt-2">
+          <legend className="px-1 text-[13px] font-semibold">Nouveau rôle de {c.ancienTitulaire.nom} ({c.ancienTitulaire.libelleRole})</legend>
+          <Grille2>
+            <Liste id="no-role" label="Rôle" required messageObligatoire="Choisissez le nouveau rôle de l’actuel titulaire." vide="— Choisir —" value={v.role} onChange={(x) => setV((o) => ({ ...o, role: x as SystemRole }))} options={choix.roles.map((r) => ({ value: r.role, label: r.libelle }))} />
+            <Liste id="no-division" label="Division" vide="—" value={v.divisionId} onChange={(x) => setV((o) => ({ ...o, divisionId: x, sectionId: '', celluleId: x ? '' : o.celluleId }))} options={choix.divisions.map((d) => ({ value: d.id, label: d.name }))} />
+            <Liste id="no-section" label="Section" vide={division ? '—' : 'Choisissez d’abord la division'} value={v.sectionId} onChange={(x) => setV((o) => ({ ...o, sectionId: x }))} options={(division?.sections ?? []).map((s) => ({ value: s.id, label: s.name }))} />
+            <Liste id="no-cellule" label="Cellule" vide="—" value={v.celluleId} onChange={(x) => setV((o) => ({ ...o, celluleId: x, divisionId: x ? '' : o.divisionId, sectionId: '' }))} options={choix.cellules.map((x) => ({ value: x.id, label: x.name }))} />
+          </Grille2>
+          <p className="mb-3 text-[12px] text-text-muted">Son rôle change d’abord (le poste est libéré), avec le même motif.</p>
         </fieldset>
       )}
-      <label className="block text-[12.5px] font-semibold">
-        Précision (facultative, ajoutée au motif « Acte de nomination n° {c.acteNumero} »)
-        <textarea rows={2} value={v.note} onChange={(e) => setV((x) => ({ ...x, note: e.target.value }))} className={champ} />
-      </label>
-    </Fenetre>
+      <ZoneTexte id="no-note" label={`Précision (ajoutée au motif « Acte de nomination n° ${c.acteNumero} »)`} facultatif lignes={2} value={v.note} onChange={(x) => setV((o) => ({ ...o, note: x }))} />
+    </FenetreFormulaire>
   );
 }
 
@@ -209,13 +188,17 @@ function FenetreRefuser({ c, onClose, onFait }: { c: ChangementRoleNomination; o
   const [erreur, setErreur] = useState<string | null>(null);
   const [enCours, setEnCours] = useState(false);
   return (
-    <Fenetre
+    <FenetreFormulaire
       titre="Rejeter la nomination"
+      sousTitre={`Acte n° ${c.acteNumero}`}
       onClose={onClose}
+      largeur={560}
       enCours={enCours}
       erreur={erreur}
       danger
       libelleValider="Rejeter"
+      pied="Le DRH voit le refus et son motif sur le mouvement."
+      valider={() => (motif.trim() && motif.trim().length < 5 ? { 'nr-motif': 'Le motif doit compter au moins 5 caractères.' } : {})}
       onSubmit={async () => {
         setEnCours(true);
         setErreur(null);
@@ -223,17 +206,14 @@ function FenetreRefuser({ c, onClose, onFait }: { c: ChangementRoleNomination; o
           await refuserChangementRole(c.id, motif);
           onFait();
         } catch (x) {
-          setErreur(messageChargement(x));
+          setErreur(messageErreur(x));
         } finally {
           setEnCours(false);
         }
       }}
     >
-      <p className="mb-3 text-[13px]">Le rôle de {c.agent?.nom} ne change pas ; le DRH voit le refus et son motif sur le mouvement (acte n° {c.acteNumero}).</p>
-      <label className="block text-[12.5px] font-semibold">
-        Motif (obligatoire)
-        <textarea required minLength={5} rows={3} value={motif} onChange={(e) => setMotif(e.target.value)} className={champ} />
-      </label>
-    </Fenetre>
+      <p className="mb-3.5 text-[13px]">Le rôle de {c.agent?.nom} ne change pas.</p>
+      <ZoneTexte id="nr-motif" label="Motif" required messageObligatoire="Indiquez le motif du rejet." value={motif} onChange={setMotif} />
+    </FenetreFormulaire>
   );
 }

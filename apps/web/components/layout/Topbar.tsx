@@ -1,9 +1,11 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Menu, Search } from 'lucide-react';
+import { CalendarDays, FileText, Mail, Menu, Search, SquareCheck, Users, type LucideIcon } from 'lucide-react';
+import { rechercher } from '../../lib/api/pilotage';
+import type { Recherche } from '../../lib/pilotage/types';
 import { useAuth } from '../../lib/auth/AuthProvider';
 import { estStagiaire } from '../../lib/auth/stagiaire';
 import { InterimSwitcher } from '../interim/InterimSwitcher';
@@ -11,6 +13,23 @@ import { MessagesIcon } from './MessagesIcon';
 import { NotificationBell } from './NotificationBell';
 import { MenuCreer } from './MenuCreer';
 import { titrePage } from './Sidebar';
+
+const ICONES: Record<string, LucideIcon> = { taches: SquareCheck, documents: FileText, courrier: Mail, annuaire: Users, reunions: CalendarDays };
+
+/** Passage du libellé qui correspond à la saisie, surligné (sans accents ni casse). */
+function surligner(texte: string, q: string): ReactNode {
+  const norm = (x: string) => x.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const i = norm(texte).indexOf(norm(q.trim()));
+  if (!q.trim() || i < 0) return texte;
+  const n = q.trim().length;
+  return (
+    <>
+      {texte.slice(0, i)}
+      <mark className="rounded-[3px] bg-gold-50 px-0.5 text-text">{texte.slice(i, i + n)}</mark>
+      {texte.slice(i + n)}
+    </>
+  );
+}
 
 /**
  * Barre du haut (refonte de l'interface) : titre de la page, recherche globale (Ctrl K y place le
@@ -23,6 +42,66 @@ export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
   const pathname = usePathname();
   const [q, setQ] = useState('');
   const champ = useRef<HTMLInputElement>(null);
+  const zone = useRef<HTMLFormElement>(null);
+  const idListe = useId();
+  // Résultats pendant la frappe (refonte, étape 9, maquette `apres-recherche`) : dès 3 lettres, après
+  // un court délai, par la même route que la page Recherche (mêmes règles de visibilité).
+  const [resultats, setResultats] = useState<Recherche | null>(null);
+  const [ouvert, setOuvert] = useState(false);
+  const [actif, setActif] = useState(-1);
+  useEffect(() => {
+    const t = q.trim();
+    if (t.length < 3) {
+      setResultats(null);
+      return;
+    }
+    let annule = false;
+    const minuteur = setTimeout(() => {
+      rechercher(t)
+        .then((r) => !annule && (setResultats(r), setActif(-1)))
+        .catch(() => !annule && setResultats({ q: t, categories: [] }));
+    }, 250);
+    return () => {
+      annule = true;
+      clearTimeout(minuteur);
+    };
+  }, [q]);
+  useEffect(() => {
+    setOuvert(false);
+  }, [pathname]);
+  useEffect(() => {
+    if (!ouvert) return;
+    const dehors = (e: MouseEvent) => zone.current && !zone.current.contains(e.target as Node) && setOuvert(false);
+    document.addEventListener('mousedown', dehors);
+    return () => document.removeEventListener('mousedown', dehors);
+  }, [ouvert]);
+  const groupes = useMemo(() => (resultats?.categories ?? []).filter((c) => c.resultats.length > 0), [resultats]);
+  const plats = useMemo(() => groupes.flatMap((c) => c.resultats.map((r) => ({ ...r, cle: c.cle }))), [groupes]);
+  const total = groupes.reduce((n, c) => n + c.resultats.length, 0);
+  const plus = groupes.some((c) => c.autres);
+  const voirTout = () => {
+    setOuvert(false);
+    router.push(`/recherche?q=${encodeURIComponent(q.trim())}`);
+  };
+  function clavier(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setOuvert(true);
+      setActif((a) => Math.min(a + 1, plats.length - 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setActif((a) => Math.max(a - 1, -1));
+    } else if (e.key === 'Escape') {
+      if (ouvert) {
+        e.preventDefault();
+        setOuvert(false);
+      } else champ.current?.blur();
+    } else if (e.key === 'Enter' && ouvert && actif >= 0 && plats[actif]) {
+      e.preventDefault();
+      setOuvert(false);
+      router.push(plats[actif]!.lien);
+    }
+  }
   // Recherche transverse (socle N5) : tâches, documents, courrier, annuaire, réunions, selon les
   // droits de chacun (API) ; fermée aux stagiaires, comme les modules qu'elle interroge.
   const recherche = !estStagiaire(user?.role);
@@ -54,11 +133,12 @@ export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
         {titre}
       </div>
       <form
+        ref={zone}
         role="search"
-        className="mx-auto hidden h-[38px] min-w-0 max-w-[520px] flex-1 items-center gap-2.5 rounded-[10px] border border-line bg-bg px-3 text-text-faint focus-within:border-ink md:flex"
+        className="relative mx-auto hidden h-[38px] min-w-0 max-w-[520px] flex-1 items-center gap-2.5 rounded-[10px] border border-line bg-bg px-3 text-text-faint focus-within:border-ink md:flex"
         onSubmit={(e) => {
           e.preventDefault();
-          if (q.trim().length >= 3) router.push(`/recherche?q=${encodeURIComponent(q.trim())}`);
+          if (q.trim().length >= 3) voirTout();
         }}
       >
         {recherche && (
@@ -67,15 +147,86 @@ export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
             <input
               ref={champ}
               type="search"
+              role="combobox"
               aria-label="Recherche transverse"
               aria-keyshortcuts="Control+K"
+              aria-expanded={ouvert && q.trim().length >= 3}
+              aria-controls={idListe}
+              aria-autocomplete="list"
+              aria-activedescendant={ouvert && actif >= 0 && plats[actif] ? `${idListe}-${actif}` : undefined}
+              autoComplete="off"
               value={q}
-              onChange={(e) => setQ(e.target.value)}
+              onChange={(e) => {
+                setQ(e.target.value);
+                setOuvert(true);
+              }}
+              onFocus={() => q.trim().length >= 3 && setOuvert(true)}
+              onKeyDown={clavier}
               placeholder="Rechercher une tâche, un document, une personne…"
               minLength={3}
               className="h-full min-w-0 flex-1 bg-transparent text-[13.5px] text-text placeholder:text-text-faint focus:outline-none"
             />
-            <kbd className="flex-none rounded-[5px] border border-line bg-surface px-1.5 py-0.5 font-sans text-[11px] font-semibold text-text-muted">Ctrl K</kbd>
+            <kbd className="flex-none rounded-[5px] border border-line bg-surface px-1.5 py-0.5 font-sans text-[11px] font-semibold text-text-muted">{ouvert && q.trim().length >= 3 ? 'Échap' : 'Ctrl K'}</kbd>
+            {ouvert && q.trim().length >= 3 && (
+              <div className="absolute left-0 right-0 top-full z-50 mt-1.5 overflow-hidden rounded-xl border border-line bg-surface text-text shadow-[0_16px_40px_rgba(18,28,77,0.22)]" data-testid="suggestions-recherche">
+                <div id={idListe} role="listbox" aria-label="Résultats de la recherche" className="max-h-[60vh] overflow-y-auto py-1">
+                  {!resultats ? (
+                    <div className="space-y-2.5 px-4 py-3" role="status" aria-label="Recherche en cours">
+                      {[60, 45, 52].map((l) => (
+                        <span key={l} aria-hidden className="block h-3 animate-pulse rounded bg-[#ECEEF4]" style={{ width: `${l}%` }} />
+                      ))}
+                    </div>
+                  ) : total === 0 ? (
+                    <p className="px-4 py-3.5 text-[13px] text-text-muted">Aucun résultat pour « {q.trim()} ».</p>
+                  ) : (
+                    groupes.map((c) => {
+                      const Icone = ICONES[c.cle] ?? Search;
+                      return (
+                        <div key={c.cle} role="group" aria-label={c.libelle}>
+                          <div className="flex justify-between px-4 pb-1 pt-2 text-[11.5px] font-semibold text-text-muted">
+                            <span>{c.libelle}</span>
+                            <span>
+                              {c.resultats.length}
+                              {c.autres ? '+' : ''}
+                            </span>
+                          </div>
+                          {c.resultats.map((r) => {
+                            const i = plats.findIndex((x) => x.id === r.id && x.cle === c.cle);
+                            return (
+                              <div
+                                key={r.id}
+                                id={`${idListe}-${i}`}
+                                role="option"
+                                aria-selected={i === actif}
+                                onMouseDown={(e) => {
+                                  e.preventDefault();
+                                  setOuvert(false);
+                                  router.push(r.lien);
+                                }}
+                                onMouseEnter={() => setActif(i)}
+                                className={`flex cursor-pointer items-center gap-3 px-4 py-2 text-[13.5px] ${i === actif ? 'bg-[#F0F2F9]' : ''}`}
+                              >
+                                <span aria-hidden className="grid h-7 w-7 flex-none place-items-center rounded-[8px] bg-ink-50 text-ink">
+                                  <Icone size={15} />
+                                </span>
+                                <span className="min-w-0 flex-1 truncate">{surligner(r.libelle, q)}</span>
+                                {r.detail && <span className="max-w-[45%] flex-none truncate text-[12px] text-text-muted">{surligner(r.detail, q)}</span>}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+                <div className="flex items-center gap-3 border-t border-line bg-[#FBFBFD] px-4 py-2 text-[12px] text-text-muted">
+                  <span aria-hidden>↑ ↓ naviguer · Entrée ouvrir · Échap fermer</span>
+                  <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={voirTout} className="ml-auto font-bold text-ink hover:underline">
+                    {total > 0 ? `Voir les ${total}${plus ? '+' : ''} résultats` : 'Ouvrir la recherche'}
+                  </button>
+                </div>
+              </div>
+            )}
           </>
         )}
       </form>

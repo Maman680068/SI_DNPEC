@@ -8,6 +8,7 @@ import { BTN_LIGNE, EtatVide, Pastille, type TonPastille } from '../ui/Charte';
 import { AssignChefModal } from './AssignChefModal';
 import { ManageAccountModal } from './ManageAccountModal';
 import { ChangeRoleModal } from './ChangeRoleModal';
+import { useToast } from '../ui/Toast';
 
 const STATUS_BADGE_TONE: Record<UserStatus, 'sage' | 'clay' | 'muted'> = {
   EN_ATTENTE: 'muted',
@@ -66,6 +67,7 @@ export function UsersTable({
   const [assigningChefFor, setAssigningChefFor] = useState<AdminUser | null>(null);
   const [managingAccountFor, setManagingAccountFor] = useState<AdminUser | null>(null);
   const [changingRoleFor, setChangingRoleFor] = useState<AdminUser | null>(null);
+  const toast = useToast();
 
   if (users.length === 0) {
     return <div className="rounded-xl border border-line bg-surface"><EtatVide texte="Aucun compte." /></div>;
@@ -167,9 +169,11 @@ export function UsersTable({
         <AssignChefModal
           user={assigningChefFor}
           onClose={() => setAssigningChefFor(null)}
-          onAssigned={() => {
+          onAssigned={(cellule) => {
+            const u = assigningChefFor;
             setAssigningChefFor(null);
             onRefresh();
+            toast.succes('Chef de cellule nommé', { detail: `${u.firstName} ${u.lastName} dirige ${cellule} ; ses sessions sont fermées.` });
           }}
         />
       )}
@@ -178,9 +182,11 @@ export function UsersTable({
         <ChangeRoleModal
           user={changingRoleFor}
           onClose={() => setChangingRoleFor(null)}
-          onChanged={() => {
+          onChanged={(role) => {
+            const u = changingRoleFor;
             setChangingRoleFor(null);
             onRefresh();
+            toast.succes('Rôle changé', { detail: `${u.firstName} ${u.lastName} est maintenant ${ROLE_LABEL[role]} ; la personne et les DRH sont prévenus.` });
           }}
         />
       )}

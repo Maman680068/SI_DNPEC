@@ -6,13 +6,17 @@ import { acteAttestation, acteOrdre, apercu, creerAttestation, creerOrdre, depos
 import type { AttestationTravail, Catalogue, Demande, OrdreMission } from '../../../lib/generateur/types';
 import { LIBELLE_GENERE, etatActe } from '../../../lib/generateur/types';
 import { Eye, FileDown, Plus, Send, Stamp, X } from 'lucide-react';
-import { Fenetre } from '../../../components/ui/Fenetre';
 import { FenetreDetail } from '../../../components/ui/FenetreDetail';
-import { Bandeau, BandeCompteurs, BTN_LIGNE, BTN_LIGNE_PRINCIPAL, BTN_PRINCIPAL, BTN_SECONDAIRE, CleValeur, EnTetePage, EtatVide, LigneTableau, Onglets, Panneau, Pastille, SectionFenetre, Tableau, type TonPastille } from '../../../components/ui/Charte';
+import { ChampDate, FenetreFormulaire, Grille2, Liste, Saisie, SelecteurPersonnes, ZoneTexte, type Personne as PersonneChoix } from '../../../components/ui/Formulaire';
+import { messageErreur, useToast } from '../../../components/ui/Toast';
+import { useEnvoi } from '../../../components/courrier/formulaire';
+import { BandeCompteurs, BTN_LIGNE, BTN_LIGNE_PRINCIPAL, BTN_PRINCIPAL, BTN_SECONDAIRE, CleValeur, EnTetePage, EtatVide, LigneTableau, Onglets, Panneau, Pastille, SectionFenetre, Tableau, type TonPastille } from '../../../components/ui/Charte';
 import { Chargement, ErreurChargement, messageChargement } from '../../../components/ui/ErreurChargement';
 
 type Onglet = 'attestations' | 'ordres' | 'rapport';
-const champ = 'w-full rounded-[9px] border border-line bg-surface px-3 py-2 text-[13.5px] font-normal';
+/** Personnes proposées par l'API (catalogue) au format du sélecteur. */
+const choixPersonnes = (liste: { id: string; nom: string }[]): PersonneChoix[] => liste.map((p) => ({ id: p.id, nom: p.nom }));
+const nomChoisi = (liste: { id: string; nom: string }[], id: string) => liste.find((p) => p.id === id)?.nom ?? '';
 const GRILLE_ATT = 'lg:grid-cols-[minmax(0,1fr)_120px_220px_170px]';
 const GRILLE_OM = 'lg:grid-cols-[minmax(0,1.4fr)_170px_220px_170px]';
 const tonActe = (a: { statut: string } | null): TonPastille => (signe(a) ? 'vert' : a?.statut === 'ANNULE' ? 'gris' : a ? 'ambre' : 'gris');
@@ -32,8 +36,8 @@ export default function DocumentsGeneresPage() {
   const [ordres, setOrdres] = useState<OrdreMission[] | null>(null);
   const [onglet, setOnglet] = useState<Onglet>('rapport');
   const [erreur, setErreur] = useState<string | null>(null);
-  const [info, setInfo] = useState<string | null>(null);
   const [nouvelOrdre, setNouvelOrdre] = useState(false);
+  const [nouvelleAttestation, setNouvelleAttestation] = useState(false);
   const [selection, setSelection] = useState<Selection>(null);
 
   const charger = useCallback(() => {
@@ -80,15 +84,14 @@ export default function DocumentsGeneresPage() {
             <button type="button" className={BTN_PRINCIPAL} onClick={() => setNouvelOrdre(true)}>
               <Plus aria-hidden size={16} /> Nouvel ordre de mission
             </button>
+          ) : onglet === 'attestations' && catalogue.attestationTravail.peutCreer ? (
+            <button type="button" className={BTN_PRINCIPAL} onClick={() => setNouvelleAttestation(true)}>
+              <Plus aria-hidden size={16} /> Nouvelle attestation de travail
+            </button>
           ) : undefined
         }
       />
       <ErreurChargement message={erreur} />
-      {info && (
-        <Bandeau ton="vert" action={<button type="button" className="text-[13px] font-semibold text-ink underline" onClick={() => setInfo(null)}>Masquer</button>}>
-          {info}
-        </Bandeau>
-      )}
       {(onglets[0]!.visible || onglets[1]!.visible) && (
         <BandeCompteurs
           label="Synthèse des documents générés"
@@ -107,15 +110,22 @@ export default function DocumentsGeneresPage() {
         onglets={onglets.filter((o) => o.visible).map((o) => ({ cle: o.cle, label: o.libelle, n: o.n ?? null }))}
       />
 
-      {onglet === 'attestations' && <Attestations catalogue={catalogue} liste={attestations} onChange={charger} setInfo={setInfo} onVoir={(id) => setSelection({ type: 'attestation', id })} />}
+      {onglet === 'attestations' && <Attestations catalogue={catalogue} liste={attestations} onNouvelle={() => setNouvelleAttestation(true)} onVoir={(id) => setSelection({ type: 'attestation', id })} />}
       {onglet === 'ordres' && <Ordres catalogue={catalogue} liste={ordres} onNouvel={() => setNouvelOrdre(true)} onVoir={(id) => setSelection({ type: 'ordre', id })} />}
-      {onglet === 'rapport' && <Rapport catalogue={catalogue} setInfo={setInfo} />}
+      {onglet === 'rapport' && <Rapport catalogue={catalogue} />}
 
       {nouvelOrdre && (
         <FenetreOrdre
           catalogue={catalogue}
           onClose={() => setNouvelOrdre(false)}
-          onFait={() => (setNouvelOrdre(false), setOnglet('ordres'), setInfo('Ordre de mission enregistré.'), charger())}
+          onFait={() => (setNouvelOrdre(false), setOnglet('ordres'), charger())}
+        />
+      )}
+      {nouvelleAttestation && (
+        <FenetreAttestation
+          catalogue={catalogue}
+          onClose={() => setNouvelleAttestation(false)}
+          onFait={() => (setNouvelleAttestation(false), setOnglet('attestations'), charger())}
         />
       )}
       {attestationOuverte && (
@@ -137,7 +147,6 @@ export default function DocumentsGeneresPage() {
                     destinataireParDefaut={attestationOuverte.agent.id}
                     preparerActe={attestationOuverte.droits.preparerActe ? (r) => acteAttestation(attestationOuverte.id, r) : undefined}
                     onChange={charger}
-                    setInfo={setInfo}
                     colonne
                   />
                 ) : (
@@ -174,7 +183,6 @@ export default function DocumentsGeneresPage() {
                   destinataireParDefaut={ordreOuvert.agent.id}
                   preparerActe={ordreOuvert.droits.preparerActe ? (r) => acteOrdre(ordreOuvert.id, r) : undefined}
                   onChange={charger}
-                  setInfo={setInfo}
                   colonne
                 />
               }
@@ -228,39 +236,9 @@ function CoteDocument({ acte, infos, actions }: { acte: AttestationTravail['acte
 
 // ------------------------------------------------------------------ attestations de travail
 
-function Attestations({ catalogue, liste, onChange, setInfo, onVoir }: { catalogue: Catalogue; liste: AttestationTravail[] | null; onChange: () => void; setInfo: (s: string | null) => void; onVoir: (id: string) => void }) {
-  const [agentId, setAgentId] = useState('');
-  const [erreur, setErreur] = useState<string | null>(null);
+function Attestations({ catalogue, liste, onNouvelle, onVoir }: { catalogue: Catalogue; liste: AttestationTravail[] | null; onNouvelle: () => void; onVoir: (id: string) => void }) {
   return (
     <section>
-      {catalogue.attestationTravail.peutCreer && (
-        <form
-          className="mb-3.5 flex flex-wrap items-end gap-2"
-          onSubmit={(e) => {
-            e.preventDefault();
-            setErreur(null);
-            creerAttestation(agentId)
-              .then(() => (setAgentId(''), setInfo('Attestation créée : aperçu, puis préparation de l’acte à signer.'), onChange()))
-              .catch((err) => setErreur(messageChargement(err)));
-          }}
-        >
-          <div className="min-w-[240px] flex-1 text-[12.5px] font-semibold sm:max-w-[360px]">
-            <label htmlFor="attestation-agent">Agent</label>
-            <select id="attestation-agent" className={`${champ} mt-1 h-[38px] py-0`} value={agentId} onChange={(e) => setAgentId(e.target.value)} required>
-              <option value="">Choisir…</option>
-              {catalogue.attestationTravail.agents.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.nom}
-                </option>
-              ))}
-            </select>
-          </div>
-          <button type="submit" className={BTN_PRINCIPAL} disabled={!agentId}>
-            <Plus aria-hidden size={16} /> Nouvelle attestation de travail
-          </button>
-          {erreur && <p role="alert" className="w-full text-[12.5px] text-clay">{erreur}</p>}
-        </form>
-      )}
       {liste === null ? (
         <Chargement erreur={null} />
       ) : (
@@ -268,7 +246,18 @@ function Attestations({ catalogue, liste, onChange, setInfo, onVoir }: { catalog
           label="Attestations de travail"
           grille={GRILLE_ATT}
           colonnes={['Agent', 'Créée le', 'Acte', <span key="a" className="sr-only">Actions</span>]}
-          vide={<EtatVide texte={catalogue.attestationTravail.peutCreer ? 'Aucune attestation de travail : choisissez un agent ci-dessus.' : 'Aucune attestation de travail.'} />}
+          vide={
+            <EtatVide
+              texte="Aucune attestation de travail."
+              action={
+                catalogue.attestationTravail.peutCreer ? (
+                  <button type="button" className={BTN_SECONDAIRE} onClick={onNouvelle}>
+                    <Plus aria-hidden size={16} /> Nouvelle attestation de travail
+                  </button>
+                ) : undefined
+              }
+            />
+          }
           pied={liste.length > 0 ? <span>{liste.length} attestation{liste.length > 1 ? 's' : ''} · Voir : aperçu, PDF, Word, GED, transmission et acte</span> : undefined}
         >
           {liste.map((a) => (
@@ -336,111 +325,125 @@ function Ordres({ catalogue, liste, onNouvel, onVoir }: { catalogue: Catalogue; 
   );
 }
 
-function FenetreOrdre({ catalogue, onClose, onFait }: { catalogue: Catalogue; onClose: () => void; onFait: () => void }) {
-  const [f, setF] = useState({ agentId: '', objet: '', destination: '', dateDepart: '', dateRetour: '', transport: '', frais: '' });
-  const [erreur, setErreur] = useState<string | null>(null);
-  const [enCours, setEnCours] = useState(false);
+/** Nouvelle attestation de travail : l'agent est choisi parmi ceux que l'API propose. */
+function FenetreAttestation({ catalogue, onClose, onFait }: { catalogue: Catalogue; onClose: () => void; onFait: () => void }) {
+  const toast = useToast();
+  const [agentId, setAgentId] = useState('');
+  const { enCours, erreur, envoyer } = useEnvoi();
+  const agents = catalogue.attestationTravail.agents;
   return (
-    <Fenetre
-      titre="Nouvel ordre de mission"
-      onClose={onClose}
-      largeur={620}
+    <FenetreFormulaire
+      titre="Nouvelle attestation de travail"
+      sousTitre="Produite depuis le dossier de l’agent, sans ressaisie."
+      libelleValider="Créer l’attestation"
+      largeur={560}
+      testid="fenetre-attestation"
       enCours={enCours}
       erreur={erreur}
-      libelleValider="Enregistrer l’ordre de mission"
-      onSubmit={() => {
-        setEnCours(true);
-        setErreur(null);
-        return creerOrdre({
-          agentId: f.agentId,
-          objet: f.objet.trim(),
-          destination: f.destination.trim(),
-          dateDepart: f.dateDepart,
-          dateRetour: f.dateRetour,
-          transport: f.transport.trim() || undefined,
-          fraisMontant: f.frais ? Number(f.frais) : undefined,
-        })
-          .then(onFait)
-          .catch((err) => setErreur(messageChargement(err)))
-          .finally(() => setEnCours(false));
+      onClose={onClose}
+      pied="Ensuite : aperçu, puis préparation de l’acte à signer par la Direction."
+      onSubmit={async () => {
+        const r = await envoyer(() => creerAttestation(agentId));
+        if (!r.ok) return;
+        toast.succes('Attestation créée', { detail: `Pour ${nomChoisi(agents, agentId)} : aperçu, puis acte à signer (bouton « Voir »).` });
+        onFait();
       }}
     >
-      <div className="mb-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <div className="text-[12.5px] font-semibold">
-          <label htmlFor="ordre-agent">Agent</label>
-          <select id="ordre-agent" className={`${champ} mt-1`} value={f.agentId} onChange={(e) => setF({ ...f, agentId: e.target.value })} required>
-            <option value="">Choisir…</option>
-            {catalogue.ordreMission.agents.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.nom}
-              </option>
-            ))}
-          </select>
-        </div>
-        <label className="text-[12.5px] font-semibold">
-          Destination
-          <input className={`${champ} mt-1`} value={f.destination} onChange={(e) => setF({ ...f, destination: e.target.value })} required minLength={2} />
-        </label>
-        <label className="text-[12.5px] font-semibold sm:col-span-2">
-          Objet de la mission
-          <input className={`${champ} mt-1`} value={f.objet} onChange={(e) => setF({ ...f, objet: e.target.value })} required minLength={5} />
-        </label>
-        <label className="text-[12.5px] font-semibold">
-          Départ
-          <input type="date" className={`${champ} mt-1`} value={f.dateDepart} onChange={(e) => setF({ ...f, dateDepart: e.target.value })} required />
-        </label>
-        <label className="text-[12.5px] font-semibold">
-          Retour
-          <input type="date" className={`${champ} mt-1`} value={f.dateRetour} min={f.dateDepart || undefined} onChange={(e) => setF({ ...f, dateRetour: e.target.value })} required />
-        </label>
-        <label className="text-[12.5px] font-semibold">
-          Moyen de transport (facultatif)
-          <input className={`${champ} mt-1`} value={f.transport} onChange={(e) => setF({ ...f, transport: e.target.value })} />
-        </label>
-        <label className="text-[12.5px] font-semibold">
-          Frais de mission en francs guinéens (facultatif)
-          <input type="number" min={0} step={1} className={`${champ} mt-1`} value={f.frais} onChange={(e) => setF({ ...f, frais: e.target.value })} />
-        </label>
-      </div>
-    </Fenetre>
+      <SelecteurPersonnes
+        id="attestation-agent"
+        label="Agent"
+        options={choixPersonnes(agents)}
+        valeurs={agentId ? [agentId] : []}
+        onChange={(ids) => setAgentId(ids[0] ?? '')}
+        multiple={false}
+        required
+        messageObligatoire="Choisissez l’agent."
+      />
+    </FenetreFormulaire>
+  );
+}
+
+function FenetreOrdre({ catalogue, onClose, onFait }: { catalogue: Catalogue; onClose: () => void; onFait: () => void }) {
+  const toast = useToast();
+  const [f, setF] = useState({ agentId: '', objet: '', destination: '', dateDepart: '', dateRetour: '', transport: '', frais: '' });
+  const { enCours, erreur, envoyer } = useEnvoi();
+  const agents = catalogue.ordreMission.agents;
+  return (
+    <FenetreFormulaire
+      titre="Nouvel ordre de mission"
+      libelleValider="Enregistrer l’ordre de mission"
+      testid="fenetre-ordre"
+      enCours={enCours}
+      erreur={erreur}
+      onClose={onClose}
+      pied="Le véhicule de service s’affecte ensuite depuis la Logistique ; l’acte suit le circuit du Courrier."
+      valider={() => ({
+        ...(f.destination.trim().length === 1 ? { 'ordre-destination': 'Indiquez au moins 2 caractères.' } : {}),
+        ...(f.objet.trim() && f.objet.trim().length < 5 ? { 'ordre-objet': 'Décrivez l’objet en 5 caractères au moins.' } : {}),
+        ...(f.dateDepart && f.dateRetour && f.dateRetour < f.dateDepart ? { 'ordre-retour': 'Le retour ne peut pas précéder le départ.' } : {}),
+        ...(f.frais && !/^\d+$/.test(f.frais) ? { 'ordre-frais': 'Indiquez un montant entier, sans décimale.' } : {}),
+      })}
+      onSubmit={async () => {
+        const r = await envoyer(() =>
+          creerOrdre({
+            agentId: f.agentId,
+            objet: f.objet.trim(),
+            destination: f.destination.trim(),
+            dateDepart: f.dateDepart,
+            dateRetour: f.dateRetour,
+            transport: f.transport.trim() || undefined,
+            fraisMontant: f.frais ? Number(f.frais) : undefined,
+          }),
+        );
+        if (!r.ok) return;
+        toast.succes('Ordre de mission enregistré', { detail: `${nomChoisi(agents, f.agentId)} — ${f.destination.trim()}.` });
+        onFait();
+      }}
+    >
+      <Grille2>
+        <SelecteurPersonnes
+          id="ordre-agent"
+          label="Agent"
+          options={choixPersonnes(agents)}
+          valeurs={f.agentId ? [f.agentId] : []}
+          onChange={(ids) => setF({ ...f, agentId: ids[0] ?? '' })}
+          multiple={false}
+          required
+          messageObligatoire="Choisissez l’agent."
+        />
+        <Saisie id="ordre-destination" label="Destination" value={f.destination} onChange={(destination) => setF({ ...f, destination })} required maxLength={200} messageObligatoire="Indiquez la destination." />
+      </Grille2>
+      <ZoneTexte id="ordre-objet" label="Objet de la mission" value={f.objet} onChange={(objet) => setF({ ...f, objet })} required maxLength={500} lignes={2} messageObligatoire="Indiquez l’objet de la mission." />
+      <Grille2>
+        <ChampDate id="ordre-depart" label="Départ" value={f.dateDepart} onChange={(dateDepart) => setF({ ...f, dateDepart })} required messageObligatoire="Indiquez la date de départ." />
+        <ChampDate id="ordre-retour" label="Retour" value={f.dateRetour} min={f.dateDepart || undefined} onChange={(dateRetour) => setF({ ...f, dateRetour })} required messageObligatoire="Indiquez la date de retour." />
+        <Saisie id="ordre-transport" label="Moyen de transport" facultatif value={f.transport} onChange={(transport) => setF({ ...f, transport })} maxLength={200} />
+        <Saisie id="ordre-frais" label="Frais de mission en francs guinéens" facultatif type="number" min={0} value={f.frais} onChange={(frais) => setF({ ...f, frais })} />
+      </Grille2>
+    </FenetreFormulaire>
   );
 }
 
 // ------------------------------------------------------------------ rapport d'activité
 
-function Rapport({ catalogue, setInfo }: { catalogue: Catalogue; setInfo: (s: string | null) => void }) {
+function Rapport({ catalogue }: { catalogue: Catalogue }) {
   const perimetres = catalogue.rapportActivite.perimetres;
   const [choix, setChoix] = useState(0);
   const auj = new Date();
   const [debut, setDebut] = useState(`${auj.getFullYear()}-${String(auj.getMonth() + 1).padStart(2, '0')}-01`);
-  const [fin, setFin] = useState(auj.toISOString().slice(0, 10));
+  const [fin, setFin] = useState(`${auj.getFullYear()}-${String(auj.getMonth() + 1).padStart(2, '0')}-${String(auj.getDate()).padStart(2, '0')}`);
   const p = perimetres[choix] ?? perimetres[0]!;
   const demande: Demande = { type: 'RAPPORT_ACTIVITE', perimetre: p.perimetre, cibleId: p.cibleId ?? undefined, debut, fin };
   return (
     <Panneau titre="Rapport d’activité" className="max-w-[860px]">
       <div className="px-[18px] py-4">
-      <p className="mb-3 text-[12.5px] text-text-muted">Construit depuis les tâches de la période et du périmètre (celles que vous voyez), jamais ressaisi.</p>
-      <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <label className="text-[12.5px] font-semibold">
-          Périmètre
-          <select className={`${champ} mt-1`} value={choix} onChange={(e) => setChoix(Number(e.target.value))}>
-            {perimetres.map((x, i) => (
-              <option key={`${x.perimetre}-${x.cibleId}`} value={i}>
-                {x.libelle}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="text-[12.5px] font-semibold">
-          Du
-          <input type="date" className={`${champ} mt-1`} value={debut} onChange={(e) => setDebut(e.target.value)} />
-        </label>
-        <label className="text-[12.5px] font-semibold">
-          Au
-          <input type="date" className={`${champ} mt-1`} value={fin} min={debut} onChange={(e) => setFin(e.target.value)} />
-        </label>
-      </div>
-      <Actions demande={demande} catalogue={catalogue} setInfo={setInfo} />
+        <p className="mb-3 text-[12.5px] text-text-muted">Construit depuis les tâches de la période et du périmètre (celles que vous voyez), jamais ressaisi.</p>
+        <div className="grid grid-cols-1 gap-x-3 sm:grid-cols-3">
+          <Liste id="rapport-perimetre" label="Périmètre" value={String(choix)} onChange={(v) => setChoix(Number(v))} options={perimetres.map((x, i) => ({ value: String(i), label: x.libelle }))} />
+          <ChampDate id="rapport-debut" label="Du" value={debut} onChange={setDebut} raccourcis={false} />
+          <ChampDate id="rapport-fin" label="Au" value={fin} min={debut || undefined} onChange={setFin} raccourcis={false} />
+        </div>
+        <Actions demande={demande} catalogue={catalogue} />
       </div>
     </Panneau>
   );
@@ -472,9 +475,9 @@ function ApercuDocument({ url, type, onClose }: { url: string; type: Demande['ty
 
 /** Bouton « Aperçu » d'une ligne de tableau. */
 function BoutonApercu({ demande }: { demande: Demande }) {
+  const toast = useToast();
   const [url, setUrl] = useState<string | null>(null);
   const [enCours, setEnCours] = useState(false);
-  const [erreur, setErreur] = useState<string | null>(null);
   useEffect(() => () => {
     if (url) URL.revokeObjectURL(url);
   }, [url]);
@@ -484,19 +487,16 @@ function BoutonApercu({ demande }: { demande: Demande }) {
         type="button"
         className={`${BTN_LIGNE} gap-1 disabled:opacity-50`}
         disabled={enCours}
-        title={erreur ?? undefined}
         onClick={() => {
           setEnCours(true);
-          setErreur(null);
           apercu(demande)
             .then(setUrl)
-            .catch((e) => setErreur(e instanceof Error ? e.message : 'Aperçu impossible'))
+            .catch((e) => toast.erreur('Aperçu impossible', messageErreur(e)))
             .finally(() => setEnCours(false));
         }}
       >
         <Eye aria-hidden size={14} /> Aperçu
       </button>
-      {erreur && <span role="alert" className="sr-only">{erreur}</span>}
       {url && <ApercuDocument url={url} type={demande.type} onClose={() => setUrl(null)} />}
     </>
   );
@@ -508,7 +508,6 @@ function Actions({
   destinataireParDefaut,
   preparerActe,
   onChange,
-  setInfo,
   colonne = false,
 }: {
   demande: Demande;
@@ -516,38 +515,27 @@ function Actions({
   destinataireParDefaut?: string;
   preparerActe?: (registreId: string) => Promise<{ acteId: string }>;
   onChange?: () => void;
-  setInfo: (s: string | null) => void;
   /** Colonne d'actions d'une fenêtre de détail : boutons pleine largeur, l'acte en premier. */
   colonne?: boolean;
 }) {
+  const toast = useToast();
   const [url, setUrl] = useState<string | null>(null);
   const [fenetre, setFenetre] = useState<'transmettre' | 'acte' | null>(null);
-  const [destinataire, setDestinataire] = useState(destinataireParDefaut ?? '');
-  const [message, setMessage] = useState('');
-  const [registreId, setRegistreId] = useState(catalogue.registres[0]?.id ?? '');
   const [enCours, setEnCours] = useState(false);
-  const [erreur, setErreur] = useState<string | null>(null);
-  const [erreurFenetre, setErreurFenetre] = useState<string | null>(null);
   const [ged, setGed] = useState<string | null>(null);
 
   useEffect(() => () => {
     if (url) URL.revokeObjectURL(url);
   }, [url]);
 
-  async function agir(fn: () => Promise<unknown>, ok?: string): Promise<boolean> {
+  /** Action directe : message de confirmation, ou d'erreur en français. */
+  async function agir(fn: () => Promise<unknown>, succes?: { titre: string; detail?: string }) {
     setEnCours(true);
-    setErreur(null);
-    setErreurFenetre(null);
-    setInfo(null);
     try {
       await fn();
-      if (ok) setInfo(ok);
-      return true;
+      if (succes) toast.succes(succes.titre, { detail: succes.detail });
     } catch (e) {
-      const m = e instanceof Error ? e.message : 'Action impossible';
-      if (fenetre) setErreurFenetre(m);
-      else setErreur(m);
-      return false;
+      toast.erreur('Action impossible', messageErreur(e));
     } finally {
       setEnCours(false);
     }
@@ -566,15 +554,20 @@ function Actions({
           <Eye aria-hidden size={colonne ? 16 : 14} /> Aperçu
         </button>
         <div className={colonne ? 'grid grid-cols-2 gap-2' : 'contents'}>
-          <button type="button" className={`${b} gap-1`} disabled={enCours} onClick={() => agir(() => telecharger(demande, 'PDF'))}>
+          <button type="button" className={`${b} gap-1`} disabled={enCours} onClick={() => agir(() => telecharger(demande, 'PDF'), { titre: 'PDF téléchargé' })}>
             <FileDown aria-hidden size={colonne ? 16 : 14} /> PDF
           </button>
-          <button type="button" className={b} disabled={enCours} onClick={() => agir(() => telecharger(demande, 'DOCX'))}>
+          <button type="button" className={b} disabled={enCours} onClick={() => agir(() => telecharger(demande, 'DOCX'), { titre: 'Document Word téléchargé' })}>
             Word
           </button>
         </div>
         {catalogue.peutDeposerEnGed && (
-          <button type="button" className={b} disabled={enCours} onClick={() => agir(async () => setGed((await deposerEnGed(demande)).documentId), 'Document déposé dans la GED de votre division (statut Brouillon).')}>
+          <button
+            type="button"
+            className={b}
+            disabled={enCours}
+            onClick={() => agir(async () => setGed((await deposerEnGed(demande)).documentId), { titre: 'Document déposé en GED', detail: 'Dans l’espace de votre unité, au statut « Brouillon ».' })}
+          >
             Déposer en GED
           </button>
         )}
@@ -595,67 +588,96 @@ function Actions({
           </Link>
         </p>
       )}
-      {erreur && <p role="alert" className="mt-1.5 text-[12.5px] text-clay">{erreur}</p>}
 
-      {fenetre === 'transmettre' && (
-        <Fenetre
-          titre={`Transmettre — ${LIBELLE_GENERE[demande.type]}`}
-          onClose={() => setFenetre(null)}
-          enCours={enCours}
-          erreur={erreurFenetre}
-          libelleValider="Envoyer"
-          onSubmit={async () => {
-            if (await agir(() => transmettre(demande, destinataire, message.trim() || undefined), 'Document transmis par la messagerie (PDF joint).')) setFenetre(null);
-          }}
-        >
-          <label className="mb-3 block text-[12.5px] font-semibold">
-            Destinataire
-            <select className={`${champ} mt-1`} value={destinataire} onChange={(e) => setDestinataire(e.target.value)} required>
-              <option value="">Choisir…</option>
-              {catalogue.destinataires.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.nom}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="mb-3 block text-[12.5px] font-semibold">
-            Message (facultatif)
-            <input className={`${champ} mt-1`} value={message} onChange={(e) => setMessage(e.target.value)} maxLength={1000} />
-          </label>
-        </Fenetre>
-      )}
+      {fenetre === 'transmettre' && <FenetreTransmettre demande={demande} catalogue={catalogue} destinataireParDefaut={destinataireParDefaut} onClose={() => setFenetre(null)} />}
 
       {fenetre === 'acte' && preparerActe && (
-        <Fenetre
-          titre="Préparer l’acte"
+        <FenetreActe
+          demande={demande}
+          catalogue={catalogue}
+          preparerActe={preparerActe}
           onClose={() => setFenetre(null)}
-          enCours={enCours}
-          erreur={erreurFenetre}
-          libelleValider="Créer l’acte"
-          onSubmit={async () => {
-            if (registreId && (await agir(() => preparerActe(registreId), 'Acte créé dans le module Courrier : visa, puis signature du DN ou de la DNA.'))) {
-              setFenetre(null);
-              onChange?.();
-            }
+          onFait={() => {
+            setFenetre(null);
+            onChange?.();
           }}
-        >
-          <p className="mb-3 text-[12.5px] text-text-muted">{LIBELLE_GENERE[demande.type]} : un acte est créé avec le document en projet ; il suit le circuit habituel et reçoit son numéro à la signature.</p>
-          <label className="mb-3 block text-[12.5px] font-semibold">
-            Registre d’actes de la Direction
-            <select className={`${champ} mt-1`} value={registreId} onChange={(e) => setRegistreId(e.target.value)} required>
-              {catalogue.registres.length === 0 && <option value="">Aucun registre d’actes actif</option>}
-              {catalogue.registres.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.code} — {r.libelle}
-                </option>
-              ))}
-            </select>
-          </label>
-        </Fenetre>
+        />
       )}
 
       {url && <ApercuDocument url={url} type={demande.type} onClose={() => setUrl(null)} />}
     </div>
+  );
+}
+
+/** Transmission par la messagerie (PDF joint) à une personne que l'API propose. */
+function FenetreTransmettre({ demande, catalogue, destinataireParDefaut, onClose }: { demande: Demande; catalogue: Catalogue; destinataireParDefaut?: string; onClose: () => void }) {
+  const toast = useToast();
+  const [destinataire, setDestinataire] = useState(catalogue.destinataires.some((d) => d.id === destinataireParDefaut) ? destinataireParDefaut! : '');
+  const [message, setMessage] = useState('');
+  const { enCours, erreur, envoyer } = useEnvoi();
+  return (
+    <FenetreFormulaire
+      titre={`Transmettre — ${LIBELLE_GENERE[demande.type]}`}
+      libelleValider="Envoyer"
+      largeur={600}
+      enCours={enCours}
+      erreur={erreur}
+      onClose={onClose}
+      pied="Le PDF est joint à un message de la messagerie interne."
+      onSubmit={async () => {
+        const r = await envoyer(() => transmettre(demande, destinataire, message.trim() || undefined));
+        if (!r.ok) return;
+        toast.succes('Document transmis', { detail: `À ${nomChoisi(catalogue.destinataires, destinataire)}, par la messagerie (PDF joint).` });
+        onClose();
+      }}
+    >
+      <SelecteurPersonnes
+        id="transmettre-destinataire"
+        label="Destinataire"
+        options={choixPersonnes(catalogue.destinataires)}
+        valeurs={destinataire ? [destinataire] : []}
+        onChange={(ids) => setDestinataire(ids[0] ?? '')}
+        multiple={false}
+        required
+        messageObligatoire="Choisissez un destinataire."
+      />
+      <ZoneTexte id="transmettre-message" label="Message" facultatif value={message} onChange={setMessage} maxLength={1000} lignes={3} />
+    </FenetreFormulaire>
+  );
+}
+
+/** Acte du Courrier portant le document (registre d'actes de la Direction). */
+function FenetreActe({ demande, catalogue, preparerActe, onClose, onFait }: { demande: Demande; catalogue: Catalogue; preparerActe: (registreId: string) => Promise<{ acteId: string }>; onClose: () => void; onFait: () => void }) {
+  const toast = useToast();
+  const [registreId, setRegistreId] = useState(catalogue.registres[0]?.id ?? '');
+  const { enCours, erreur, envoyer } = useEnvoi();
+  return (
+    <FenetreFormulaire
+      titre="Préparer l’acte"
+      sousTitre={`${LIBELLE_GENERE[demande.type]} : un acte est créé avec le document en projet ; il suit le circuit habituel et reçoit son numéro à la signature.`}
+      libelleValider="Créer l’acte"
+      largeur={600}
+      enCours={enCours}
+      erreur={erreur}
+      onClose={onClose}
+      pied="Visa, puis signature du DN ou de la DNA, dans le module Courrier."
+      onSubmit={async () => {
+        const r = await envoyer(() => preparerActe(registreId));
+        if (!r.ok) return;
+        toast.succes('Acte créé', { detail: 'Il suit le circuit du Courrier : visa, puis signature.' });
+        onFait();
+      }}
+    >
+      <Liste
+        id="acte-registre"
+        label="Registre d’actes de la Direction"
+        value={registreId}
+        onChange={setRegistreId}
+        vide={catalogue.registres.length === 0 ? 'Aucun registre d’actes actif' : undefined}
+        options={catalogue.registres.map((r) => ({ value: r.id, label: `${r.code} — ${r.libelle}` }))}
+        required
+        messageObligatoire="Choisissez le registre d’actes."
+      />
+    </FenetreFormulaire>
   );
 }

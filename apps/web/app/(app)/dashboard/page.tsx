@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronDown, ChevronRight, FileDown } from 'lucide-react';
+import { AlertTriangle, ChevronDown, ChevronRight, FileDown } from 'lucide-react';
 import { useAuth } from '../../../lib/auth/AuthProvider';
 import { useInterim } from '../../../lib/interim/InterimProvider';
 import { estStagiaire } from '../../../lib/auth/stagiaire';
@@ -31,6 +31,41 @@ import { BlocsRole } from '../../../components/dashboard/BlocsRole';
 import { ListeTachesTableau, PiedPanneau } from '../../../components/dashboard/ListeTachesTableau';
 import { Agenda, DerniereAnnonce, MesConges, StagiaireEncadre } from '../../../components/dashboard/ColonneDroite';
 import { ErreurChargement, messageChargement } from '../../../components/ui/ErreurChargement';
+import { Barre } from '../../../components/ui/Squelette';
+
+/** Bande des compteurs en cours de chargement (même forme que `KpiRow`). */
+function SqueletteBande() {
+  return (
+    <div role="status" aria-label="Chargement en cours" data-testid="squelette" className="mb-[18px] grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-line bg-line lg:grid-cols-4">
+      {[0, 1, 2, 3].map((i) => (
+        <div key={i} aria-hidden className="flex items-center gap-3.5 bg-surface px-[18px] py-4">
+          <Barre className="h-7 w-[30px]" />
+          <div className="min-w-0 flex-1 space-y-2">
+            <Barre className="h-3 w-[70%]" />
+            <Barre className="h-2 w-[45%]" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Lignes grises d'un panneau en cours de chargement (à la place de « Chargement des tâches… »). */
+function SqueletteTaches() {
+  return (
+    <div role="status" aria-label="Chargement en cours" data-testid="squelette" className="divide-y divide-[#F0F1F6]">
+      {['w-[62%]', 'w-[48%]', 'w-[70%]'].map((l, i) => (
+        <div key={i} aria-hidden className="flex items-center gap-4 px-[18px] py-3.5">
+          <div className="min-w-0 flex-1 space-y-2">
+            <Barre className={`h-3 ${l}`} />
+            <Barre className="h-2 w-[30%]" />
+          </div>
+          <Barre className="hidden h-3 w-[80px] rounded-full sm:block" />
+        </div>
+      ))}
+    </div>
+  );
+}
 
 /** Rôles pouvant plausiblement diffuser une tâche à une division (voir
  * CascadeService.canBroadcastToDivision) — DN/DNA n'importe laquelle, Chef de
@@ -43,6 +78,11 @@ const CAN_BROADCAST_ROLES = ['DN', 'DNA', 'CHEF_DIVISION'];
 const SUIVI_MAX = 300;
 
 const CONAKRY = 'Africa/Conakry';
+
+/** Prénom de l'accueil : jamais le préfixe « TEST — » des comptes de démonstration (refonte, étape 9). */
+function prenomAccueil(prenom: string | null | undefined): string {
+  return (prenom ?? '').replace(/^\s*TEST\s*[—–-]\s*/i, '').trim();
+}
 
 /** « Bonjour » de 4 h à 16 h 59, « Bonsoir » de 17 h à 3 h 59, à l'heure de Conakry. */
 function salutation(maintenant = new Date()): 'Bonjour' | 'Bonsoir' {
@@ -257,7 +297,7 @@ export default function DashboardPage() {
       }
     >
       {!mesTaches ? (
-        <p className="px-[18px] py-3 text-[13px] text-text-muted">Chargement des tâches…</p>
+        <SqueletteTaches />
       ) : encadrement ? (
         prioritesSource.length === 0 ? (
           <p className="px-[18px] py-3 text-[13px] text-text-muted">Aucune tâche ouverte.</p>
@@ -284,8 +324,17 @@ export default function DashboardPage() {
           {aTraiter.map((x, i) => (
             <li key={x.cle} className={i ? 'border-t border-[#F0F1F6]' : ''}>
               <Link href={x.lien} className="flex items-center gap-3 px-[18px] py-2.5 text-[13.5px] hover:bg-bg" data-testid={`a-traiter-${x.cle}`}>
-                <span className="grid h-6 min-w-[26px] place-items-center rounded-xl bg-gold-50 px-1.5 text-[12px] font-bold text-ambre">{x.nombre}</span>
-                <span className="flex-1 font-semibold">{x.libelle}</span>
+                {x.gravite ? (
+                  <span aria-hidden className={`grid h-6 min-w-[26px] place-items-center rounded-xl px-1.5 ${x.gravite === 'INDISPONIBLE' ? 'bg-clay-50 text-clay' : 'bg-gold-50 text-ambre'}`}>
+                    <AlertTriangle size={14} />
+                  </span>
+                ) : (
+                  <span className="grid h-6 min-w-[26px] place-items-center rounded-xl bg-gold-50 px-1.5 text-[12px] font-bold text-ambre">{x.nombre}</span>
+                )}
+                <span className="min-w-0 flex-1">
+                  <span className="block font-semibold">{x.libelle}</span>
+                  {x.detail && <span className="block truncate text-[12.5px] text-text-muted">{x.detail}</span>}
+                </span>
                 <ChevronRight aria-hidden size={16} className="text-text-muted" />
               </Link>
             </li>
@@ -303,7 +352,7 @@ export default function DashboardPage() {
       <div className="mb-[18px] flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="font-heading text-[26px] font-extrabold tracking-[-0.01em] text-ink-900">
-            {salutation()} {user?.firstName}
+            {salutation()} {prenomAccueil(user?.firstName)}
           </h1>
           <p className="mt-[5px] text-[14.5px] text-text-muted" data-testid="resume-jour">
             {aujourdhui} ·{' '}
@@ -353,7 +402,7 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {dashboard && <KpiRow dashboard={dashboard} perimetre={!!navigation?.perimetre} chezLeChef={!encadrement} />}
+      {dashboard ? <KpiRow dashboard={dashboard} perimetre={!!navigation?.perimetre} chezLeChef={!encadrement} /> : !erreur && <SqueletteBande />}
 
       <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-[18px] lg:grid-cols-[minmax(0,1fr)_330px]">
         <div className="flex min-w-0 flex-col gap-[18px]">
@@ -361,7 +410,7 @@ export default function DashboardPage() {
           {encadrement && (
             <Panneau titre="Suivi de l’équipe" testid="suivi-equipe" droite={<div className="ml-auto"><ViewToggle value={vue} onChange={setVue} /></div>}>
               {!equipe ? (
-                <p className="px-[18px] py-3 text-[13px] text-text-muted">Chargement des tâches…</p>
+                <SqueletteTaches />
               ) : (
                 vueTaches(equipeOuvertes, equipe, 5)
               )}

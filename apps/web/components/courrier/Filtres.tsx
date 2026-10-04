@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Registre } from '../../lib/courrier/types';
-import { BarreOutils, FiltreSelect, Recherche } from '../ui/Charte';
+import { BarreOutils, FiltreSelect, Filtres as FiltresRepliables, Recherche } from '../ui/Charte';
 
 export interface FiltresValeur {
   annee?: number;
@@ -51,6 +51,12 @@ export function Filtres({
   }, [q, onChange]);
   const annee = new Date().getFullYear();
   const annees = Array.from({ length: 6 }, (_, i) => annee - i);
+  const actifs = [
+    valeur.registreId,
+    valeur.statut,
+    valeur.annee,
+    imputes && onImputeA ? imputeA : undefined,
+  ].filter(Boolean).length;
   return (
     <BarreOutils droite={droite}>
       <form
@@ -63,36 +69,59 @@ export function Filtres({
       >
         <Recherche value={q} onChange={setQ} placeholder={placeholder} label="Rechercher" />
       </form>
-      <FiltreSelect
-        label="Registre"
-        value={valeur.registreId ?? ''}
-        defaut=""
-        onChange={(v) => onChange({ ...valeur, registreId: v || undefined })}
-        options={[{ value: '', label: 'Registre : tous' }, ...registres.map((r) => ({ value: r.id, label: `Registre : ${r.libelle}${r.isActive ? '' : ' (désactivé)'}` }))]}
-      />
-      <FiltreSelect
-        label="Statut"
-        value={valeur.statut ?? ''}
-        defaut=""
-        onChange={(v) => onChange({ ...valeur, statut: v || undefined })}
-        options={[{ value: '', label: 'Statut' }, ...Object.entries(statuts).map(([k, v]) => ({ value: k, label: v }))]}
-      />
-      <FiltreSelect
-        label="Période"
-        value={valeur.annee ? String(valeur.annee) : ''}
-        defaut=""
-        onChange={(v) => onChange({ ...valeur, annee: v ? Number(v) : undefined })}
-        options={[{ value: '', label: 'Période : vue courante' }, ...annees.map((a) => ({ value: String(a), label: `Année ${a}` }))]}
-      />
-      {imputes && onImputeA && (
+      <FiltresRepliables
+        actifs={actifs}
+        onEffacer={() => {
+          onChange({ q: valeur.q });
+          onImputeA?.('');
+        }}
+      >
         <FiltreSelect
-          label="Imputé à"
-          value={imputeA ?? ''}
+          label="Registre"
+          value={valeur.registreId ?? ''}
           defaut=""
-          onChange={onImputeA}
-          options={[{ value: '', label: 'Imputé à' }, ...imputes.map((p) => ({ value: p.id, label: p.nom }))]}
+          onChange={(v) => onChange({ ...valeur, registreId: v || undefined })}
+          options={[
+            { value: '', label: 'Registre : tous' },
+            ...registres.map((r) => ({
+              value: r.id,
+              label: `Registre : ${r.libelle}${r.isActive ? '' : ' (désactivé)'}`,
+            })),
+          ]}
         />
-      )}
+        <FiltreSelect
+          label="Statut"
+          value={valeur.statut ?? ''}
+          defaut=""
+          onChange={(v) => onChange({ ...valeur, statut: v || undefined })}
+          options={[
+            { value: '', label: 'Statut' },
+            ...Object.entries(statuts).map(([k, v]) => ({ value: k, label: v })),
+          ]}
+        />
+        <FiltreSelect
+          label="Période"
+          value={valeur.annee ? String(valeur.annee) : ''}
+          defaut=""
+          onChange={(v) => onChange({ ...valeur, annee: v ? Number(v) : undefined })}
+          options={[
+            { value: '', label: 'Période : vue courante' },
+            ...annees.map((a) => ({ value: String(a), label: `Année ${a}` })),
+          ]}
+        />
+        {imputes && onImputeA && (
+          <FiltreSelect
+            label="Imputé à"
+            value={imputeA ?? ''}
+            defaut=""
+            onChange={onImputeA}
+            options={[
+              { value: '', label: 'Imputé à' },
+              ...imputes.map((p) => ({ value: p.id, label: p.nom })),
+            ]}
+          />
+        )}
+      </FiltresRepliables>
     </BarreOutils>
   );
 }

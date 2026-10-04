@@ -14,6 +14,12 @@ const L = S.toUpperCase().replace(/\d/g, (x) => 'ABCDEFGHIJ'[x]);
 const jour = (n) => new Date(Date.now() + n * 864e5).toISOString().slice(0, 10);
 const sansDefilementHorizontal = (p) => p.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1);
 const onglets = async (p) => (await p.getByRole('tab').allInnerTexts()).map((t) => t.trim());
+// Refonte (étape 9) : choix d'une personne = taper le nom puis cliquer la suggestion ; message de confirmation (toast).
+async function choisirPersonne(d, label, nom) {
+  await d.getByRole('combobox', { name: label, exact: true }).fill(nom);
+  await d.getByRole('option', { name: nom }).first().click();
+}
+const toast = (p) => p.getByTestId('toast');
 
 /** Soumet l'acte au circuit du Courrier, fait viser, puis le DN signe (scan joint). */
 async function signerActe(acteId) {
@@ -76,19 +82,32 @@ async function signerActe(acteId) {
   await p.screenshot({ path: `${E.SHOTS}/n6_alertes_bureau.png` });
 
   console.log('— Mouvement de carrière : préparé, acte, signature, appliqué');
+  // Squelette pendant le chargement de l'onglet (réponse de l'API retardée).
+  await p.route('**/api/v1/rh/mouvements*', async (r) => { await new Promise((x) => setTimeout(x, 1200)); await r.continue().catch(() => undefined); }, { times: 1 });
   await p.getByRole('tab', { name: 'Carrière et actes' }).click();
+  check('chargement : squelette à la place de « Chargement… »', await p.getByTestId('squelette').first().isVisible().catch(() => false));
+  await p.locator('[data-testid=familles-actes]').waitFor();
   check('familles d’actes affichées avec leur signataire', /signataire/.test(await p.locator('[data-testid=familles-actes]').innerText()));
+  const ag1 = await prisma.user.findUnique({ where: { id: ids.agent1 } });
+  const nomAg1 = `${ag1.firstName} ${ag1.lastName}`;
   await p.getByRole('button', { name: 'Nouveau mouvement', exact: true }).click();
   let d = p.getByRole('dialog');
-  await d.getByLabel('Agent').selectOption(ids.agent1);
-  await d.getByLabel('Mouvement').selectOption('NOMINATION');
+  const avantVide = await prisma.mouvementCarriere.count();
+  await d.getByRole('button', { name: 'Préparer le mouvement' }).click();
+  await d.getByText('Choisissez l’agent concerné.').waitFor();
+  check('envoi vide : message sous le champ « Agent », rien d’envoyé', (await d.getByTestId('erreur-champ').count()) >= 1 && (await prisma.mouvementCarriere.count()) === avantVide);
+  await choisirPersonne(d, 'Agent', nomAg1);
+  await d.getByRole('radio', { name: 'Nomination' }).click();
   await d.getByLabel('Nouvelle fonction').fill(`Chargé d’études principal ${S}`);
+  await p.screenshot({ path: `${E.SHOTS}/n6_mouvement_fenetre_bureau.png` });
   await d.getByRole('button', { name: 'Préparer le mouvement' }).click();
   const mouvement = p.locator('[data-testid=mouvement]', { hasText: `Chargé d’études principal ${S}` });
   await mouvement.waitFor();
   check('mouvement listé « Préparé », avant → après', /Préparé/.test(await mouvement.innerText()) && /Fonction/.test(await mouvement.innerText()));
+  check('message de confirmation « Mouvement préparé » avec « Annuler »', /Mouvement préparé/.test(await toast(p).innerText()) && (await toast(p).getByRole('button', { name: 'Annuler' }).count()) === 1);
   await mouvement.getByRole('button', { name: 'Préparer l’acte' }).click();
   await mouvement.getByRole('link', { name: 'Voir l’acte' }).waitFor();
+  check('message de confirmation « Acte préparé »', /Acte préparé/.test(await toast(p).innerText()));
   check('acte préparé : lien vers l’acte du Courrier', (await mouvement.getByRole('link', { name: 'Voir l’acte' }).getAttribute('href')).startsWith('/courrier?acte='));
   check('acte en cours : plus de « Préparer l’acte » ni d’« Annuler »', (await mouvement.getByRole('button').count()) === 0);
   await p.screenshot({ path: `${E.SHOTS}/n6_carriere_bureau.png` });
@@ -105,9 +124,9 @@ async function signerActe(acteId) {
   d = p.getByRole('dialog');
   await d.getByLabel('Fonction').fill(`Statisticien ${S}`);
   await d.getByLabel('Missions').fill('Produire les indicateurs de conjoncture.');
-  await d.getByRole('button', { name: 'Enregistrer' }).click();
+  await d.getByRole('button', { name: 'Créer la fiche' }).click();
   await p.locator('[data-testid=fiches-poste]').getByText(`Statisticien ${S}`).waitFor();
-  check('fiche de poste listée', true);
+  check('fiche de poste listée, message « Fiche de poste créée »', /Fiche de poste créée/.test(await toast(p).innerText()));
   await p.context().close();
 
   console.log('— DN (téléphone) : effectifs sans alertes nominatives');
@@ -127,17 +146,21 @@ async function signerActe(acteId) {
   check('chef : carrière, fiches et formation seulement', ongletsChef.join('|') === 'Carrière et actes|Fiches de poste|Formation', ongletsChef.join(', '));
   await p.getByRole('button', { name: 'Exprimer un besoin', exact: true }).click();
   d = p.getByRole('dialog');
+  await d.getByRole('button', { name: 'Exprimer le besoin' }).click();
+  check('envoi vide : « Ce champ est obligatoire. » sous l’intitulé', (await d.getByText('Ce champ est obligatoire.').count()) === 1);
   await d.getByLabel('Intitulé de la formation').fill(`Prévision macroéconomique ${S}`);
+  await d.getByRole('radio', { name: 'Haute' }).click();
   await d.getByRole('button', { name: 'Exprimer le besoin' }).click();
   await p.locator('[data-testid=besoin]', { hasText: `Prévision macroéconomique ${S}` }).waitFor();
-  check('besoin listé pour l’unité du chef', true);
+  check('besoin listé pour l’unité du chef (priorité haute), message « Besoin exprimé »', /Priorité haute/.test(await p.locator('[data-testid=besoin]', { hasText: `Prévision macroéconomique ${S}` }).innerText()) && /Besoin exprimé/.test(await toast(p).innerText()));
   await p.context().close();
   p = await loginPage(b, 'drh');
   await p.goto(`${WEB}/rh?onglet=formation`);
   const besoin = p.locator('[data-testid=besoin]', { hasText: `Prévision macroéconomique ${S}` });
   await besoin.waitFor();
   await besoin.getByLabel(`Statut du besoin Prévision macroéconomique ${S}`).selectOption('RETENU');
-  await p.waitForTimeout(600);
+  await toast(p).waitFor();
+  check('message « Besoin retenu » avec « Annuler » (même route)', /Besoin retenu/.test(await toast(p).innerText()) && (await toast(p).getByRole('button', { name: 'Annuler' }).count()) === 1);
   const enBase = await prisma.besoinFormation.findFirst({ where: { intitule: `Prévision macroéconomique ${S}` } });
   check('le DRH retient le besoin dans le plan de formation', enBase.statut === 'RETENU', enBase.statut);
   await p.screenshot({ path: `${E.SHOTS}/n6_formation_bureau.png` });
@@ -162,6 +185,18 @@ async function signerActe(acteId) {
   check('agent : sa nomination appliquée, sans bouton d’instruction', (await p.getByRole('button', { name: 'Nouveau mouvement', exact: true }).count()) === 0);
   check('téléphone : sans défilement horizontal (RH)', await sansDefilementHorizontal(p));
   await p.screenshot({ path: `${E.SHOTS}/n6_carriere_mobile.png`, fullPage: true });
+  await p.context().close();
+  console.log('— Chef de division (téléphone) : filtres de la formation repliés');
+  p = await loginPage(b, 'chefdpe', TELEPHONE);
+  await p.goto(`${WEB}/rh?onglet=formation`);
+  await p.getByTestId('bouton-filtres').waitFor();
+  check('téléphone : bouton « Filtres », année masquée', (await p.getByTestId('bouton-filtres').innerText()).trim() === 'Filtres' && !(await p.getByLabel('Année').isVisible()));
+  await p.getByTestId('bouton-filtres').click();
+  await p.getByLabel('Année').selectOption(String(new Date().getFullYear() - 1));
+  await p.getByRole('button', { name: 'Appliquer' }).click();
+  check('téléphone : « Filtres (1) » après le choix d’une autre année, sans défilement horizontal', (await p.getByTestId('bouton-filtres').innerText()).trim() === 'Filtres (1)' && (await sansDefilementHorizontal(p)));
+  await p.context().close();
+  p = await loginPage(b, 'agent1', TELEPHONE);
   await p.goto(`${WEB}/dashboard`);
   // Refonte de l'interface : solde et demandes (« Mes congés »), réunions (« Agenda ») en colonne droite.
   await p.getByTestId('boite-conges').waitFor();
@@ -190,17 +225,25 @@ async function signerActe(acteId) {
   await vehicule.click();
   const fiche = p.locator('[data-testid=fiche-vehicule]');
   await fiche.waitFor();
-  await fiche.getByLabel('Date', { exact: true }).fill(jour(0));
-  await fiche.getByLabel('Litres', { exact: true }).fill('60');
-  await fiche.getByLabel('Compteur', { exact: true }).fill('15400');
-  await fiche.getByRole('button', { name: 'Ajouter le plein' }).click();
+  // Étape 9 : le plein se saisit dans une fenêtre (date en français, litres, compteur ; vérifiés avant l'envoi).
+  await fiche.getByRole('button', { name: 'Ajouter un plein' }).click();
+  const fp = p.locator('div[role=dialog]:has(> form)');
+  await fp.getByLabel('Compteur (km)', { exact: true }).fill('14000');
+  await fp.getByRole('button', { name: 'Ajouter le plein' }).click();
+  check('plein : litres obligatoires et compteur qui recule refusés dans la fenêtre', (await fp.getByTestId('erreur-champ').allInnerTexts()).some((t) => /litres/.test(t)) && (await fp.getByTestId('erreur-champ').allInnerTexts()).some((t) => /inférieur/.test(t)));
+  await fp.getByLabel('Date', { exact: true }).click();
+  await fp.getByLabel('Date', { exact: true }).fill(jour(0));
+  await fp.getByLabel('Litres', { exact: true }).fill('60');
+  await fp.getByLabel('Compteur (km)', { exact: true }).fill('15400');
+  await fp.getByRole('button', { name: 'Ajouter le plein' }).click();
   await fiche.getByText(/15\s400 km/).first().waitFor();
-  check('plein ajouté : compteur à 15 400 km', true);
+  check('plein ajouté : compteur à 15 400 km, toast « Plein enregistré »', /Plein enregistré/.test(await p.getByTestId('toast').innerText()));
   await p.keyboard.press('Escape');
   await p.getByRole('dialog').waitFor({ state: 'detached' }).catch(() => {});
   const mission = p.locator('[data-testid=mission-vehicule]', { hasText: objet });
   await mission.getByLabel(`Véhicule de la mission ${objet}`).selectOption({ label: immat });
   await mission.getByRole('button', { name: 'Enregistrer le retour' }).waitFor();
+  check('toast « Véhicule affecté », avec « Annuler » (même route, véhicule précédent)', /Véhicule affecté/.test(await p.getByTestId('toast').innerText()) && (await p.getByTestId('toast').getByRole('button', { name: 'Annuler' }).count()) === 1);
   check('véhicule affecté à la mission (kilométrage au départ relevé)', (await prisma.ordreMission.findUnique({ where: { id: om.body.id } })).kilometrageDepart === 15400);
   await mission.getByRole('button', { name: 'Enregistrer le retour' }).click();
   d = p.getByRole('dialog');

@@ -15,6 +15,8 @@ const S = Date.now().toString(36).slice(-5);
 const J = 864e5;
 const jour = (n) => new Date(Date.now() + n * J).toISOString().slice(0, 10);
 const sansDefilementHorizontal = (p) => p.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1);
+// Étape 9 : message de confirmation (toast) après une action réussie.
+const toast = (p, titre) => p.getByTestId('toast').filter({ hasText: titre }).waitFor({ timeout: 10000 }).then(() => true, () => false);
 
 async function ouvrirDemande(p, onglet, nom) {
   await p.goto(`${WEB}/leaves`);
@@ -52,6 +54,7 @@ async function ouvrirDemande(p, onglet, nom) {
   await p.getByRole('button', { name: 'Avis favorable' }).click();
   await p.locator('[data-testid=circuit-conge]').waitFor({ state: 'detached' });
   check('avis enregistré en base', (await prisma.leaveRequest.findUnique({ where: { id: c.id } })).avisEtat === 'FAVORABLE');
+  check('message de confirmation « Avis favorable enregistré »', await toast(p, 'Avis favorable enregistré'));
   await p.context().close();
 
   console.log('— Congé : décision du DRH (bureau)');
@@ -65,6 +68,7 @@ async function ouvrirDemande(p, onglet, nom) {
   await p.getByRole('button', { name: 'Valider', exact: true }).click();
   await p.locator('[data-testid=circuit-conge]').waitFor({ state: 'detached' });
   check('demande approuvée', (await prisma.leaveRequest.findUnique({ where: { id: c.id } })).status === 'APPROUVEE');
+  check('message de confirmation « Congé approuvé » nommant l’agent prévenu', await toast(p, 'Congé approuvé') && (await p.getByTestId('toast').innerText()).includes(nom));
 
   console.log('— Motif médical : déverrouillé par le DRH (bureau)');
   const m = (await call('agent1', 'POST', '/leaves', { leaveTypeId: maladie.id, startDate: jour(95), endDate: jour(96), reason: `Examen médical ${S}` })).body;
@@ -111,14 +115,36 @@ async function ouvrirDemande(p, onglet, nom) {
   fs.writeFileSync(fichierCert, `Certificat ${S}`);
   await carteM.locator('input[type=file]').setInputFiles(fichierCert);
   await p.getByText(`certificat_${S}.pdf`).first().waitFor();
-  check('agent : certificat joint à son congé maladie', true);
+  check('agent : certificat joint à son congé maladie (zone de dépôt), message de confirmation', await toast(p, 'Certificat médical joint'));
   await p.screenshot({ path: `${E.SHOTS}/n3_certificat_mobile.png` });
   check('agent (téléphone) : bande de soldes, demandes en cours avec circuit, calendrier, prochains jours fériés', (await p.getByTestId('soldes-conges').count()) === 1 && (await p.getByTestId('demande-en-cours').count()) >= 1 && (await p.getByTestId('calendrier-conges').count()) === 1 && (await p.getByTestId('prochains-feries').count()) === 1);
   check('agent (téléphone) : « Mes congés » sans défilement horizontal', await sansDefilementHorizontal(p));
   await p.getByRole('button', { name: 'Demander un congé' }).first().click();
-  await p.getByText('Nouvelle demande de congé').waitFor();
-  check('agent : « Demander un congé » ouvre la fenêtre de création', true);
-  await p.getByRole('button', { name: 'Annuler', exact: true }).last().click();
+  const fd = p.getByRole('dialog', { name: 'Demander un congé' });
+  await fd.waitFor();
+  check('agent : « Demander un congé » ouvre la fenêtre de création (type en un clic)', (await fd.getByRole('radio').count()) >= 2);
+  const avantEnvoi = await prisma.leaveRequest.count({ where: { userId: ids.agent1 } });
+  await fd.getByRole('button', { name: 'Envoyer la demande' }).click();
+  await fd.getByText('Indiquez le premier jour du congé.').waitFor();
+  check('envoi vide : message sous « Du » et « Au (inclus) », rien d’envoyé', (await fd.getByText('Indiquez le dernier jour du congé.').count()) === 1 && (await prisma.leaveRequest.count({ where: { userId: ids.agent1 } })) === avantEnvoi);
+  // Type de congé annuel (s'il existe plusieurs types de même nom, celui de même rang dans la liste de l'API).
+  const memesNoms = types.filter((t) => t.name === annuel.name);
+  await fd.getByRole('radio', { name: annuel.name, exact: true }).nth(Math.max(0, memesNoms.findIndex((t) => t.id === annuel.id))).click();
+  await fd.getByLabel('Du', { exact: true }).fill(jour(120));
+  await fd.getByLabel('Au (inclus)', { exact: true }).fill(jour(124));
+  await fd.getByTestId('simulation-conge').waitFor();
+  const sim = (await call('agent1', 'GET', `/api/v1/conges/simulation?leaveTypeId=${annuel.id}&debut=${jour(120)}&fin=${jour(124)}`)).body;
+  const bandeau = await fd.getByTestId('simulation-conge').innerText();
+  check(`bandeau calculé pendant la saisie : ${sim.jours} jours décomptés, reprise`, bandeau.includes(`${sim.jours} jour`) && /décompté/.test(bandeau) && /reprise le/.test(bandeau), bandeau.replace(/\n/g, ' '));
+  check('pied : chef qui donne l’avis et délai', new RegExp(`Avis de .+ attendu sous ${sim.delaiAvisHeures} h ouvrées, puis décision du DRH`).test(await fd.innerText()));
+  check('téléphone : fenêtre sans défilement horizontal', await sansDefilementHorizontal(p));
+  await p.screenshot({ path: `${E.SHOTS}/n3_demande_conge_mobile.png` });
+  await fd.getByRole('button', { name: 'Envoyer la demande' }).click();
+  check('« Demande envoyée » avec « Annuler »', await toast(p, 'Demande envoyée') && (await p.getByTestId('toast').getByRole('button', { name: 'Annuler' }).count()) === 1);
+  const envoyee = await prisma.leaveRequest.findFirst({ where: { userId: ids.agent1, status: 'EN_ATTENTE' }, orderBy: { createdAt: 'desc' } });
+  check('demande créée avec les jours du bandeau', envoyee && envoyee.daysCount === sim.jours, envoyee && String(envoyee.daysCount));
+  await p.getByTestId('toast').getByRole('button', { name: 'Annuler' }).click();
+  check('« Annuler » du message : la demande est annulée', await toast(p, 'Demande annulée') && (await prisma.leaveRequest.findUnique({ where: { id: envoyee.id } })).status === 'ANNULEE');
   fs.rmSync(fichierCert, { force: true });
   await call('agent1', 'POST', `/leaves/${m2.id}/cancel`);
   await p.context().close();
@@ -131,18 +157,28 @@ async function ouvrirDemande(p, onglet, nom) {
   const cal = p.locator('[data-testid=jours-feries]');
   await cal.getByText('Fête de l’Indépendance').waitFor();
   check('administrateur : fêtes fixes pré-remplies, alerte « aucune fête religieuse »', (await cal.getByRole('status').count()) === 1);
-  await cal.getByLabel('Date').last().fill(`${AN}-06-16`);
-  await cal.getByLabel('Libellé').last().fill(`Tabaski ${S}`);
-  await cal.getByRole('button', { name: 'Ajouter le jour férié' }).click();
+  await cal.getByRole('button', { name: 'Ajouter un jour férié' }).first().click();
+  const ff = p.getByRole('dialog', { name: 'Ajouter un jour férié' });
+  await ff.getByRole('button', { name: 'Ajouter le jour férié' }).click();
+  check('fenêtre : envoi vide refusé dans la fenêtre (date, libellé)', (await ff.getByText('Indiquez la date du jour férié.').count()) === 1 && (await ff.getByText('Indiquez le nom du jour férié.').count()) === 1);
+  await ff.getByLabel('Date', { exact: true }).fill(`${AN}-06-16`);
+  await ff.getByLabel('Libellé').fill(`Tabaski ${S}`);
+  await ff.getByRole('radio', { name: 'Fête religieuse' }).click();
+  await ff.getByRole('button', { name: 'Ajouter le jour férié' }).click();
   await cal.getByText(`Tabaski ${S}`).waitFor();
-  check('fête religieuse ajoutée, alerte levée', (await cal.getByRole('status').count()) === 0);
+  check('fête religieuse ajoutée (message de confirmation), alerte levée', (await toast(p, 'Jour férié ajouté')) && (await cal.getByRole('status').count()) === 0);
   await p.screenshot({ path: `${E.SHOTS}/n3_jours_feries_bureau.png`, fullPage: true });
   await p.context().close();
   p = await loginPage(b, 'agent1', TELEPHONE);
   await p.goto(`${WEB}/leaves`);
   await p.getByRole('tab', { name: 'Jours fériés' }).click();
   await p.locator('[data-testid=jours-feries]').getByText('Fête de l’Indépendance').waitFor();
-  check('agent : calendrier en lecture (aucun bouton de saisie)', (await p.getByRole('button', { name: 'Ajouter le jour férié' }).count()) === 0);
+  check('agent : calendrier en lecture (aucun bouton de saisie)', (await p.getByRole('button', { name: /Ajouter (un|le) jour férié|Modifier|Supprimer/ }).count()) === 0);
+  await p.getByRole('button', { name: /^Filtres/ }).click();
+  check('téléphone : filtre « Année » replié derrière « Filtres »', await p.getByRole('dialog', { name: 'Filtres' }).getByLabel('Année').isVisible());
+  await p.getByRole('dialog', { name: 'Filtres' }).getByLabel('Année').selectOption(String(new Date().getFullYear() + 2));
+  await p.getByRole('button', { name: 'Appliquer' }).click();
+  check('« Filtres (1) » une fois l’année changée', /Filtres \(1\)/.test(await p.getByTestId('bouton-filtres').innerText()));
   check('téléphone : sans défilement horizontal', await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
   await p.context().close();
   for (const j of (await call('admin', 'GET', `/api/v1/jours-feries?annee=${AN}`)).body.jours.filter((x) => x.libelle === `Tabaski ${S}`)) await call('admin', 'DELETE', `/api/v1/jours-feries/${j.id}`);
@@ -176,7 +212,9 @@ async function ouvrirDemande(p, onglet, nom) {
   check('DRH : encadreur « non désigné »', /non désigné/.test(await p.locator('[data-testid=encadrant-principal]').innerText()));
   await p.getByRole('button', { name: 'Désigner l’encadreur' }).click();
   const fe = p.getByRole('dialog', { name: 'Encadreur principal' });
-  await fe.getByLabel(/Encadreur/).selectOption(ids.agent1);
+  // Refonte (étape 9) : encadreur choisi dans le sélecteur de personnes (taper le nom, cliquer la suggestion).
+  await fe.getByRole('combobox', { name: 'Encadreur (parmi les tuteurs du plan)', exact: true }).fill(agent1.lastName);
+  await fe.getByRole('option', { name: new RegExp(agent1.lastName) }).first().click();
   await fe.getByRole('button', { name: 'Désigner' }).click();
   await fe.waitFor({ state: 'detached' });
   await p.waitForFunction((n) => document.querySelector('[data-testid=encadrant-principal]')?.textContent?.includes(n), agent1.lastName);
@@ -194,9 +232,12 @@ async function ouvrirDemande(p, onglet, nom) {
   await p.locator('[data-testid=rapport-stage]').waitFor();
   const fichier = path.join(E.OUT, 'tmp', `rapport_${S}.pdf`);
   fs.writeFileSync(fichier, '%PDF-1.4\n% rapport de test\n');
-  await p.getByLabel('Fichier du rapport').setInputFiles(fichier);
+  // Refonte (étape 9) : dépôt dans une fenêtre (zone de dépôt), confirmé par un message.
+  await p.getByRole('button', { name: 'Déposer mon rapport' }).click();
+  await p.getByRole('dialog').getByLabel('Fichier du rapport').setInputFiles(fichier);
+  await p.getByRole('dialog').getByRole('button', { name: 'Déposer le rapport' }).click();
   await p.waitForFunction(() => /Déposé/.test(document.querySelector('[data-testid=statut-rapport]')?.textContent ?? ''));
-  check('téléphone : rapport déposé par le stagiaire, statut affiché', true);
+  check('téléphone : rapport déposé par le stagiaire, statut affiché, message « Rapport déposé »', /Rapport déposé/.test(await p.getByTestId('toast').innerText()));
   check('… sans défilement horizontal', await sansDefilementHorizontal(p));
   await p.screenshot({ path: `${E.SHOTS}/n3_rapport_stagiaire_mobile.png`, fullPage: true });
   await ctx.close();

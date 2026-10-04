@@ -96,7 +96,7 @@ export class ResumeQuotidienService {
         paragraphs: [`Votre résumé quotidien : ${liste.length} notification(s).`, ...lignes],
         buttonLabel: 'Ouvrir l’espace de travail',
         buttonUrl: `${web}/dashboard`,
-        afterButtonParagraphs: [`Les alertes urgentes vous parviennent toujours immédiatement. Pour changer l’heure du résumé ou tout recevoir immédiatement : ${web}/compte/notifications`],
+        afterButtonParagraphs: [`Les alertes urgentes vous parviennent toujours immédiatement. Pour changer l’heure du résumé ou tout recevoir immédiatement : ${web}/compte?section=notifications`],
       });
       if (bilan.envoyes + bilan.echecs > 0 && (bilan.envoyes + bilan.echecs) % lot === 0 && pause > 0) await new Promise((r) => setTimeout(r, pause));
       try {

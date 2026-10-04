@@ -76,6 +76,7 @@ import { InventaireService } from '../src/logistique/inventaire.service';
 import { DemandesLogistiqueService } from '../src/logistique/demandes.service';
 import { ReservationsService } from '../src/logistique/reservations.service';
 import { PlanTravailService } from '../src/plan-travail/plan-travail.service';
+import { InstructionsService } from '../src/instructions/instructions.service';
 import { FilsService } from '../src/collaboration/fils.service';
 import { ReferentielRhService } from '../src/rh/referentiel-rh.service';
 import { VehiculesService } from '../src/logistique/vehicules.service';
@@ -594,6 +595,32 @@ async function pilotage(ctx: Ctx) {
   );
 }
 
+/**
+ * Instructions de la Direction (refonte, étape 9) : l'écran Instructions n'est plus vide en
+ * démonstration. Émises par le DN de démonstration seulement — jamais au nom d'un DN réel : quand
+ * un DN ou une DNA réels sont en place (pas de DN de démonstration), le bloc est sauté.
+ */
+async function instructionsDirection(ctx: Ctx) {
+  const { prisma, app, u } = ctx;
+  if (!u.dn) {
+    console.log('  - Instructions de la Direction : non créées (DN réel en place : rien n’est émis en son nom)');
+    return;
+  }
+  await bloc(
+    'Instructions de la Direction (N5 : deux instructions au chef de division, dont une prise en compte)',
+    async () => (await prisma.instruction.count({ where: { emetteurId: u.dn!.id, objet: { startsWith: T } } })) > 0,
+    async () => {
+      const svc = app.get(InstructionsService);
+      const dn = await acteur(prisma, u.dn!.id);
+      const chef = await acteur(prisma, u.chefDivision!.id);
+      const a = await svc.emettre(dn, { objet: `${T}Point mensuel sur l’exécution budgétaire`, texte: 'Transmettre à la Direction une note de synthèse sur l’exécution budgétaire du mois, avec les principaux écarts.', destinataireId: u.chefDivision!.id, echeance: dateSeule(10) });
+      await svc.emettre(dn, { objet: `${T}Contribution au rapport sur les objectifs de développement`, texte: 'Rassembler les contributions des sections et transmettre une synthèse.', destinataireId: u.chefDivision!.id, echeance: dateSeule(20) });
+      await svc.lire(chef, a.id);
+      await svc.prendreEnCompte(chef, a.id);
+    },
+  );
+}
+
 /** Socle N6 : véhicule de service (carburant en litres, relié à l'ordre de mission N4), fiche de
  * poste, besoin de formation. Pas de mouvement de carrière : ses actes iraient dans les registres
  * réels des familles d'actes RH. */
@@ -1048,6 +1075,7 @@ async function main() {
         await communication(ctx);
         await documents(ctx);
         await pilotage(ctx);
+        await instructionsDirection(ctx);
         await suppleance(ctx);
         await dossiers(ctx);
         await courrier(ctx);

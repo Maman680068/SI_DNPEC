@@ -16,11 +16,16 @@ import { listAllUsers } from '../../lib/api/users';
 import type { AdminUser } from '../../lib/users/types';
 import type { Compteur, Habilitation, Registre, RegistreNature, RegistrePortee, Unite } from '../../lib/courrier/types';
 import { REGISTRE_NATURE_LABEL, REGISTRE_PORTEE_LABEL, formatDate } from '../../lib/courrier/types';
+import { Plus } from 'lucide-react';
 import { Badge } from '../ui/Badge';
-import { Button } from '../ui/Button';
-import { Field } from '../ui/Input';
+import { BTN_LIGNE, BTN_PRINCIPAL } from '../ui/Charte';
+import { ErreurChargement } from '../ui/ErreurChargement';
+import { ChoixSegment, FenetreFormulaire, Grille2, Liste, Saisie, SelecteurPersonnes } from '../ui/Formulaire';
+import { SqueletteListe } from '../ui/Squelette';
+import { messageErreur, useToast } from '../ui/Toast';
 import { Vide } from './Lignes';
-import { Erreur, Fenetre, Libelle, SELECT_CLASS, messageErreur } from './ui';
+import { Libelle, SELECT_CLASS } from './ui';
+import { nomDe, useEnvoi, versPersonne } from './formulaire';
 
 // ---------------------------------------------------------------------------
 // Aperçu d'un numéro — même syntaxe que NumerotationService.formater (API) ;
@@ -49,6 +54,7 @@ function libelleUnite(unites: Unite[], key: string): string {
 // ---------------------------------------------------------------------------
 
 export function PanneauRegistres() {
+  const toast = useToast();
   const [registres, setRegistres] = useState<Registre[] | null>(null);
   const [unites, setUnites] = useState<Unite[]>([]);
   const [edition, setEdition] = useState<Registre | 'nouveau' | null>(null);
@@ -59,36 +65,40 @@ export function PanneauRegistres() {
         setRegistres(r);
         setUnites(u);
       })
-      .catch((e) => setErreur(messageErreur(e, 'Impossible de charger les registres')));
+      .catch((e) => setErreur(messageErreur(e, 'Les registres n’ont pas pu être lus.')));
   }, []);
   useEffect(() => charger(), [charger]);
 
-  async function basculer(r: Registre) {
-    setErreur(null);
+  async function basculer(r: Registre, isActive: boolean, annulable = true) {
     try {
-      await updateRegistre(r.id, { isActive: !r.isActive });
+      await updateRegistre(r.id, { isActive });
       charger();
+      toast.succes(isActive ? `Registre ${r.code} réactivé` : `Registre ${r.code} désactivé`, {
+        detail: isActive ? 'Il est de nouveau proposé.' : 'Il n’est plus proposé pour de nouvelles entrées.',
+        annuler: annulable ? () => basculer(r, !isActive, false) : undefined,
+      });
     } catch (e) {
-      setErreur(messageErreur(e, 'Modification impossible'));
+      toast.erreur('Modification impossible', messageErreur(e));
     }
   }
 
   return (
     <div>
       <div className="mb-3 flex justify-end">
-        <Button variant="gold" onClick={() => setEdition('nouveau')}>
-          + Nouveau registre
-        </Button>
+        <button type="button" className={BTN_PRINCIPAL} onClick={() => setEdition('nouveau')}>
+          <Plus aria-hidden size={16} />
+          Nouveau registre
+        </button>
       </div>
-      <Erreur message={erreur} />
+      <ErreurChargement message={erreur} />
       {registres === null ? (
-        <p className="text-sm text-text-muted">Chargement…</p>
+        !erreur && <SqueletteListe lignes={4} colonnes={2} />
       ) : registres.length === 0 ? (
         <Vide>Aucun registre.</Vide>
       ) : (
         <div className="space-y-2">
           {registres.map((r) => (
-            <div key={r.id} className={`rounded-lg border border-line bg-surface px-4 py-3 ${r.isActive ? '' : 'opacity-60'}`} data-testid="registre">
+            <div key={r.id} className={`rounded-xl border border-line bg-surface px-4 py-3 ${r.isActive ? '' : 'opacity-60'}`} data-testid="registre">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="font-heading text-[14px] font-bold text-ink">{r.code}</span>
                 <span className="text-[13.5px]">{r.libelle}</span>
@@ -98,12 +108,12 @@ export function PanneauRegistres() {
               </div>
               <div className="mt-1 break-all font-mono text-[12px] text-text-muted">{r.gabaritNumero}</div>
               <div className="mt-2 flex flex-wrap gap-2">
-                <Button className="!px-3 !py-1.5 !text-[12.5px]" onClick={() => setEdition(r)}>
+                <button type="button" className={BTN_LIGNE} onClick={() => setEdition(r)}>
                   Modifier
-                </Button>
-                <Button className="!px-3 !py-1.5 !text-[12.5px]" onClick={() => basculer(r)}>
+                </button>
+                <button type="button" className={BTN_LIGNE} onClick={() => basculer(r, !r.isActive)}>
                   {r.isActive ? 'Désactiver' : 'Réactiver'}
-                </Button>
+                </button>
               </div>
             </div>
           ))}
@@ -125,6 +135,7 @@ export function PanneauRegistres() {
 }
 
 function FenetreRegistre({ registre, unites, onClose, onFait }: { registre: Registre | null; unites: Unite[]; onClose: () => void; onFait: () => void }) {
+  const toast = useToast();
   const [v, setV] = useState({
     code: registre?.code ?? '',
     libelle: registre?.libelle ?? '',
@@ -135,8 +146,7 @@ function FenetreRegistre({ registre, unites, onClose, onFait }: { registre: Regi
   const unitesPortee = unites.filter((u) => (v.portee === 'DIRECTION' ? u.key === 'DNPEC' : u.key !== 'DNPEC'));
   const [uniteApercu, setUniteApercu] = useState(unitesPortee[0]?.key ?? 'DNPEC');
   const [dernier, setDernier] = useState<number | null>(null);
-  const [enCours, setEnCours] = useState(false);
-  const [erreur, setErreur] = useState<string | null>(null);
+  const { enCours, erreur, envoyer } = useEnvoi();
   const annee = new Date().getFullYear();
   const unite = v.portee === 'DIRECTION' ? 'DNPEC' : unitesPortee.some((u) => u.key === uniteApercu) ? uniteApercu : unitesPortee[0]?.key ?? '';
 
@@ -161,78 +171,66 @@ function FenetreRegistre({ registre, unites, onClose, onFait }: { registre: Regi
   const sansSeq = !/\{seq(?::\d)?\}/.test(v.gabaritNumero);
 
   return (
-    <Fenetre
+    <FenetreFormulaire
       titre={registre ? `Modifier le registre ${registre.code}` : 'Nouveau registre'}
       sousTitre="Changer le gabarit ne réécrit jamais un numéro déjà attribué. Nature et portée sont figées dès la première entrée."
-      valider="Enregistrer"
-      large
+      libelleValider={registre ? 'Enregistrer' : 'Créer le registre'}
       enCours={enCours}
+      erreur={erreur}
       onClose={onClose}
+      pied="Le registre est proposé dès sa création ; les habilitations du secrétariat s’accordent ensuite."
+      valider={() => ({
+        ...(!registre && v.code && !/^[A-Z0-9_-]{2,20}$/.test(v.code) ? { 'r-code': 'De 2 à 20 caractères : lettres majuscules, chiffres, « _ » ou « - ».' } : {}),
+        ...(v.libelle.trim().length === 1 ? { 'r-libelle': 'Indiquez au moins 2 caractères.' } : {}),
+        ...(v.gabaritNumero && (sansSeq || inconnues.length > 0) ? { 'r-gabarit': sansSeq ? 'Le gabarit doit contenir {seq} ou {seq:n}.' : `Variables inconnues : ${inconnues.join(', ')}.` } : {}),
+      })}
       onSubmit={async () => {
-        setEnCours(true);
-        setErreur(null);
-        try {
-          if (registre) {
-            await updateRegistre(registre.id, {
-              libelle: v.libelle.trim(),
-              gabaritNumero: v.gabaritNumero.trim(),
-              ...(v.nature !== registre.nature ? { nature: v.nature } : {}),
-              ...(v.portee !== registre.portee ? { portee: v.portee } : {}),
-            });
-          } else {
-            await createRegistre({ ...v, code: v.code.trim(), libelle: v.libelle.trim(), gabaritNumero: v.gabaritNumero.trim() });
-          }
-          onFait();
-        } catch (e) {
-          setErreur(messageErreur(e, 'Enregistrement impossible'));
-        } finally {
-          setEnCours(false);
-        }
+        const r = await envoyer(() =>
+          registre
+            ? updateRegistre(registre.id, {
+                libelle: v.libelle.trim(),
+                gabaritNumero: v.gabaritNumero.trim(),
+                ...(v.nature !== registre.nature ? { nature: v.nature } : {}),
+                ...(v.portee !== registre.portee ? { portee: v.portee } : {}),
+              })
+            : createRegistre({ ...v, code: v.code.trim(), libelle: v.libelle.trim(), gabaritNumero: v.gabaritNumero.trim() }),
+        );
+        if (!r.ok) return;
+        toast.succes(registre ? `Registre ${registre.code} modifié` : `Registre ${v.code.trim()} créé`);
+        onFait();
       }}
     >
-      <Erreur message={erreur} />
-      <div className="grid gap-x-3 sm:grid-cols-2">
-        <Field label="Code" id="r-code" value={v.code} onChange={(e) => setV({ ...v, code: e.target.value.toUpperCase() })} disabled={!!registre} required pattern="[A-Z0-9_\-]{2,20}" />
-        <Field label="Libellé" id="r-libelle" value={v.libelle} onChange={(e) => setV({ ...v, libelle: e.target.value })} required minLength={2} maxLength={200} />
-        <div className="mb-4">
-          <Libelle htmlFor="r-nature">Nature</Libelle>
-          <select id="r-nature" className={SELECT_CLASS} value={v.nature} onChange={(e) => setV({ ...v, nature: e.target.value as RegistreNature })}>
-            {(Object.keys(REGISTRE_NATURE_LABEL) as RegistreNature[]).map((n) => (
-              <option key={n} value={n}>
-                {REGISTRE_NATURE_LABEL[n]}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="mb-4">
-          <Libelle htmlFor="r-portee">Portée</Libelle>
-          <select id="r-portee" className={SELECT_CLASS} value={v.portee} onChange={(e) => setV({ ...v, portee: e.target.value as RegistrePortee })}>
-            {(Object.keys(REGISTRE_PORTEE_LABEL) as RegistrePortee[]).map((n) => (
-              <option key={n} value={n}>
-                {REGISTRE_PORTEE_LABEL[n]}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-      <Field label="Gabarit du numéro" id="r-gabarit" value={v.gabaritNumero} onChange={(e) => setV({ ...v, gabaritNumero: e.target.value })} required minLength={3} maxLength={120} className="font-mono" />
-      <p className="-mt-2 mb-3 text-[12px] text-text-muted">
-        Variables : <code>{'{seq}'}</code> ou <code>{'{seq:4}'}</code> (obligatoire, sur 4 chiffres), <code>{'{code}'}</code>, <code>{'{annee}'}</code>, <code>{'{unite}'}</code>.
-      </p>
+      <Grille2>
+        {registre ? (
+          <div className="mb-3.5 text-[13px]">
+            <span className="mb-1.5 block font-semibold text-text">Code</span>
+            <span className="block h-10 rounded-[10px] border border-line bg-bg px-3 py-2.5 font-mono">{registre.code}</span>
+          </div>
+        ) : (
+          <Saisie id="r-code" label="Code" value={v.code} onChange={(code) => setV({ ...v, code: code.toUpperCase() })} required maxLength={20} placeholder="DEP, ACTES…" />
+        )}
+        <Saisie id="r-libelle" label="Libellé" value={v.libelle} onChange={(libelle) => setV({ ...v, libelle })} required maxLength={200} />
+      </Grille2>
+      <ChoixSegment<RegistreNature> id="r-nature" label="Nature" value={v.nature} onChange={(nature) => setV({ ...v, nature })} options={(Object.keys(REGISTRE_NATURE_LABEL) as RegistreNature[]).map((n) => ({ value: n, label: REGISTRE_NATURE_LABEL[n] }))} />
+      <Liste id="r-portee" label="Portée" value={v.portee} onChange={(portee) => setV({ ...v, portee: portee as RegistrePortee })} options={(Object.keys(REGISTRE_PORTEE_LABEL) as RegistrePortee[]).map((n) => ({ value: n, label: REGISTRE_PORTEE_LABEL[n] }))} />
+      <Saisie
+        id="r-gabarit"
+        label="Gabarit du numéro"
+        value={v.gabaritNumero}
+        onChange={(gabaritNumero) => setV({ ...v, gabaritNumero })}
+        required
+        maxLength={120}
+        aide={
+          <>
+            Variables : <code>{'{seq}'}</code> ou <code>{'{seq:4}'}</code> (obligatoire, sur 4 chiffres), <code>{'{code}'}</code>, <code>{'{annee}'}</code>, <code>{'{unite}'}</code>.
+          </>
+        }
+      />
       {v.portee === 'UNITE' && unitesPortee.length > 0 && (
-        <div className="mb-3">
-          <Libelle htmlFor="r-unite-apercu">Aperçu pour l’unité</Libelle>
-          <select id="r-unite-apercu" className={SELECT_CLASS} value={unite} onChange={(e) => setUniteApercu(e.target.value)}>
-            {unitesPortee.map((u) => (
-              <option key={u.key} value={u.key}>
-                {u.code} — {u.libelle}
-              </option>
-            ))}
-          </select>
-        </div>
+        <Liste id="r-unite-apercu" label="Aperçu pour l’unité" value={unite} onChange={setUniteApercu} options={unitesPortee.map((u) => ({ value: u.key, label: `${u.code} — ${u.libelle}` }))} />
       )}
-      <div className="mb-4 rounded-md bg-bg px-3.5 py-3" data-testid="apercu-numero">
-        <div className="text-[11px] font-bold uppercase tracking-wide text-text-faint">Prochain numéro ({annee})</div>
+      <div className="mb-3.5 rounded-[10px] bg-bg px-3.5 py-3" data-testid="apercu-numero">
+        <div className="text-[11px] font-bold uppercase tracking-wide text-text-muted">Prochain numéro ({annee})</div>
         {sansSeq || inconnues.length > 0 ? (
           <div className="text-[13px] text-clay">
             {sansSeq ? 'Le gabarit doit contenir {seq} ou {seq:n}. ' : ''}
@@ -242,7 +240,7 @@ function FenetreRegistre({ registre, unites, onClose, onFait }: { registre: Regi
           <div className="font-heading text-[16px] font-bold text-ink">{dernier === null ? '…' : numero}</div>
         )}
       </div>
-    </Fenetre>
+    </FenetreFormulaire>
   );
 }
 
@@ -251,6 +249,7 @@ function FenetreRegistre({ registre, unites, onClose, onFait }: { registre: Regi
 // ---------------------------------------------------------------------------
 
 export function PanneauHabilitations() {
+  const toast = useToast();
   const [habs, setHabs] = useState<Habilitation[] | null>(null);
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [registres, setRegistres] = useState<Registre[]>([]);
@@ -265,7 +264,7 @@ export function PanneauHabilitations() {
         setRegistres(r);
         setUnites(un);
       })
-      .catch((e) => setErreur(messageErreur(e, 'Impossible de charger les habilitations')));
+      .catch((e) => setErreur(messageErreur(e, 'Les habilitations n’ont pas pu être lues.')));
   }, []);
   useEffect(() => charger(), [charger]);
 
@@ -275,20 +274,20 @@ export function PanneauHabilitations() {
   };
   async function revoquer(h: Habilitation) {
     if (!window.confirm(`Révoquer l’habilitation de ${nom(h.userId)} sur ${h.registre.code} ?`)) return;
-    setErreur(null);
     try {
       await revoquerHabilitation(h.id);
+      toast.succes('Habilitation révoquée', { detail: `${nom(h.userId)} n’enregistre plus le courrier de ${h.registre.code}.` });
       charger();
     } catch (e) {
-      setErreur(messageErreur(e, 'Révocation impossible'));
+      toast.erreur('Révocation impossible', messageErreur(e));
     }
   }
   const ligne = (h: Habilitation) => (
-    <div key={h.id} className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-line bg-surface px-4 py-2.5 text-[13px]" data-testid="habilitation">
+    <div key={h.id} className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl border border-line bg-surface px-4 py-2.5 text-[13px]" data-testid="habilitation">
       <span className="font-semibold">{nom(h.userId)}</span>
       <Badge tone="accent">{h.registre.code}</Badge>
       <span className="text-text-muted">{libelleUnite(unites, h.uniteKey)}</span>
-      <span className="text-[12px] text-text-faint">
+      <span className="text-[12px] text-text-muted">
         depuis le {formatDate(h.createdAt)}
         {h.revoqueeAt ? ` · révoquée le ${formatDate(h.revoqueeAt)}` : ''}
       </span>
@@ -309,13 +308,14 @@ export function PanneauHabilitations() {
         d’imputation ni de signature.
       </p>
       <div className="mb-3 flex justify-end">
-        <Button variant="gold" onClick={() => setAccorder(true)}>
-          + Accorder une habilitation
-        </Button>
+        <button type="button" className={BTN_PRINCIPAL} onClick={() => setAccorder(true)}>
+          <Plus aria-hidden size={16} />
+          Accorder une habilitation
+        </button>
       </div>
-      <Erreur message={erreur} />
+      <ErreurChargement message={erreur} />
       {habs === null ? (
-        <p className="text-sm text-text-muted">Chargement…</p>
+        !erreur && <SqueletteListe lignes={4} colonnes={3} />
       ) : actives.length === 0 ? (
         <Vide>Aucune habilitation active.</Vide>
       ) : (
@@ -344,71 +344,36 @@ export function PanneauHabilitations() {
 }
 
 function FenetreHabilitation({ users, registres, unites, onClose, onFait }: { users: AdminUser[]; registres: Registre[]; unites: Unite[]; onClose: () => void; onFait: () => void }) {
+  const toast = useToast();
   const [userId, setUserId] = useState('');
   const [registreId, setRegistreId] = useState(registres[0]?.id ?? '');
   const [uniteKey, setUniteKey] = useState('');
-  const [enCours, setEnCours] = useState(false);
-  const [erreur, setErreur] = useState<string | null>(null);
+  const { enCours, erreur, envoyer } = useEnvoi();
   const registre = registres.find((r) => r.id === registreId);
   const unitesUnite = unites.filter((u) => u.key !== 'DNPEC');
+  const personnes = [...users].sort((a, b) => a.lastName.localeCompare(b.lastName)).map((u) => versPersonne(u));
   return (
-    <Fenetre
+    <FenetreFormulaire
       titre="Accorder une habilitation"
-      valider="Accorder"
+      libelleValider="Accorder"
+      largeur={600}
       enCours={enCours}
+      erreur={erreur}
       onClose={onClose}
+      pied="L’habilitation est personnelle : elle ne se transmet pas en intérim."
       onSubmit={async () => {
-        setEnCours(true);
-        setErreur(null);
-        try {
-          await createHabilitation({ userId, registreId, uniteKey: registre?.portee === 'UNITE' ? uniteKey : undefined });
-          onFait();
-        } catch (e) {
-          setErreur(messageErreur(e, 'Habilitation impossible'));
-        } finally {
-          setEnCours(false);
-        }
+        const r = await envoyer(() => createHabilitation({ userId, registreId, uniteKey: registre?.portee === 'UNITE' ? uniteKey : undefined }));
+        if (!r.ok) return;
+        toast.succes('Habilitation accordée', { detail: `${nomDe(personnes, userId)} peut enregistrer le courrier de ${registre?.code ?? 'ce registre'}.` });
+        onFait();
       }}
     >
-      <Erreur message={erreur} />
-      <div className="mb-4">
-        <Libelle htmlFor="h-user">Personne</Libelle>
-        <select id="h-user" className={SELECT_CLASS} value={userId} onChange={(e) => setUserId(e.target.value)} required>
-          <option value="">Choisir…</option>
-          {[...users]
-            .sort((a, b) => a.lastName.localeCompare(b.lastName))
-            .map((u) => (
-              <option key={u.id} value={u.id}>
-                {u.firstName} {u.lastName}
-                {u.jobTitle ? ` — ${u.jobTitle}` : ''}
-              </option>
-            ))}
-        </select>
-      </div>
-      <div className="mb-4">
-        <Libelle htmlFor="h-registre">Registre</Libelle>
-        <select id="h-registre" className={SELECT_CLASS} value={registreId} onChange={(e) => setRegistreId(e.target.value)} required>
-          {registres.map((r) => (
-            <option key={r.id} value={r.id}>
-              {r.code} — {r.libelle}
-            </option>
-          ))}
-        </select>
-      </div>
+      <SelecteurPersonnes id="h-user" label="Personne" options={personnes} valeurs={userId ? [userId] : []} onChange={(ids) => setUserId(ids[0] ?? '')} multiple={false} required messageObligatoire="Choisissez la personne à habiliter." />
+      <Liste id="h-registre" label="Registre" value={registreId} onChange={setRegistreId} options={registres.map((r) => ({ value: r.id, label: `${r.code} — ${r.libelle}` }))} required messageObligatoire="Choisissez le registre." />
       {registre?.portee === 'UNITE' && (
-        <div className="mb-4">
-          <Libelle htmlFor="h-unite">Unité</Libelle>
-          <select id="h-unite" className={SELECT_CLASS} value={uniteKey} onChange={(e) => setUniteKey(e.target.value)} required>
-            <option value="">Choisir…</option>
-            {unitesUnite.map((u) => (
-              <option key={u.key} value={u.key}>
-                {u.code} — {u.libelle}
-              </option>
-            ))}
-          </select>
-        </div>
+        <Liste id="h-unite" label="Unité" value={uniteKey} onChange={setUniteKey} vide="Choisir…" options={unitesUnite.map((u) => ({ value: u.key, label: `${u.code} — ${u.libelle}` }))} required messageObligatoire="Choisissez l’unité." />
       )}
-    </Fenetre>
+    </FenetreFormulaire>
   );
 }
 
@@ -430,7 +395,7 @@ export function PanneauCompteurs() {
         setUnites(u);
         setRegistreId(r[0]?.id ?? '');
       })
-      .catch((e) => setErreur(messageErreur(e, 'Impossible de charger les registres')));
+      .catch((e) => setErreur(messageErreur(e, 'Les registres n’ont pas pu être lus.')));
   }, []);
   const [version, setVersion] = useState(0);
   const charger = () => setVersion((v) => v + 1);
@@ -442,7 +407,7 @@ export function PanneauCompteurs() {
     setCompteurs(null);
     getCompteurs(registreId)
       .then((c) => actuel && setCompteurs(c))
-      .catch((e) => actuel && setErreur(messageErreur(e, 'Impossible de charger les compteurs')));
+      .catch((e) => actuel && setErreur(messageErreur(e, 'Les compteurs n’ont pas pu être lus.')));
     return () => {
       actuel = false;
     };
@@ -462,24 +427,24 @@ export function PanneauCompteurs() {
             ))}
           </select>
         </div>
-        <Button variant="gold" onClick={() => setReprise(true)} disabled={!registre}>
+        <button type="button" className={BTN_PRINCIPAL} onClick={() => setReprise(true)} disabled={!registre}>
           Reprise d’un compteur
-        </Button>
+        </button>
       </div>
-      <Erreur message={erreur} />
+      <ErreurChargement message={erreur} />
       {compteurs === null ? (
-        <p className="text-sm text-text-muted">Chargement…</p>
+        !erreur && <SqueletteListe lignes={3} colonnes={4} />
       ) : compteurs.length === 0 ? (
         <Vide>Aucun numéro encore attribué dans ce registre.</Vide>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-line bg-surface">
+        <div className="overflow-x-auto rounded-xl border border-line bg-surface">
           <table className="w-full text-left text-[13px]">
-            <thead className="bg-bg text-[11px] uppercase tracking-wide text-text-faint">
+            <thead className="bg-[#F7F8FB] text-[12px] text-text-muted">
               <tr>
-                <th className="px-4 py-2">Unité</th>
-                <th className="px-4 py-2">Année</th>
-                <th className="px-4 py-2">Dernier numéro</th>
-                <th className="px-4 py-2">Mis à jour</th>
+                <th className="px-4 py-2 font-semibold">Unité</th>
+                <th className="px-4 py-2 font-semibold">Année</th>
+                <th className="px-4 py-2 font-semibold">Dernier numéro</th>
+                <th className="px-4 py-2 font-semibold">Mis à jour</th>
               </tr>
             </thead>
             <tbody>
@@ -511,11 +476,11 @@ export function PanneauCompteurs() {
 }
 
 function FenetreReprise({ registre, unites, onClose, onFait }: { registre: Registre; unites: Unite[]; onClose: () => void; onFait: () => void }) {
+  const toast = useToast();
   const [uniteKey, setUniteKey] = useState('');
   const [annee, setAnnee] = useState(String(new Date().getFullYear()));
   const [dernier, setDernier] = useState('');
-  const [enCours, setEnCours] = useState(false);
-  const [erreur, setErreur] = useState<string | null>(null);
+  const { enCours, erreur, envoyer } = useEnvoi();
   const unite = registre.portee === 'DIRECTION' ? 'DNPEC' : uniteKey;
   const { numero } = apercu(registre.gabaritNumero, {
     sequence: (Number(dernier) || 0) + 1,
@@ -524,54 +489,45 @@ function FenetreReprise({ registre, unites, onClose, onFait }: { registre: Regis
     unite: unites.find((u) => u.key === unite)?.code ?? 'UNITE',
   });
   return (
-    <Fenetre
+    <FenetreFormulaire
       titre={`Reprise du compteur — ${registre.code}`}
-      sousTitre={
-        <span className="block rounded-md border border-clay bg-clay-soft px-3 py-2 text-clay">
-          À n’utiliser qu’au démarrage, pour reprendre la numérotation papier : indiquez le dernier numéro déjà attribué à la main. Refusé dès qu’une
-          entrée a été numérotée par le système pour ce registre, cette unité et cette année.
-        </span>
-      }
-      valider="Enregistrer la reprise"
+      libelleValider="Enregistrer la reprise"
       danger
+      largeur={620}
       enCours={enCours}
+      erreur={erreur}
       onClose={onClose}
+      pied="La reprise est refusée dès qu’une entrée a été numérotée par le système."
       onSubmit={async () => {
-        setEnCours(true);
-        setErreur(null);
-        try {
-          await initialiserCompteur(registre.id, { uniteKey: registre.portee === 'UNITE' ? uniteKey : undefined, annee: Number(annee), dernier: Number(dernier) });
-          onFait();
-        } catch (e) {
-          setErreur(messageErreur(e, 'Reprise impossible'));
-        } finally {
-          setEnCours(false);
-        }
+        const r = await envoyer(() => initialiserCompteur(registre.id, { uniteKey: registre.portee === 'UNITE' ? uniteKey : undefined, annee: Number(annee), dernier: Number(dernier) }));
+        if (!r.ok) return;
+        toast.succes('Reprise enregistrée', { detail: `Prochain numéro : ${numero}.` });
+        onFait();
       }}
     >
-      <Erreur message={erreur} />
+      <p className="mb-3.5 rounded-[10px] border border-[#E7B3BB] bg-clay-50 px-3 py-2 text-[12.5px] text-clay">
+        À n’utiliser qu’au démarrage, pour reprendre la numérotation papier : indiquez le dernier numéro déjà attribué à la main. Refusé dès qu’une entrée a
+        été numérotée par le système pour ce registre, cette unité et cette année.
+      </p>
       {registre.portee === 'UNITE' && (
-        <div className="mb-4">
-          <Libelle htmlFor="rp-unite">Unité</Libelle>
-          <select id="rp-unite" className={SELECT_CLASS} value={uniteKey} onChange={(e) => setUniteKey(e.target.value)} required>
-            <option value="">Choisir…</option>
-            {unites
-              .filter((u) => u.key !== 'DNPEC')
-              .map((u) => (
-                <option key={u.key} value={u.key}>
-                  {u.code} — {u.libelle}
-                </option>
-              ))}
-          </select>
-        </div>
+        <Liste
+          id="rp-unite"
+          label="Unité"
+          value={uniteKey}
+          onChange={setUniteKey}
+          vide="Choisir…"
+          options={unites.filter((u) => u.key !== 'DNPEC').map((u) => ({ value: u.key, label: `${u.code} — ${u.libelle}` }))}
+          required
+          messageObligatoire="Choisissez l’unité."
+        />
       )}
-      <div className="grid gap-x-3 sm:grid-cols-2">
-        <Field label="Année" id="rp-annee" type="number" min={2000} max={2100} value={annee} onChange={(e) => setAnnee(e.target.value)} required />
-        <Field label="Dernier numéro attribué" id="rp-dernier" type="number" min={0} value={dernier} onChange={(e) => setDernier(e.target.value)} required />
-      </div>
-      <div className="mb-4 rounded-md bg-bg px-3.5 py-2.5 text-[12.5px]" data-testid="apercu-reprise">
+      <Grille2>
+        <Saisie id="rp-annee" label="Année" type="number" min={2000} max={2100} value={annee} onChange={setAnnee} required />
+        <Saisie id="rp-dernier" label="Dernier numéro attribué" type="number" min={0} value={dernier} onChange={setDernier} required messageObligatoire="Indiquez le dernier numéro attribué à la main." />
+      </Grille2>
+      <div className="mb-3.5 rounded-[10px] bg-bg px-3.5 py-2.5 text-[12.5px]" data-testid="apercu-reprise">
         Le prochain numéro sera : <strong className="font-heading">{numero}</strong>
       </div>
-    </Fenetre>
+    </FenetreFormulaire>
   );
 }

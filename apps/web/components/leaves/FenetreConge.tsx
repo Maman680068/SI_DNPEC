@@ -18,6 +18,8 @@ import { demanderReauthentification } from '../../lib/api/client';
 import { CODE_CONGE_MALADIE, LIBELLE_AVIS } from '../../lib/leaves/types';
 import type { ContexteConge, LeaveRequest } from '../../lib/leaves/types';
 import { messageChargement } from '../ui/ErreurChargement';
+import { ZoneDepot } from '../ui/Formulaire';
+import { useToast } from '../ui/Toast';
 import { FenetreDetail } from '../ui/FenetreDetail';
 import { BTN_DANGER_CONTOUR, BTN_PRINCIPAL, BTN_SECONDAIRE, CleValeur, Etapes, Initiales, Pastille, SectionFenetre, type EtatEtape } from '../ui/Charte';
 import { dateCourte, dateLongue, echeanceLongue, initialesNom, jours, lendemain, pastilleEtape, typeEnPhrase } from './format';
@@ -58,6 +60,7 @@ export function FenetreConge({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const champMotif = useRef<HTMLTextAreaElement>(null);
+  const toast = useToast();
 
   const mode: Mode = request.droits?.peutDonnerAvis ? 'avis' : request.droits?.peutDecider ? 'decision' : request.userId === currentUserId ? 'demandeur' : 'lecture';
   const prenom = request.user.firstName;
@@ -73,11 +76,12 @@ export function FenetreConge({
     // Le contexte ne dépend que de la demande et du rôle du lecteur sur elle.
   }, [request.id, mode]);
 
-  async function agir(action: () => Promise<LeaveRequest>, defaut: string) {
+  async function agir(action: () => Promise<LeaveRequest>, defaut: string, succes: [string, string]) {
     setBusy(true);
     setError(null);
     try {
       onDecided(await action());
+      toast.succes(succes[0], { detail: succes[1] });
     } catch (err) {
       setError(message(err, defaut));
     } finally {
@@ -267,7 +271,7 @@ export function FenetreConge({
     cote = (
       <>
         <div className="flex flex-col gap-2" data-testid="avis-chef">
-          <button type="button" className={`${BTN_PRINCIPAL} !h-[42px]`} disabled={busy} onClick={() => agir(() => donnerAvisConge(request.id, 'FAVORABLE', motif.trim() || undefined), 'Impossible d’enregistrer votre avis')}>
+          <button type="button" className={`${BTN_PRINCIPAL} !h-[42px]`} disabled={busy} onClick={() => agir(() => donnerAvisConge(request.id, 'FAVORABLE', motif.trim() || undefined), 'Impossible d’enregistrer votre avis', ['Avis favorable enregistré', `La demande de ${nom} passe à la décision du DRH.`])}>
             <Check aria-hidden size={17} strokeWidth={2.5} />
             Avis favorable
           </button>
@@ -275,7 +279,7 @@ export function FenetreConge({
             type="button"
             className={BTN_DANGER_CONTOUR}
             disabled={busy}
-            onClick={() => exigerMotif('Un avis défavorable doit être motivé : indiquez le motif.') && agir(() => donnerAvisConge(request.id, 'DEFAVORABLE', motif.trim()), 'Impossible d’enregistrer votre avis')}
+            onClick={() => exigerMotif('Un avis défavorable doit être motivé : indiquez le motif.') && agir(() => donnerAvisConge(request.id, 'DEFAVORABLE', motif.trim()), 'Impossible d’enregistrer votre avis', ['Avis défavorable enregistré', `La demande de ${nom} passe à la décision du DRH, avec votre motif.`])}
           >
             Avis défavorable
           </button>
@@ -298,7 +302,7 @@ export function FenetreConge({
     cote = (
       <>
         <div className="flex flex-col gap-2" data-testid="decision-drh">
-          <button type="button" className={`${BTN_PRINCIPAL} !h-[42px]`} disabled={busy} onClick={() => agir(() => approveLeaveRequest(request.id, motif.trim() || undefined), 'Impossible d’approuver cette demande')}>
+          <button type="button" className={`${BTN_PRINCIPAL} !h-[42px]`} disabled={busy} onClick={() => agir(() => approveLeaveRequest(request.id, motif.trim() || undefined), 'Impossible d’approuver cette demande', ['Congé approuvé', `${nom} a été prévenu ; le solde est mis à jour.`])}>
             <Check aria-hidden size={17} strokeWidth={2.5} />
             Valider
           </button>
@@ -306,7 +310,7 @@ export function FenetreConge({
             type="button"
             className={BTN_DANGER_CONTOUR}
             disabled={busy}
-            onClick={() => exigerMotif('Un refus doit être motivé : indiquez le motif.') && agir(() => rejectLeaveRequest(request.id, motif.trim()), 'Impossible de refuser cette demande')}
+            onClick={() => exigerMotif('Un refus doit être motivé : indiquez le motif.') && agir(() => rejectLeaveRequest(request.id, motif.trim()), 'Impossible de refuser cette demande', ['Demande refusée', `${nom} a été prévenu, avec votre motif.`])}
           >
             Rejeter avec un motif
           </button>
@@ -337,30 +341,33 @@ export function FenetreConge({
               <p className="text-text-muted">Aucun certificat médical joint (visible de vous et du DRH seulement).</p>
             )}
             {request.droits?.deposerCertificat && (
-              <label className={`${BTN_SECONDAIRE} mt-2 w-full cursor-pointer !h-9 !text-[13px] focus-within:outline focus-within:outline-2 focus-within:outline-ink`}>
-                {request.certificat ? 'Remplacer le certificat' : 'Joindre le certificat médical'}
-                <input
-                  type="file"
-                  className="sr-only"
-                  onChange={(e) => {
-                    const f = e.target.files?.[0];
-                    if (!f) return;
+              <div className="mt-2">
+                <ZoneDepot
+                  id="certificat-fenetre"
+                  label={request.certificat ? 'Remplacer le certificat' : 'Joindre le certificat médical'}
+                  fichiers={[]}
+                  aide={busy ? 'Envoi en cours…' : 'PDF ou image · 25 Mo au plus'}
+                  onChange={(fichiers) => {
+                    const f = fichiers[0];
+                    if (!f || busy) return;
                     setBusy(true);
+                    setError(null);
                     deposerCertificat(request.id, f)
                       .then((maj) => {
                         setRequest(maj);
                         onChange(maj);
+                        toast.succes(request.certificat ? 'Certificat remplacé' : 'Certificat médical joint', { detail: 'Visible de vous et du DRH seulement.' });
                       })
                       .catch((err) => setError(message(err, 'Dépôt impossible')))
                       .finally(() => setBusy(false));
                   }}
                 />
-              </label>
+              </div>
             )}
           </div>
         )}
         {mode === 'demandeur' && request.droits?.peutAnnuler && (
-          <button type="button" className={`${BTN_DANGER_CONTOUR} mt-4 w-full`} disabled={busy} onClick={() => agir(() => cancelLeaveRequest(request.id), 'Impossible d’annuler cette demande')}>
+          <button type="button" className={`${BTN_DANGER_CONTOUR} mt-4 w-full`} disabled={busy} onClick={() => agir(() => cancelLeaveRequest(request.id), 'Impossible d’annuler cette demande', ['Demande annulée', `${request.leaveType.name} · ${jours(request.daysCount)}.`])}>
             Annuler la demande
           </button>
         )}

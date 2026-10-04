@@ -19,6 +19,9 @@ import type {
 } from '../../../lib/pilotage/types';
 import { LIBELLE_STATUT_INSTRUCTION } from '../../../lib/pilotage/types';
 import { Fenetre } from '../../../components/ui/Fenetre';
+import { ChampDate, FenetreFormulaire, Liste, Saisie, SelecteurPersonnes, ZoneTexte } from '../../../components/ui/Formulaire';
+import { SquelettePage } from '../../../components/ui/Squelette';
+import { messageErreur, useToast } from '../../../components/ui/Toast';
 import { FenetreDetail } from '../../../components/ui/FenetreDetail';
 import {
   BandeCompteurs,
@@ -34,6 +37,7 @@ import {
   Etapes,
   EtatVide,
   FiltreSelect,
+  Filtres,
   LigneTableau,
   Onglets,
   Pastille,
@@ -50,7 +54,6 @@ import {
 } from '../../../components/ui/ErreurChargement';
 
 type Onglet = 'emises' | 'recues' | 'meConcernant' | 'archivees';
-const champ = 'mt-1 w-full rounded-[9px] border border-line bg-surface px-3 py-2 text-[13.5px] font-normal';
 const date = (iso: string | null) =>
   iso
     ? new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })
@@ -72,6 +75,19 @@ const TON: Record<StatutInstruction, TonPastille> = {
 const OUVERTE = (i: Instruction) => i.statut !== 'EXECUTEE' && i.statut !== 'REJETEE';
 const GRILLE = 'lg:grid-cols-[96px_minmax(0,1fr)_minmax(0,210px)_96px_150px_92px]';
 const CIRCUIT = 'Émise → Reçue → Prise en compte → Exécutée';
+/** État vide de chaque onglet : [lecteur, émetteur (DN, DNA)] — l'émetteur se voit proposer « Nouvelle instruction ». */
+const TEXTE_VIDE: Record<Onglet, [string, string]> = {
+  emises: ['Aucune instruction en cours.', 'Aucune instruction en cours : émettez-en une, son destinataire est prévenu et relancé tous les 7 jours.'],
+  recues: [
+    'Aucune instruction en attente ne vous est adressée. Une instruction de la Direction apparaît ici dès son émission, et vous êtes prévenu.',
+    'Aucune instruction ne vous est adressée.',
+  ],
+  meConcernant: ['Aucune instruction exécutée ne vous concerne.', 'Aucune instruction exécutée ne vous concerne.'],
+  archivees: [
+    'Aucune instruction close pour l’instant : une instruction exécutée ou rejetée est rangée ici.',
+    'Aucune instruction close pour l’instant : une instruction exécutée ou rejetée est rangée ici.',
+  ],
+};
 type FiltreEcheance = 'toutes' | 'retard' | 'semaine' | 'mois' | 'sans';
 const ECHEANCES: { value: FiltreEcheance; label: string }[] = [
   { value: 'toutes', label: 'Échéance : toutes' },
@@ -100,6 +116,7 @@ export default function InstructionsPage() {
   const [personne, setPersonne] = useState('');
   const [statut, setStatut] = useState<StatutInstruction | ''>('');
   const [echeance, setEcheance] = useState<FiltreEcheance>('toutes');
+  const toast = useToast();
 
   const charger = useCallback(() => {
     getInstructions()
@@ -115,9 +132,15 @@ export default function InstructionsPage() {
   if (!liste) {
     return (
       <div>
-        <EnTetePage titre="Instructions de la Direction" />
         <ErreurChargement message={erreur} />
-        <Chargement erreur={erreur} />
+        {erreur ? (
+          <>
+            <EnTetePage titre="Instructions de la Direction" />
+            <Chargement erreur={erreur} />
+          </>
+        ) : (
+          <SquelettePage />
+        )}
       </div>
     );
   }
@@ -150,7 +173,8 @@ export default function InstructionsPage() {
       (!statut || i.statut === statut) &&
       correspondEcheance(i, echeance),
   );
-  const filtre = !!q || !!personne || !!statut || echeance !== 'toutes';
+  const nbFiltres = [!!personne, !!statut, echeance !== 'toutes'].filter(Boolean).length;
+  const filtre = !!q || nbFiltres > 0;
   const effacer = () => (setRecherche(''), setPersonne(''), setStatut(''), setEcheance('toutes'));
   const changerOnglet = (o: Onglet) => (setOnglet(o), setPersonne(''), setStatut(''));
 
@@ -166,7 +190,7 @@ export default function InstructionsPage() {
         titre="Instructions de la Direction"
         actions={
           <>
-            <button type="button" className={BTN_SECONDAIRE} onClick={() => void exporterInstructions().catch((e) => setErreur(messageChargement(e)))}>
+            <button type="button" className={BTN_SECONDAIRE} onClick={() => void exporterInstructions().catch((e) => toast.erreur('Export impossible', messageErreur(e)))}>
               <FileText aria-hidden size={16} /> Exporter
             </button>
             {liste.peutEmettre && (
@@ -200,6 +224,7 @@ export default function InstructionsPage() {
       </div>
       <BarreOutils>
         <Recherche value={recherche} onChange={setRecherche} placeholder="Rechercher une instruction…" label="Rechercher une instruction" />
+        <Filtres actifs={nbFiltres} onEffacer={() => (setPersonne(''), setStatut(''), setEcheance('toutes'))}>
         <FiltreSelect
           label={emisesVue ? 'Destinataire' : 'Émetteur'}
           value={personne}
@@ -215,6 +240,7 @@ export default function InstructionsPage() {
           options={[{ value: '', label: 'Statut : tous' }, ...statuts.map((s) => ({ value: s, label: LIBELLE_STATUT_INSTRUCTION[s] }))]}
         />
         <FiltreSelect<FiltreEcheance> label="Échéance" value={echeance} defaut="toutes" onChange={setEcheance} options={ECHEANCES} />
+        </Filtres>
       </BarreOutils>
       <Tableau
         label={courant.libelle}
@@ -229,17 +255,21 @@ export default function InstructionsPage() {
             />
           ) : (
             <EtatVide
-              texte={courant.cle === 'archivees' ? 'Aucune instruction close pour l’instant.' : courant.cle === 'recues' ? 'Aucune instruction en attente ne vous est adressée.' : 'Aucune instruction en cours.'}
+              texte={TEXTE_VIDE[courant.cle][liste.peutEmettre ? 1 : 0]}
               action={
                 liste.peutEmettre ? (
                   <button type="button" className={BTN_SECONDAIRE} onClick={() => setEmission(true)}>
                     <Plus aria-hidden size={16} /> Nouvelle instruction
                   </button>
-                ) : courant.cle !== 'archivees' ? (
+                ) : courant.cle !== 'archivees' && archivees.length > 0 ? (
                   <button type="button" className={BTN_SECONDAIRE} onClick={() => changerOnglet('archivees')}>
                     Voir les instructions archivées
                   </button>
-                ) : undefined
+                ) : (
+                  <Link href="/aide" className={BTN_SECONDAIRE}>
+                    Comment fonctionnent les instructions
+                  </Link>
+                )
               }
             />
           )
@@ -295,7 +325,12 @@ export default function InstructionsPage() {
         <FenetreEmission
           liste={liste}
           onClose={() => setEmission(false)}
-          onFait={() => (setEmission(false), changerOnglet('emises'), charger())}
+          onFait={(nom) => {
+            setEmission(false);
+            changerOnglet('emises');
+            charger();
+            toast.succes('Instruction émise', { detail: `${nom} a été prévenu ; relance automatique tous les 7 jours.` });
+          }}
         />
       )}
       {ouverte && (
@@ -319,7 +354,7 @@ function FenetreEmission({
 }: {
   liste: ListeInstructions;
   onClose: () => void;
-  onFait: () => void;
+  onFait: (destinataire: string) => void;
 }) {
   const [v, setV] = useState({
     objet: '',
@@ -330,95 +365,129 @@ function FenetreEmission({
   });
   const [erreur, setErreur] = useState<string | null>(null);
   const [enCours, setEnCours] = useState(false);
+  const personnes = liste.personnesPossibles.map((p) => ({ id: p.id, nom: p.nom }));
+  const nomDe = (id: string) => personnes.find((p) => p.id === id)?.nom ?? 'Le destinataire';
   return (
-    <Fenetre
+    <FenetreFormulaire
       titre="Nouvelle instruction"
       onClose={onClose}
-      largeur={560}
+      largeur={720}
       enCours={enCours}
       erreur={erreur}
-      libelleValider="Émettre"
+      libelleValider="Émettre l’instruction"
+      testid="fenetre-nouvelle-instruction"
+      pied="Le destinataire est prévenu immédiatement, puis relancé tous les 7 jours tant que l’instruction reste ouverte."
+      valider={() => ({
+        ...(v.objet.trim().length < 3 ? { 'instruction-objet': v.objet.trim() ? 'L’objet compte au moins 3 caractères.' : 'Indiquez l’objet de l’instruction.' } : {}),
+        ...(v.texte.trim().length < 3 ? { 'instruction-texte': v.texte.trim() ? 'L’instruction compte au moins 3 caractères.' : 'Rédigez l’instruction.' } : {}),
+      })}
       onSubmit={() => {
         setEnCours(true);
+        setErreur(null);
         return emettreInstruction({
-          objet: v.objet,
-          texte: v.texte,
+          objet: v.objet.trim(),
+          texte: v.texte.trim(),
           destinataireId: v.destinataireId,
           ...(v.agentConcerneId ? { agentConcerneId: v.agentConcerneId } : {}),
           ...(v.echeance ? { echeance: v.echeance } : {}),
         })
-          .then(onFait)
-          .catch((e) => setErreur(messageChargement(e)))
+          .then(() => onFait(nomDe(v.destinataireId)))
+          .catch((e) => setErreur(messageErreur(e)))
           .finally(() => setEnCours(false));
       }}
     >
-      <label className="mb-3 block text-[12.5px] font-semibold">
-        Objet
-        <input
-          className={champ}
-          value={v.objet}
-          onChange={(e) => setV({ ...v, objet: e.target.value })}
-          required
-          minLength={3}
-        />
-      </label>
-      <label className="mb-3 block text-[12.5px] font-semibold">
-        Instruction
-        <textarea
-          className={champ}
-          rows={4}
-          value={v.texte}
-          onChange={(e) => setV({ ...v, texte: e.target.value })}
-          required
-          minLength={5}
-        />
-      </label>
-      <label className="mb-3 block text-[12.5px] font-semibold">
-        Destinataire
-        <select
-          className={champ}
-          value={v.destinataireId}
-          onChange={(e) => setV({ ...v, destinataireId: e.target.value })}
-          required
-        >
-          <option value="">Choisir…</option>
-          {liste.personnesPossibles.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.nom}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label className="mb-3 block text-[12.5px] font-semibold">
-        Agent concerné{' '}
-        <span className="font-normal text-text-faint">
-          (instruction RH — facultatif ; ne la verra qu’une fois exécutée)
-        </span>
-        <select
-          className={champ}
-          value={v.agentConcerneId}
-          onChange={(e) => setV({ ...v, agentConcerneId: e.target.value })}
-        >
-          <option value="">Aucun</option>
-          {liste.personnesPossibles
-            .filter((p) => p.id !== v.destinataireId)
-            .map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.nom}
-              </option>
-            ))}
-        </select>
-      </label>
-      <label className="block text-[12.5px] font-semibold">
-        Échéance <span className="font-normal text-text-faint">(facultatif)</span>
-        <input
-          type="date"
-          className={champ}
-          value={v.echeance}
-          onChange={(e) => setV({ ...v, echeance: e.target.value })}
-        />
-      </label>
-    </Fenetre>
+      <Saisie id="instruction-objet" label="Objet" value={v.objet} onChange={(objet) => setV({ ...v, objet })} required maxLength={300} messageObligatoire="Indiquez l’objet de l’instruction." />
+      <ZoneTexte id="instruction-texte" label="Instruction" value={v.texte} onChange={(texte) => setV({ ...v, texte })} required lignes={4} maxLength={5000} messageObligatoire="Rédigez l’instruction." />
+      <SelecteurPersonnes
+        id="instruction-destinataire"
+        label="Destinataire"
+        multiple={false}
+        required
+        messageObligatoire="Choisissez un destinataire."
+        options={personnes}
+        valeurs={v.destinataireId ? [v.destinataireId] : []}
+        onChange={(ids) => setV({ ...v, destinataireId: ids[0] ?? '', agentConcerneId: v.agentConcerneId === ids[0] ? '' : v.agentConcerneId })}
+        placeholder="Rechercher le destinataire…"
+      />
+      <SelecteurPersonnes
+        id="instruction-agent"
+        label="Agent concerné"
+        facultatif
+        multiple={false}
+        options={personnes.filter((p) => p.id !== v.destinataireId)}
+        valeurs={v.agentConcerneId ? [v.agentConcerneId] : []}
+        onChange={(ids) => setV({ ...v, agentConcerneId: ids[0] ?? '' })}
+        placeholder="Rechercher l’agent…"
+        aide="Instruction RH : l’agent ne la verra qu’une fois exécutée."
+      />
+      <ChampDate id="instruction-echeance" label="Échéance" facultatif value={v.echeance} onChange={(echeance) => setV({ ...v, echeance })} />
+    </FenetreFormulaire>
+  );
+}
+
+/** Exécution (compte rendu, acte signé si requis) ou rejet motivé d'une instruction. */
+function FenetreSuite({ i, action, onClose, onFait }: { i: Instruction; action: 'executer' | 'rejeter'; onClose: () => void; onFait: () => void }) {
+  const [texte, setTexte] = useState('');
+  const [acteId, setActeId] = useState('');
+  const [erreur, setErreur] = useState<string | null>(null);
+  const [enCours, setEnCours] = useState(false);
+  const toast = useToast();
+  const executer = action === 'executer';
+  const min = executer ? 3 : 5;
+  const idTexte = executer ? 'instruction-compte-rendu' : 'instruction-motif';
+  return (
+    <FenetreFormulaire
+      titre={executer ? 'Marquer l’instruction exécutée' : 'Rejeter l’instruction'}
+      sousTitre={i.objet}
+      largeur={620}
+      onClose={onClose}
+      danger={!executer}
+      enCours={enCours}
+      erreur={erreur}
+      libelleValider={executer ? 'Confirmer l’exécution' : 'Confirmer le rejet'}
+      testid="fenetre-suite-instruction"
+      pied={`${i.emetteur.nom} est prévenu${executer && i.agentConcerne ? ` ; ${i.agentConcerne.nom} voit l’instruction une fois exécutée` : ''}.`}
+      valider={() => (texte.trim().length < min ? { [idTexte]: texte.trim() ? `Au moins ${min} caractères.` : executer ? 'Rédigez le compte rendu d’exécution.' : 'Indiquez le motif du rejet.' } : {})}
+      onSubmit={() => {
+        setEnCours(true);
+        setErreur(null);
+        return (executer ? executerInstruction(i.id, { compteRendu: texte.trim(), ...(acteId ? { acteId } : {}) }) : rejeterInstruction(i.id, texte.trim()))
+          .then(() => {
+            toast.succes(executer ? 'Instruction exécutée' : 'Instruction rejetée', { detail: `${i.emetteur.nom} a été prévenu.` });
+            onFait();
+          })
+          .catch((e) => setErreur(messageErreur(e)))
+          .finally(() => setEnCours(false));
+      }}
+    >
+      <ZoneTexte
+        id={idTexte}
+        label={executer ? 'Compte rendu d’exécution' : 'Motif du rejet'}
+        value={texte}
+        onChange={setTexte}
+        required
+        lignes={4}
+        maxLength={executer ? 3000 : 2000}
+        messageObligatoire={executer ? 'Rédigez le compte rendu d’exécution.' : 'Indiquez le motif du rejet.'}
+      />
+      {executer && i.droits.acteRequis && (
+        <>
+          <Liste
+            id="instruction-acte"
+            label="Acte signé qui exécute l’instruction"
+            value={acteId}
+            onChange={setActeId}
+            required
+            vide="Choisir…"
+            messageObligatoire="Choisissez l’acte signé."
+            options={(i.actesPossibles ?? []).map((a) => ({ value: a.id, label: a.libelle }))}
+          />
+          {(i.actesPossibles ?? []).length === 0 && (
+            <p className="-mt-2 mb-3.5 text-[12.5px] text-text-muted">Préparez puis faites signer l’acte dans le module Courrier (ou Documents générés).</p>
+          )}
+        </>
+      )}
+    </FenetreFormulaire>
   );
 }
 
@@ -442,25 +511,34 @@ function FicheInstruction({
 }) {
   const [i, setI] = useState<Instruction | null>(null);
   const [action, setAction] = useState<'executer' | 'rejeter' | null>(null);
-  const [texte, setTexte] = useState('');
-  const [acteId, setActeId] = useState('');
   const [erreur, setErreur] = useState<string | null>(null);
+  const [enCours, setEnCours] = useState(false);
+  const toast = useToast();
   useEffect(() => {
     getInstruction(id)
       .then((x) => (setI(x), onChange()))
       .catch((e) => setErreur(messageChargement(e)));
   }, [id]);
-  const apres = (p: Promise<Instruction>) =>
-    p
-      .then(() => getInstruction(id))
-      .then((x) => (setI(x), setAction(null), setTexte(''), onChange()))
+  const recharger = () =>
+    getInstruction(id)
+      .then((x) => (setI(x), setAction(null), onChange()))
       .catch((e) => setErreur(messageChargement(e)));
+  const prendre = (x: Instruction) => {
+    setEnCours(true);
+    prendreEnCompte(id)
+      .then(() => {
+        toast.succes('Instruction prise en compte', { detail: `${x.emetteur.nom} suit l’avancement.` });
+        return recharger();
+      })
+      .catch((e) => toast.erreur('Action impossible', messageErreur(e)))
+      .finally(() => setEnCours(false));
+  };
 
   if (!i) {
     return (
       <FenetreDetail titre="Instruction" filAriane={['Instructions de la Direction']} onClose={onClose} largeur={720}>
         <ErreurChargement message={erreur} />
-        <Chargement erreur={erreur} />
+        <Chargement erreur={erreur} lignes={3} />
       </FenetreDetail>
     );
   }
@@ -468,63 +546,7 @@ function FicheInstruction({
   const aucuneAction = !i.droits.prendreEnCompte && !i.droits.executer && !i.droits.rejeter;
   const cote = (
     <div>
-      {action ? (
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            setErreur(null);
-            apres(
-              action === 'executer'
-                ? executerInstruction(id, { compteRendu: texte, ...(acteId ? { acteId } : {}) })
-                : rejeterInstruction(id, texte),
-            );
-          }}
-        >
-          <label className="mb-2 block text-[12.5px] font-semibold">
-            {action === 'executer' ? 'Compte rendu d’exécution' : 'Motif du rejet'}
-            <textarea
-              className={champ}
-              rows={4}
-              value={texte}
-              onChange={(e) => setTexte(e.target.value)}
-              required
-              minLength={action === 'executer' ? 3 : 5}
-            />
-          </label>
-          {action === 'executer' && i.droits.acteRequis && (
-            <label className="mb-2 block text-[12.5px] font-semibold">
-              Acte signé qui exécute l’instruction
-              <select
-                className={champ}
-                value={acteId}
-                onChange={(e) => setActeId(e.target.value)}
-                required
-              >
-                <option value="">Choisir…</option>
-                {(i.actesPossibles ?? []).map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.libelle}
-                  </option>
-                ))}
-              </select>
-              {(i.actesPossibles ?? []).length === 0 && (
-                <span className="mt-1 block font-normal text-text-muted">
-                  Préparez puis faites signer l’acte dans le module Courrier (ou Documents
-                  générés).
-                </span>
-              )}
-            </label>
-          )}
-          <div className="grid gap-2">
-            <button type="submit" className={action === 'executer' ? BTN_SUCCES : BTN_DANGER_CONTOUR}>
-              {action === 'executer' ? 'Confirmer l’exécution' : 'Confirmer le rejet'}
-            </button>
-            <button type="button" className={BTN_SECONDAIRE} onClick={() => setAction(null)}>
-              Annuler
-            </button>
-          </div>
-        </form>
-      ) : aucuneAction ? (
+      {aucuneAction ? (
         <p className="text-[12.5px] text-text-muted">
           {OUVERTE(i)
             ? 'Aucune action ne vous revient : l’instruction est suivie par son destinataire.'
@@ -533,7 +555,7 @@ function FicheInstruction({
       ) : (
         <div className="grid gap-2">
           {i.droits.prendreEnCompte && (
-            <button type="button" className={BTN_PRINCIPAL} onClick={() => apres(prendreEnCompte(id))}>
+            <button type="button" className={BTN_PRINCIPAL} disabled={enCours} onClick={() => prendre(i)}>
               <Check aria-hidden size={16} /> Prendre en compte
             </button>
           )}
@@ -583,6 +605,7 @@ function FicheInstruction({
       largeur={900}
       testid="fiche-instruction"
     >
+      {action && <FenetreSuite i={i} action={action} onClose={() => setAction(null)} onFait={() => void recharger()} />}
       <ErreurChargement message={erreur} />
       <SectionFenetre titre="Instruction">
         <p className="whitespace-pre-wrap text-[13.5px] leading-relaxed text-text">{i.texte}</p>

@@ -12,6 +12,8 @@ const E = require('../config');
 const TELEPHONE = { width: 390, height: 844 };
 const ECRANS = [
   ['agent1', '/dashboard'],
+  ['agent1', '/compte'],
+  ['agent1', '/recherche?q=Rapport'],
   ['agent1', '/tasks'],
   ['agent1', '/leaves'],
   ['agent1', '/personnel'],
@@ -35,6 +37,7 @@ const ECRANS = [
   ['drh', '/rh?onglet=carriere'],
   ['drh', '/stages'],
   ['admin', '/users'],
+  ['admin', '/dashboard'],
   ['admin', '/parametrage'],
 ];
 const GRAVES = ['serious', 'critical'];

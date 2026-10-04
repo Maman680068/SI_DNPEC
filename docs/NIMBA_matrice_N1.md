@@ -1,4 +1,4 @@
-# Matrice des habilitations — état N5
+# Matrice des habilitations — état N6
 
 Généré par `tests/e2e/api/n1_matrice.js` (annexe 1 du cahier NIMBA v2.2). « ÉCART » : comportement actuel conservé en N1 et vérifié tel quel.
 
@@ -119,15 +119,33 @@ Généré par `tests/e2e/api/n1_matrice.js` (annexe 1 du cahier NIMBA v2.2). « 
 | Paramétrage | Assistant DN | modifier | — | refus (403) | CONFORME |
 | Paramétrage | Administrateur | lire | CLM(T) | accès | CONFORME |
 | Paramétrage | Administrateur | modifier | CLM(T) | accès | CONFORME |
-| Justificatif médical (motif) | DN | lire | — (existence et durée seulement) | refus (403) | CONFORME |
-| Justificatif médical (motif) | DNA | lire | — (existence et durée seulement) | refus (403) | CONFORME |
-| Justificatif médical (motif) | Chef de division | lire | — (existence et durée seulement) | refus (403) | CONFORME |
-| Justificatif médical (motif) | Chef de section | lire | — (existence et durée seulement) | refus (403) | CONFORME |
+| Justificatif médical (motif) | DN | lire | — (« Absence — motif protégé » et dates seulement) | refus (403) | CONFORME |
+| Justificatif médical (motif) | DNA | lire | — (« Absence — motif protégé » et dates seulement) | refus (403) | CONFORME |
+| Justificatif médical (motif) | Chef de division | lire | — (« Absence — motif protégé » et dates seulement) | refus (403) | CONFORME |
+| Justificatif médical (motif) | Chef de section | lire | L — chef qui donne l’avis, après réauthentification | accès | CONFORME |
 | Justificatif médical (motif) | Agent | lire | C(S) — le demandeur | accès | CONFORME |
 | Justificatif médical (motif) | DRH | lire | L(T) après réauthentification | accès | CONFORME |
-| Justificatif médical (motif) | Chef SAF | lire | — (existence et durée seulement) | refus (403) | CONFORME |
-| Justificatif médical (motif) | Assistant DN | lire | — (existence et durée seulement) | refus (403) | CONFORME |
-| Justificatif médical (motif) | Administrateur | lire | — (existence et durée seulement) | refus (403) | CONFORME |
+| Justificatif médical (motif) | Chef SAF | lire | — (« Absence — motif protégé » et dates seulement) | refus (403) | CONFORME |
+| Justificatif médical (motif) | Assistant DN | lire | — (« Absence — motif protégé » et dates seulement) | refus (403) | CONFORME |
+| Justificatif médical (motif) | Administrateur | lire | — (« Absence — motif protégé » et dates seulement) | refus (403) | CONFORME |
+| Certificat médical | DN | lire | — | refus (403) | CONFORME |
+| Certificat médical | DNA | lire | — | refus (403) | CONFORME |
+| Certificat médical | Chef de division | lire | — | refus (403) | CONFORME |
+| Certificat médical | Chef de section | lire | — | refus (403) | CONFORME |
+| Certificat médical | Agent | lire | C(S) — le demandeur | accès | CONFORME |
+| Certificat médical | DRH | lire | L(T) après réauthentification | accès | CONFORME |
+| Certificat médical | Chef SAF | lire | — | refus (403) | CONFORME |
+| Certificat médical | Assistant DN | lire | — | refus (403) | CONFORME |
+| Certificat médical | Administrateur | lire | — | refus (403) | CONFORME |
+| Jour férié | DN | créer | L(T) | refus (403) | CONFORME |
+| Jour férié | DNA | créer | L(T) | refus (403) | CONFORME |
+| Jour férié | Chef de division | créer | L(T) | refus (403) | CONFORME |
+| Jour férié | Chef de section | créer | L(T) | refus (403) | CONFORME |
+| Jour férié | Agent | créer | L(T) | refus (403) | CONFORME |
+| Jour férié | DRH | créer | CLMS(T) | accès | CONFORME |
+| Jour férié | Chef SAF | créer | L(T) | refus (403) | CONFORME |
+| Jour férié | Assistant DN | créer | L(T) | refus (403) | CONFORME |
+| Jour férié | Administrateur | créer | CLMS(T) | accès | CONFORME |
 | Demande d’absence — avis | DN | donner l’avis | — | refus (403) | CONFORME |
 | Demande d’absence — avis | DNA | donner l’avis | — | refus (403) | CONFORME |
 | Demande d’absence — avis | Chef de division | donner l’avis | — | refus (403) | CONFORME |
@@ -155,6 +173,15 @@ Généré par `tests/e2e/api/n1_matrice.js` (annexe 1 du cahier NIMBA v2.2). « 
 | Document — statut de diffusion | Chef SAF | valider | — | refus (403) | CONFORME |
 | Document — statut de diffusion | Assistant DN | valider | — | refus (403) | CONFORME |
 | Document — statut de diffusion | Administrateur | valider | — | refus (403) | CONFORME |
+| Document de cellule — statut de diffusion | DN | valider | V (chef de cellule / Direction) | accès | CONFORME |
+| Document de cellule — statut de diffusion | DNA | valider | V (chef de cellule / Direction) | accès | CONFORME |
+| Document de cellule — statut de diffusion | Chef de division | valider | — | refus (403) | CONFORME |
+| Document de cellule — statut de diffusion | Chef de section | valider | — | refus (403) | CONFORME |
+| Document de cellule — statut de diffusion | Agent | valider | — | refus (403) | CONFORME |
+| Document de cellule — statut de diffusion | DRH | valider | — | refus (403) | CONFORME |
+| Document de cellule — statut de diffusion | Chef SAF | valider | V (chef de cellule / Direction) | accès | CONFORME |
+| Document de cellule — statut de diffusion | Assistant DN | valider | — | refus (403) | CONFORME |
+| Document de cellule — statut de diffusion | Administrateur | valider | — | refus (403) | CONFORME |
 | Document — statut de diffusion | DN | rendre diffusable | V (DN, DNA) | accès | CONFORME |
 | Document — statut de diffusion | DNA | rendre diffusable | V (DN, DNA) | accès | CONFORME |
 | Document — statut de diffusion | Chef de division | rendre diffusable | — | refus (403) | CONFORME |
@@ -200,6 +227,87 @@ Généré par `tests/e2e/api/n1_matrice.js` (annexe 1 du cahier NIMBA v2.2). « 
 | Instruction de la Direction | Chef SAF | lire (agent concerné : pas avant l’exécution) | — (inexistante pour lui : 404) | refus (403) | CONFORME |
 | Instruction de la Direction | Assistant DN | lire (agent concerné : pas avant l’exécution) | — (inexistante pour lui : 404) | refus (403) | CONFORME |
 | Instruction de la Direction | Administrateur | lire (agent concerné : pas avant l’exécution) | — (inexistante pour lui : 404) | refus (403) | CONFORME |
+| Effectifs RH | DN | lire | L (DRH, DN, DNA) | accès | CONFORME |
+| Effectifs RH | DNA | lire | L (DRH, DN, DNA) | accès | CONFORME |
+| Effectifs RH | Chef de division | lire | — | refus (403) | CONFORME |
+| Effectifs RH | Chef de section | lire | — | refus (403) | CONFORME |
+| Effectifs RH | Agent | lire | — | refus (403) | CONFORME |
+| Effectifs RH | DRH | lire | L (DRH, DN, DNA) | accès | CONFORME |
+| Effectifs RH | Chef SAF | lire | — | refus (403) | CONFORME |
+| Effectifs RH | Assistant DN | lire | — | refus (403) | CONFORME |
+| Effectifs RH | Administrateur | lire | — | refus (403) | CONFORME |
+| Alertes RH | DN | lire (elles nomment des agents) | — | refus (403) | CONFORME |
+| Alertes RH | DNA | lire (elles nomment des agents) | — | refus (403) | CONFORME |
+| Alertes RH | Chef de division | lire (elles nomment des agents) | — | refus (403) | CONFORME |
+| Alertes RH | Chef de section | lire (elles nomment des agents) | — | refus (403) | CONFORME |
+| Alertes RH | Agent | lire (elles nomment des agents) | — | refus (403) | CONFORME |
+| Alertes RH | DRH | lire (elles nomment des agents) | L (DRH) | accès | CONFORME |
+| Alertes RH | Chef SAF | lire (elles nomment des agents) | — | refus (403) | CONFORME |
+| Alertes RH | Assistant DN | lire (elles nomment des agents) | — | refus (403) | CONFORME |
+| Alertes RH | Administrateur | lire (elles nomment des agents) | — | refus (403) | CONFORME |
+| Mouvement de carrière | DN | préparer (acte du Courrier signé par la Direction) | — | refus (403) | CONFORME |
+| Mouvement de carrière | DNA | préparer (acte du Courrier signé par la Direction) | — | refus (403) | CONFORME |
+| Mouvement de carrière | Chef de division | préparer (acte du Courrier signé par la Direction) | — | refus (403) | CONFORME |
+| Mouvement de carrière | Chef de section | préparer (acte du Courrier signé par la Direction) | — | refus (403) | CONFORME |
+| Mouvement de carrière | Agent | préparer (acte du Courrier signé par la Direction) | — | refus (403) | CONFORME |
+| Mouvement de carrière | DRH | préparer (acte du Courrier signé par la Direction) | C (DRH) | accès | CONFORME |
+| Mouvement de carrière | Chef SAF | préparer (acte du Courrier signé par la Direction) | — | refus (403) | CONFORME |
+| Mouvement de carrière | Assistant DN | préparer (acte du Courrier signé par la Direction) | — | refus (403) | CONFORME |
+| Mouvement de carrière | Administrateur | préparer (acte du Courrier signé par la Direction) | — | refus (403) | CONFORME |
+| Mouvement de carrière | DN | lire ceux d’un autre agent | L (DRH, DN, DNA ; l’agent : les siens, appliqués) | accès | CONFORME |
+| Mouvement de carrière | DNA | lire ceux d’un autre agent | L (DRH, DN, DNA ; l’agent : les siens, appliqués) | accès | CONFORME |
+| Mouvement de carrière | Chef de division | lire ceux d’un autre agent | — | refus (403) | CONFORME |
+| Mouvement de carrière | Chef de section | lire ceux d’un autre agent | — | refus (403) | CONFORME |
+| Mouvement de carrière | Agent | lire ceux d’un autre agent | — | refus (403) | CONFORME |
+| Mouvement de carrière | DRH | lire ceux d’un autre agent | L (DRH, DN, DNA ; l’agent : les siens, appliqués) | accès | CONFORME |
+| Mouvement de carrière | Chef SAF | lire ceux d’un autre agent | — | refus (403) | CONFORME |
+| Mouvement de carrière | Assistant DN | lire ceux d’un autre agent | — | refus (403) | CONFORME |
+| Mouvement de carrière | Administrateur | lire ceux d’un autre agent | — | refus (403) | CONFORME |
+| Fiche de poste | DN | lire | L (tous) | accès | CONFORME |
+| Fiche de poste | DN | rédiger | — | refus (403) | CONFORME |
+| Fiche de poste | DNA | lire | L (tous) | accès | CONFORME |
+| Fiche de poste | DNA | rédiger | — | refus (403) | CONFORME |
+| Fiche de poste | Chef de division | lire | L (tous) | accès | CONFORME |
+| Fiche de poste | Chef de division | rédiger | — | refus (403) | CONFORME |
+| Fiche de poste | Chef de section | lire | L (tous) | accès | CONFORME |
+| Fiche de poste | Chef de section | rédiger | — | refus (403) | CONFORME |
+| Fiche de poste | Agent | lire | L (tous) | accès | CONFORME |
+| Fiche de poste | Agent | rédiger | — | refus (403) | CONFORME |
+| Fiche de poste | DRH | lire | L (tous) | accès | CONFORME |
+| Fiche de poste | DRH | rédiger | CLM (DRH) | accès | CONFORME |
+| Fiche de poste | Chef SAF | lire | L (tous) | accès | CONFORME |
+| Fiche de poste | Chef SAF | rédiger | — | refus (403) | CONFORME |
+| Fiche de poste | Assistant DN | lire | L (tous) | accès | CONFORME |
+| Fiche de poste | Assistant DN | rédiger | — | refus (403) | CONFORME |
+| Fiche de poste | Administrateur | lire | L (tous) | accès | CONFORME |
+| Fiche de poste | Administrateur | rédiger | — | refus (403) | CONFORME |
+| Besoin de formation | DN | lire (son unité ; tout pour le DRH) | L(P) — chefs, Direction, DRH | accès | CONFORME |
+| Besoin de formation | DNA | lire (son unité ; tout pour le DRH) | L(P) — chefs, Direction, DRH | accès | CONFORME |
+| Besoin de formation | Chef de division | lire (son unité ; tout pour le DRH) | L(P) — chefs, Direction, DRH | accès | CONFORME |
+| Besoin de formation | Chef de section | lire (son unité ; tout pour le DRH) | L(P) — chefs, Direction, DRH | accès | CONFORME |
+| Besoin de formation | Agent | lire (son unité ; tout pour le DRH) | — | refus (403) | CONFORME |
+| Besoin de formation | DRH | lire (son unité ; tout pour le DRH) | L(P) — chefs, Direction, DRH | accès | CONFORME |
+| Besoin de formation | Chef SAF | lire (son unité ; tout pour le DRH) | L(P) — chefs, Direction, DRH | accès | CONFORME |
+| Besoin de formation | Assistant DN | lire (son unité ; tout pour le DRH) | — | refus (403) | CONFORME |
+| Besoin de formation | Administrateur | lire (son unité ; tout pour le DRH) | — | refus (403) | CONFORME |
+| Véhicule de service | DN | lire le parc | L (tous) | accès | CONFORME |
+| Tableau de bord par rôle | DN | lire le sien | L (chacun, jamais plus que ses écrans) | accès | CONFORME |
+| Véhicule de service | DNA | lire le parc | L (tous) | accès | CONFORME |
+| Tableau de bord par rôle | DNA | lire le sien | L (chacun, jamais plus que ses écrans) | accès | CONFORME |
+| Véhicule de service | Chef de division | lire le parc | L (tous) | accès | CONFORME |
+| Tableau de bord par rôle | Chef de division | lire le sien | L (chacun, jamais plus que ses écrans) | accès | CONFORME |
+| Véhicule de service | Chef de section | lire le parc | L (tous) | accès | CONFORME |
+| Tableau de bord par rôle | Chef de section | lire le sien | L (chacun, jamais plus que ses écrans) | accès | CONFORME |
+| Véhicule de service | Agent | lire le parc | L (tous) | accès | CONFORME |
+| Tableau de bord par rôle | Agent | lire le sien | L (chacun, jamais plus que ses écrans) | accès | CONFORME |
+| Véhicule de service | DRH | lire le parc | L (tous) | accès | CONFORME |
+| Tableau de bord par rôle | DRH | lire le sien | L (chacun, jamais plus que ses écrans) | accès | CONFORME |
+| Véhicule de service | Chef SAF | lire le parc | L (tous) | accès | CONFORME |
+| Tableau de bord par rôle | Chef SAF | lire le sien | L (chacun, jamais plus que ses écrans) | accès | CONFORME |
+| Véhicule de service | Assistant DN | lire le parc | L (tous) | accès | CONFORME |
+| Tableau de bord par rôle | Assistant DN | lire le sien | L (chacun, jamais plus que ses écrans) | accès | CONFORME |
+| Véhicule de service | Administrateur | lire le parc | L (tous) | accès | CONFORME |
+| Tableau de bord par rôle | Administrateur | lire le sien | L (chacun, jamais plus que ses écrans) | accès | CONFORME |
 
 ## Écarts conservés en N1
 
@@ -210,7 +318,6 @@ Généré par `tests/e2e/api/n1_matrice.js` (annexe 1 du cahier NIMBA v2.2). « 
 
 ## Objets livrés par un lot ultérieur (non joués en N1)
 
-- Mouvement de carrière et acte RH, effectifs et alertes RH : N6
 - Campagne et bulletin de paie, élément de rémunération, ordre de paiement : hors périmètre (D5, finances SAF)
 - Objets du domaine modélisation (annexe 1.3) : hors périmètre (domaine B)
 

@@ -1,14 +1,15 @@
 'use client';
 
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useState } from 'react';
 import { getActivitesDisponibles } from '../../lib/api/pilotage';
 import type { ActiviteDisponible } from '../../lib/pilotage/types';
 import { useAuth } from '../../lib/auth/AuthProvider';
 import { useOrg } from '../../lib/org/OrgProvider';
 import { addAttachments, createTask } from '../../lib/api/tasks';
 import type { Task, TaskPriority } from '../../lib/tasks/types';
-import { Field } from '../ui/Input';
-import { Button } from '../ui/Button';
+import { PRIORITE_LIBELLE } from '../../lib/tasks/affichage';
+import { Case, ChampDate, ChoixSegment, FenetreFormulaire, Grille2, Liste, Saisie, SelecteurPersonnes, ZoneDepot, ZoneTexte, type Personne } from '../ui/Formulaire';
+import { messageErreur, useToast } from '../ui/Toast';
 
 /** Personne à pré-assigner à l'ouverture, typiquement choisie depuis l'Annuaire —
  * donc potentiellement hors du périmètre cascade (`useOrg().users`) qui alimente
@@ -22,6 +23,21 @@ export interface PresetAssignee {
   jobTitle: string | null;
 }
 
+/** Priorités dans l'ordre de la maquette (Basse, Normale, Haute). */
+export const OPTIONS_PRIORITE: { value: TaskPriority; label: string }[] = (['FAIBLE', 'NORMAL', 'URGENT'] as TaskPriority[]).map((p) => ({ value: p, label: PRIORITE_LIBELLE[p] }));
+
+/** « Aïssatou Barry et Kadiatou Touré ont été prévenues. » (accord neutre). */
+export function phrasePrevenus(noms: string[]): string {
+  if (noms.length === 0) return '';
+  const liste = noms.length === 1 ? noms[0] : `${noms.slice(0, -1).join(', ')} et ${noms[noms.length - 1]}`;
+  return `${liste} ${noms.length > 1 ? 'ont été prévenus' : 'a été prévenu'}.`;
+}
+
+/**
+ * « Nouvelle tâche » (refonte, étape 9, maquette `apres-form-tache`) : titre, description, priorité en
+ * un clic, échéance, personnes assignées, activité du plan, documents de référence, document
+ * obligatoire. Les personnes proposées sont celles du périmètre (l'API revérifie chaque assigné).
+ */
 export function CreateTaskModal({
   onClose,
   onCreated,
@@ -35,7 +51,8 @@ export function CreateTaskModal({
   presetActiviteId?: string;
 }) {
   const { user: currentUser } = useAuth();
-  const { users } = useOrg();
+  const { users, getUserLabel } = useOrg();
+  const toast = useToast();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState<TaskPriority>('NORMAL');
@@ -53,6 +70,7 @@ export function CreateTaskModal({
     presetAssignee && !cascadeAssignable.some((u) => u.id === presetAssignee.id)
       ? [presetAssignee, ...cascadeAssignable]
       : cascadeAssignable;
+  const personnes: Personne[] = assignableUsers.map((u) => ({ id: u.id, nom: `${u.firstName} ${u.lastName}`, detail: u.jobTitle }));
 
   // Activités proposées par l'API (plans visibles) ; une liste vide masque le champ.
   useEffect(() => {
@@ -61,12 +79,7 @@ export function CreateTaskModal({
       .catch(() => setActivites([]));
   }, []);
 
-  function toggleAssignee(userId: string) {
-    setAssigneeIds((prev) => (prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]));
-  }
-
-  async function handleSubmit(event: FormEvent) {
-    event.preventDefault();
+  async function handleSubmit() {
     setSubmitting(true);
     setError(null);
     try {
@@ -82,133 +95,67 @@ export function CreateTaskModal({
         assignees: assigneeIds.map((userId) => ({ userId })),
         activiteId: activiteId || undefined,
       });
-      // La tâche existe déjà à ce stade — un échec d'upload n'annule pas sa
-      // création. La fenêtre se ferme via onCreated juste après, donc un
-      // message d'erreur affiché dans la fenêtre ne serait jamais vu :
-      // window.alert() est le seul moyen simple de garantir qu'il l'est.
+      // La tâche existe déjà à ce stade — un échec d'envoi des documents n'annule pas sa création.
+      let documentsOk = true;
       if (files.length > 0) {
         try {
           await addAttachments(task.id, files);
         } catch {
-          window.alert(
-            'La tâche a été créée, mais les documents de référence n’ont pas pu être joints. Réessayez depuis le détail de la tâche.',
-          );
+          documentsOk = false;
         }
       }
+      const noms = assigneeIds.map((id) => personnes.find((p) => p.id === id)?.nom ?? getUserLabel(id));
+      if (documentsOk) toast.succes('Tâche créée', { detail: phrasePrevenus(noms) || 'Elle apparaît dans « Créées par moi ».' });
+      else toast.erreur('Tâche créée sans ses documents', 'Les documents de référence n’ont pas pu être joints. Ajoutez-les depuis le détail de la tâche.');
       onCreated(task);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Impossible de créer la tâche');
+      setError(messageErreur(err, 'La tâche n’a pas pu être créée.'));
     } finally {
       setSubmitting(false);
     }
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(20,26,38,0.42)] p-4" onClick={onClose}>
-      <form
-        onSubmit={handleSubmit}
-        onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-[440px] rounded-lg bg-surface p-6"
-      >
-        <h2 className="mb-5 text-[19px] font-semibold">
-          {presetAssignee ? `Nouvelle tâche pour ${presetAssignee.firstName} ${presetAssignee.lastName}` : 'Nouvelle tâche'}
-        </h2>
-
-        <Field label="Titre" value={title} onChange={(e) => setTitle(e.target.value)} required autoFocus />
-
-        <div className="mb-4">
-          <label className="mb-1.5 block text-[12.5px] font-semibold text-text">Description</label>
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            rows={3}
-            className="w-full rounded-md border border-line bg-surface px-3.5 py-2.5 text-sm focus:border-accent focus:outline focus:outline-2 focus:outline-accent"
-          />
-        </div>
-
-        <div className="mb-4 grid grid-cols-2 gap-3">
-          <div>
-            <label className="mb-1.5 block text-[12.5px] font-semibold text-text">Priorité</label>
-            <select
-              value={priority}
-              onChange={(e) => setPriority(e.target.value as TaskPriority)}
-              className="w-full rounded-md border border-line bg-surface px-3 py-2.5 text-sm"
-            >
-              <option value="FAIBLE">Faible</option>
-              <option value="NORMAL">Normal</option>
-              <option value="URGENT">Urgent</option>
-            </select>
-          </div>
-          <Field label="Échéance" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
-        </div>
-
-        {activites.length > 0 && (
-          <div className="mb-4">
-            <label htmlFor="tache-activite" className="mb-1.5 block text-[12.5px] font-semibold text-text">
-              Activité du plan de travail <span className="font-normal text-text-faint">(facultatif)</span>
-            </label>
-            <select
-              id="tache-activite"
-              value={activiteId}
-              onChange={(e) => setActiviteId(e.target.value)}
-              className="w-full rounded-md border border-line bg-surface px-3 py-2.5 text-sm"
-            >
-              <option value="">Aucune</option>
-              {activites.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.libelle} — {a.objectif} ({a.unite})
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-
-        <div className="mb-4">
-          <label className="mb-1.5 block text-[12.5px] font-semibold text-text">
-            Documents de référence <span className="font-normal text-text-faint">(facultatif)</span>
-          </label>
-          <input
-            type="file"
-            multiple
-            onChange={(e) => setFiles(Array.from(e.target.files ?? []))}
-            className="block w-full text-[12.5px]"
-          />
-          {files.length > 0 && (
-            <p className="mt-1 text-[11.5px] text-text-faint">{files.length} fichier(s) sélectionné(s)</p>
-          )}
-        </div>
-
-        <label className="mb-4 flex items-center gap-2 text-[13px]">
-          <input type="checkbox" checked={documentRequired} onChange={(e) => setDocumentRequired(e.target.checked)} />
-          Document obligatoire avant soumission pour validation
-        </label>
-
-        {assignableUsers.length > 0 && (
-          <div className="mb-4">
-            <label className="mb-1.5 block text-[12.5px] font-semibold text-text">Assigner à</label>
-            <div className="max-h-32 overflow-y-auto rounded-md border border-line p-2">
-              {assignableUsers.map((u) => (
-                <label key={u.id} className="flex items-center gap-2 py-1 text-[13px]">
-                  <input type="checkbox" checked={assigneeIds.includes(u.id)} onChange={() => toggleAssignee(u.id)} />
-                  {u.firstName} {u.lastName}
-                  {u.jobTitle && <span className="text-text-faint"> · {u.jobTitle}</span>}
-                </label>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {error && <div className="mb-4 rounded-md bg-clay-soft px-3 py-2.5 text-[13px] text-clay">{error}</div>}
-
-        <div className="flex justify-end gap-2.5">
-          <Button type="button" variant="outline" onClick={onClose}>
-            Annuler
-          </Button>
-          <Button type="submit" variant="solid" disabled={submitting || !title.trim()}>
-            {submitting ? 'Création…' : 'Créer la tâche'}
-          </Button>
-        </div>
-      </form>
-    </div>
+    <FenetreFormulaire
+      titre={presetAssignee ? `Nouvelle tâche pour ${presetAssignee.firstName} ${presetAssignee.lastName}` : 'Nouvelle tâche'}
+      onClose={onClose}
+      onSubmit={handleSubmit}
+      libelleValider="Créer la tâche"
+      enCours={submitting}
+      erreur={error}
+      testid="fenetre-nouvelle-tache"
+      valider={() => (title.trim().length < 2 ? { 'tache-titre': title.trim() ? 'Le titre doit compter au moins 2 caractères.' : 'Donnez un titre à la tâche.' } : {})}
+      pied={assignableUsers.length > 0 ? 'Les personnes assignées sont prévenues immédiatement.' : 'La tâche apparaît aussitôt dans « Créées par moi ».'}
+    >
+      <Saisie id="tache-titre" label="Titre" value={title} onChange={setTitle} required maxLength={300} messageObligatoire="Donnez un titre à la tâche." />
+      <ZoneTexte id="tache-description" label="Description" facultatif value={description} onChange={setDescription} placeholder="Ce qui est attendu, les sources à utiliser…" lignes={3} />
+      <Grille2>
+        <ChoixSegment<TaskPriority> id="tache-priorite" label="Priorité" options={OPTIONS_PRIORITE} value={priority} onChange={setPriority} />
+        <ChampDate id="tache-echeance" label="Échéance" value={dueDate} onChange={setDueDate} />
+      </Grille2>
+      {assignableUsers.length > 0 && (
+        <SelecteurPersonnes
+          id="tache-assignes"
+          label="Assigner à"
+          options={personnes}
+          valeurs={assigneeIds}
+          onChange={setAssigneeIds}
+          placeholder="Rechercher une personne de votre équipe…"
+        />
+      )}
+      {activites.length > 0 && (
+        <Liste
+          id="tache-activite"
+          label="Activité du plan de travail"
+          facultatif
+          value={activiteId}
+          onChange={setActiviteId}
+          vide="Aucune"
+          options={activites.map((a) => ({ value: a.id, label: `${a.libelle} — ${a.objectif} (${a.unite})` }))}
+        />
+      )}
+      <ZoneDepot id="tache-documents" label="Documents de référence" facultatif multiple fichiers={files} onChange={setFiles} />
+      <Case id="tache-document-obligatoire" label="Un document est obligatoire avant la soumission pour validation" checked={documentRequired} onChange={setDocumentRequired} />
+    </FenetreFormulaire>
   );
 }

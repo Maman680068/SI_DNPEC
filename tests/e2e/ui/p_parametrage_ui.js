@@ -18,12 +18,14 @@ const S = Date.now().toString(36).slice(-5);
   await adm.goto(`${WEB}/logistique/administration`);
   const ligne = adm.getByTestId('categorie').filter({ hasText: 'Mobilier' }).first();
   await ligne.getByRole('button', { name: 'Renommer' }).click();
-  await adm.getByLabel('Nouveau libellé de MOB').fill(`Mobilier et rangement ${S}`);
-  await adm.getByTestId('categorie').filter({ has: adm.getByLabel('Nouveau libellé de MOB') }).getByRole('button', { name: 'Enregistrer' }).click();
-  await adm.getByText('Catégorie renommée.').waitFor();
+  // Étape 9 : renommage dans une fenêtre ; message de confirmation (toast).
+  const fr = adm.locator('div[role=dialog]:has(> form)');
+  await fr.getByLabel('Nouveau libellé', { exact: true }).fill(`Mobilier et rangement ${S}`);
+  await fr.getByRole('button', { name: 'Enregistrer' }).click();
+  await adm.getByTestId('toast').filter({ hasText: 'Catégorie renommée' }).waitFor();
   // Le message peut précéder le rechargement de la liste : attendre le nouveau libellé.
-  const renommee = await adm.getByText(`Mobilier et rangement ${S}`).waitFor({ timeout: 10000 }).then(() => true, () => false);
-  check('catégorie renommée à l’écran', renommee && (await adm.getByText(`Mobilier et rangement ${S}`).count()) === 1);
+  const renommee = await adm.getByTestId('categorie').getByText(`Mobilier et rangement ${S}`).waitFor({ timeout: 10000 }).then(() => true, () => false);
+  check('catégorie renommée à l’écran', renommee && (await adm.getByTestId('categorie').getByText(`Mobilier et rangement ${S}`).count()) === 1);
   const drh = await loginPage(b, 'drh');
   await drh.goto(`${WEB}/stages/parametres`);
   await drh.getByTestId('planning').waitFor();

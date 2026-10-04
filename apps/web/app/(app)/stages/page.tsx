@@ -11,6 +11,7 @@ import type { ListeStages, ResumeStage } from '../../../lib/stages/types';
 import { STAGE_STATUT_LABEL } from '../../../lib/stages/types';
 import { Chargement, ErreurChargement, messageChargement } from '../../../components/ui/ErreurChargement';
 import { FenetreNouveauStage } from '../../../components/stages/FenetresStage';
+import { useToast } from '../../../components/ui/Toast';
 import { Plus, Settings2 } from 'lucide-react';
 import { BandeCompteurs, BTN_LIGNE, BTN_LIGNE_PRINCIPAL, BTN_PRINCIPAL, BTN_SECONDAIRE, EnTetePage, EtatVide, Initiales, initialesDe, LigneTableau, Onglets, Pastille, Tableau, type TonPastille } from '../../../components/ui/Charte';
 
@@ -34,6 +35,7 @@ export default function StagesPage() {
   const [erreur, setErreur] = useState<string | null>(null);
   const [tab, setTab] = useState<Onglet>('en-cours');
   const [creation, setCreation] = useState(false);
+  const toast = useToast();
 
   const charger = useCallback(() => {
     getStages()
@@ -75,7 +77,7 @@ export default function StagesPage() {
       <ErreurChargement message={erreur} />
 
       {!liste ? (
-        <Chargement erreur={erreur} />
+        <Chargement erreur={erreur} lignes={6} />
       ) : (
         <>
           <BandeCompteurs
@@ -131,6 +133,7 @@ export default function StagesPage() {
           onClose={() => setCreation(false)}
           onCreated={(s) => {
             setCreation(false);
+            toast.succes('Stage créé', { detail: 'Ajoutez maintenant les périodes du plan de rotation.' });
             router.push(`/stages/${s.id}`);
           }}
         />

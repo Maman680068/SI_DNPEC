@@ -13,7 +13,9 @@ import { FenetreDetail } from '../ui/FenetreDetail';
 import { AccesDelegues, FenetreFichiers, FenetreMotif } from './Communes';
 import { FenetreExpedier, FenetreRediger, FenetreSigner, FenetreViser } from './FenetresActe';
 import { ACTION, ACTION_DANGER, ACTION_PRINCIPALE, Historique, Pieces } from './TiroirArrivee';
-import { Erreur, messageErreur } from './ui';
+import { messageErreur } from './ui';
+import { messageErreur as messageAction, useToast } from '../ui/Toast';
+import { SqueletteChamps } from './formulaire';
 
 type FenetreActe = 'modifier' | 'viser' | 'renvoyer' | 'signer' | 'expedier' | 'annuler' | 'annexes';
 
@@ -287,9 +289,9 @@ export function TiroirActe({
   onOuvrirArrivee?: (id: string) => void;
 }) {
   const { interim } = useInterim();
+  const toast = useToast();
   const [a, setA] = useState<Acte | null>(null);
   const [erreurChargement, setErreurChargement] = useState<string | null>(null);
-  const [erreur, setErreur] = useState<string | null>(null);
   const [fenetre, setFenetre] = useState<FenetreActe | null>(null);
   const [enCours, setEnCours] = useState(false);
 
@@ -310,19 +312,19 @@ export function TiroirActe({
   };
 
   /** Action directe après confirmation (mention d'intérim comprise). */
-  async function directe(question: string, action: () => Promise<unknown>, defaut: string, ferme = false) {
+  async function directe(question: string, action: () => Promise<unknown>, defaut: string, succes: { titre: string; detail?: string }, ferme = false) {
     const auNom = interim ? `\n\nSera enregistré par vous, au nom de ${interim.titulaireName} (par intérim).` : '';
     if (!window.confirm(question + auNom)) return;
     setEnCours(true);
-    setErreur(null);
     try {
       await action();
+      toast.succes(succes.titre, { detail: succes.detail });
       if (ferme) {
         onChange();
         onClose();
       } else apres();
     } catch (e) {
-      setErreur(messageErreur(e, defaut));
+      toast.erreur(defaut, messageAction(e));
     } finally {
       setEnCours(false);
     }
@@ -335,7 +337,6 @@ export function TiroirActe({
   const cote =
     a && d ? (
       <>
-        <Erreur message={erreur} />
         <div className="mb-4 flex flex-col gap-2" data-testid="actions-acte">
           {d.signer && (
             <button type="button" className={ACTION_PRINCIPALE} onClick={() => setFenetre('signer')}>
@@ -360,7 +361,7 @@ export function TiroirActe({
               type="button"
               className={ACTION_PRINCIPALE}
               disabled={enCours}
-              onClick={() => directe('Confirmer que vous avez pris connaissance de cet acte ?', () => prendreConnaissance(a.id), 'Confirmation impossible')}
+              onClick={() => directe('Confirmer que vous avez pris connaissance de cet acte ?', () => prendreConnaissance(a.id), 'Confirmation impossible', { titre: 'Prise de connaissance confirmée', detail: 'Votre confirmation est datée et tracée.' })}
             >
               J’ai pris connaissance
             </button>
@@ -375,6 +376,7 @@ export function TiroirActe({
                   a.circuitObsolete ? 'Resoumettre l’acte ? Le circuit de visa sera recalculé.' : 'Soumettre l’acte au circuit de visa ?',
                   () => soumettreActe(a.id),
                   'Soumission impossible',
+                  { titre: 'Acte soumis', detail: 'Le prochain intervenant du circuit est prévenu.' },
                 )
               }
             >
@@ -403,7 +405,7 @@ export function TiroirActe({
             {explication(a)}
           </p>
           {d.supprimer && (
-            <button type="button" className={ACTION_DANGER} disabled={enCours} onClick={() => directe('Supprimer ce brouillon ? Il n’a jamais été soumis.', () => supprimerActe(a.id), 'Suppression impossible', true)}>
+            <button type="button" className={ACTION_DANGER} disabled={enCours} onClick={() => directe('Supprimer ce brouillon ? Il n’a jamais été soumis.', () => supprimerActe(a.id), 'Suppression impossible', { titre: 'Brouillon supprimé' }, true)}>
               Supprimer
             </button>
           )}
@@ -484,7 +486,7 @@ export function TiroirActe({
           {erreurChargement}
         </div>
       ) : !a || !d ? (
-        <p className="text-sm text-text-muted">Chargement…</p>
+        <SqueletteChamps champs={4} />
       ) : (
         <>
           {a.statut === 'RENVOYE' && a.motifRenvoi && (
@@ -542,6 +544,7 @@ export function TiroirActe({
               titre="Renvoyer au rédacteur"
               explication="L’acte revient au rédacteur avec votre motif ; il le corrigera puis le resoumettra."
               valider="Renvoyer"
+              succes={{ titre: 'Acte renvoyé au rédacteur', detail: 'Il est prévenu avec votre motif.' }}
               onClose={() => setFenetre(null)}
               onValider={async (motif) => {
                 await renvoyerActe(a.id, motif);
@@ -554,6 +557,7 @@ export function TiroirActe({
               titre="Annuler l’acte"
               explication={a.numero ? `Le numéro ${a.numero} reste consommé et apparaît « annulé » dans le registre.` : 'L’acte sort du circuit ; il reste tracé.'}
               valider="Annuler l’acte"
+              succes={{ titre: 'Acte annulé', detail: a.numero ? `Le numéro ${a.numero} reste consommé.` : 'Il reste tracé.' }}
               onClose={() => setFenetre(null)}
               onValider={async (motif) => {
                 await annulerActe(a.id, motif);
@@ -565,6 +569,7 @@ export function TiroirActe({
             <FenetreFichiers
               titre="Ajouter une annexe"
               explication={`« ${a.objet} »`}
+              succes="Annexe ajoutée"
               onClose={() => setFenetre(null)}
               onValider={async (fichiers) => {
                 await ajouterPiecesActe(a.id, fichiers);

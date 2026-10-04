@@ -6,10 +6,9 @@ import { enregistrerFichePoste, getFichesPoste } from '../../lib/api/rh';
 import type { FichePoste, Fiches } from '../../lib/rh/types';
 import { FenetreDetail } from '../ui/FenetreDetail';
 import { BarreOutils, BTN_LIGNE, BTN_PRINCIPAL, BTN_SECONDAIRE, CleValeur, EtatVide, LigneTableau, Pastille, Recherche, SectionFenetre, Tableau } from '../ui/Charte';
-import { Fenetre } from '../ui/Fenetre';
+import { FenetreFormulaire, Grille2, Saisie, ZoneTexte } from '../ui/Formulaire';
+import { messageErreur, useToast } from '../ui/Toast';
 import { Chargement, ErreurChargement, messageChargement } from '../ui/ErreurChargement';
-
-const champ = 'mt-1 w-full rounded-[9px] border border-line bg-surface px-3 py-2 text-[13.5px] font-normal';
 
 const GRILLE = 'lg:grid-cols-[minmax(0,1fr)_130px_130px_100px]';
 
@@ -20,6 +19,7 @@ export function OngletFiches() {
   const [ouverte, setOuverte] = useState<string | null>(null);
   const [recherche, setRecherche] = useState('');
   const [erreur, setErreur] = useState<string | null>(null);
+  const toast = useToast();
   const charger = useCallback(() => getFichesPoste().then(setL).catch((x) => setErreur(messageChargement(x))), []);
   useEffect(() => {
     charger();
@@ -115,7 +115,17 @@ export function OngletFiches() {
           )}
         </FenetreDetail>
       )}
-      {edition && <FenetreFiche fiche={edition === 'nouvelle' ? null : edition} onClose={() => setEdition(null)} onFait={() => (setEdition(null), charger())} />}
+      {edition && (
+        <FenetreFiche
+          fiche={edition === 'nouvelle' ? null : edition}
+          onClose={() => setEdition(null)}
+          onFait={() => {
+            toast.succes(edition === 'nouvelle' ? 'Fiche de poste créée' : 'Fiche de poste enregistrée');
+            setEdition(null);
+            charger();
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -124,31 +134,35 @@ function FenetreFiche({ fiche, onClose, onFait }: { fiche: FichePoste | null; on
   const [v, setV] = useState({ fonction: fiche?.fonction ?? '', missions: fiche?.missions ?? '', activites: fiche?.activites ?? '', competences: fiche?.competences ?? '' });
   const [erreur, setErreur] = useState<string | null>(null);
   const [enCours, setEnCours] = useState(false);
-  const set = (k: keyof typeof v) => (e: { target: { value: string } }) => setV((x) => ({ ...x, [k]: e.target.value }));
+  const set = (k: keyof typeof v) => (x: string) => setV((o) => ({ ...o, [k]: x }));
   return (
-    <Fenetre
+    <FenetreFormulaire
       titre={fiche ? 'Modifier la fiche de poste' : 'Nouvelle fiche de poste'}
+      sousTitre="Une fiche par fonction, jamais par personne."
       onClose={onClose}
-      largeur={600}
       enCours={enCours}
       erreur={erreur}
+      libelleValider={fiche ? 'Enregistrer' : 'Créer la fiche'}
+      pied="Tout titulaire de la fonction et sa hiérarchie consultent la fiche."
       onSubmit={async () => {
         setEnCours(true);
         setErreur(null);
         try {
-          await enregistrerFichePoste({ fonction: v.fonction, missions: v.missions, activites: v.activites || undefined, competences: v.competences || undefined }, fiche?.id);
+          await enregistrerFichePoste({ fonction: v.fonction.trim(), missions: v.missions, activites: v.activites || undefined, competences: v.competences || undefined }, fiche?.id);
           onFait();
         } catch (x) {
-          setErreur(messageChargement(x));
+          setErreur(messageErreur(x));
         } finally {
           setEnCours(false);
         }
       }}
     >
-      <label className="mb-3 block text-[12.5px] font-semibold">Fonction<input required value={v.fonction} onChange={set('fonction')} className={champ} /></label>
-      <label className="mb-3 block text-[12.5px] font-semibold">Missions<textarea required rows={4} value={v.missions} onChange={set('missions')} className={champ} /></label>
-      <label className="mb-3 block text-[12.5px] font-semibold">Activités<textarea rows={3} value={v.activites} onChange={set('activites')} className={champ} /></label>
-      <label className="block text-[12.5px] font-semibold">Compétences<textarea rows={3} value={v.competences} onChange={set('competences')} className={champ} /></label>
-    </Fenetre>
+      <Saisie id="fp-fonction" label="Fonction" required value={v.fonction} onChange={set('fonction')} placeholder="Ex. : Statisticien" />
+      <ZoneTexte id="fp-missions" label="Missions" required lignes={4} value={v.missions} onChange={set('missions')} />
+      <Grille2>
+        <ZoneTexte id="fp-activites" label="Activités" facultatif lignes={4} value={v.activites} onChange={set('activites')} />
+        <ZoneTexte id="fp-competences" label="Compétences" facultatif lignes={4} value={v.competences} onChange={set('competences')} />
+      </Grille2>
+    </FenetreFormulaire>
   );
 }

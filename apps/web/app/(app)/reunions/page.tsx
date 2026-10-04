@@ -10,7 +10,8 @@ import { CreateMeetingModal } from '../../../components/meetings/CreateMeetingMo
 import { MeetingDetailDrawer } from '../../../components/meetings/MeetingDetailDrawer';
 import { SemaineReunions } from '../../../components/meetings/SemaineReunions';
 import { DecisionsASuivre } from '../../../components/meetings/DecisionsASuivre';
-import { BTN_PRINCIPAL, EnTetePage, EtatVide, FiltreSelect } from '../../../components/ui/Charte';
+import { BTN_PRINCIPAL, EnTetePage, EtatVide, FiltreSelect, Filtres } from '../../../components/ui/Charte';
+import { SquelettePage } from '../../../components/ui/Squelette';
 import { Chargement, ErreurChargement, messageChargement } from '../../../components/ui/ErreurChargement';
 import { useDemandeCreation } from '../../../lib/navigation/creer';
 import { semaineCourante } from '../../../lib/meetings/affichage';
@@ -94,7 +95,7 @@ export default function ReunionsPage() {
       <EnTetePage titre="Réunions" actions={boutonNouvelle} />
 
       {meetings === null ? (
-        <Chargement erreur={erreurChargement} />
+        erreurChargement ? <Chargement erreur={erreurChargement} /> : <SquelettePage />
       ) : (
         <>
           <SemaineReunions meetings={meetings} lundi={lundi} onLundi={setLundi} onOuvrir={setSelectedId} />
@@ -103,6 +104,13 @@ export default function ReunionsPage() {
               <div className="flex flex-wrap items-center gap-2.5 px-4 py-3.5">
                 <h2 className="font-heading text-[15.5px] font-bold text-ink-900">{periode === 'avenir' ? 'À venir' : 'Réunions passées'}</h2>
                 <div className="flex flex-wrap gap-2 sm:ml-auto">
+                  <Filtres
+                    actifs={(periode !== 'avenir' ? 1 : 0) + (filtre !== 'toutes' ? 1 : 0)}
+                    onEffacer={() => {
+                      setPeriode('avenir');
+                      setFiltre('toutes');
+                    }}
+                  >
                   <FiltreSelect<Periode> label="Période" value={periode} defaut="avenir" onChange={setPeriode} options={[{ value: 'avenir', label: 'À venir' }, { value: 'passees', label: 'Passées' }]} />
                   <FiltreSelect<Filtre>
                     label="Réunions affichées"
@@ -115,6 +123,7 @@ export default function ReunionsPage() {
                       { value: 'invite', label: 'Où je suis invité' },
                     ]}
                   />
+                  </Filtres>
                 </div>
               </div>
               {liste.length === 0 ? (

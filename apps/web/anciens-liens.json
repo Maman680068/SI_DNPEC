@@ -8,5 +8,15 @@
     "source": "/announcements/:id",
     "destination": "/communication?announcementId=:id",
     "origine": "Annonce : lien des notifications et emails avant le correctif du Lot B"
+  },
+  {
+    "source": "/compte/securite",
+    "destination": "/compte?section=securite",
+    "origine": "Sécurité du compte : page devenue une section de « Mon profil » (refonte, étape 9)"
+  },
+  {
+    "source": "/compte/notifications",
+    "destination": "/compte?section=notifications",
+    "origine": "Préférences de notification : page devenue une section de « Mon profil » (refonte, étape 9) — lien de l’email de résumé quotidien"
   }
 ]

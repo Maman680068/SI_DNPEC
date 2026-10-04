@@ -17,7 +17,9 @@ import {
 import type { DossierPersonnel, StatutChamp } from '../../../../lib/personnel/types';
 import { CAREER_EVENT_LABEL, EMPLOYMENT_STATUS_LABEL, STATUT_CHAMP_LABEL } from '../../../../lib/personnel/types';
 import { ROLE_LABEL, STATUS_LABEL } from '../../../../lib/users/types';
-import { Erreur, messageErreur } from '../../../../components/courrier/ui';
+import { ErreurChargement } from '../../../../components/ui/ErreurChargement';
+import { SqueletteCartes } from '../../../../components/ui/Squelette';
+import { messageErreur, useToast } from '../../../../components/ui/Toast';
 import { FenetreDiplome, FenetreNiveauDeux, FenetreNiveauUn, FenetrePiece, FenetreSignaler } from '../../../../components/personnel/FenetresDossier';
 import { ChevronLeft, Lock } from 'lucide-react';
 import { BTN_LIGNE, BTN_LIGNE_PRINCIPAL, BTN_PRINCIPAL, BTN_SECONDAIRE, Initiales, Pastille, initialesDe } from '../../../../components/ui/Charte';
@@ -64,7 +66,7 @@ export default function DossierPage() {
   const { getCelluleName, getDivisionName, getSectionName } = useOrg();
   const [dossier, setDossier] = useState<DossierPersonnel | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
-  const [info, setInfo] = useState<string | null>(null);
+  const toast = useToast();
   const [fenetre, setFenetre] = useState<Fenetre>(null);
   const [enCours, setEnCours] = useState(false);
   const requete = useRef(0);
@@ -85,24 +87,22 @@ export default function DossierPage() {
     charger();
   }, [charger]);
 
-  async function agir(fn: () => Promise<unknown>, defaut: string, apres?: string) {
+  async function agir(fn: () => Promise<unknown>, defaut: string, apres?: { titre: string; detail?: string }) {
     setEnCours(true);
-    setErreur(null);
-    setInfo(null);
     try {
       await fn();
-      if (apres) setInfo(apres);
+      if (apres) toast.succes(apres.titre, { detail: apres.detail });
       charger();
     } catch (err) {
-      setErreur(messageErreur(err, defaut));
+      toast.erreur(defaut, messageErreur(err));
     } finally {
       setEnCours(false);
     }
   }
 
-  const fermerEtRecharger = (message?: string) => () => {
+  const fermerEtRecharger = (titre: string, detail?: string) => () => {
     setFenetre(null);
-    if (message) setInfo(message);
+    toast.succes(titre, { detail });
     charger();
   };
 
@@ -113,8 +113,8 @@ export default function DossierPage() {
           <ChevronLeft aria-hidden size={15} />
           Dossier du personnel
         </Link>
-        <Erreur message={erreur} />
-        {!erreur && <p className="text-sm text-text-muted">Chargement…</p>}
+        <ErreurChargement message={erreur} />
+        {!erreur && <SqueletteCartes cartes={3} />}
       </div>
     );
   }
@@ -143,8 +143,7 @@ export default function DossierPage() {
         </div>
       </div>
 
-      <Erreur message={erreur} />
-      {info && <div role="status" className="mb-4 rounded-[10px] border border-[#A9D5B7] bg-sage-50 px-3.5 py-2.5 text-[13px] text-sage">{info}</div>}
+      <ErreurChargement message={erreur} />
 
       {droits.confirmer && (
         <div role="status" className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-[10px] border border-[#F2D58A] bg-gold-50 px-3.5 py-2.5" data-testid="bandeau-a-verifier">
@@ -152,7 +151,7 @@ export default function DossierPage() {
           <button type="button"
             className={BTN_PRINCIPAL}
             disabled={enCours}
-            onClick={() => agir(() => confirmerMesInformations(dossier.userId), 'Confirmation impossible', 'Vos informations sont confirmées.')}
+            onClick={() => agir(() => confirmerMesInformations(dossier.userId), 'Confirmation impossible', { titre: 'Informations confirmées', detail: 'Votre dossier est à jour.' })}
           >
             Confirmer mes informations
           </button>
@@ -251,7 +250,7 @@ export default function DossierPage() {
                         <button type="button"
                           className={BTN_LIGNE}
                           disabled={enCours}
-                          onClick={() => window.confirm(`Supprimer le diplôme « ${d.title} » ?`) && agir(() => supprimerDiplome(dossier.userId, d.id), 'Suppression impossible')}
+                          onClick={() => window.confirm(`Supprimer le diplôme « ${d.title} » ?`) && agir(() => supprimerDiplome(dossier.userId, d.id), 'Suppression impossible', { titre: 'Diplôme supprimé', detail: d.title })}
                         >
                           Supprimer
                         </button>
@@ -295,7 +294,7 @@ export default function DossierPage() {
                         <button type="button"
                           className={BTN_LIGNE}
                           disabled={enCours}
-                          onClick={() => window.confirm(`Supprimer la pièce « ${d.label} » ?`) && agir(() => supprimerPiece(dossier.userId, d.id), 'Suppression impossible')}
+                          onClick={() => window.confirm(`Supprimer la pièce « ${d.label} » ?`) && agir(() => supprimerPiece(dossier.userId, d.id), 'Suppression impossible', { titre: 'Pièce supprimée', detail: d.label })}
                         >
                           Supprimer
                         </button>
@@ -352,11 +351,11 @@ export default function DossierPage() {
         <button type="button" className={BTN_SECONDAIRE} onClick={() => setFenetre('signaler')}>Signaler une erreur</button>
       )}
 
-      {fenetre === 'niveau1' && <FenetreNiveauUn dossier={dossier} onClose={() => setFenetre(null)} onDone={fermerEtRecharger('Situation administrative enregistrée.')} />}
-      {fenetre === 'niveau2' && <FenetreNiveauDeux dossier={dossier} onClose={() => setFenetre(null)} onDone={fermerEtRecharger('Informations personnelles enregistrées.')} />}
-      {fenetre === 'diplome' && <FenetreDiplome dossier={dossier} onClose={() => setFenetre(null)} onDone={fermerEtRecharger('Diplôme ajouté.')} />}
-      {fenetre === 'piece' && <FenetrePiece dossier={dossier} onClose={() => setFenetre(null)} onDone={fermerEtRecharger('Pièce ajoutée.')} />}
-      {fenetre === 'signaler' && <FenetreSignaler dossier={dossier} onClose={() => setFenetre(null)} onDone={fermerEtRecharger('Le DRH a été prévenu.')} />}
+      {fenetre === 'niveau1' && <FenetreNiveauUn dossier={dossier} onClose={() => setFenetre(null)} onDone={fermerEtRecharger('Situation administrative enregistrée', 'Les champs modifiés sont « à vérifier » par la personne.')} />}
+      {fenetre === 'niveau2' && <FenetreNiveauDeux dossier={dossier} onClose={() => setFenetre(null)} onDone={fermerEtRecharger('Informations personnelles enregistrées')} />}
+      {fenetre === 'diplome' && <FenetreDiplome dossier={dossier} onClose={() => setFenetre(null)} onDone={fermerEtRecharger('Diplôme ajouté')} />}
+      {fenetre === 'piece' && <FenetrePiece dossier={dossier} onClose={() => setFenetre(null)} onDone={fermerEtRecharger('Pièce ajoutée')} />}
+      {fenetre === 'signaler' && <FenetreSignaler dossier={dossier} onClose={() => setFenetre(null)} onDone={fermerEtRecharger('Signalement envoyé', 'Le DRH a été prévenu.')} />}
     </div>
   );
 }

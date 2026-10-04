@@ -15,11 +15,12 @@ import type { Fil, FilResume, TypeObjet } from '../../lib/pilotage/types';
 import { LIBELLE_TYPE_OBJET } from '../../lib/pilotage/types';
 import { Button } from '../ui/Button';
 import { Initiales } from '../ui/Charte';
-import { Fenetre } from '../ui/Fenetre';
+import { CLASSE_SAISIE, FenetreFormulaire, Saisie, SelecteurPersonnes, ZoneTexte } from '../ui/Formulaire';
 import { Chargement, messageChargement } from '../ui/ErreurChargement';
+import { messageErreur, useToast } from '../ui/Toast';
 
 type Lien = { type: TypeObjet; id: string; libelle: string };
-const champ = 'mt-1 w-full rounded-md border border-line bg-surface px-3 py-2 text-[13px]';
+const champ = `${CLASSE_SAISIE} border-line mt-1.5 h-10 font-normal`;
 const heure = (iso: string) =>
   new Date(iso).toLocaleString('fr-FR', {
     day: 'numeric',
@@ -81,7 +82,7 @@ function ChoixObjet({
   }
   return (
     <div>
-      <label className="block text-[12.5px] font-semibold">
+      <label className="block text-[13px] font-semibold text-text">
         Joindre un objet{' '}
         <span className="font-normal text-text-muted">
           (tâche, document, courrier, réunion — facultatif)
@@ -235,6 +236,8 @@ function FilOuvert({
   const [corps, setCorps] = useState('');
   const [lien, setLien] = useState<Lien | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
+  const [envoi, setEnvoi] = useState(false);
+  const toast = useToast();
   useEffect(() => {
     setFil(null);
     getFil(id)
@@ -297,19 +300,33 @@ function FilOuvert({
         className="space-y-2 border-t border-line p-3"
         onSubmit={(e) => {
           e.preventDefault();
+          if (!corps.trim()) return;
           setErreur(null);
+          setEnvoi(true);
           repondreFil(id, { corps, ...(lien ? { lien: { type: lien.type, id: lien.id } } : {}) })
-            .then((f) => (setFil(f), setCorps(''), setLien(null), onChange()))
-            .catch((err) => setErreur(messageChargement(err)));
+            .then((f) => {
+              setFil(f);
+              setCorps('');
+              setLien(null);
+              onChange();
+              const autres = f.participants.length - 1;
+              toast.succes('Réponse envoyée', { detail: autres > 0 ? `${autres} participant${autres > 1 ? 's' : ''} prévenu${autres > 1 ? 's' : ''}.` : undefined });
+            })
+            .catch((err) => setErreur(messageErreur(err, 'Impossible d’envoyer la réponse.')))
+            .finally(() => setEnvoi(false));
         }}
       >
-        {erreur && <p className="text-[12.5px] text-clay">{erreur}</p>}
+        {erreur && (
+          <p role="alert" className="text-[12.5px] font-semibold text-clay">
+            {erreur}
+          </p>
+        )}
         <label className="sr-only" htmlFor="reponse-fil">
           Votre message
         </label>
         <textarea
           id="reponse-fil"
-          className={champ}
+          className={`${CLASSE_SAISIE} border-line py-2.5`}
           rows={2}
           value={corps}
           onChange={(e) => setCorps(e.target.value)}
@@ -318,8 +335,8 @@ function FilOuvert({
         />
         {peutJoindre && <ChoixObjet valeur={lien} onChange={setLien} />}
         <div className="flex justify-end">
-          <Button variant="solid" type="submit">
-            Envoyer
+          <Button variant="solid" type="submit" disabled={envoi || !corps.trim()}>
+            {envoi ? 'Envoi…' : 'Envoyer'}
           </Button>
         </div>
       </form>
@@ -336,95 +353,66 @@ function NouveauFil({
   onClose: () => void;
   onCree: (id: string) => void;
 }) {
-  const [personnes, setPersonnes] = useState<{ id: string; firstName: string; lastName: string }[]>(
-    [],
-  );
-  const [filtre, setFiltre] = useState('');
+  const [personnes, setPersonnes] = useState<{ id: string; firstName: string; lastName: string }[]>([]);
   const [choisis, setChoisis] = useState<string[]>([]);
   const [objet, setObjet] = useState('');
   const [corps, setCorps] = useState('');
   const [lien, setLien] = useState<Lien | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
   const [enCours, setEnCours] = useState(false);
+  const toast = useToast();
   useEffect(() => {
     getDestinatairesFil()
       .then(setPersonnes)
       .catch((e) => setErreur(messageChargement(e)));
   }, []);
-  const visibles = personnes.filter((p) =>
-    `${p.firstName} ${p.lastName}`.toLowerCase().includes(filtre.toLowerCase()),
-  );
   return (
-    <Fenetre
+    <FenetreFormulaire
       titre="Nouveau fil de discussion"
       onClose={onClose}
-      largeur={560}
+      largeur={720}
       enCours={enCours}
       erreur={erreur}
-      libelleValider="Envoyer"
+      libelleValider="Démarrer le fil"
+      testid="fenetre-nouveau-fil"
+      pied="Chaque destinataire est prévenu ; vous voyez qui a lu chaque message."
+      valider={() => ({
+        ...(objet.trim().length >= 2 ? {} : { 'fil-objet': 'Donnez un objet au fil (2 caractères au moins).' }),
+        ...(corps.trim() ? {} : { 'fil-message': 'Écrivez le premier message.' }),
+      })}
       onSubmit={() => {
-        if (!choisis.length) return setErreur('Choisissez au moins un destinataire.');
         setEnCours(true);
+        setErreur(null);
         return creerFil({
-          objet,
+          objet: objet.trim(),
           destinataires: choisis,
           corps,
           ...(lien ? { lien: { type: lien.type, id: lien.id } } : {}),
         })
-          .then((f) => onCree(f.id))
-          .catch((e) => setErreur(messageChargement(e)))
+          .then((f) => {
+            toast.succes('Fil de discussion démarré', { detail: `${choisis.length} destinataire${choisis.length > 1 ? 's' : ''} prévenu${choisis.length > 1 ? 's' : ''}.` });
+            onCree(f.id);
+          })
+          .catch((e) => setErreur(messageErreur(e, 'Impossible de démarrer le fil.')))
           .finally(() => setEnCours(false));
       }}
     >
-      <label className="mb-3 block text-[12.5px] font-semibold">
-        Objet
-        <input
-          className={champ}
-          value={objet}
-          onChange={(e) => setObjet(e.target.value)}
-          required
-          minLength={2}
-        />
-      </label>
-      <fieldset className="mb-3">
-        <legend className="text-[12.5px] font-semibold">Destinataires ({choisis.length})</legend>
-        <input
-          className={champ}
-          value={filtre}
-          onChange={(e) => setFiltre(e.target.value)}
-          placeholder="Filtrer par nom…"
-          aria-label="Filtrer les destinataires"
-        />
-        <div className="mt-1 max-h-40 overflow-y-auto rounded-md border border-line px-3 py-1.5">
-          {visibles.map((p) => (
-            <label key={p.id} className="flex items-center gap-2 py-0.5 text-[13px]">
-              <input
-                type="checkbox"
-                checked={choisis.includes(p.id)}
-                onChange={() =>
-                  setChoisis((c) => (c.includes(p.id) ? c.filter((x) => x !== p.id) : [...c, p.id]))
-                }
-              />
-              {p.firstName} {p.lastName}
-            </label>
-          ))}
-        </div>
-      </fieldset>
-      <label className="mb-3 block text-[12.5px] font-semibold">
-        Message
-        <textarea
-          className={champ}
-          rows={4}
-          value={corps}
-          onChange={(e) => setCorps(e.target.value)}
-          required
-        />
-      </label>
+      <Saisie id="fil-objet" label="Objet" value={objet} onChange={setObjet} required messageObligatoire="Donnez un objet au fil." />
+      <SelecteurPersonnes
+        id="fil-destinataires"
+        label="Destinataires"
+        options={personnes.map((p) => ({ id: p.id, nom: `${p.firstName} ${p.lastName}` }))}
+        valeurs={choisis}
+        onChange={setChoisis}
+        required
+        messageObligatoire="Choisissez au moins un destinataire."
+      />
+      <ZoneTexte id="fil-message" label="Message" value={corps} onChange={setCorps} lignes={4} required messageObligatoire="Écrivez le premier message." />
       {peutJoindre && (
-        <div className="mb-3">
+        <div className="mb-1">
           <ChoixObjet valeur={lien} onChange={setLien} />
         </div>
       )}
-    </Fenetre>
+    </FenetreFormulaire>
   );
 }

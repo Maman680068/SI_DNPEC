@@ -11,6 +11,7 @@ import { CourrierTableauDeBordService } from '../courrier/tableau-de-bord.servic
 import { DemandesLogistiqueService } from '../logistique/demandes.service';
 import { ReservationsService } from '../logistique/reservations.service';
 import { StagesService } from '../stages/stages.service';
+import { SupervisionService } from '../socle/supervision.service';
 
 const J = 864e5;
 const INSTRUCTIONS_OUVERTES: StatutInstruction[] = [StatutInstruction.EMISE, StatutInstruction.RECUE, StatutInstruction.PRISE_EN_COMPTE];
@@ -21,6 +22,9 @@ export interface ATraiter {
   libelle: string;
   nombre: number;
   lien: string;
+  /** Point de supervision (administrateur) : précision affichée sous le libellé, et gravité. */
+  detail?: string;
+  gravite?: 'DEGRADE' | 'INDISPONIBLE';
 }
 
 /**
@@ -44,6 +48,7 @@ export class NavigationService {
     private readonly demandes: DemandesLogistiqueService,
     private readonly reservations: ReservationsService,
     private readonly stages: StagesService,
+    private readonly supervision: SupervisionService,
   ) {}
 
   async navigation(actor: AuthenticatedUser, maintenant = new Date()) {
@@ -105,6 +110,10 @@ export class NavigationService {
       ajouter('comptes', 'Demandes d’accès à approuver', comptes, '/users');
       ajouter('nominations', 'Nominations à appliquer', nominations, '/users?onglet=nominations');
       utilisateurs = comptes + nominations;
+      // Points de la supervision à traiter (refonte, étape 9) : un élément par service en difficulté.
+      for (const s of await this.supervision.pointsATraiter()) {
+        aTraiter.push({ cle: `supervision-${s.cle}`, libelle: `${s.libelle} : ${s.etat === 'INDISPONIBLE' ? 'indisponible' : 'dégradé'}`, nombre: 1, lien: '/parametrage?onglet=supervision', detail: s.detail, gravite: s.etat === 'INDISPONIBLE' ? 'INDISPONIBLE' : 'DEGRADE' });
+      }
     }
 
     return {

@@ -5,11 +5,13 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { fixerCapacite, getCapacites, getModeleAttestation, getPlanning, importerModeleAttestation, telechargerModele } from '../../../../lib/api/stages';
 import type { Capacites, ModeleAttestation, Planning } from '../../../../lib/stages/types';
 import { PERIODE_STATUT_LABEL } from '../../../../lib/stages/types';
-import { Erreur, Libelle, SELECT_CLASS, messageErreur } from '../../../../components/courrier/ui';
+import { Saisie, ZoneDepot } from '../../../../components/ui/Formulaire';
+import { SquelettePage } from '../../../../components/ui/Squelette';
+import { messageErreur, useToast } from '../../../../components/ui/Toast';
 import { ChoixUnite } from '../../../../components/stages/FenetresStage';
 import { ErreurChargement, messageChargement } from '../../../../components/ui/ErreurChargement';
 import { ChevronLeft } from 'lucide-react';
-import { Bandeau, BTN_PRINCIPAL, BTN_SECONDAIRE, EnTetePage } from '../../../../components/ui/Charte';
+import { BTN_PRINCIPAL, BTN_SECONDAIRE, EnTetePage } from '../../../../components/ui/Charte';
 
 const date = (iso: string) => new Date(iso).toLocaleDateString('fr-FR', { dateStyle: 'medium', timeZone: 'UTC' });
 const cle = (u: { divisionId: string | null; sectionId: string | null; celluleId: string | null }) =>
@@ -21,11 +23,10 @@ export default function ParametresStagesPage() {
   const [planning, setPlanning] = useState<Planning | null>(null);
   const [reglages, setReglages] = useState<Capacites | null>(null);
   const [erreurChargement, setErreurChargement] = useState<string | null>(null);
-  const [fichier, setFichier] = useState<File | null>(null);
+  const [fichier, setFichier] = useState<File[]>([]);
   const [unite, setUnite] = useState({ divisionId: null as string | null, sectionId: null as string | null, celluleId: null as string | null });
   const [maximum, setMaximum] = useState('');
-  const [erreur, setErreur] = useState<string | null>(null);
-  const [info, setInfo] = useState<string | null>(null);
+  const toast = useToast();
   const [enCours, setEnCours] = useState(false);
 
   const charger = useCallback(() => {
@@ -43,20 +44,25 @@ export default function ParametresStagesPage() {
     charger();
   }, [charger]);
 
-  async function agir(fn: () => Promise<unknown>, ok: string) {
+  async function agir(fn: () => Promise<unknown>, ok?: { titre: string; detail?: string; annuler?: () => void }): Promise<boolean> {
     setEnCours(true);
-    setErreur(null);
-    setInfo(null);
     try {
       await fn();
-      setInfo(ok);
+      if (ok) toast.succes(ok.titre, { detail: ok.detail, annuler: ok.annuler });
       charger();
+      return true;
     } catch (e) {
-      setErreur(messageErreur(e, 'Action impossible'));
+      toast.erreur('Action impossible', messageErreur(e, 'Action impossible'));
+      return false;
     } finally {
       setEnCours(false);
     }
   }
+  /** Remet la capacité précédente d'une unité (même route que la modification). */
+  const remettre = (uniteKey: string) => {
+    const avant = reglages?.capacites.find((c) => c.uniteKey === uniteKey)?.maximum ?? null;
+    return () => void agir(() => fixerCapacite(uniteKey, avant));
+  };
 
   const parUnite = useMemo(() => {
     const m = new Map<string, { libelle: string; periodes: Planning['periodes'] }>();
@@ -77,8 +83,7 @@ export default function ParametresStagesPage() {
       )}
       <EnTetePage titre={reglages && !reglages.voitPlanning ? 'Réglages des stages' : 'Planning, capacités et modèle d’attestation'} />
       <ErreurChargement message={erreurChargement} />
-      <Erreur message={erreur} />
-      {info && <Bandeau ton="vert">{info}</Bandeau>}
+      {!reglages && !erreurChargement && <SquelettePage />}
 
       <section className="mb-4 rounded-xl border border-line bg-surface px-[18px] py-4" data-testid="modele">
         <h2 className="mb-2 font-heading text-[15.5px] font-bold text-ink-900">Modèle d’attestation</h2>
@@ -89,7 +94,7 @@ export default function ParametresStagesPage() {
               ? 'modèle par défaut de la DNPEC, fourni avec l’application'
               : `importé le ${date(modele.modele.createdAt)}${modele.modele.importePar ? ` par ${modele.modele.importePar.firstName} ${modele.modele.importePar.lastName}` : ''}`}{' '}
             — champs utilisés : {modele.modele.champs.join(', ')}. Pour le remplacer, importez un autre modèle ci-dessous.{' '}
-            <button type="button" className="font-semibold text-ink underline" onClick={() => agir(() => telechargerModele(), 'Modèle téléchargé.')}>
+            <button type="button" className="font-semibold text-ink underline" onClick={() => void agir(() => telechargerModele(), { titre: 'Modèle téléchargé' })}>
               Télécharger
             </button>
           </p>
@@ -100,14 +105,14 @@ export default function ParametresStagesPage() {
           className="mb-4 flex flex-wrap items-end gap-2"
           onSubmit={(e) => {
             e.preventDefault();
-            if (fichier) void agir(() => importerModeleAttestation(fichier), 'Modèle importé.');
+            const f = fichier[0];
+            if (f) void agir(() => importerModeleAttestation(f), { titre: 'Modèle importé', detail: `${f.name} sert désormais aux attestations.` }).then((ok) => ok && setFichier([]));
           }}
         >
-          <div>
-            <Libelle htmlFor="mod-fichier">Nouveau modèle (.docx, ou .pdf à champs)</Libelle>
-            <input id="mod-fichier" type="file" accept=".docx,.pdf" className="block text-[13px]" onChange={(e) => setFichier(e.target.files?.[0] ?? null)} required />
+          <div className="min-w-0 flex-1 basis-[300px]">
+            <ZoneDepot id="mod-fichier" label="Nouveau modèle (.docx, ou .pdf à champs)" accept=".docx,.pdf" aide="Word (.docx) ou PDF à champs · 25 Mo au plus" fichiers={fichier} onChange={setFichier} />
           </div>
-          <button type="submit" className={BTN_PRINCIPAL} disabled={enCours || !fichier}>
+          <button type="submit" className={`${BTN_PRINCIPAL} mb-3.5`} disabled={enCours || !fichier.length}>
             Importer
           </button>
         </form>
@@ -140,7 +145,7 @@ export default function ParametresStagesPage() {
                   {c.libelle} : <strong>{c.maximum}</strong>
                 </span>
                 {reglages.peutModifier && (
-                  <button type="button" className="text-[12.5px] font-semibold text-ink underline" onClick={() => agir(() => fixerCapacite(c.uniteKey, null), 'Limite retirée.')}>
+                  <button type="button" className="text-[12.5px] font-semibold text-ink underline" onClick={() => void agir(() => fixerCapacite(c.uniteKey, null), { titre: 'Limite retirée', detail: c.libelle, annuler: remettre(c.uniteKey) })}>
                     Retirer la limite
                   </button>
                 )}
@@ -152,16 +157,15 @@ export default function ParametresStagesPage() {
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              void agir(() => fixerCapacite(cle(unite), Number(maximum)), 'Capacité enregistrée.');
+              void agir(() => fixerCapacite(cle(unite), Number(maximum)), { titre: 'Capacité enregistrée', detail: `Maximum : ${maximum} stagiaire(s) simultané(s).`, annuler: remettre(cle(unite)) });
             }}
           >
             <ChoixUnite value={unite} onChange={setUnite} />
             <div className="flex flex-wrap items-end gap-2">
-              <div>
-                <Libelle htmlFor="cap-max">Maximum</Libelle>
-                <input id="cap-max" type="number" min={0} max={100} className={`${SELECT_CLASS} !w-28`} value={maximum} onChange={(e) => setMaximum(e.target.value)} required />
+              <div className="w-32">
+                <Saisie id="cap-max" label="Maximum" type="number" min={0} max={100} value={maximum} onChange={setMaximum} required />
               </div>
-              <button type="submit" className={BTN_SECONDAIRE} disabled={enCours || !cle(unite)}>
+              <button type="submit" className={`${BTN_SECONDAIRE} mb-3.5`} disabled={enCours || !cle(unite) || maximum === ''}>
                 Fixer la capacité
               </button>
             </div>

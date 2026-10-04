@@ -25,19 +25,22 @@
           "etapes": [
             "Le menu de gauche regroupe vos modules en « Mon travail », « Échanges », « Ressources » et « Plus » (à déplier) : vous ne voyez que ceux qui vous concernent, et une pastille indique ce qui vous attend.",
             "Sur téléphone, le menu s’ouvre avec le bouton ☰ en haut à gauche.",
-            "La cloche (en haut à droite) affiche vos notifications non lues : cliquez sur l’une d’elles pour ouvrir directement l’élément concerné.",
+            "La cloche (en haut à droite) affiche vos notifications, groupées par jour, avec une icône par type ; « Non lues » et « À traiter » filtrent la liste, « Tout marquer comme lu » vide le compteur. Cliquez sur l’une d’elles pour ouvrir directement l’élément concerné.",
             "Personnel → « Organisation » : l’organigramme de la DNPEC (Direction, divisions, sections, cellules), avec le responsable et l’effectif de chaque unité.",
             "L’enveloppe ✉ ouvre la messagerie ; une pastille rouge indique des messages non lus.",
-            "Un lien reçu par e-mail ouvre directement la bonne page, même s’il faut d’abord se reconnecter."
+            "Un lien reçu par e-mail ouvre directement la bonne page, même s’il faut d’abord se reconnecter.",
+            "Après chaque action (tâche validée, courrier imputé, demande envoyée…), un message bref s’affiche en bas à droite ; « Annuler » y figure quand l’action peut être défaite. Une erreur s’affiche au même endroit, en rouge.",
+            "Dans les formulaires, un champ oublié est signalé en rouge sous le champ avant tout envoi ; les dates se choisissent dans un calendrier (raccourcis « Aujourd’hui », « Dans 1 semaine », « Fin du mois ») et les fichiers se glissent dans la zone de dépôt.",
+            "Sur téléphone, les filtres d’une liste se trouvent derrière le bouton « Filtres »."
           ],
           "capture": "tableau-de-bord.png"
         },
         {
           "titre": "Sécuriser son compte",
           "etapes": [
-            "Cliquez sur votre nom en bas du menu, puis sur « Sécurité du compte ».",
-            "Cliquez sur « Activer la double authentification », scannez le QR code avec une application (Google Authenticator, Microsoft Authenticator, FreeOTP…), saisissez le code affiché et cliquez sur « Confirmer l’activation ».",
-            "Pour la désactiver, saisissez un code actuel de l’application et cliquez sur « Désactiver ».",
+            "Cliquez sur votre nom en bas du menu, puis sur « Mon profil » : identité, unité, chef direct, complétude de votre dossier, sécurité, notifications et aide sur une seule page.",
+            "Section « Sécurité » : « Activer » sur la ligne Double authentification, scannez le QR code avec une application (Google Authenticator, Microsoft Authenticator, FreeOTP…), saisissez le code affiché et cliquez sur « Confirmer l’activation ».",
+            "Pour la désactiver : « Désactiver », saisissez un code actuel de l’application et confirmez. « Changer » le mot de passe vous envoie par email un lien pour en choisir un nouveau ; « Sessions ouvertes » liste les appareils connectés, « Déconnecter » ferme l’un d’eux.",
             "Éléments protégés (informations personnelles de votre dossier, diplômes, pièces) : cliquez sur « Afficher les données protégées » et confirmez votre mot de passe (et le code de l’application si la double authentification est active). La confirmation vaut 10 minutes.",
             "Menu « Journal d’audit » : la liste de vos propres actions dans l’application (un responsable voit celles de son périmètre). Personne ne peut modifier ni effacer ce journal.",
             "Téléphone perdu ou changé : demandez à l’administrateur système de réinitialiser votre double authentification.",
@@ -49,17 +52,17 @@
           "titre": "Où trouver de l’aide",
           "etapes": [
             "Cette page (« Aide », dans le menu) ne montre que les guides de votre profil.",
-            "Une idée d’amélioration ? Menu Personnel → « Boîte à suggestions ».",
+            "Une idée d’amélioration ? Menu Personnel → « Boîte à suggestions », puis « Envoyer la suggestion ».",
             "Un problème technique ? Contactez l’administrateur système (CSID)."
           ]
         },
         {
           "titre": "Rechercher et être prévenu",
           "etapes": [
-            "Barre du haut : tapez au moins 3 caractères puis Entrée ; les résultats sont groupés par tâches, documents, courrier, annuaire et réunions, et ne montrent que ce que vous avez le droit de voir.",
+            "Barre du haut (Ctrl K) : dès 3 caractères, les résultats s’affichent pendant la frappe, groupés par tâches, documents, courrier, annuaire et réunions ; ↑ ↓ pour choisir, Entrée pour ouvrir, Échap pour fermer, « Voir les N résultats » pour la page complète. Seul ce que vous avez le droit de voir apparaît.",
             "« Voir tout dans le module » ouvre l’écran concerné avec ses propres filtres.",
             "La cloche affiche toujours vos notifications immédiatement. Par email, vous recevez chaque jour un « Résumé quotidien » ; les alertes urgentes (sécurité, décision sur une demande, acte à signer, instruction de la Direction, tâche en retard, réunion) partent tout de suite.",
-            "Votre nom en bas du menu → « Préférences de notification » : heure du résumé, ou « Tout immédiatement »."
+            "Votre nom en bas du menu → « Mon profil », section « Notifications » : l’interrupteur « Résumé quotidien par email » (désactivé : tout immédiatement) et l’heure du résumé, enregistrés aussitôt."
           ],
           "capture": "recherche.png"
         },
@@ -96,7 +99,7 @@
           "titre": "Congés et absences",
           "etapes": [
             "Menu Personnel → « Congés & absences » → « Demander un congé ».",
-            "Choisissez le type, les dates et, si besoin, un motif, puis envoyez : votre chef donne son avis (48 heures ouvrées ; sans réponse, l’avis est réputé favorable), puis le DRH décide.",
+            "Choisissez le type et les dates (calendrier ou saisie jj/mm/aaaa) : le nombre de jours, la date de reprise et votre solde après la demande s’affichent pendant la saisie. Ajoutez si besoin un motif, puis « Envoyer la demande » : votre chef donne son avis (48 heures ouvrées ; sans réponse, l’avis est réputé favorable), puis le DRH décide.",
             "Chaque demande affiche son étape (« Avis du chef attendu », « Décision du DRH attendue »…). Vous êtes prévenu de la décision ; la bande de soldes en haut de « Mes congés » indique les jours restants.",
             "Congé maladie : votre chef (celui qui donne l’avis) et le DRH en voient la nature et le motif ; la Direction et le reste de la hiérarchie voient « Absence — motif protégé ». « Joindre le certificat médical » : seuls vous et le DRH pourrez le lire.",
             "Les jours fériés ne sont décomptés ni dans vos jours de congé ni dans le délai d’avis du chef ; le calendrier est consultable dans l’onglet « Jours fériés »."
@@ -148,7 +151,7 @@
             "Général → « Plan de travail » : les objectifs de l’année de votre unité et des unités au-dessus, leurs activités (responsable, période, indicateur) et leur avancement, calculé à partir des tâches.",
             "En créant une tâche, choisissez l’« Activité du plan de travail » à laquelle elle contribue.",
             "Mes tâches : boutons « Liste », « Kanban » ou « Calendrier » pour changer de vue (le dernier choix est retenu). La veille d’une échéance, vous êtes prévenu ; en cas de retard, votre chef l’est.",
-            "Messagerie → « Fils de discussion » : « Nouveau fil » (objet, plusieurs destinataires, message) ; « Joindre un objet » renvoie vers une tâche, un document, un courrier ou une réunion — seuls ceux qui y ont droit peuvent l’ouvrir.",
+            "Messagerie → « Fils de discussion » : « Nouveau fil » (objet, destinataires choisis en tapant leur nom, message) puis « Démarrer le fil » ; « Joindre un objet » renvoie vers une tâche, un document, un courrier ou une réunion — seuls ceux qui y ont droit peuvent l’ouvrir.",
             "Sous chaque message : « Lu par … le … » pour chaque destinataire."
           ],
           "capture": "fils.png"
@@ -175,7 +178,7 @@
           "etapes": [
             "Bouton doré « Créer » (en haut) → « Nouvelle tâche » : titre, échéance, priorité, confidentialité, puis « Assigner à » un ou plusieurs agents de votre section.",
             "Le tableau de bord montre l’avancement, les retards et les tâches à valider.",
-            "Ouvrez une tâche soumise pour la valider ou la rejeter avec un commentaire."
+            "Ouvrez une tâche soumise pour la valider, ou « Rejeter » : la fenêtre « Rejeter la tâche » demande le motif."
           ],
           "capture": "taches.png"
         },
@@ -218,8 +221,8 @@
         {
           "titre": "Plan de travail de la section",
           "etapes": [
-            "Général → « Plan de travail » → « Nouvel objectif » : l’objectif de l’année pour votre section.",
-            "« Activité » : libellé, responsable (un membre de la section), début, fin, indicateur et cible.",
+            "Général → « Plan de travail » → « Nouvel objectif » : l’objectif de l’année pour votre section, puis « Créer l’objectif ».",
+            "« Ajouter une activité » : libellé, responsable (un membre de la section), début, fin, indicateur et cible, puis « Créer l’activité ».",
             "Cliquez sur une activité : ses tâches en Kanban ou en Calendrier, « Nouvelle tâche » pour en rattacher une. L’avancement se calcule tout seul ; « En retard » s’affiche si la fin est passée avant 100 %.",
             "Vous êtes prévenu quand une tâche d’un agent de la section dépasse son échéance. Le rapport d’activité (Documents générés) reprend les activités du plan."
           ],
@@ -254,7 +257,7 @@
         {
           "titre": "Diffuser et valider",
           "etapes": [
-            "« Mes tâches » → « Diffuser une tâche à une division » : une tâche collective ou une tâche par agent.",
+            "« Mes tâches » → « Diffuser une tâche à une division » : choisissez en un clic une tâche collective ou une tâche par agent, puis « Diffuser la tâche ».",
             "Validez les tâches soumises et les demandes logistiques de votre périmètre ; pour les congés, donnez votre avis quand vous êtes le chef le plus proche (onglet « À traiter »), comme un chef de section."
           ],
           "capture": "taches.png"
@@ -355,7 +358,7 @@
         {
           "titre": "Instructions de la Direction",
           "etapes": [
-            "Général → « Instructions » → « Nouvelle instruction » : objet, texte, destinataire, échéance ; « Agent concerné » pour une instruction RH (l’agent ne la voit qu’une fois exécutée). « Exporter » télécharge la liste en Excel ; les instructions closes sont dans l’onglet « Archivées ».",
+            "Général → « Instructions » → « Nouvelle instruction » : objet, texte, destinataire, échéance ; « Agent concerné » pour une instruction RH (l’agent ne la voit qu’une fois exécutée), puis « Émettre l’instruction ». « Exporter » télécharge la liste en Excel ; les instructions closes sont dans l’onglet « Archivées ».",
             "Suivi : Émise → Reçue (à l’ouverture par le destinataire) → Prise en compte → Exécutée ou Rejetée (avec un motif). Vous êtes prévenu à chaque étape.",
             "Sans réponse, le destinataire est relancé tous les 7 jours et vous en êtes informé.",
             "Une instruction RH s’exécute par un acte signé du Courrier (par exemple une attestation préparée par le DRH).",
@@ -392,7 +395,7 @@
         {
           "titre": "Organiser",
           "etapes": [
-            "Réunions → « Nouvelle réunion » : invitez les participants et réservez une salle en indiquant le début et la fin.",
+            "Réunions → « Nouvelle réunion » : date, heures de début et de fin, participants (tapez un nom puis choisissez-le) et, si besoin, une salle. Pour annuler une réunion : « Annuler la réunion », puis « Confirmer l’annulation ».",
             "Messagerie : messagerie avec tous les agents."
           ],
           "capture": "reunions.png"
@@ -473,7 +476,7 @@
         {
           "titre": "Stages",
           "etapes": [
-            "Personnel → « Stagiaires » → « Nouveau stage » : stagiaire, établissement, dates ; puis ajoutez les périodes (unité, dates, format d’évaluation).",
+            "Personnel → « Stagiaires » → « Nouveau stage » : stagiaire (tapez son nom puis choisissez-le), établissement, dates ; puis ajoutez les périodes (unité, dates, format d’évaluation).",
             "Chaque responsable d’unité accepte la période et désigne le tuteur ; le changement d’unité se fait tout seul à la date prévue.",
             "« Planning, capacités, modèle » : capacités d’accueil par unité et modèle d’attestation (Word avec des champs {{NOM_COMPLET}}, {{DATE_DEBUT}}…).",
             "En fin de stage : « Clôturer », puis « Préparer l’attestation finale » (registre ATT) : l’acte part à la signature du DN ou de la DNA.",
@@ -495,7 +498,7 @@
         {
           "titre": "Attestations de travail",
           "etapes": [
-            "Personnel → « Documents générés » → « Attestations de travail » : choisissez l’agent, « Nouvelle attestation de travail ».",
+            "Personnel → « Documents générés » → « Attestations de travail » : « Nouvelle attestation de travail » (en haut à droite), choisissez l’agent, puis « Créer l’attestation ».",
             "« Aperçu » montre exactement le document imprimé (mention « PROJET — non signé ») ; « Voir » sur la ligne ouvre la fenêtre de l’attestation : « PDF » ou « Word » pour la télécharger.",
             "Dans la même fenêtre, « Préparer l’acte » : l’attestation part dans le module Courrier (visa, signature du DN ou de la DNA, numéro). Une fois signée, l’agent la retrouve dans son écran ; « Transmettre » la lui envoie par la messagerie.",
             "Instruction RH de la Direction : Général → « Instructions » → « Prendre en compte », préparez puis faites signer l’acte, enfin « Marquer exécutée » en choisissant l’acte signé."
@@ -515,7 +518,7 @@
           "titre": "Carrière et actes",
           "etapes": [
             "Avant le premier mouvement : choisissez dans « Familles d’actes » le registre du Courrier de chaque famille (sa séquence de numéros).",
-            "« Nouveau mouvement » : l’agent, le type (nomination, avancement d’échelon, promotion, mutation, fin de contrat), la date d’effet et la nouvelle valeur → « Préparer le mouvement ».",
+            "« Nouveau mouvement » : l’agent (tapez son nom puis choisissez-le), le type (nomination, avancement d’échelon, promotion, mutation, fin de contrat), la date d’effet et la nouvelle valeur → « Préparer le mouvement ».",
             "Nomination à un poste de chef (ou DN, DNA) : choisissez le « Poste visé » dans la liste ; le rôle, l’unité et l’intitulé de la fonction en découlent (« Autre fonction » garde le texte libre, sans effet sur les droits). Après la signature, le mouvement affiche « Droits en attente (administrateur) », puis « Droits appliqués » ou « Droits refusés » avec le motif.",
             "« Préparer l’acte » : l’acte est créé dans le Courrier, avec la décision jointe, et suit le circuit de visa et de signature. Le dossier n’est modifié qu’à la signature par le DN ou la DNA ; l’agent est prévenu.",
             "Une mutation ne concerne qu’un chargé d’études ; pour un chef, un assistant ou un stagiaire, passez par le changement de rôle (Organisation)."
@@ -589,7 +592,7 @@
           "etapes": [
             "Menu « Mon stage » : votre plan (unités, dates, tuteurs) et les évaluations une fois visées par le chef.",
             "À la fin, l’attestation signée est téléchargeable ici ; cliquez sur « J’ai pris connaissance de mon attestation ».",
-            "Rapport de stage : sur votre fiche, « Déposer mon rapport » (après la désignation de votre encadreur principal). S’il demande une reprise, le motif s’affiche et vous déposez une nouvelle version."
+            "Rapport de stage : sur votre fiche, « Déposer mon rapport » (après la désignation de votre encadreur principal) : choisissez le fichier, puis « Déposer le rapport ». S’il demande une reprise, le motif s’affiche et vous déposez une nouvelle version."
           ],
           "capture": "mon-stage.png"
         },
@@ -658,7 +661,7 @@
           "titre": "Jours fériés",
           "etapes": [
             "Congés & absences → onglet « Jours fériés » : choisissez l’année ; les fêtes fixes nationales sont pré-remplies (« Ajouter les fêtes fixes » pour une nouvelle année).",
-            "Saisissez les fêtes religieuses avec leur date de l’année (« Ajouter le jour férié ») ; « Modifier » si la date officielle change, « Supprimer » si besoin.",
+            "Saisissez les fêtes religieuses avec leur date de l’année (« Ajouter un jour férié ») ; « Modifier » si la date officielle change, « Supprimer » si besoin.",
             "Les jours fériés sont exclus du délai d’avis du chef (heures ouvrées) et du décompte des jours de congé. En début d’année, une alerte vous prévient si l’année suivante n’a aucun jour férié."
           ],
           "capture": "jours-feries.png"

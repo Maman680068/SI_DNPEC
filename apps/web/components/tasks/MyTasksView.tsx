@@ -27,6 +27,8 @@ import { CreateTaskModal } from './CreateTaskModal';
 import { Avancement, Avatars, PastilleStatut, PointStatut, Priorite } from './ElementsTache';
 import { useUniteTache } from '../dashboard/ListeTachesTableau';
 import { ErreurChargement, messageChargement } from '../ui/ErreurChargement';
+import { BTN_SECONDAIRE, EtatVide, FiltreSelect, Filtres } from '../ui/Charte';
+import { SqueletteListe } from '../ui/Squelette';
 
 /** Onglets (adresse : `?onglet=`) ; « À valider » et « Mon périmètre » selon ce que l'API ouvre. */
 type Onglet = 'assignees' | 'creees' | 'a-valider' | 'perimetre' | 'terminees';
@@ -38,36 +40,6 @@ type Groupement = 'echeance' | 'statut';
 
 /** Vue de périmètre : tâches non closes et closes depuis moins de 30 jours, bornées (performance 2026-10). */
 const PERIMETRE_MAX = 300;
-
-function FiltreSelect<T extends string>({
-  label,
-  value,
-  defaut,
-  onChange,
-  options,
-}: {
-  label: string;
-  value: T;
-  defaut: T;
-  onChange: (v: T) => void;
-  options: { value: T; label: string }[];
-}) {
-  const actif = value !== defaut;
-  return (
-    <select
-      aria-label={label}
-      value={value}
-      onChange={(e) => onChange(e.target.value as T)}
-      className={`h-9 max-w-[180px] rounded-[9px] border px-2.5 text-[13px] font-semibold ${actif ? 'border-ink bg-ink-50 text-ink' : 'border-line bg-surface text-text'}`}
-    >
-      {options.map((o) => (
-        <option key={o.value} value={o.value}>
-          {o.label}
-        </option>
-      ))}
-    </select>
-  );
-}
 
 /**
  * « Mes tâches » (refonte de l'interface, étape 2) : onglets Assignées à moi, Créées par moi, (À valider),
@@ -180,6 +152,15 @@ export function MyTasksView({ initialTaskId = null }: { initialTaskId?: string |
   const ouvertes = (onglet === 'assignees' ? (assignees ?? []) : (source ?? [])).filter((t) => !estClose(t));
   const sousTitre = `${ouvertes.length} ouverte${ouvertes.length > 1 ? 's' : ''} · ${ouvertes.filter((t) => estEnRetard(t)).length} en retard · ${ouvertes.filter((t) => t.status === 'SOUMISE_VALIDATION').length} en validation`;
 
+  const statutDefaut: FiltreStatut = onglet === 'terminees' ? 'toutes' : 'ouvertes';
+  const nbFiltres = [statut !== statutDefaut, echeance !== 'toutes', priorite !== 'toutes', activite !== 'toutes'].filter(Boolean).length;
+  function effacerFiltres() {
+    setStatut(statutDefaut);
+    setEcheance('toutes');
+    setPriorite('toutes');
+    setActivite('toutes');
+  }
+
   function choisirOnglet(o: Onglet) {
     setOnglet(o);
     setStatut(o === 'terminees' ? 'toutes' : 'ouvertes');
@@ -249,10 +230,11 @@ export function MyTasksView({ initialTaskId = null }: { initialTaskId?: string |
             className="h-full min-w-0 flex-1 bg-transparent text-[13.5px] text-text placeholder:text-text-faint focus:outline-none"
           />
         </label>
+        <Filtres actifs={nbFiltres} onEffacer={effacerFiltres}>
         <FiltreSelect<FiltreStatut>
           label="Statut"
           value={statut}
-          defaut={onglet === 'terminees' ? 'toutes' : 'ouvertes'}
+          defaut={statutDefaut}
           onChange={setStatut}
           options={[
             { value: 'ouvertes', label: 'Statut : ouvertes' },
@@ -292,13 +274,14 @@ export function MyTasksView({ initialTaskId = null }: { initialTaskId?: string |
           onChange={setActivite}
           options={[{ value: 'toutes', label: 'Plan de travail' }, { value: 'aucune', label: 'Sans activité' }, ...activites.map((a) => ({ value: a, label: a }))]}
         />
+        </Filtres>
         <div className="ml-auto">
           <ViewToggle value={vue} onChange={setVue} plein />
         </div>
       </div>
 
       {!source ? (
-        <div className="text-sm text-text-muted">Chargement des tâches…</div>
+        <SqueletteListe lignes={6} colonnes={6} />
       ) : vue === 'kanban' ? (
         <KanbanBoard tasks={filtrees} onSelect={setSelectedTaskId} onAjouter={peutCreer && onglet !== 'terminees' ? () => setCreation(true) : undefined} />
       ) : vue === 'calendar' ? (
@@ -306,16 +289,29 @@ export function MyTasksView({ initialTaskId = null }: { initialTaskId?: string |
       ) : (
         <div className="overflow-hidden rounded-xl border border-line bg-surface" data-testid="liste-taches">
           {filtrees.length === 0 && (
-              <p className="px-4 py-6 text-center text-[13.5px] text-text-muted">
-                {source.length === 0
+            <EtatVide
+              texte={
+                source.length === 0
                   ? onglet === 'a-valider'
                     ? 'Aucune tâche n’attend votre validation.'
                     : onglet === 'terminees'
                       ? 'Aucune tâche terminée.'
                       : 'Aucune tâche dans cet onglet.'
-                  : 'Aucune tâche ne correspond aux filtres.'}
-              </p>
-            )}
+                  : 'Aucune tâche ne correspond aux filtres.'
+              }
+              action={
+                source.length > 0 && nbFiltres > 0 ? (
+                  <button type="button" className={`${BTN_SECONDAIRE} !h-8 !text-[13px]`} onClick={effacerFiltres}>
+                    Effacer les filtres
+                  </button>
+                ) : peutCreer && (onglet === 'assignees' || onglet === 'creees') ? (
+                  <button type="button" className={`${BTN_SECONDAIRE} !h-8 !text-[13px]`} onClick={() => setCreation(true)}>
+                    Nouvelle tâche
+                  </button>
+                ) : undefined
+              }
+            />
+          )}
           {filtrees.length > 0 && (
           <div role="table" aria-label="Tâches" className="overflow-x-auto">
             <div role="rowgroup">

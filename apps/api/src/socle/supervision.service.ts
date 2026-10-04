@@ -255,6 +255,21 @@ export class SupervisionService {
     return null;
   }
 
+  private pointsEnCache: { at: number; points: Service[] } | null = null;
+
+  /**
+   * Points de supervision à traiter (services dégradés ou indisponibles), repris dans le bloc
+   * « À traiter » du tableau de bord de l'administrateur (refonte, étape 9). Mêmes calculs que
+   * l'écran Supervision, gardés une minute pour ne pas les refaire à chaque rafraîchissement.
+   * L'appelant ne l'utilise que pour un administrateur système (même accès que l'écran).
+   */
+  async pointsATraiter(maintenant = Date.now()): Promise<Service[]> {
+    if (!this.pointsEnCache || maintenant - this.pointsEnCache.at > 60_000) {
+      this.pointsEnCache = { at: maintenant, points: (await this.services()).filter((s) => s.etat !== 'NOMINAL') };
+    }
+    return this.pointsEnCache.points;
+  }
+
   /**
    * Toutes les 10 minutes : un service qui passe en état dégradé ou indisponible alerte les
    * administrateurs (notification et email), une fois par changement d'état (SOC-SUP-07).
