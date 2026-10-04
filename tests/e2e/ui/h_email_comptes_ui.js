@@ -35,9 +35,10 @@ async function inscrire(adresse, prenom) {
   await carte(eRejet).getByRole('button', { name: 'Rejeter' }).click();
   await a.getByRole('heading', { name: 'Rejeter l’inscription' }).waitFor();
   check('fenêtre de rejet : la personne sera prévenue par email', (await a.getByText('reçoit un email lui indiquant qu’elle n’a pas été retenue').count()) === 1);
-  await a.getByLabel('Motif (facultatif, repris dans l’email)').fill('Merci de passer par votre chef de division.');
+  await a.getByLabel('Motif repris dans l’email (facultatif)').fill('Merci de passer par votre chef de division.');
   await a.getByRole('button', { name: 'Rejeter la demande' }).click();
   check('la demande disparaît de la liste', await attendre(async () => (await a.getByText(eRejet).count()) === 0));
+  check('message de confirmation « Inscription rejetée »', /Inscription rejetée/.test(await a.getByTestId('toast').innerText()));
   check('demande supprimée en base', (await prisma.user.findUnique({ where: { email: eRejet } })) === null);
   const m1 = await (async () => { let m = null; await attendre(async () => !!(m = email(eRejet, 'Votre demande d’accès au SI DNPEC'))); return m; })();
   check('email de rejet avec le motif saisi', !!m1 && m1.includes('Motif indiqué par l’administrateur : Merci de passer par votre chef de division.'));
@@ -45,7 +46,7 @@ async function inscrire(adresse, prenom) {
 
   console.log('— Annuler ne rejette rien');
   await carte(eMobile).getByRole('button', { name: 'Rejeter' }).click();
-  await a.getByRole('button', { name: 'Annuler' }).click();
+  await a.getByRole('dialog').getByRole('button', { name: 'Annuler' }).click();
   check('annuler : demande conservée', (await prisma.user.findUnique({ where: { email: eMobile } })) !== null);
 
   console.log('— Approbation');
@@ -55,6 +56,7 @@ async function inscrire(adresse, prenom) {
   await a.screenshot({ path: `${E.SHOTS}/h_approbation.png` });
   await a.locator('form').getByRole('button', { name: 'Approuver' }).click();
   check('compte actif', await attendre(async () => (await prisma.user.findUnique({ where: { email: eAppro } }))?.status === 'ACTIF'));
+  check('message de confirmation « Inscription approuvée »', /Inscription approuvée/.test(await a.getByTestId('toast').innerText()));
   let m2 = null; await attendre(async () => !!(m2 = email(eAppro, 'Votre compte SI DNPEC est activé')));
   check('email d’approbation avec bouton « Se connecter »', !!m2 && m2.includes('Se connecter : http://localhost:3100/login'));
 

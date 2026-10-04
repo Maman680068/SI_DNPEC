@@ -5,12 +5,9 @@ import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { rechercher } from '../../../lib/api/pilotage';
 import type { Recherche } from '../../../lib/pilotage/types';
-import {
-  Chargement,
-  ErreurChargement,
-  messageChargement,
-} from '../../../components/ui/ErreurChargement';
-import { BTN_LIGNE, EnTetePage, Panneau } from '../../../components/ui/Charte';
+import { ErreurChargement, messageChargement } from '../../../components/ui/ErreurChargement';
+import { BarreOutils, BTN_LIGNE, EnTetePage, EtatVide, Filtres, FiltreSelect, Panneau } from '../../../components/ui/Charte';
+import { SqueletteCartes, SquelettePage } from '../../../components/ui/Squelette';
 
 /** Lien « voir tout » : l'écran du module, avec son propre filtre de recherche. */
 const ECRAN: Record<string, (q: string) => string> = {
@@ -24,7 +21,7 @@ const ECRAN: Record<string, (q: string) => string> = {
 /** Résultats de la recherche transverse (socle N5) : 5 par catégorie, limités aux droits de chacun. */
 export default function RecherchePage() {
   return (
-    <Suspense fallback={<p className="text-sm text-text-muted">Chargement…</p>}>
+    <Suspense fallback={<SquelettePage />}>
       <Resultats />
     </Suspense>
   );
@@ -35,15 +32,18 @@ function Resultats() {
   const q = useSearchParams().get('q') ?? '';
   const [r, setR] = useState<Recherche | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
+  // Filtre d'affichage : une seule catégorie (les résultats restent ceux de l'API).
+  const [categorie, setCategorie] = useState('');
+  const tropCourt = q.trim().length < 3;
   useEffect(() => {
     setR(null);
     setErreur(null);
-    if (q.trim().length < 3)
-      return setErreur('Saisissez au moins 3 caractères dans la barre de recherche.');
+    if (tropCourt) return;
     rechercher(q)
       .then(setR)
       .catch((e) => setErreur(messageChargement(e)));
-  }, [q]);
+  }, [q, tropCourt]);
+  const categories = r ? r.categories.filter((c) => !categorie || c.cle === categorie) : [];
 
   return (
     <div>
@@ -53,11 +53,28 @@ function Resultats() {
         disponibles dans chaque module.
       </p>
       <ErreurChargement message={erreur} />
-      {!r ? (
-        <Chargement erreur={erreur} />
+      {r && (
+        <BarreOutils>
+          <Filtres actifs={categorie ? 1 : 0} onEffacer={() => setCategorie('')}>
+            <FiltreSelect
+              label="Catégorie"
+              value={categorie}
+              defaut=""
+              onChange={setCategorie}
+              options={[{ value: '', label: 'Catégorie : toutes' }, ...r.categories.map((c) => ({ value: c.cle, label: c.libelle }))]}
+            />
+          </Filtres>
+        </BarreOutils>
+      )}
+      {tropCourt ? (
+        <div className="rounded-xl border border-line bg-surface">
+          <EtatVide texte="Saisissez au moins 3 caractères dans la barre de recherche, en haut de la page." />
+        </div>
+      ) : !r ? (
+        erreur ? null : <SqueletteCartes cartes={4} />
       ) : (
         <div className="grid gap-3.5 md:grid-cols-2">
-          {r.categories.map((c) => (
+          {categories.map((c) => (
             <Panneau
               key={c.cle}
               testid={`categorie-${c.cle}`}

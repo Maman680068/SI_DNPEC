@@ -2,10 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../../../lib/auth/AuthProvider';
-import { getLeaveRequests, getLeaveTypes, getMyBalances } from '../../../lib/api/leaves';
-import type { LeaveBalanceView, LeaveRequest, LeaveType } from '../../../lib/leaves/types';
+import { cancelLeaveRequest, getLeaveRequests, getLeaveTypes, getMyBalances } from '../../../lib/api/leaves';
+import type { LeaveBalanceView, LeaveRequest, LeaveType, SimulationConge } from '../../../lib/leaves/types';
 import { LEADERSHIP_ROLES_FOR_LEAVES } from '../../../lib/leaves/types';
-import { CreateLeaveRequestModal } from '../../../components/leaves/CreateLeaveRequestModal';
+import { CreateLeaveRequestModal, phraseAvis } from '../../../components/leaves/CreateLeaveRequestModal';
 import { ValidationQueue } from '../../../components/leaves/ValidationQueue';
 import { FenetreConge } from '../../../components/leaves/FenetreConge';
 import { BoutonDemander, MesConges } from '../../../components/leaves/MesConges';
@@ -13,11 +13,13 @@ import { JoursFeries } from '../../../components/leaves/JoursFeries';
 import { EnTetePage, Onglets, type Onglet } from '../../../components/ui/Charte';
 import { Chargement, ErreurChargement, messageChargement } from '../../../components/ui/ErreurChargement';
 import { useDemandeCreation } from '../../../lib/navigation/creer';
+import { messageErreur, useToast } from '../../../components/ui/Toast';
 
 type Tab = 'mine' | 'validation' | 'suivi' | 'feries';
 
 export default function LeavesPage() {
   const { user: currentUser } = useAuth();
+  const toast = useToast();
   // Onglet « À traiter » : chefs (avis), DRH (décision) ; les droits par demande viennent de l'API.
   // Onglet « Suivi de l'équipe » : les autres demandes de son périmètre, en lecture (circuit, étape).
   const canValidate = LEADERSHIP_ROLES_FOR_LEAVES.includes(currentUser?.role ?? '') || (currentUser?.rolesFonctionnels ?? []).includes('DRH');
@@ -118,10 +120,23 @@ export default function LeavesPage() {
     if (updated.userId === currentUser?.id) loadBalances();
   }
 
-  function handleCreated(request: LeaveRequest) {
+  function handleCreated(request: LeaveRequest, simulation: SimulationConge | null) {
     setRequests((prev) => (prev ? [request, ...prev] : [request]));
     setShowCreateModal(false);
     loadBalances();
+    // « Annuler » : l'annulation de sa demande en attente est prévue par l'API (même droit que « Annuler la demande »).
+    toast.succes('Demande envoyée', {
+      detail: phraseAvis(simulation),
+      annuler: request.droits?.peutAnnuler
+        ? () =>
+            cancelLeaveRequest(request.id)
+              .then((maj) => {
+                handleRequestUpdated(maj);
+                toast.succes('Demande annulée', { detail: 'Votre demande a été retirée.' });
+              })
+              .catch((err) => toast.erreur('Action impossible', messageErreur(err)))
+        : undefined,
+    });
   }
 
   function handleDecided(updated: LeaveRequest) {

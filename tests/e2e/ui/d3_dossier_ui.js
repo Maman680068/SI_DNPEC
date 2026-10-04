@@ -47,19 +47,23 @@ function espion(page) {
   const [dl] = await Promise.all([p.waitForEvent('download'), p.locator('[data-testid="champ-Fiche de poste"]').getByRole('button', { name: 'Télécharger' }).click()]);
   check('fiche de poste téléchargée', fs.readFileSync(await dl.path(), 'utf8').startsWith('FICHE'), dl.suggestedFilename());
   await p.getByRole('button', { name: 'Confirmer mes informations' }).click();
-  await p.getByText('Vos informations sont confirmées.').waitFor();
+  await p.getByTestId('toast').getByText('Informations confirmées').waitFor();
   check('après confirmation : plus de bandeau, grade « Confirmé »', await attendre(async () => (await p.locator('[data-testid=bandeau-a-verifier]').count()) === 0 && /Confirmé/.test(await p.locator('[data-testid="champ-Grade"]').innerText())));
   await p.getByRole('button', { name: 'Signaler une erreur' }).click();
   await p.getByLabel('Information concernée').selectOption('Grade');
+  // Refonte (étape 9) : validation dans la fenêtre — envoi vide refusé, message sous le champ, rien d'envoyé.
+  await p.getByRole('button', { name: 'Envoyer au DRH' }).click();
+  await p.getByRole('dialog').getByText('Décrivez ce qui est inexact.').waitFor();
+  check('signalement vide : message sous le champ, fenêtre toujours ouverte', (await p.getByRole('dialog').count()) === 1);
   await p.getByLabel('Ce qui est inexact').fill(`Mon grade est A1 depuis 2024 ${S}`);
   await p.getByRole('button', { name: 'Envoyer au DRH' }).click();
-  await p.getByText('Le DRH a été prévenu.').waitFor();
+  await p.getByTestId('toast').getByText('Le DRH a été prévenu.').waitFor();
   const notif = await prisma.notification.findFirst({ where: { userId: ids.drh, type: 'DOSSIER_ERREUR_SIGNALEE', channel: 'IN_APP', body: { contains: S } } });
   check('signalement : DRH notifié, lien /personnel/:id', notif && notif.link === `/personnel/${a1}`);
   await p.locator('[data-testid=niveau-2]').getByRole('button', { name: 'Modifier' }).click();
   await p.getByLabel('Téléphone personnel').fill(`${TEL}9`);
   await p.getByRole('button', { name: 'Enregistrer' }).click();
-  await p.getByText('Informations personnelles enregistrées.').waitFor();
+  await p.getByTestId('toast').getByText('Informations personnelles enregistrées').waitFor();
   check('modification du téléphone : « À vérifier » et bandeau de retour', await attendre(async () => /À vérifier/.test(await p.locator('[data-testid="champ-Téléphone personnel"]').innerText()) && (await p.locator('[data-testid=bandeau-a-verifier]').count()) === 1), await p.locator('[data-testid="champ-Téléphone personnel"]').innerText());
   check('pas de bouton d’import pour un Chargé d’Études', (await (await p.goto(`${WEB}/personnel`), p.getByRole('button', { name: 'Importer (Excel)' }).count())) === 0);
 
@@ -74,13 +78,14 @@ function espion(page) {
   await d.locator('[data-testid=niveau-1]').getByRole('button', { name: 'Modifier' }).click();
   await d.getByLabel('Échelon', { exact: true }).fill(`E${S}`);
   await d.getByRole('button', { name: 'Enregistrer' }).click();
-  await d.getByText('Situation administrative enregistrée.').waitFor();
+  await d.getByTestId('toast').getByText('Situation administrative enregistrée').waitFor();
   check('DRH : échelon enregistré « À vérifier »', await attendre(async () => /À vérifier/.test(await d.locator('[data-testid="champ-Échelon"]').innerText())));
   await d.getByRole('button', { name: 'Ajouter' }).nth(1).click();
   await d.getByLabel('Libellé').fill(`Arrêté de nomination ${S}`);
   await d.getByLabel('Fichier').setInputFiles({ name: 'arrete.pdf', mimeType: 'application/pdf', buffer: Buffer.from(`ARRETE ${S}`) });
-  await d.getByRole('dialog').getByRole('button', { name: 'Ajouter' }).click();
+  await d.getByRole('dialog').getByRole('button', { name: 'Ajouter la pièce' }).click();
   await d.getByText(`Arrêté de nomination ${S}`).waitFor();
+  check('message de confirmation « Pièce ajoutée »', /Pièce ajoutée/.test(await d.getByTestId('toast').innerText()));
   check('DRH : pièce ajoutée, auteur affiché', /par DRH/.test(await d.getByText(`Arrêté de nomination ${S}`).locator('..').innerText()));
   const hist = await d.locator('[data-testid=historique]').innerText();
   check('historique de carrière en lecture seule (promotion)', hist.includes(`B${S}`) && (await d.locator('[data-testid=historique]').getByRole('button').count()) === 0);
@@ -98,7 +103,8 @@ function espion(page) {
   const rap = await d.getByRole('dialog').innerText();
   check('rapport d’import : 1 créé, 1 erreur (rôle réservé)', /1 compte créé/.test(rap) && /1 erreur/.test(rap) && /ne crée que des comptes de Chargé d'Études/.test(rap), rap.split('\n').slice(1, 2).join(' '));
   await d.screenshot({ path: `${SHOTS}/d3_import_rapport_desktop.png` });
-  await d.getByRole('button', { name: 'Fermer' }).click();
+  check('message de confirmation « Import terminé »', /Import terminé/.test(await d.getByTestId('toast').innerText()));
+  await d.getByRole('dialog').getByRole('button', { name: 'Fermer' }).last().click();
   await d.getByLabel('Rechercher une personne').fill(`camara${S}`);
   check('liste rechargée : la personne importée apparaît', await attendre(async () => (await d.locator('[data-testid=ligne-personnel]').count()) === 1));
 
@@ -120,6 +126,12 @@ function espion(page) {
   await dm.getByRole('region', { name: 'Synthèse des dossiers' }).waitFor();
   await dm.locator('[data-testid=ligne-personnel]').first().waitFor();
   check('DRH sur téléphone : synthèse lisible, sans défilement horizontal', (await dm.evaluate(() => document.documentElement.scrollWidth)) <= 390);
+  // Refonte (étape 9) : filtres repliés derrière « Filtres (N) » (statut « en activité » actif par défaut).
+  check('DRH sur téléphone : bouton « Filtres (1) », filtres masqués', (await dm.getByTestId('bouton-filtres').innerText()).trim() === 'Filtres (1)' && !(await dm.getByLabel('Unité', { exact: true }).isVisible()));
+  await dm.getByTestId('bouton-filtres').click();
+  await dm.getByRole('dialog', { name: 'Filtres' }).getByRole('button', { name: 'Effacer les filtres' }).click();
+  await dm.getByRole('button', { name: 'Appliquer' }).click();
+  check('« Effacer les filtres » : bouton « Filtres » sans compteur', (await dm.getByTestId('bouton-filtres').innerText()).trim() === 'Filtres');
   await dm.screenshot({ path: `${SHOTS}/d3_synthese_drh_mobile.png`, fullPage: true });
   await dm.context().close();
   for (const k of ['chefssr', 'dn']) {

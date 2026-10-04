@@ -17,8 +17,11 @@ import {
 } from '../../lib/api/logistique';
 import type { Article, Bien, Categorie, Demande, StatutDemande, TypeDemande } from '../../lib/logistique/types';
 import { TYPE_DEMANDE_LABEL } from '../../lib/logistique/types';
-import { Erreur, Fenetre, SELECT_CLASS, TEXTAREA_CLASS } from '../courrier/ui';
 import { ErreurChargement, messageChargement } from '../ui/ErreurChargement';
+import { ChoixSegment, FenetreFormulaire, Grille2, Liste, Saisie, ZoneTexte } from '../ui/Formulaire';
+import { SqueletteListe } from '../ui/Squelette';
+import { messageErreur, useToast } from '../ui/Toast';
+import { useEnvoi } from '../courrier/formulaire';
 import {
   BTN_DANGER_CONTOUR,
   BTN_LIGNE,
@@ -29,6 +32,7 @@ import {
   CleValeur,
   EtatVide,
   Etapes,
+  Filtres,
   FiltreSelect,
   LigneTableau,
   Pastille,
@@ -37,7 +41,7 @@ import {
   Tableau,
   type TonPastille,
 } from '../ui/Charte';
-import { Champ, Info, Panneau, SousOnglets, dateCourte, dateHeure, nom, useAction } from './commun';
+import { Panneau, SousOnglets, dateCourte, dateHeure, nom, useAction } from './commun';
 
 export type VueDemandes = 'miennes' | 'a_valider' | 'a_traiter';
 type Vue = VueDemandes;
@@ -85,8 +89,8 @@ export function OngletDemandes({
 }) {
   const [liste, setListe] = useState<Demande[] | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
+  const toast = useToast();
   const [ouverte, setOuverte] = useState<Demande | null>(null);
-  const [info, setInfo] = useState<string | null>(null);
   const [recherche, setRecherche] = useState('');
   const [categorie, setCategorie] = useState('');
 
@@ -114,13 +118,16 @@ export function OngletDemandes({
   return (
     <div data-testid="onglet-demandes">
       <ErreurChargement message={erreur} />
-      <Info message={info} />
       <BarreOutils>
         <Recherche value={recherche} onChange={setRecherche} placeholder="Rechercher une demande…" label="Rechercher une demande" />
         <SousOnglets valeur={vue} options={options} onChange={onVue} label="Demandes affichées" />
-        <FiltreSelect label="Catégorie" value={categorie} defaut="" onChange={setCategorie} options={[{ value: '', label: 'Catégorie : toutes' }, ...categories.map(([id, l]) => ({ value: id, label: l }))]} />
+        <Filtres actifs={categorie ? 1 : 0} onEffacer={() => setCategorie('')}>
+          <FiltreSelect label="Catégorie" value={categorie} defaut="" onChange={setCategorie} options={[{ value: '', label: 'Catégorie : toutes' }, ...categories.map(([id, l]) => ({ value: id, label: l }))]} />
+        </Filtres>
       </BarreOutils>
-      {!liste ? null : (
+      {!liste ? (
+        !erreur && <SqueletteListe lignes={6} colonnes={6} />
+      ) : (
         <Tableau
           label="Demandes logistiques"
           grille={GRILLE}
@@ -172,7 +179,7 @@ export function OngletDemandes({
           onClose={() => setOuverte(null)}
           onChange={(d, message) => {
             setOuverte(null);
-            setInfo(message);
+            toast.succes(message.titre, { detail: message.detail });
             charger();
             onChange();
             void d;
@@ -185,7 +192,19 @@ export function OngletDemandes({
           onClose={() => onCreation(null)}
           onCreated={(d) => {
             onCreation(null);
-            setInfo(d.statut === 'A_VALIDER' ? 'Demande envoyée à votre chef pour validation.' : 'Demande transmise aux gestionnaires logistiques.');
+            toast.succes('Demande envoyée', {
+              detail: d.statut === 'A_VALIDER' ? 'Votre chef est prévenu pour la valider.' : 'Transmise directement aux gestionnaires logistiques.',
+              annuler: async () => {
+                try {
+                  await annulerDemande(d.id);
+                  toast.succes('Demande annulée');
+                } catch (e) {
+                  toast.erreur('Annulation impossible', messageErreur(e));
+                }
+                charger();
+                onChange();
+              },
+            });
             if (vue !== 'miennes') onVue('miennes');
             else charger();
             onChange();
@@ -202,7 +221,7 @@ function FenetreNouvelleDemande({ bien, onClose, onCreated }: { bien: Bien | nul
   const [categories, setCategories] = useState<Categorie[]>([]);
   const [biens, setBiens] = useState<Bien[]>([]);
   const [v, setV] = useState({ articleId: '', categorieId: '', bienId: bien?.id ?? '', quantite: '1', objet: bien ? `Panne : ${bien.designation}` : '', justification: '' });
-  const { enCours, erreur, lancer } = useAction();
+  const { enCours, erreur, envoyer } = useEnvoi();
   useEffect(() => {
     getArticles().then((a) => setArticles(a.filter((x) => x.actif))).catch(() => setArticles([]));
     getCategories().then((c) => setCategories(c.filter((x) => x.nature === 'BIEN'))).catch(() => setCategories([]));
@@ -215,106 +234,112 @@ function FenetreNouvelleDemande({ bien, onClose, onCreated }: { bien: Bien | nul
       : type === 'MATERIEL'
         ? categories.find((c) => c.id === v.categorieId)?.validationChefRequise
         : undefined;
+  const quantite = type === 'FOURNITURE' || type === 'MATERIEL';
   return (
-    <Fenetre
+    <FenetreFormulaire
       titre="Nouvelle demande logistique"
-      onClose={onClose}
-      valider="Envoyer la demande"
+      libelleValider="Envoyer la demande"
+      largeur={720}
+      testid="fenetre-nouvelle-demande"
       enCours={enCours}
+      erreur={erreur}
+      onClose={onClose}
+      pied={
+        circuit === undefined
+          ? type === 'INTERVENTION'
+            ? 'Les gestionnaires logistiques sont prévenus.'
+            : 'Le circuit dépend de la catégorie choisie.'
+          : circuit
+            ? 'Circuit : votre chef valide, puis un gestionnaire traite.'
+            : 'Circuit : transmise directement aux gestionnaires.'
+      }
+      valider={() => ({
+        ...(quantite && v.quantite && !(Number.isInteger(Number(v.quantite)) && Number(v.quantite) >= 1) ? { 'dem-qte': 'Indiquez une quantité entière, au moins 1.' } : {}),
+        ...(v.objet.trim() && v.objet.trim().length < 3 ? { 'dem-objet': 'Décrivez l’objet en 3 caractères au moins.' } : {}),
+      })}
       onSubmit={async () => {
-        const d = await lancer(
-          () =>
-            creerDemande({
-              type,
-              objet: v.objet.trim(),
-              justification: v.justification.trim() || undefined,
-              ...(type === 'FOURNITURE' ? { articleId: v.articleId, quantite: Number(v.quantite) } : {}),
-              ...(type === 'MATERIEL' ? { categorieId: v.categorieId, quantite: Number(v.quantite) } : {}),
-              ...(type === 'INTERVENTION' ? { bienId: v.bienId } : {}),
-            }),
-          'Demande impossible',
+        const r = await envoyer(() =>
+          creerDemande({
+            type,
+            objet: v.objet.trim(),
+            justification: v.justification.trim() || undefined,
+            ...(type === 'FOURNITURE' ? { articleId: v.articleId, quantite: Number(v.quantite) } : {}),
+            ...(type === 'MATERIEL' ? { categorieId: v.categorieId, quantite: Number(v.quantite) } : {}),
+            ...(type === 'INTERVENTION' ? { bienId: v.bienId } : {}),
+          }),
         );
-        if (d) onCreated(d);
+        if (r.ok) onCreated(r.valeur);
       }}
     >
-      <Erreur message={erreur} />
-      <Champ id="dem-type" label="Type">
-        <select id="dem-type" className={SELECT_CLASS} value={type} onChange={(e) => setType(e.target.value as TypeDemande)}>
-          {(Object.keys(TYPE_DEMANDE_LABEL) as TypeDemande[]).map((t) => (
-            <option key={t} value={t}>
-              {TYPE_DEMANDE_LABEL[t]}
-            </option>
-          ))}
-        </select>
-      </Champ>
+      <ChoixSegment<TypeDemande> id="dem-type" label="Type" value={type} onChange={setType} options={(Object.keys(TYPE_DEMANDE_LABEL) as TypeDemande[]).map((t) => ({ value: t, label: TYPE_DEMANDE_LABEL[t] }))} />
       {type === 'FOURNITURE' && (
-        <div className="grid grid-cols-[1fr_110px] gap-3">
-          <Champ id="dem-article" label="Article">
-            <select id="dem-article" className={SELECT_CLASS} value={v.articleId} onChange={(e) => setV({ ...v, articleId: e.target.value })} required>
-              <option value="">Choisir…</option>
-              {articles.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.libelle} ({a.categorie.libelle})
-                </option>
-              ))}
-            </select>
-          </Champ>
-          <Champ id="dem-qte" label={`Quantité${article ? ` (${article.unite})` : ''}`}>
-            <input id="dem-qte" type="number" min={1} className={SELECT_CLASS} value={v.quantite} onChange={(e) => setV({ ...v, quantite: e.target.value })} required />
-          </Champ>
+        <div className="grid grid-cols-[minmax(0,1fr)_120px] gap-x-3">
+          <Liste
+            id="dem-article"
+            label="Article"
+            value={v.articleId}
+            onChange={(articleId) => setV({ ...v, articleId })}
+            vide="Choisir…"
+            options={articles.map((a) => ({ value: a.id, label: `${a.libelle} (${a.categorie.libelle})` }))}
+            required
+            messageObligatoire="Choisissez l’article."
+          />
+          <Saisie id="dem-qte" label={`Quantité${article ? ` (${article.unite})` : ''}`} type="number" min={1} value={v.quantite} onChange={(q) => setV({ ...v, quantite: q })} required messageObligatoire="Indiquez la quantité." />
         </div>
       )}
       {type === 'MATERIEL' && (
-        <div className="grid grid-cols-[1fr_110px] gap-3">
-          <Champ id="dem-cat" label="Catégorie de matériel">
-            <select id="dem-cat" className={SELECT_CLASS} value={v.categorieId} onChange={(e) => setV({ ...v, categorieId: e.target.value })} required>
-              <option value="">Choisir…</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.libelle}
-                </option>
-              ))}
-            </select>
-          </Champ>
-          <Champ id="dem-qte2" label="Quantité">
-            <input id="dem-qte2" type="number" min={1} className={SELECT_CLASS} value={v.quantite} onChange={(e) => setV({ ...v, quantite: e.target.value })} required />
-          </Champ>
+        <div className="grid grid-cols-[minmax(0,1fr)_120px] gap-x-3">
+          <Liste
+            id="dem-cat"
+            label="Catégorie de matériel"
+            value={v.categorieId}
+            onChange={(categorieId) => setV({ ...v, categorieId })}
+            vide="Choisir…"
+            options={categories.map((c) => ({ value: c.id, label: c.libelle }))}
+            required
+            messageObligatoire="Choisissez la catégorie de matériel."
+          />
+          <Saisie id="dem-qte" label="Quantité" type="number" min={1} value={v.quantite} onChange={(q) => setV({ ...v, quantite: q })} required messageObligatoire="Indiquez la quantité." />
         </div>
       )}
       {type === 'INTERVENTION' && (
-        <Champ id="dem-bien" label="Bien concerné">
-          <select id="dem-bien" className={SELECT_CLASS} value={v.bienId} onChange={(e) => setV({ ...v, bienId: e.target.value })} required>
-            <option value="">Choisir…</option>
-            {biens.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.numeroInventaire} — {b.designation}
-              </option>
-            ))}
-          </select>
-        </Champ>
+        <Liste
+          id="dem-bien"
+          label="Bien concerné"
+          value={v.bienId}
+          onChange={(bienId) => setV({ ...v, bienId })}
+          vide="Choisir…"
+          options={biens.map((b) => ({ value: b.id, label: `${b.numeroInventaire} — ${b.designation}` }))}
+          required
+          messageObligatoire="Choisissez le bien concerné."
+        />
       )}
-      <Champ id="dem-objet" label="Objet">
-        <input id="dem-objet" className={SELECT_CLASS} value={v.objet} onChange={(e) => setV({ ...v, objet: e.target.value })} minLength={3} maxLength={300} required />
-      </Champ>
-      <Champ id="dem-just" label="Justification (facultatif)">
-        <textarea id="dem-just" className={TEXTAREA_CLASS} value={v.justification} onChange={(e) => setV({ ...v, justification: e.target.value })} maxLength={2000} />
-      </Champ>
-      {circuit !== undefined && (
-        <p className="mb-3 text-[12.5px] text-text-muted">{circuit ? 'Circuit : votre chef valide, puis un gestionnaire traite.' : 'Circuit : transmise directement aux gestionnaires.'}</p>
-      )}
-    </Fenetre>
+      <Saisie id="dem-objet" label="Objet" value={v.objet} onChange={(objet) => setV({ ...v, objet })} required maxLength={300} messageObligatoire="Indiquez l’objet de la demande." />
+      <ZoneTexte id="dem-just" label="Justification" facultatif value={v.justification} onChange={(justification) => setV({ ...v, justification })} maxLength={2000} />
+    </FenetreFormulaire>
   );
 }
 
-function FenetreDemande({ demande: d, onClose, onChange }: { demande: Demande; onClose: () => void; onChange: (d: Demande, message: string) => void }) {
+type Message = { titre: string; detail?: string };
+
+function FenetreDemande({ demande: d, onClose, onChange }: { demande: Demande; onClose: () => void; onChange: (d: Demande, message: Message) => void }) {
+  const toast = useToast();
   const [mode, setMode] = useState<'vue' | 'refus' | 'traitement'>('vue');
   const [motif, setMotif] = useState('');
   const [quantite, setQuantite] = useState(String(d.quantite ?? ''));
   const [compteRendu, setCompteRendu] = useState('');
-  const { enCours, erreur, lancer } = useAction();
-  const agir = async (fn: () => Promise<Demande>, message: string) => {
+  const { enCours, lancer } = useAction();
+  const fenetre = useEnvoi();
+  /** Action directe (bouton de la fiche) : erreur en message bref, jamais technique. */
+  const agir = async (fn: () => Promise<Demande>, message: Message) => {
     const r = await lancer(fn, 'Action impossible');
-    if (r) onChange(r, message);
+    if (r.ok) onChange(r.valeur, message);
+    else toast.erreur('Action impossible', r.erreur);
+  };
+  /** Action d'une fenêtre (motif, traitement) : erreur en bas de la fenêtre. */
+  const agirFenetre = async (fn: () => Promise<Demande>, message: Message) => {
+    const r = await fenetre.envoyer(fn);
+    if (r.ok) onChange(r.valeur, message);
   };
   const etapes: [string, string | null, string][] = [
     ['Demandée', d.createdAt, nom(d.demandeur)],
@@ -324,39 +349,51 @@ function FenetreDemande({ demande: d, onClose, onChange }: { demande: Demande; o
   ];
   if (mode === 'refus') {
     return (
-      <Fenetre titre="Rejeter la demande" onClose={() => setMode('vue')} valider="Rejeter" danger enCours={enCours} onSubmit={() => agir(() => refuserDemande(d.id, motif.trim()), 'Demande refusée.')}>
-        <Erreur message={erreur} />
-        <Champ id="dem-motif" label="Motif (communiqué au demandeur)">
-          <textarea id="dem-motif" className={TEXTAREA_CLASS} value={motif} onChange={(e) => setMotif(e.target.value)} minLength={3} required />
-        </Champ>
-      </Fenetre>
+      <FenetreFormulaire
+        titre="Rejeter la demande"
+        sousTitre={`« ${d.objet} » — ${nom(d.demandeur)}`}
+        onClose={() => setMode('vue')}
+        libelleValider="Rejeter"
+        danger
+        largeur={560}
+        enCours={fenetre.enCours}
+        erreur={fenetre.erreur}
+        pied="Le demandeur est prévenu avec votre motif."
+        valider={() => (motif.trim() && motif.trim().length < 3 ? { 'dem-motif': 'Le motif doit compter au moins 3 caractères.' } : {})}
+        onSubmit={() => agirFenetre(() => refuserDemande(d.id, motif.trim()), { titre: 'Demande rejetée', detail: `${nom(d.demandeur)} est prévenu(e) avec votre motif.` })}
+      >
+        <ZoneTexte id="dem-motif" label="Motif (communiqué au demandeur)" value={motif} onChange={setMotif} required messageObligatoire="Indiquez le motif du rejet." />
+      </FenetreFormulaire>
     );
   }
   if (mode === 'traitement') {
     return (
-      <Fenetre
+      <FenetreFormulaire
         titre="Traiter la demande"
-        sousTitre={d.article?.suiviStock ? `La quantité remise sort du stock (${d.article.stock ?? '?'} ${d.article.unite} disponibles).` : undefined}
+        sousTitre={d.article?.suiviStock ? `La quantité remise sort du stock (${d.article.stock ?? '?'} ${d.article.unite} disponibles).` : `« ${d.objet} »`}
         onClose={() => setMode('vue')}
-        valider="Marquer traitée"
-        enCours={enCours}
+        libelleValider="Marquer traitée"
+        largeur={560}
+        enCours={fenetre.enCours}
+        erreur={fenetre.erreur}
+        pied={`${nom(d.demandeur)} est prévenu(e) du traitement.`}
+        valider={() =>
+          d.type === 'FOURNITURE' && quantite && !(Number.isInteger(Number(quantite)) && Number(quantite) >= 1 && Number(quantite) <= (d.quantite ?? Infinity))
+            ? { 'dem-remis': `Indiquez une quantité entière entre 1 et ${d.quantite}.` }
+            : {}
+        }
         onSubmit={() =>
-          agir(
+          agirFenetre(
             () => traiterDemande(d.id, { quantiteLivree: d.type === 'FOURNITURE' && quantite ? Number(quantite) : undefined, compteRendu: compteRendu.trim() || undefined }),
-            'Demande traitée.',
+            { titre: 'Demande traitée', detail: `${nom(d.demandeur)} est prévenu(e).` },
           )
         }
       >
-        <Erreur message={erreur} />
         {d.type === 'FOURNITURE' && (
-          <Champ id="dem-remis" label={`Quantité remise (demandée : ${d.quantite})`}>
-            <input id="dem-remis" type="number" min={1} max={d.quantite ?? undefined} className={SELECT_CLASS} value={quantite} onChange={(e) => setQuantite(e.target.value)} required />
-          </Champ>
+          <Saisie id="dem-remis" label={`Quantité remise (demandée : ${d.quantite})`} type="number" min={1} max={d.quantite ?? undefined} value={quantite} onChange={setQuantite} required messageObligatoire="Indiquez la quantité remise." />
         )}
-        <Champ id="dem-cr" label="Compte rendu (facultatif)">
-          <textarea id="dem-cr" className={TEXTAREA_CLASS} value={compteRendu} onChange={(e) => setCompteRendu(e.target.value)} />
-        </Champ>
-      </Fenetre>
+        <ZoneTexte id="dem-cr" label="Compte rendu" facultatif value={compteRendu} onChange={setCompteRendu} />
+      </FenetreFormulaire>
     );
   }
   const actions = d.droits;
@@ -364,12 +401,12 @@ function FenetreDemande({ demande: d, onClose, onChange }: { demande: Demande; o
   const arret = d.statut === 'REFUSEE' || d.statut === 'ANNULEE';
   const boutons = [
     actions.valider && (
-      <button key="v" type="button" className={`${BTN_PRINCIPAL} w-full`} disabled={enCours} onClick={() => agir(() => validerDemande(d.id), 'Demande validée : transmise aux gestionnaires.')}>
+      <button key="v" type="button" className={`${BTN_PRINCIPAL} w-full`} disabled={enCours} onClick={() => agir(() => validerDemande(d.id), { titre: 'Demande validée', detail: 'Transmise aux gestionnaires logistiques.' })}>
         Valider
       </button>
     ),
     actions.prendreEnCharge && (
-      <button key="p" type="button" className={`${BTN_PRINCIPAL} w-full`} disabled={enCours} onClick={() => agir(() => prendreEnCharge(d.id), 'Demande prise en charge.')}>
+      <button key="p" type="button" className={`${BTN_PRINCIPAL} w-full`} disabled={enCours} onClick={() => agir(() => prendreEnCharge(d.id), { titre: 'Demande prise en charge', detail: `${nom(d.demandeur)} voit qu’elle est en traitement.` })}>
         Prendre en charge
       </button>
     ),
@@ -384,7 +421,7 @@ function FenetreDemande({ demande: d, onClose, onChange }: { demande: Demande; o
       </button>
     ),
     actions.annuler && (
-      <button key="a" type="button" className={`${BTN_SECONDAIRE} w-full`} disabled={enCours} onClick={() => agir(() => annulerDemande(d.id), 'Demande annulée.')}>
+      <button key="a" type="button" className={`${BTN_SECONDAIRE} w-full`} disabled={enCours} onClick={() => agir(() => annulerDemande(d.id), { titre: 'Demande annulée' })}>
         Annuler ma demande
       </button>
     ),
@@ -418,7 +455,6 @@ function FenetreDemande({ demande: d, onClose, onChange }: { demande: Demande; o
         </>
       }
     >
-      <Erreur message={erreur} />
       <SectionFenetre titre="Demande">
         <CleValeur
           largeur={120}

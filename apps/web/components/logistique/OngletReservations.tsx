@@ -16,8 +16,11 @@ import {
 } from '../../lib/api/logistique';
 import type { Disponibilite, ModeReservation, Reservation, Ressource, StatutReservation, TypeRessource } from '../../lib/logistique/types';
 import { MODE_LABEL, STATUT_RESERVATION_LABEL, TYPE_RESSOURCE_LABEL } from '../../lib/logistique/types';
-import { Erreur, Fenetre, SELECT_CLASS, TEXTAREA_CLASS } from '../courrier/ui';
 import { ErreurChargement, messageChargement } from '../ui/ErreurChargement';
+import { Case, ChampDate, ChoixSegment, FenetreFormulaire, Grille2, Liste, Saisie, ZoneTexte } from '../ui/Formulaire';
+import { SqueletteListe } from '../ui/Squelette';
+import { messageErreur, useToast } from '../ui/Toast';
+import { useEnvoi } from '../courrier/formulaire';
 import {
   BTN_DANGER_CONTOUR,
   BTN_LIGNE,
@@ -33,7 +36,7 @@ import {
   Tableau,
   type TonPastille,
 } from '../ui/Charte';
-import { Champ, Info, Panneau, SousOnglets, dateHeure, nom, useAction } from './commun';
+import { Panneau, SousOnglets, dateHeure, nom, useAction } from './commun';
 
 const TON: Record<StatutReservation, TonPastille> = {
   EN_ATTENTE: 'ambre',
@@ -53,8 +56,10 @@ const demain = () => {
 type Vue = 'reserver' | 'miennes' | 'a_valider' | 'ressources';
 
 export function OngletReservations({ gestionnaire, ouvrirId, onChange }: { gestionnaire: boolean; ouvrirId: string | null; onChange: () => void }) {
+  const toast = useToast();
   const [vue, setVue] = useState<Vue>(ouvrirId ? 'miennes' : 'reserver');
-  const [info, setInfo] = useState<string | null>(null);
+  /** Numéro de version des listes : rechargées après chaque action. */
+  const [version, setVersion] = useState(0);
   const [ouverte, setOuverte] = useState<Reservation | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
   useEffect(() => {
@@ -70,77 +75,102 @@ export function OngletReservations({ gestionnaire, ouvrirId, onChange }: { gesti
         ]
       : []),
   ];
-  const fait = (m: string) => {
-    setInfo(m);
+  const fait = (m: { titre: string; detail?: string; annuler?: () => Promise<void> }) => {
+    toast.succes(m.titre, { detail: m.detail, annuler: m.annuler });
     setOuverte(null);
+    setVersion((v) => v + 1);
     onChange();
   };
   return (
     <div data-testid="onglet-reservations">
       <ErreurChargement message={erreur} />
-      <Info message={info} />
       <div className="mb-3.5">
-        <SousOnglets valeur={vue} options={options} onChange={(k) => { setVue(k); setInfo(null); }} label="Réservations affichées" />
+        <SousOnglets valeur={vue} options={options} onChange={setVue} label="Réservations affichées" />
       </div>
-      {vue === 'reserver' && <Reserver onReserve={(r) => { fait(r.statut === 'EN_ATTENTE' ? 'Réservation enregistrée : en attente de validation par un gestionnaire.' : 'Réservation confirmée.'); setVue('miennes'); }} />}
-      {(vue === 'miennes' || vue === 'a_valider') && <ListeReservations key={`${vue}-${info}`} vue={vue} onOuvrir={setOuverte} />}
+      {vue === 'reserver' && (
+        <Reserver
+          onReserve={(r, prioritaire) => {
+            fait({
+              titre: r.statut === 'EN_ATTENTE' ? 'Réservation enregistrée' : 'Réservation confirmée',
+              detail: r.statut === 'EN_ATTENTE' ? 'En attente de validation par un gestionnaire.' : prioritaire ? 'Les titulaires évincés sont prévenus.' : `${r.ressource.nom}, ${dateHeure(r.debut)}.`,
+              // Annulation par la même route que « Annuler la réservation » (titulaire) ; jamais pour une priorité (les réservations évincées ne reviennent pas).
+              annuler: prioritaire
+                ? undefined
+                : async () => {
+                    try {
+                      await annulerReservation(r.id);
+                      toast.succes('Réservation annulée');
+                    } catch (e) {
+                      toast.erreur('Annulation impossible', messageErreur(e));
+                    }
+                    setVersion((v) => v + 1);
+                    onChange();
+                  },
+            });
+            setVue('miennes');
+          }}
+        />
+      )}
+      {(vue === 'miennes' || vue === 'a_valider') && <ListeReservations key={`${vue}-${version}`} vue={vue} onOuvrir={setOuverte} />}
       {vue === 'ressources' && <Ressources />}
       {ouverte && <FicheReservation r={ouverte} onClose={() => setOuverte(null)} onChange={fait} />}
     </div>
   );
 }
 
-function Reserver({ onReserve }: { onReserve: (r: Reservation) => void }) {
+function Reserver({ onReserve }: { onReserve: (r: Reservation, prioritaire: boolean) => void }) {
+  const toast = useToast();
   const [jour, setJour] = useState(demain());
   const [de, setDe] = useState('09:00');
   const [a, setA] = useState('10:00');
   const [type, setType] = useState<TypeRessource | ''>('');
   const [dispo, setDispo] = useState<Disponibilite[] | null>(null);
   const [choix, setChoix] = useState<{ ressource: Disponibilite; prioritaire: boolean } | null>(null);
-  const { enCours, erreur, lancer } = useAction();
+  const [regle, setRegle] = useState<string | null>(null);
+  const { enCours, lancer } = useAction();
   const debut = () => new Date(`${jour}T${de}`).toISOString();
   const fin = () => new Date(`${jour}T${a}`).toISOString();
   const chercher = async () => {
+    const manque = !jour ? 'Choisissez le jour.' : !de || !a ? 'Indiquez l’heure de début et l’heure de fin.' : a <= de ? 'L’heure de fin doit suivre l’heure de début.' : null;
+    setRegle(manque);
+    if (manque) return;
     const r = await lancer(() => getDisponibilite(debut(), fin(), type || undefined), 'Recherche impossible');
-    if (r) setDispo(r);
+    if (r.ok) setDispo(r.valeur);
+    else toast.erreur('Recherche impossible', r.erreur);
   };
   return (
     <div>
       <form
-        className="mb-4 flex flex-wrap items-end gap-2.5 rounded-xl border border-line bg-surface p-3.5"
+        className="mb-4 grid grid-cols-2 items-end gap-x-2.5 rounded-xl border border-line bg-surface p-3.5 pb-0 sm:flex sm:flex-wrap [&>div]:min-w-0"
+        noValidate
         onSubmit={(e) => {
           e.preventDefault();
           void chercher();
         }}
       >
-        <div>
-          <label htmlFor="res-jour" className="mb-1 block text-[12px] font-semibold">Jour</label>
-          <input id="res-jour" type="date" className={`${SELECT_CLASS} !w-auto`} value={jour} onChange={(e) => setJour(e.target.value)} required />
+        <div className="col-span-2 sm:w-[230px]">
+          <ChampDate id="res-jour" label="Jour" value={jour} onChange={setJour} raccourcis={false} />
         </div>
-        <div>
-          <label htmlFor="res-de" className="mb-1 block text-[12px] font-semibold">De</label>
-          <input id="res-de" type="time" className={`${SELECT_CLASS} !w-auto`} value={de} onChange={(e) => setDe(e.target.value)} required />
+        <div className="sm:w-[110px]">
+          <Saisie id="res-de" label="De" type="time" value={de} onChange={setDe} />
         </div>
-        <div>
-          <label htmlFor="res-a" className="mb-1 block text-[12px] font-semibold">À</label>
-          <input id="res-a" type="time" className={`${SELECT_CLASS} !w-auto`} value={a} onChange={(e) => setA(e.target.value)} required />
+        <div className="sm:w-[110px]">
+          <Saisie id="res-a" label="À" type="time" value={a} onChange={setA} />
         </div>
-        <div>
-          <label htmlFor="res-type" className="mb-1 block text-[12px] font-semibold">Ressource</label>
-          <select id="res-type" className={`${SELECT_CLASS} !w-auto`} value={type} onChange={(e) => setType(e.target.value as TypeRessource | '')}>
-            <option value="">Toutes</option>
-            {(Object.keys(TYPE_RESSOURCE_LABEL) as TypeRessource[]).map((t) => (
-              <option key={t} value={t}>
-                {TYPE_RESSOURCE_LABEL[t]}
-              </option>
-            ))}
-          </select>
+        <div className="col-span-2 sm:w-[230px]">
+          <Liste id="res-type" label="Ressource" value={type} onChange={(v) => setType(v as TypeRessource | '')} vide="Toutes" options={(Object.keys(TYPE_RESSOURCE_LABEL) as TypeRessource[]).map((t) => ({ value: t, label: TYPE_RESSOURCE_LABEL[t] }))} />
         </div>
-        <button type="submit" className={BTN_PRINCIPAL} disabled={enCours}>
-          Voir les disponibilités
-        </button>
+        <div className="col-span-2 mb-3.5">
+          <button type="submit" className={`${BTN_PRINCIPAL} !h-10 w-full sm:w-auto`} disabled={enCours}>
+            Voir les disponibilités
+          </button>
+        </div>
+        {regle && (
+          <p className="col-span-2 mb-3 w-full text-[12.5px] font-semibold text-clay" data-testid="erreur-champ">
+            {regle}
+          </p>
+        )}
       </form>
-      <Erreur message={erreur} />
       {dispo && dispo.length === 0 && <EtatVide texte="Aucune ressource réservable." />}
       {dispo && dispo.length > 0 && (
         <ul className="grid gap-2.5 sm:grid-cols-2" data-testid="disponibilites">
@@ -185,8 +215,9 @@ function Reserver({ onReserve }: { onReserve: (r: Reservation) => void }) {
           fin={fin()}
           onClose={() => setChoix(null)}
           onDone={(r) => {
+            const prioritaire = choix.prioritaire;
             setChoix(null);
-            onReserve(r);
+            onReserve(r, prioritaire);
           }}
         />
       )}
@@ -196,23 +227,32 @@ function Reserver({ onReserve }: { onReserve: (r: Reservation) => void }) {
 
 function FenetreReserver({ ressource, prioritaire, debut, fin, onClose, onDone }: { ressource: Disponibilite; prioritaire: boolean; debut: string; fin: string; onClose: () => void; onDone: (r: Reservation) => void }) {
   const [objet, setObjet] = useState('');
-  const { enCours, erreur, lancer } = useAction();
+  const { enCours, erreur, envoyer } = useEnvoi();
   return (
-    <Fenetre
+    <FenetreFormulaire
       titre={prioritaire ? 'Réserver en faisant valoir la priorité' : `Réserver ${ressource.nom}`}
       sousTitre={`${ressource.nom} — du ${dateHeure(debut)} au ${dateHeure(fin)}`}
       onClose={onClose}
-      valider={prioritaire ? 'Prendre le créneau' : 'Réserver'}
+      libelleValider={prioritaire ? 'Prendre le créneau' : 'Réserver'}
       danger={prioritaire}
+      largeur={600}
       enCours={enCours}
+      erreur={erreur}
+      pied={
+        prioritaire
+          ? 'Les titulaires évincés sont prévenus avec votre nom.'
+          : ressource.mode === 'VALIDATION'
+            ? 'Cette ressource demande la validation d’un gestionnaire : le créneau vous est réservé en attendant.'
+            : 'La réservation est confirmée immédiatement.'
+      }
+      valider={() => (objet.trim().length === 1 ? { 'res-objet': 'Indiquez au moins 2 caractères.' } : {})}
       onSubmit={async () => {
-        const r = await lancer(() => reserver({ ressourceId: ressource.id, debut, fin, objet: objet.trim(), prioritaire: prioritaire || undefined }), 'Réservation impossible');
-        if (r) onDone(r);
+        const r = await envoyer(() => reserver({ ressourceId: ressource.id, debut, fin, objet: objet.trim(), prioritaire: prioritaire || undefined }));
+        if (r.ok) onDone(r.valeur);
       }}
     >
-      <Erreur message={erreur} />
       {prioritaire && (
-        <div className="mb-3.5 rounded-md border border-clay bg-clay-soft px-3.5 py-2.5 text-[12.5px] text-clay">
+        <div className="mb-3.5 rounded-[10px] border border-[#E7B3BB] bg-clay-50 px-3.5 py-2.5 text-[12.5px] text-clay">
           Ces réservations seront annulées pour priorité, et leurs titulaires prévenus avec votre nom :
           <ul className="mt-1 list-disc pl-5">
             {ressource.conflits.map((c) => (
@@ -223,11 +263,8 @@ function FenetreReserver({ ressource, prioritaire, debut, fin, onClose, onDone }
           </ul>
         </div>
       )}
-      <Champ id="res-objet" label="Objet">
-        <input id="res-objet" className={SELECT_CLASS} value={objet} onChange={(e) => setObjet(e.target.value)} minLength={2} maxLength={300} required />
-      </Champ>
-      {!prioritaire && ressource.mode === 'VALIDATION' && <p className="mb-3 text-[12.5px] text-text-muted">Cette ressource demande la validation d’un gestionnaire : le créneau vous est réservé en attendant.</p>}
-    </Fenetre>
+      <Saisie id="res-objet" label="Objet" value={objet} onChange={setObjet} required maxLength={300} messageObligatoire="Indiquez l’objet de la réservation." placeholder="Réunion de service, formation…" />
+    </FenetreFormulaire>
   );
 }
 
@@ -240,7 +277,7 @@ function ListeReservations({ vue, onOuvrir }: { vue: 'miennes' | 'a_valider'; on
       .catch((e) => setErreur(messageChargement(e)));
   }, [vue]);
   if (erreur) return <ErreurChargement message={erreur} />;
-  if (!liste) return null;
+  if (!liste) return <SqueletteListe lignes={4} colonnes={5} />;
   return (
     <Tableau
       label={vue === 'miennes' ? 'Mes réservations' : 'Réservations à valider'}
@@ -266,28 +303,39 @@ function ListeReservations({ vue, onOuvrir }: { vue: 'miennes' | 'a_valider'; on
   );
 }
 
-function FicheReservation({ r, onClose, onChange }: { r: Reservation; onClose: () => void; onChange: (m: string) => void }) {
+type Message = { titre: string; detail?: string };
+
+function FicheReservation({ r, onClose, onChange }: { r: Reservation; onClose: () => void; onChange: (m: Message) => void }) {
+  const toast = useToast();
   const [refus, setRefus] = useState<'refuser' | 'annuler' | null>(null);
   const [motif, setMotif] = useState('');
-  const { enCours, erreur, lancer } = useAction();
-  const agir = async (fn: () => Promise<unknown>, m: string) => {
-    if (await lancer(fn, 'Action impossible')) onChange(m);
+  const { enCours, lancer } = useAction();
+  const fenetre = useEnvoi();
+  const agir = async (fn: () => Promise<unknown>, m: Message) => {
+    const x = await lancer(fn, 'Action impossible');
+    if (x.ok) onChange(m);
+    else toast.erreur('Action impossible', x.erreur);
   };
   if (refus) {
     return (
-      <Fenetre
+      <FenetreFormulaire
         titre={refus === 'refuser' ? 'Rejeter la réservation' : 'Annuler la réservation'}
+        sousTitre={`${r.ressource.nom} — ${nom(r.titulaire)}, du ${dateHeure(r.debut)} au ${dateHeure(r.fin)}`}
         onClose={() => setRefus(null)}
-        valider={refus === 'refuser' ? 'Rejeter' : 'Annuler la réservation'}
+        libelleValider={refus === 'refuser' ? 'Rejeter' : 'Annuler la réservation'}
         danger
-        enCours={enCours}
-        onSubmit={() => agir(() => (refus === 'refuser' ? refuserReservation(r.id, motif.trim()) : annulerReservation(r.id, motif.trim())), refus === 'refuser' ? 'Réservation refusée.' : 'Réservation annulée.')}
+        largeur={560}
+        enCours={fenetre.enCours}
+        erreur={fenetre.erreur}
+        pied="Le titulaire est prévenu avec votre motif."
+        valider={() => (motif.trim() && motif.trim().length < 3 ? { 'res-motif': 'Le motif doit compter au moins 3 caractères.' } : {})}
+        onSubmit={async () => {
+          const x = await fenetre.envoyer(() => (refus === 'refuser' ? refuserReservation(r.id, motif.trim()) : annulerReservation(r.id, motif.trim())));
+          if (x.ok) onChange({ titre: refus === 'refuser' ? 'Réservation rejetée' : 'Réservation annulée', detail: `${nom(r.titulaire)} est prévenu(e).` });
+        }}
       >
-        <Erreur message={erreur} />
-        <Champ id="res-motif" label="Motif (communiqué au titulaire)">
-          <textarea id="res-motif" className={TEXTAREA_CLASS} value={motif} onChange={(e) => setMotif(e.target.value)} minLength={3} required />
-        </Champ>
-      </Fenetre>
+        <ZoneTexte id="res-motif" label="Motif (communiqué au titulaire)" value={motif} onChange={setMotif} required messageObligatoire="Indiquez le motif." />
+      </FenetreFormulaire>
     );
   }
   return (
@@ -307,7 +355,7 @@ function FicheReservation({ r, onClose, onChange }: { r: Reservation; onClose: (
           {(r.droits.valider || r.droits.refuser || r.droits.annuler) && (
             <div className="mb-[18px] grid gap-2">
               {r.droits.valider && (
-                <button type="button" className={`${BTN_PRINCIPAL} w-full`} disabled={enCours} onClick={() => agir(() => validerReservation(r.id), 'Réservation confirmée.')}>
+                <button type="button" className={`${BTN_PRINCIPAL} w-full`} disabled={enCours} onClick={() => agir(() => validerReservation(r.id), { titre: 'Réservation confirmée', detail: `${nom(r.titulaire)} est prévenu(e).` })}>
                   Valider
                 </button>
               )}
@@ -317,7 +365,7 @@ function FicheReservation({ r, onClose, onChange }: { r: Reservation; onClose: (
                 </button>
               )}
               {r.droits.annuler && (
-                <button type="button" className={`${BTN_SECONDAIRE} w-full`} disabled={enCours} onClick={() => (r.estTitulaire ? void agir(() => annulerReservation(r.id), 'Réservation annulée.') : setRefus('annuler'))}>
+                <button type="button" className={`${BTN_SECONDAIRE} w-full`} disabled={enCours} onClick={() => (r.estTitulaire ? void agir(() => annulerReservation(r.id), { titre: 'Réservation annulée', detail: 'Le créneau est libéré.' }) : setRefus('annuler'))}>
                   Annuler la réservation
                 </button>
               )}
@@ -329,7 +377,6 @@ function FicheReservation({ r, onClose, onChange }: { r: Reservation; onClose: (
         </>
       }
     >
-      <Erreur message={erreur} />
       <SectionFenetre titre="Réservation" className="">
         <CleValeur
           largeur={110}
@@ -349,6 +396,7 @@ function FicheReservation({ r, onClose, onChange }: { r: Reservation; onClose: (
 }
 
 function Ressources() {
+  const toast = useToast();
   const [liste, setListe] = useState<Ressource[] | null>(null);
   const [edition, setEdition] = useState<Ressource | 'nouvelle' | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
@@ -373,6 +421,7 @@ function Ressources() {
       >
         <span className="text-[13px] text-text-muted">Salles et matériel de présentation proposés à la réservation.</span>
       </BarreOutils>
+      {!liste && !erreur && <SqueletteListe lignes={4} colonnes={4} />}
       {liste && (
         <Tableau label="Ressources réservables" grille={GRILLE_RESSOURCES} colonnes={['Ressource', 'Type', 'Capacité', 'Mode', <span key="a" className="sr-only">Action</span>]} vide={<EtatVide texte="Aucune ressource : créez les salles et le matériel de présentation." />}>
           {liste.map((r) => (
@@ -394,8 +443,9 @@ function Ressources() {
         <FenetreRessource
           ressource={edition === 'nouvelle' ? null : edition}
           onClose={() => setEdition(null)}
-          onDone={() => {
+          onDone={(m) => {
             setEdition(null);
+            toast.succes(m);
             charger();
           }}
         />
@@ -404,7 +454,7 @@ function Ressources() {
   );
 }
 
-function FenetreRessource({ ressource, onClose, onDone }: { ressource: Ressource | null; onClose: () => void; onDone: () => void }) {
+function FenetreRessource({ ressource, onClose, onDone }: { ressource: Ressource | null; onClose: () => void; onDone: (message: string) => void }) {
   const [v, setV] = useState({
     nom: ressource?.nom ?? '',
     type: ressource?.type ?? ('SALLE' as TypeRessource),
@@ -413,62 +463,40 @@ function FenetreRessource({ ressource, onClose, onDone }: { ressource: Ressource
     description: ressource?.description ?? '',
     actif: ressource?.actif ?? true,
   });
-  const { enCours, erreur, lancer } = useAction();
+  const { enCours, erreur, envoyer } = useEnvoi();
   return (
-    <Fenetre
+    <FenetreFormulaire
       titre={ressource ? `Modifier ${ressource.nom}` : 'Nouvelle ressource réservable'}
       onClose={onClose}
-      valider="Enregistrer"
+      libelleValider={ressource ? 'Enregistrer' : 'Créer la ressource'}
+      largeur={640}
       enCours={enCours}
+      erreur={erreur}
+      pied="La ressource est proposée à la réservation dès qu’elle est réservable."
+      valider={() => ({
+        ...(v.nom.trim().length === 1 ? { 'rs-nom': 'Indiquez au moins 2 caractères.' } : {}),
+        ...(v.capacite && !(Number.isInteger(Number(v.capacite)) && Number(v.capacite) >= 1) ? { 'rs-cap': 'Indiquez un nombre entier de places, au moins 1.' } : {}),
+      })}
       onSubmit={async () => {
         const capacite = v.capacite ? Number(v.capacite) : null;
-        const ok = await lancer(
-          () =>
-            ressource
-              ? modifierRessource(ressource.id, { nom: v.nom.trim(), capacite, mode: v.mode, description: v.description.trim() || null, actif: v.actif })
-              : creerRessource({ nom: v.nom.trim(), type: v.type, capacite: capacite ?? undefined, mode: v.mode, description: v.description.trim() || undefined }),
-          'Enregistrement impossible',
+        const r = await envoyer(() =>
+          ressource
+            ? modifierRessource(ressource.id, { nom: v.nom.trim(), capacite, mode: v.mode, description: v.description.trim() || null, actif: v.actif })
+            : creerRessource({ nom: v.nom.trim(), type: v.type, capacite: capacite ?? undefined, mode: v.mode, description: v.description.trim() || undefined }),
         );
-        if (ok) onDone();
+        if (r.ok) onDone(ressource ? 'Ressource modifiée' : 'Ressource créée');
       }}
     >
-      <Erreur message={erreur} />
-      <Champ id="rs-nom" label="Nom">
-        <input id="rs-nom" className={SELECT_CLASS} value={v.nom} onChange={(e) => setV({ ...v, nom: e.target.value })} minLength={2} required />
-      </Champ>
+      <Saisie id="rs-nom" label="Nom" value={v.nom} onChange={(nom) => setV({ ...v, nom })} required maxLength={200} messageObligatoire="Indiquez le nom de la ressource." />
       {!ressource && (
-        <Champ id="rs-type" label="Type">
-          <select id="rs-type" className={SELECT_CLASS} value={v.type} onChange={(e) => setV({ ...v, type: e.target.value as TypeRessource })}>
-            {(Object.keys(TYPE_RESSOURCE_LABEL) as TypeRessource[]).map((t) => (
-              <option key={t} value={t}>
-                {TYPE_RESSOURCE_LABEL[t]}
-              </option>
-            ))}
-          </select>
-        </Champ>
+        <ChoixSegment<TypeRessource> id="rs-type" label="Type" value={v.type} onChange={(type) => setV({ ...v, type })} options={(Object.keys(TYPE_RESSOURCE_LABEL) as TypeRessource[]).map((t) => ({ value: t, label: TYPE_RESSOURCE_LABEL[t] }))} />
       )}
-      <div className="grid grid-cols-2 gap-3">
-        <Champ id="rs-cap" label="Capacité (facultatif)">
-          <input id="rs-cap" type="number" min={1} className={SELECT_CLASS} value={v.capacite} onChange={(e) => setV({ ...v, capacite: e.target.value })} />
-        </Champ>
-        <Champ id="rs-mode" label="Confirmation">
-          <select id="rs-mode" className={SELECT_CLASS} value={v.mode} onChange={(e) => setV({ ...v, mode: e.target.value as ModeReservation })}>
-            {(Object.keys(MODE_LABEL) as ModeReservation[]).map((m) => (
-              <option key={m} value={m}>
-                {MODE_LABEL[m]}
-              </option>
-            ))}
-          </select>
-        </Champ>
-      </div>
-      <Champ id="rs-desc" label="Description (facultatif)">
-        <input id="rs-desc" className={SELECT_CLASS} value={v.description} onChange={(e) => setV({ ...v, description: e.target.value })} />
-      </Champ>
-      {ressource && (
-        <label className="mb-3 flex items-center gap-2 text-[13px]">
-          <input type="checkbox" checked={v.actif} onChange={(e) => setV({ ...v, actif: e.target.checked })} /> Réservable
-        </label>
-      )}
-    </Fenetre>
+      <Grille2>
+        <Saisie id="rs-cap" label="Capacité" facultatif type="number" min={1} value={v.capacite} onChange={(capacite) => setV({ ...v, capacite })} />
+        <ChoixSegment<ModeReservation> id="rs-mode" label="Confirmation" value={v.mode} onChange={(mode) => setV({ ...v, mode })} options={(Object.keys(MODE_LABEL) as ModeReservation[]).map((m) => ({ value: m, label: m === 'IMMEDIATE' ? 'Immédiate' : 'Par un gestionnaire' }))} />
+      </Grille2>
+      <Saisie id="rs-desc" label="Description" facultatif value={v.description} onChange={(description) => setV({ ...v, description })} />
+      {ressource && <Case id="rs-actif" label="Réservable" checked={v.actif} onChange={(actif) => setV({ ...v, actif })} />}
+    </FenetreFormulaire>
   );
 }

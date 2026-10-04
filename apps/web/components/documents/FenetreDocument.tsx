@@ -1,8 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { Check, Globe, Lock, Plus } from 'lucide-react';
+import { useEffect, useState, type ReactNode } from 'react';
+import { Check, Globe, Lock, PenLine, Plus } from 'lucide-react';
 import { useOrg } from '../../lib/org/OrgProvider';
 import { addVersion, changerStatut, downloadVersion, getHistoriqueStatut, getVersions, markFinal, publishDocument, updateDocument } from '../../lib/api/documents';
 import type { ChangementStatut, DnpecDocument, DocumentVersionSummary, Folder, StatutDiffusion, TypeDocument } from '../../lib/documents/types';
@@ -11,6 +11,9 @@ import { cheminDossier, dateCourte, dateHeure, dateLongue, periodeLongue, taille
 import { BTN_DANGER_CONTOUR, BTN_PRINCIPAL, BTN_SECONDAIRE, BTN_SUCCES, CleValeur, Etapes, IconeFichier, MarqueFinal, Pastille, SectionFenetre, type EtatEtape } from '../ui/Charte';
 import { Chargement, messageChargement } from '../ui/ErreurChargement';
 import { FenetreDetail } from '../ui/FenetreDetail';
+import { ChampDate, FenetreFormulaire, Grille2, Liste, ZoneDepot, ZoneTexte } from '../ui/Formulaire';
+import { messageErreur, useToast } from '../ui/Toast';
+import { useEnvoi } from '../courrier/formulaire';
 
 const BANDEAU_APERCU: Record<StatutDiffusion, { texte: string; classe: string }> = {
   BROUILLON: { texte: 'BROUILLON — non validé', classe: 'bg-[#F0F1F5] text-[#4B5263]' },
@@ -60,15 +63,12 @@ export function FenetreDocument({
   onChange: (doc: DnpecDocument) => void;
 }) {
   const { getDivisionName, getCelluleName, getUserLabel, getUserInitials } = useOrg();
+  const toast = useToast();
   const [versions, setVersions] = useState<DocumentVersionSummary[] | null>(null);
   const [historique, setHistorique] = useState<ChangementStatut[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [retrait, setRetrait] = useState(false);
-  const [motif, setMotif] = useState('');
-  const [edition, setEdition] = useState(false);
-  const [meta, setMeta] = useState({ typeDocument: doc.typeDocument, periodeDebut: doc.periodeDebut?.slice(0, 10) ?? '', periodeFin: doc.periodeFin?.slice(0, 10) ?? '' });
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [fenetre, setFenetre] = useState<'retrait' | 'informations' | 'version' | null>(null);
   const { droits } = doc;
 
   useEffect(() => {
@@ -80,18 +80,23 @@ export function FenetreDocument({
       .catch((err) => setError(messageChargement(err)));
   }, [doc.id, doc.statutDiffusion, doc.currentVersionId]);
 
-  async function agir(fn: () => Promise<DnpecDocument>, apres?: () => void) {
+  /** Action directe (bouton de la colonne) : message de confirmation, ou d'erreur en français. */
+  async function agir(fn: () => Promise<DnpecDocument>, succes: { titre: string; detail?: string }) {
     setBusy(true);
-    setError(null);
     try {
       onChange(await fn());
-      apres?.();
+      toast.succes(succes.titre, { detail: succes.detail });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Action impossible');
+      toast.erreur('Action impossible', messageErreur(err));
     } finally {
       setBusy(false);
     }
   }
+  const apresFenetre = (d: DnpecDocument, titre: string, detail?: string) => {
+    setFenetre(null);
+    onChange(d);
+    toast.succes(titre, { detail });
+  };
 
   const precedent: Record<StatutDiffusion, StatutDiffusion> = { BROUILLON: 'BROUILLON', VALIDE: 'BROUILLON', DIFFUSABLE: 'VALIDE' };
   const unite = doc.divisionId ? getDivisionName(doc.divisionId) : getCelluleName(doc.celluleId);
@@ -164,47 +169,13 @@ export function FenetreDocument({
         {doc.description && <p className="mt-3 whitespace-pre-line rounded-md bg-bg p-3 text-[13px] leading-relaxed text-[#3A4152]">{doc.description}</p>}
       </SectionFenetre>
 
-      {droits.modifier && (!doc.metadonneesCompletes || edition) && (
-        <form
-          className="mb-[18px] rounded-[10px] border border-dashed border-gold bg-gold-50 px-3.5 py-3"
-          data-testid="edition-metadonnees"
-          onSubmit={(e) => {
-            e.preventDefault();
-            agir(() => updateDocument(doc.id, meta), () => setEdition(false));
-          }}
-        >
-          <p className="mb-2 text-[12.5px] font-semibold">{doc.metadonneesCompletes ? 'Modifier les informations' : 'Métadonnées à compléter avant toute validation.'}</p>
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-            <label className="text-[12px] font-semibold">
-              Type
-              <select className="mt-1 w-full rounded-md border border-line bg-surface px-2 py-1.5 text-[13px]" value={meta.typeDocument} onChange={(e) => setMeta({ ...meta, typeDocument: e.target.value as TypeDocument })}>
-                {(Object.keys(TYPE_DOCUMENT_LABEL) as TypeDocument[]).map((t) => (
-                  <option key={t} value={t}>
-                    {TYPE_DOCUMENT_LABEL[t]}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="text-[12px] font-semibold">
-              Du
-              <input type="date" required className="mt-1 w-full rounded-md border border-line bg-surface px-2 py-1.5 text-[13px]" value={meta.periodeDebut} onChange={(e) => setMeta({ ...meta, periodeDebut: e.target.value })} />
-            </label>
-            <label className="text-[12px] font-semibold">
-              Au
-              <input type="date" required className="mt-1 w-full rounded-md border border-line bg-surface px-2 py-1.5 text-[13px]" value={meta.periodeFin} onChange={(e) => setMeta({ ...meta, periodeFin: e.target.value })} />
-            </label>
-          </div>
-          <div className="mt-2.5 flex gap-2">
-            <button type="submit" className={`${BTN_PRINCIPAL} !h-[34px] !text-[13px]`} disabled={busy}>
-              Enregistrer les métadonnées
-            </button>
-            {edition && (
-              <button type="button" className={`${BTN_SECONDAIRE} !h-[34px] !text-[13px]`} onClick={() => setEdition(false)}>
-                Annuler
-              </button>
-            )}
-          </div>
-        </form>
+      {droits.modifier && !doc.metadonneesCompletes && (
+        <div className="mb-[18px] flex flex-wrap items-center gap-3 rounded-[10px] border border-dashed border-gold bg-gold-50 px-3.5 py-3" data-testid="metadonnees-a-completer">
+          <p className="min-w-0 flex-1 text-[12.5px] font-semibold">Métadonnées à compléter avant toute validation.</p>
+          <button type="button" className={`${BTN_PRINCIPAL} !h-[34px] !text-[13px]`} onClick={() => setFenetre('informations')}>
+            <PenLine aria-hidden size={15} /> Compléter les informations
+          </button>
+        </div>
       )}
 
       <SectionFenetre titre="Versions" n={versions?.length}>
@@ -225,7 +196,7 @@ export function FenetreDocument({
                 <button
                   type="button"
                   aria-label={`Télécharger la version ${version.versionNumber} (${version.fileName})`}
-                  onClick={() => downloadVersion(doc.id, version.id).catch((err) => setError(err instanceof Error ? err.message : 'Téléchargement impossible'))}
+                  onClick={() => downloadVersion(doc.id, version.id).catch((err) => toast.erreur('Téléchargement impossible', messageErreur(err)))}
                   className="flex-none text-[13px] font-bold text-ink hover:underline"
                 >
                   Télécharger
@@ -260,77 +231,35 @@ export function FenetreDocument({
       <div className="flex flex-col gap-2" data-testid="actions-document">
         {(droits.valider || droits.rendreDiffusable || droits.retirer) && (
           <div className="flex flex-col gap-2" data-testid="actions-statut">
-            {!retrait ? (
-              <>
-                {droits.valider && (
-                  <button type="button" className={BTN_SUCCES} disabled={busy || manques.length > 0} onClick={() => agir(() => changerStatut(doc.id, 'VALIDE'))}>
-                    <Check aria-hidden size={17} strokeWidth={2.5} /> Valider le document
-                  </button>
-                )}
-                {droits.rendreDiffusable && (
-                  <button type="button" className={`${BTN_SUCCES} !h-10`} disabled={busy} onClick={() => agir(() => changerStatut(doc.id, 'DIFFUSABLE'))}>
-                    Rendre diffusable
-                  </button>
-                )}
-                {droits.retirer && (
-                  <button type="button" className={BTN_DANGER_CONTOUR} disabled={busy} onClick={() => setRetrait(true)}>
-                    Retirer le statut « {STATUT_LABEL[doc.statutDiffusion]} »
-                  </button>
-                )}
-              </>
-            ) : (
-              <div>
-                <label htmlFor="motif-retrait" className="mb-1 block text-[12.5px] font-semibold">
-                  Motif du retrait
-                </label>
-                <textarea
-                  id="motif-retrait"
-                  value={motif}
-                  onChange={(e) => setMotif(e.target.value)}
-                  rows={3}
-                  placeholder="Motif (obligatoire) : le document reste consultable en interne."
-                  className="mb-2 w-full rounded-[9px] border border-line px-3 py-2 text-[13px] focus:border-ink focus:outline-none"
-                />
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    className="h-10 flex-1 rounded-[10px] bg-clay px-3 text-[14px] font-bold text-white disabled:opacity-50"
-                    disabled={busy || motif.trim().length < 5}
-                    onClick={() => agir(() => changerStatut(doc.id, precedent[doc.statutDiffusion], motif.trim()), () => (setRetrait(false), setMotif('')))}
-                  >
-                    Confirmer le retrait
-                  </button>
-                  <button type="button" className={`${BTN_SECONDAIRE} !h-10`} onClick={() => setRetrait(false)}>
-                    Annuler
-                  </button>
-                </div>
-              </div>
+            {droits.valider && (
+              <button type="button" className={BTN_SUCCES} disabled={busy || manques.length > 0} onClick={() => agir(() => changerStatut(doc.id, 'VALIDE'), { titre: 'Document validé', detail: 'Le DN ou la DNA peut le rendre diffusable.' })}>
+                <Check aria-hidden size={17} strokeWidth={2.5} /> Valider le document
+              </button>
+            )}
+            {droits.rendreDiffusable && (
+              <button type="button" className={`${BTN_SUCCES} !h-10`} disabled={busy} onClick={() => agir(() => changerStatut(doc.id, 'DIFFUSABLE'), { titre: 'Document rendu diffusable', detail: 'Il peut désormais être diffusé.' })}>
+                Rendre diffusable
+              </button>
+            )}
+            {droits.retirer && (
+              <button type="button" className={BTN_DANGER_CONTOUR} disabled={busy} onClick={() => setFenetre('retrait')}>
+                Retirer le statut « {STATUT_LABEL[doc.statutDiffusion]} »
+              </button>
             )}
           </div>
         )}
         {droits.marquerFinal && (
-          <button type="button" className={`${BTN_SECONDAIRE} !h-10`} disabled={busy} onClick={() => agir(() => markFinal(doc.id))}>
+          <button type="button" className={`${BTN_SECONDAIRE} !h-10`} disabled={busy} onClick={() => agir(() => markFinal(doc.id), { titre: 'Document marqué final', detail: 'Il pourra être validé par le chef de son unité.' })}>
             Marquer comme final
           </button>
         )}
         {droits.modifier && (
           <>
-            <button type="button" className={`${BTN_SECONDAIRE} !h-10`} disabled={busy} onClick={() => fileInputRef.current?.click()}>
+            <button type="button" className={`${BTN_SECONDAIRE} !h-10`} disabled={busy} onClick={() => setFenetre('version')}>
               <Plus aria-hidden size={15} /> Ajouter une version
             </button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              aria-label="Fichier de la nouvelle version"
-              className="hidden"
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                e.target.value = '';
-                if (f) agir(() => addVersion(doc.id, f), () => getVersions(doc.id).then(setVersions).catch((err) => setError(messageChargement(err))));
-              }}
-            />
-            {doc.metadonneesCompletes && !edition && (
-              <button type="button" className={`${BTN_SECONDAIRE} !h-10`} disabled={busy} onClick={() => setEdition(true)}>
+            {doc.metadonneesCompletes && (
+              <button type="button" className={`${BTN_SECONDAIRE} !h-10`} disabled={busy} onClick={() => setFenetre('informations')}>
                 Modifier les informations
               </button>
             )}
@@ -378,7 +307,7 @@ export function FenetreDocument({
       {droits.publier && (
         <>
           <div className="my-4 h-px bg-line" />
-          <button type="button" className={`${BTN_SECONDAIRE} w-full`} disabled={busy || publierPlusTard} onClick={() => agir(() => publishDocument(doc.id))}>
+          <button type="button" className={`${BTN_SECONDAIRE} w-full`} disabled={busy || publierPlusTard} onClick={() => agir(() => publishDocument(doc.id), { titre: 'Document publié', detail: 'Il est visible de toute la DNPEC.' })}>
             Publier pour toute la DNPEC
           </button>
           <p className="mt-1.5 text-[12.5px] text-text-muted">{publierPlusTard ? 'Disponible après validation.' : 'Le document sera visible de toute la DNPEC.'}</p>
@@ -390,6 +319,114 @@ export function FenetreDocument({
   return (
     <FenetreDetail titre={doc.title} onClose={onClose} filAriane={[unite, ...chemin]} entete={etapes} cote={cote} largeur={920} testid="fenetre-document">
       {contenu}
+      {fenetre === 'retrait' && (
+        <FenetreRetrait
+          doc={doc}
+          vers={precedent[doc.statutDiffusion]}
+          onClose={() => setFenetre(null)}
+          onFait={(d) => apresFenetre(d, 'Statut retiré', `Le document revient au statut « ${STATUT_LABEL[d.statutDiffusion]} ».`)}
+        />
+      )}
+      {fenetre === 'informations' && <FenetreInformations doc={doc} onClose={() => setFenetre(null)} onFait={(d) => apresFenetre(d, 'Informations enregistrées')} />}
+      {fenetre === 'version' && (
+        <FenetreVersion
+          doc={doc}
+          onClose={() => setFenetre(null)}
+          onFait={(d) => {
+            apresFenetre(d, 'Nouvelle version ajoutée', d.currentVersion ? `${d.currentVersion.fileName} (v${d.currentVersion.versionNumber}).` : undefined);
+            getVersions(doc.id)
+              .then(setVersions)
+              .catch((err) => setError(messageChargement(err)));
+          }}
+        />
+      )}
     </FenetreDetail>
+  );
+}
+
+/** Retrait d'un statut de diffusion : motif obligatoire (5 caractères au moins, règle de l'API). */
+function FenetreRetrait({ doc, vers, onClose, onFait }: { doc: DnpecDocument; vers: StatutDiffusion; onClose: () => void; onFait: (d: DnpecDocument) => void }) {
+  const [motif, setMotif] = useState('');
+  const { enCours, erreur, envoyer } = useEnvoi();
+  return (
+    <FenetreFormulaire
+      titre={`Retirer le statut « ${STATUT_LABEL[doc.statutDiffusion]} »`}
+      sousTitre={`« ${doc.title} » revient au statut « ${STATUT_LABEL[vers]} ». Il reste consultable en interne.`}
+      libelleValider="Confirmer le retrait"
+      danger
+      largeur={560}
+      enCours={enCours}
+      erreur={erreur}
+      onClose={onClose}
+      pied="Le motif est conservé dans l’historique du statut."
+      valider={() => (motif.trim() && motif.trim().length < 5 ? { 'motif-retrait': 'Le motif doit compter au moins 5 caractères.' } : {})}
+      onSubmit={async () => {
+        const r = await envoyer(() => changerStatut(doc.id, vers, motif.trim()));
+        if (r.ok) onFait(r.valeur);
+      }}
+    >
+      <ZoneTexte id="motif-retrait" label="Motif du retrait" value={motif} onChange={setMotif} required lignes={3} maxLength={1000} messageObligatoire="Indiquez le motif du retrait." />
+    </FenetreFormulaire>
+  );
+}
+
+/** Type et période couverte (métadonnées obligatoires avant la validation). */
+function FenetreInformations({ doc, onClose, onFait }: { doc: DnpecDocument; onClose: () => void; onFait: (d: DnpecDocument) => void }) {
+  const [meta, setMeta] = useState({ typeDocument: doc.typeDocument, periodeDebut: doc.periodeDebut?.slice(0, 10) ?? '', periodeFin: doc.periodeFin?.slice(0, 10) ?? '' });
+  const { enCours, erreur, envoyer } = useEnvoi();
+  return (
+    <FenetreFormulaire
+      titre={doc.metadonneesCompletes ? 'Modifier les informations' : 'Compléter les informations'}
+      sousTitre={`« ${doc.title} »`}
+      libelleValider="Enregistrer les informations"
+      largeur={640}
+      testid="edition-metadonnees"
+      enCours={enCours}
+      erreur={erreur}
+      onClose={onClose}
+      pied="Type et période couverte sont exigés avant toute validation."
+      valider={() => (meta.periodeDebut && meta.periodeFin && meta.periodeFin < meta.periodeDebut ? { 'meta-fin': 'La fin de la période ne peut pas précéder son début.' } : {})}
+      onSubmit={async () => {
+        const r = await envoyer(() => updateDocument(doc.id, meta));
+        if (r.ok) onFait(r.valeur);
+      }}
+    >
+      <Liste
+        id="meta-type"
+        label="Type"
+        value={meta.typeDocument}
+        onChange={(t) => setMeta({ ...meta, typeDocument: t as TypeDocument })}
+        options={(Object.keys(TYPE_DOCUMENT_LABEL) as TypeDocument[]).map((t) => ({ value: t, label: TYPE_DOCUMENT_LABEL[t] }))}
+        required
+      />
+      <Grille2>
+        <ChampDate id="meta-debut" label="Période couverte : du" value={meta.periodeDebut} onChange={(periodeDebut) => setMeta({ ...meta, periodeDebut })} required messageObligatoire="Indiquez le début de la période couverte." />
+        <ChampDate id="meta-fin" label="Au" value={meta.periodeFin} min={meta.periodeDebut || undefined} onChange={(periodeFin) => setMeta({ ...meta, periodeFin })} required messageObligatoire="Indiquez la fin de la période couverte." />
+      </Grille2>
+    </FenetreFormulaire>
+  );
+}
+
+/** Nouvelle version du fichier (le document revient au statut « Brouillon »). */
+function FenetreVersion({ doc, onClose, onFait }: { doc: DnpecDocument; onClose: () => void; onFait: (d: DnpecDocument) => void }) {
+  const [fichiers, setFichiers] = useState<File[]>([]);
+  const { enCours, erreur, envoyer } = useEnvoi();
+  return (
+    <FenetreFormulaire
+      titre="Ajouter une version"
+      sousTitre={`« ${doc.title} »${doc.currentVersion ? ` — version actuelle : v${doc.currentVersion.versionNumber}` : ''}`}
+      libelleValider="Ajouter la version"
+      largeur={600}
+      enCours={enCours}
+      erreur={erreur}
+      onClose={onClose}
+      pied={doc.statutDiffusion !== 'BROUILLON' ? 'Une nouvelle version ramène le document au statut « Brouillon ».' : 'Les versions précédentes restent téléchargeables.'}
+      onSubmit={async () => {
+        const r = await envoyer(() => addVersion(doc.id, fichiers[0]!));
+        if (r.ok) onFait(r.valeur);
+      }}
+    >
+      <ZoneDepot id="version-fichier" label="Fichier de la nouvelle version" fichiers={fichiers} onChange={setFichiers} required />
+    </FenetreFormulaire>
   );
 }

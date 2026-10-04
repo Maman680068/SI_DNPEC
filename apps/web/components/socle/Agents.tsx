@@ -14,8 +14,8 @@ import {
 import type { ActionAgent, AgentDetail, StatutAgent, UniteOrganigramme } from '../../lib/socle/types';
 import { LIBELLE_MOUVEMENT } from '../../lib/socle/types';
 import { BTN_DANGER_CONTOUR, BTN_PRINCIPAL, BTN_SECONDAIRE, CleValeur, Pastille, SectionFenetre, type TonPastille } from '../ui/Charte';
-import { Field } from '../ui/Input';
-import { Choix, Fenetre, Texte } from '../ui/Fenetre';
+import { ChampDate, ChoixSegment, FenetreFormulaire, Grille2, Liste, Saisie, ZoneTexte } from '../ui/Formulaire';
+import { messageErreur, useToast } from '../ui/Toast';
 import { FenetreDetail } from '../ui/FenetreDetail';
 
 export const TON_STATUT: Record<StatutAgent, 'sage' | 'clay' | 'muted'> = {
@@ -57,7 +57,17 @@ export function AgentPanneau({ agent, onClose, onChange }: { agent: AgentDetail;
   const stage = agent.natureFinPrevue === 'STAGE';
   const libelle = (a: Exclude<ActionAgent, 'MODIFIER'>) =>
     a === 'PROLONGER' ? (stage ? 'Prolonger le stage' : 'Prolonger le contrat') : LIBELLE_ACTION[a];
+  const toast = useToast();
+  const CONFIRMATION: Record<ActionAgent, string> = {
+    MODIFIER: 'Agent modifié',
+    PROLONGER: stage ? 'Stage prolongé' : 'Contrat prolongé',
+    CONFIRMER_FIN: 'Fin confirmée',
+    SUSPENDRE: 'Agent suspendu',
+    REACTIVER: 'Agent réactivé',
+    DEPART: 'Départ enregistré',
+  };
   const fait = (a: AgentDetail) => {
+    if (action) toast.succes(CONFIRMATION[action], { detail: `${a.prenoms} ${a.nom} — inscrit à l’historique.` });
     setAction(null);
     onChange(a);
   };
@@ -207,43 +217,57 @@ function FenetreActionAgent({
         : await confirmerFinAgent(agent.id);
       onFait(r);
     } catch (e) {
-      setErreur(e instanceof Error ? e.message : 'Une erreur est survenue');
+      setErreur(messageErreur(e));
       setEnCours(false);
     }
   };
 
+  const pied =
+    action === 'CONFIRMER_FIN'
+      ? 'Vous ne recevrez plus de rappel pour cette fin prévue.'
+      : action === 'SUSPENDRE'
+        ? 'Le compte est suspendu aussitôt.'
+        : 'L’action est datée, motivée et inscrite à l’historique de l’agent.';
   return (
-    <Fenetre titre={`${titre} — ${nom}`} onClose={onClose} onSubmit={envoyer} enCours={enCours} erreur={erreur} libelleValider={titre} danger={action === 'DEPART' || action === 'SUSPENDRE'}>
+    <FenetreFormulaire titre={titre} sousTitre={nom} onClose={onClose} onSubmit={envoyer} enCours={enCours} erreur={erreur} libelleValider={titre} danger={action === 'DEPART' || action === 'SUSPENDRE'} largeur={600} pied={pied}>
       {action === 'CONFIRMER_FIN' && (
-        <p className="mb-4 text-[13px] text-text-muted">
-          {nom} passera « Parti » et son compte sera désactivé le lendemain du {agent.dateFinPrevue && date(agent.dateFinPrevue)}. Vous ne recevrez plus de rappel. Le dossier, l’évaluation et l’attestation sont conservés.
+        <p className="mb-4 text-[13px] text-text">
+          {nom} passera « Parti » et son compte sera désactivé le lendemain du {agent.dateFinPrevue && date(agent.dateFinPrevue)}. Le dossier, l’évaluation et l’attestation sont conservés.
         </p>
       )}
-      {action === 'SUSPENDRE' && <p className="mb-4 text-[13px] text-text-muted">Le compte est suspendu aussitôt : {nom} ne peut plus se connecter.</p>}
+      {action === 'SUSPENDRE' && <p className="mb-4 text-[13px] text-text">{nom} ne pourra plus se connecter jusqu’à la réactivation.</p>}
       {action === 'DEPART' && (
-        <p className="mb-4 text-[13px] text-text-muted">
+        <p className="mb-4 text-[13px] text-text">
           Le compte est désactivé, les tâches en cours sont transférées au responsable de l’unité, les suppléances et rôles en cours sont retirés. Le dossier est conservé.
         </p>
       )}
       {(action === 'PROLONGER' || action === 'DEPART' || (action === 'REACTIVER' && (finPassee || !!agent.dateFinPrevue))) && (
-        <Field
-          label={action === 'DEPART' ? 'Date de départ' : action === 'PROLONGER' ? 'Nouvelle date de fin' : `Nouvelle date de fin${finPassee ? '' : ' (facultative)'}`}
-          type="date"
-          value={dateSaisie}
-          onChange={(e) => setDateSaisie(e.target.value)}
-          required={action !== 'REACTIVER' || finPassee}
-        />
+        <Grille2>
+          <ChampDate
+            id="ag-date"
+            label={action === 'DEPART' ? 'Date de départ' : 'Nouvelle date de fin'}
+            facultatif={action === 'REACTIVER' && !finPassee}
+            value={dateSaisie}
+            onChange={setDateSaisie}
+            required={action !== 'REACTIVER' || finPassee}
+          />
+        </Grille2>
       )}
-      {action !== 'CONFIRMER_FIN' && <Texte label="Motif" value={motif} onChange={setMotif} required />}
-    </Fenetre>
+      {action !== 'CONFIRMER_FIN' && <ZoneTexte id="ag-motif" label="Motif" value={motif} onChange={setMotif} required messageObligatoire="Indiquez le motif." />}
+    </FenetreFormulaire>
   );
 }
+
+const GENRES = [
+  { value: 'F' as const, label: 'Femme' },
+  { value: 'M' as const, label: 'Homme' },
+];
 
 function FenetreModifierAgent({ agent, onClose, onFait }: { agent: AgentDetail; onClose: () => void; onFait: (a: AgentDetail) => void }) {
   const [matricule, setMatricule] = useState(agent.matriculeProvisoire ? '' : agent.matricule);
   const [nom, setNom] = useState(agent.nom);
   const [prenoms, setPrenoms] = useState(agent.prenoms);
-  const [genre, setGenre] = useState(agent.genre ?? '');
+  const [genre, setGenre] = useState<'F' | 'M' | ''>((agent.genre as 'F' | 'M' | null) ?? '');
   const [fonction, setFonction] = useState(agent.fonction ?? '');
   const [finContrat, setFinContrat] = useState(agent.natureFinPrevue === 'CONTRAT' && agent.dateFinPrevue ? agent.dateFinPrevue.slice(0, 10) : '');
   const [enCours, setEnCours] = useState(false);
@@ -263,30 +287,48 @@ function FenetreModifierAgent({ agent, onClose, onFait }: { agent: AgentDetail; 
         }),
       );
     } catch (e) {
-      setErreur(e instanceof Error ? e.message : 'Une erreur est survenue');
+      setErreur(messageErreur(e));
       setEnCours(false);
     }
   };
   return (
-    <Fenetre titre={`Modifier ${agent.prenoms} ${agent.nom}`} onClose={onClose} onSubmit={envoyer} enCours={enCours} erreur={erreur}>
-      <Field label={agent.matriculeProvisoire ? `Matricule (provisoire : ${agent.matricule})` : 'Matricule'} value={matricule} onChange={(e) => setMatricule(e.target.value)} placeholder="Matricule de la Fonction publique" />
-      <Field label="Nom" value={nom} onChange={(e) => setNom(e.target.value)} required />
-      <Field label="Prénoms" value={prenoms} onChange={(e) => setPrenoms(e.target.value)} required />
-      <Choix label="Genre" value={genre} onChange={setGenre} vide="Non renseigné" options={[{ value: 'F', label: 'Femme' }, { value: 'M', label: 'Homme' }]} />
-      <Field label="Fonction" value={fonction} onChange={(e) => setFonction(e.target.value)} />
-      {agent.natureFinPrevue !== 'STAGE' && <Field label="Fin de contrat (facultative)" type="date" value={finContrat} onChange={(e) => setFinContrat(e.target.value)} />}
-    </Fenetre>
+    <FenetreFormulaire
+      titre="Modifier l’agent"
+      sousTitre={`${agent.prenoms} ${agent.nom}`}
+      onClose={onClose}
+      onSubmit={envoyer}
+      enCours={enCours}
+      erreur={erreur}
+      libelleValider="Enregistrer"
+      pied="La modification est inscrite à l’historique de l’agent."
+    >
+      <Grille2>
+        <Saisie id="ag-nom" label="Nom" value={nom} onChange={setNom} required />
+        <Saisie id="ag-prenoms" label="Prénoms" value={prenoms} onChange={setPrenoms} required />
+        <Saisie
+          id="ag-matricule"
+          label="Matricule"
+          aide={agent.matriculeProvisoire ? `Provisoire aujourd’hui : ${agent.matricule}` : undefined}
+          value={matricule}
+          onChange={setMatricule}
+          placeholder="Matricule de la Fonction publique"
+        />
+        <Saisie id="ag-fonction" label="Fonction" facultatif value={fonction} onChange={setFonction} />
+        <ChoixSegment<'F' | 'M'> id="ag-genre" label="Genre" options={GENRES} value={genre} onChange={setGenre} />
+        {agent.natureFinPrevue !== 'STAGE' && <ChampDate id="ag-fin-contrat" label="Fin de contrat" facultatif value={finContrat} onChange={setFinContrat} raccourcis={false} />}
+      </Grille2>
+    </FenetreFormulaire>
   );
 }
 
-export function FenetreNouvelAgent({ unites, onClose, onFait }: { unites: UniteOrganigramme[]; onClose: () => void; onFait: () => void }) {
+export function FenetreNouvelAgent({ unites, onClose, onFait }: { unites: UniteOrganigramme[]; onClose: () => void; onFait: (nom: string) => void }) {
   const [matricule, setMatricule] = useState('');
   const [nom, setNom] = useState('');
   const [prenoms, setPrenoms] = useState('');
-  const [genre, setGenre] = useState('');
+  const [genre, setGenre] = useState<'F' | 'M' | ''>('');
   const [uniteId, setUniteId] = useState('');
   const [fonction, setFonction] = useState('');
-  const [nature, setNature] = useState('');
+  const [nature, setNature] = useState<'' | 'CONTRAT' | 'STAGE'>('');
   const [fin, setFin] = useState('');
   const [enCours, setEnCours] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
@@ -303,23 +345,46 @@ export function FenetreNouvelAgent({ unites, onClose, onFait }: { unites: UniteO
         ...(fonction.trim() ? { fonction: fonction.trim() } : {}),
         ...(nature && fin ? { natureFinPrevue: nature, dateFinPrevue: fin } : {}),
       });
-      onFait();
+      onFait(`${prenoms.trim()} ${nom.trim()}`);
     } catch (e) {
-      setErreur(e instanceof Error ? e.message : 'Une erreur est survenue');
+      setErreur(messageErreur(e));
       setEnCours(false);
     }
   };
   return (
-    <Fenetre titre="Nouvel agent" onClose={onClose} onSubmit={envoyer} enCours={enCours} erreur={erreur} libelleValider="Créer l’agent">
-      <Field label="Matricule (facultatif)" value={matricule} onChange={(e) => setMatricule(e.target.value)} placeholder="Sinon un matricule provisoire est attribué" />
-      <Field label="Nom" value={nom} onChange={(e) => setNom(e.target.value)} required />
-      <Field label="Prénoms" value={prenoms} onChange={(e) => setPrenoms(e.target.value)} required />
-      <Choix label="Genre" value={genre} onChange={setGenre} vide="Non renseigné" options={[{ value: 'F', label: 'Femme' }, { value: 'M', label: 'Homme' }]} />
-      <Choix label="Unité" value={uniteId} onChange={setUniteId} required vide="Choisir une unité…" options={unites.map((u) => ({ value: u.id, label: `${u.code} — ${u.libelle}` }))} />
-      <Field label="Fonction" value={fonction} onChange={(e) => setFonction(e.target.value)} />
-      <Choix label="Fin prévue" value={nature} onChange={setNature} vide="Aucune" options={[{ value: 'CONTRAT', label: 'Fin de contrat' }, { value: 'STAGE', label: 'Fin de stage' }]} />
-      {nature && <Field label="Date de fin" type="date" value={fin} onChange={(e) => setFin(e.target.value)} required />}
-      <p className="mb-2 text-[12px] text-text-faint">Le compte de connexion se crée ensuite, par l’administrateur, à partir de cet agent.</p>
-    </Fenetre>
+    <FenetreFormulaire
+      titre="Nouvel agent"
+      onClose={onClose}
+      onSubmit={envoyer}
+      enCours={enCours}
+      erreur={erreur}
+      libelleValider="Créer l’agent"
+      pied="Le compte de connexion se crée ensuite, par l’administrateur, à partir de cet agent."
+    >
+      <Grille2>
+        <Saisie id="na-nom" label="Nom" value={nom} onChange={setNom} required />
+        <Saisie id="na-prenoms" label="Prénoms" value={prenoms} onChange={setPrenoms} required />
+        <Saisie id="na-matricule" label="Matricule" facultatif value={matricule} onChange={setMatricule} placeholder="Sinon un matricule provisoire est attribué" />
+        <ChoixSegment<'F' | 'M'> id="na-genre" label="Genre" options={GENRES} value={genre} onChange={setGenre} />
+        <Liste id="na-unite" label="Unité" value={uniteId} onChange={setUniteId} required messageObligatoire="Choisissez l’unité de l’agent." vide="Choisir une unité…" options={unites.map((u) => ({ value: u.id, label: `${u.code} — ${u.libelle}` }))} />
+        <Saisie id="na-fonction" label="Fonction" facultatif value={fonction} onChange={setFonction} />
+      </Grille2>
+      <ChoixSegment<'' | 'CONTRAT' | 'STAGE'>
+        id="na-nature"
+        label="Fin prévue"
+        options={[
+          { value: '', label: 'Aucune' },
+          { value: 'CONTRAT', label: 'Fin de contrat' },
+          { value: 'STAGE', label: 'Fin de stage' },
+        ]}
+        value={nature}
+        onChange={setNature}
+      />
+      {nature && (
+        <Grille2>
+          <ChampDate id="na-fin" label="Date de fin" value={fin} onChange={setFin} required />
+        </Grille2>
+      )}
+    </FenetreFormulaire>
   );
 }

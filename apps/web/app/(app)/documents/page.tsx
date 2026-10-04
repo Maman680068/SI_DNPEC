@@ -12,7 +12,8 @@ import { FolderNav, type FolderNavHandle } from '../../../components/documents/F
 import { DocumentList } from '../../../components/documents/DocumentList';
 import { UploadDocumentModal } from '../../../components/documents/UploadDocumentModal';
 import { FenetreDocument } from '../../../components/documents/FenetreDocument';
-import { BarreOutils, Bandeau, BTN_PRINCIPAL, BTN_SECONDAIRE, EnTetePage, EtatVide, FiltreSelect, Onglets, Recherche } from '../../../components/ui/Charte';
+import { BarreOutils, Bandeau, BTN_PRINCIPAL, BTN_SECONDAIRE, EnTetePage, EtatVide, Filtres, FiltreSelect, Onglets, Recherche } from '../../../components/ui/Charte';
+import { ChampDate } from '../../../components/ui/Formulaire';
 import { Chargement, ErreurChargement, messageChargement } from '../../../components/ui/ErreurChargement';
 import { useDemandeCreation } from '../../../lib/navigation/creer';
 
@@ -183,6 +184,15 @@ export default function DocumentsPage() {
   const destination = dossierCourant ? dossierCourant.name : avecArbre ? 'Tous les documents' : (espaceLabel ?? 'Tous les documents');
   const peutDeposer = tab === 'division' && !!espace;
   const filtresActifs = !!(q || typeDocument || statut || periode || auteur);
+  const nbFiltres = [typeDocument, statut, periode, auteur].filter(Boolean).length;
+  const effacerFiltres = () => {
+    setTypeDocument('');
+    setStatut('');
+    setPeriode('');
+    setDu('');
+    setAu('');
+    setAuteur('');
+  };
 
   function deposer(fichier: File | null) {
     setFichierDepose(fichier);
@@ -316,30 +326,30 @@ export default function DocumentsPage() {
         <div className="min-w-0">
           <BarreOutils>
             <Recherche value={q} onChange={setQ} placeholder="Rechercher par titre ou mot-clé…" label="Rechercher par titre ou mot-clé" />
-            <FiltreSelect<TypeDocument | ''>
-              label="Type"
-              value={typeDocument}
-              defaut=""
-              onChange={setTypeDocument}
-              options={[{ value: '', label: 'Type' }, ...(Object.keys(TYPE_DOCUMENT_LABEL) as TypeDocument[]).map((t) => ({ value: t, label: TYPE_DOCUMENT_LABEL[t] }))]}
-            />
-            <FiltreSelect<StatutDiffusion | ''>
-              label="Statut"
-              value={statut}
-              defaut=""
-              onChange={setStatut}
-              options={[{ value: '', label: 'Statut' }, ...(Object.keys(STATUT_LABEL) as StatutDiffusion[]).map((s) => ({ value: s, label: STATUT_LABEL[s] }))]}
-            />
-            <FiltreSelect<ChoixPeriode> label="Période couverte" value={periode} defaut="" onChange={setPeriode} options={PERIODES} />
-            {periode === 'perso' && (
-              <span className="flex items-center gap-1.5 text-[12.5px] text-text-muted">
-                <label htmlFor="depot-du">Du</label>
-                <input id="depot-du" type="date" value={du} onChange={(e) => setDu(e.target.value)} className="h-9 rounded-[9px] border border-line bg-surface px-2 text-[13px] text-text" />
-                <label htmlFor="depot-au">au</label>
-                <input id="depot-au" type="date" value={au} min={du || undefined} onChange={(e) => setAu(e.target.value)} className="h-9 rounded-[9px] border border-line bg-surface px-2 text-[13px] text-text" />
-              </span>
-            )}
-            <FiltreSelect<string> label="Auteur" value={auteur} defaut="" onChange={setAuteur} options={[{ value: '', label: 'Auteur' }, ...auteurs.map((id) => ({ value: id, label: getUserLabel(id) }))]} />
+            <Filtres actifs={nbFiltres} onEffacer={effacerFiltres}>
+              <FiltreSelect<TypeDocument | ''>
+                label="Type"
+                value={typeDocument}
+                defaut=""
+                onChange={setTypeDocument}
+                options={[{ value: '', label: 'Type' }, ...(Object.keys(TYPE_DOCUMENT_LABEL) as TypeDocument[]).map((t) => ({ value: t, label: TYPE_DOCUMENT_LABEL[t] }))]}
+              />
+              <FiltreSelect<StatutDiffusion | ''>
+                label="Statut"
+                value={statut}
+                defaut=""
+                onChange={setStatut}
+                options={[{ value: '', label: 'Statut' }, ...(Object.keys(STATUT_LABEL) as StatutDiffusion[]).map((s) => ({ value: s, label: STATUT_LABEL[s] }))]}
+              />
+              <FiltreSelect<ChoixPeriode> label="Période couverte" value={periode} defaut="" onChange={setPeriode} options={PERIODES} />
+              {periode === 'perso' && (
+                <span className="flex flex-wrap items-start gap-2 [&>div]:mb-0 [&_label]:text-[12px] [&_label]:font-semibold [&_label]:text-text-muted md:[&>div]:w-[200px]">
+                  <ChampDate id="depot-du" label="Du" value={du} onChange={setDu} raccourcis={false} />
+                  <ChampDate id="depot-au" label="Au" value={au} min={du || undefined} onChange={setAu} raccourcis={false} />
+                </span>
+              )}
+              <FiltreSelect<string> label="Auteur" value={auteur} defaut="" onChange={setAuteur} options={[{ value: '', label: 'Auteur' }, ...auteurs.map((id) => ({ value: id, label: getUserLabel(id) }))]} />
+            </Filtres>
           </BarreOutils>
 
           {documents === null ? (
@@ -360,10 +370,7 @@ export default function DocumentsPage() {
                         className="text-[13px] font-bold text-ink hover:underline"
                         onClick={() => {
                           setQ('');
-                          setTypeDocument('');
-                          setStatut('');
-                          setPeriode('');
-                          setAuteur('');
+                          effacerFiltres();
                         }}
                       >
                         Effacer les filtres

@@ -1,25 +1,37 @@
 'use client';
 
-import { useMemo, useState, type FormEvent } from 'react';
+import { useMemo, useState } from 'react';
+import { Plus, X } from 'lucide-react';
 import { useAuth } from '../../lib/auth/AuthProvider';
 import { createPoll } from '../../lib/api/polls';
 import type { Poll } from '../../lib/polls/types';
 import type { AudienceScopeValue } from '../../lib/communication/types';
-import { getAvailableAudienceScopes } from '../../lib/communication/types';
+import { getAvailableAudienceScopes, SCOPE_LABEL } from '../../lib/communication/types';
 import { AudienceScopeFields } from './AudienceScopeFields';
-import { Field } from '../ui/Input';
-import { Button } from '../ui/Button';
+import { ChampDate, ChoixSegment, FenetreFormulaire, Grille2, Saisie } from '../ui/Formulaire';
+import { messageErreur, useToast } from '../ui/Toast';
 
 const EMPTY_OPTIONS = ['', ''];
+const pad = (n: number) => String(n).padStart(2, '0');
+const aujourdhui = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+};
 
+/**
+ * Nouveau sondage (refonte, étape 9) : question, choix (deux au moins), un ou plusieurs choix par
+ * personne, clôture automatique facultative (date en français, heure), portée. Validation dans la fenêtre.
+ */
 export function CreatePollModal({ onClose, onCreated }: { onClose: () => void; onCreated: (poll: Poll) => void }) {
   const { user: currentUser } = useAuth();
+  const toast = useToast();
   const availableScopes = useMemo(() => getAvailableAudienceScopes(currentUser?.role ?? ''), [currentUser?.role]);
 
   const [question, setQuestion] = useState('');
   const [options, setOptions] = useState<string[]>(EMPTY_OPTIONS);
-  const [allowMultiple, setAllowMultiple] = useState(false);
-  const [closesAt, setClosesAt] = useState('');
+  const [allowMultiple, setAllowMultiple] = useState<'un' | 'plusieurs'>('un');
+  const [dateCloture, setDateCloture] = useState('');
+  const [heureCloture, setHeureCloture] = useState('');
   const [audience, setAudience] = useState<AudienceScopeValue>({
     scope: availableScopes[0] ?? 'GROUPE_PERSONNALISE',
     divisionId: currentUser?.divisionId ?? '',
@@ -31,38 +43,46 @@ export function CreatePollModal({ onClose, onCreated }: { onClose: () => void; o
   const [error, setError] = useState<string | null>(null);
 
   const validOptions = options.map((o) => o.trim()).filter(Boolean);
+  // Heure locale de clôture (23 h 59 si seule la date est donnée), comme l'ancien champ date et heure.
+  const cloture = dateCloture ? new Date(`${dateCloture}T${heureCloture || '23:59'}`) : null;
 
   function updateOption(index: number, value: string) {
     setOptions((prev) => prev.map((o, i) => (i === index ? value : o)));
   }
 
-  function addOption() {
-    setOptions((prev) => [...prev, '']);
+  function valider(): Record<string, string> {
+    const e: Record<string, string> = {};
+    if (!question.trim()) e['sondage-question'] = 'Saisissez la question posée.';
+    if (validOptions.length < 2) {
+      const vides = options.map((o, i) => (o.trim() ? -1 : i)).filter((i) => i >= 0);
+      for (const i of vides.slice(0, 2 - validOptions.length)) e[`sondage-option-${i}`] = 'Proposez au moins deux choix.';
+    }
+    if (heureCloture && !dateCloture) e['sondage-cloture'] = 'Choisissez la date de clôture.';
+    else if (cloture && cloture.getTime() <= Date.now()) e['sondage-heure'] = 'La clôture doit être dans le futur.';
+    return e;
   }
 
-  function removeOption(index: number) {
-    setOptions((prev) => prev.filter((_, i) => i !== index));
-  }
-
-  async function handleSubmit(event: FormEvent) {
-    event.preventDefault();
+  async function handleSubmit() {
     setSubmitting(true);
     setError(null);
     try {
       const poll = await createPoll({
         question: question.trim(),
         options: validOptions,
-        allowMultiple,
-        closesAt: closesAt ? new Date(closesAt).toISOString() : undefined,
+        allowMultiple: allowMultiple === 'plusieurs',
+        closesAt: cloture ? cloture.toISOString() : undefined,
         scope: audience.scope,
         divisionId: audience.scope === 'DIVISION' || audience.scope === 'SECTION' ? audience.divisionId : undefined,
         sectionId: audience.scope === 'SECTION' ? audience.sectionId : undefined,
         celluleId: audience.scope === 'CELLULE' ? audience.celluleId : undefined,
         recipientUserIds: audience.scope === 'GROUPE_PERSONNALISE' ? audience.recipientUserIds : undefined,
       });
+      toast.succes('Sondage publié', {
+        detail: audience.scope === 'GROUPE_PERSONNALISE' ? `${audience.recipientUserIds.length} destinataire${audience.recipientUserIds.length > 1 ? 's' : ''} prévenu${audience.recipientUserIds.length > 1 ? 's' : ''}.` : `Portée : ${SCOPE_LABEL[audience.scope].toLowerCase()}. Les destinataires sont prévenus.`,
+      });
       onCreated(poll);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Impossible de créer le sondage');
+      setError(messageErreur(err, 'Impossible de publier le sondage.'));
     } finally {
       setSubmitting(false);
     }
@@ -71,74 +91,59 @@ export function CreatePollModal({ onClose, onCreated }: { onClose: () => void; o
   if (availableScopes.length === 0) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(20,26,38,0.42)] p-4" onClick={onClose}>
-      <form
-        onSubmit={handleSubmit}
-        onClick={(e) => e.stopPropagation()}
-        className="max-h-[90vh] w-full max-w-[480px] overflow-y-auto rounded-lg bg-surface p-6"
-      >
-        <h2 className="mb-5 text-[19px] font-semibold">Nouveau sondage</h2>
+    <FenetreFormulaire
+      titre="Nouveau sondage"
+      onClose={onClose}
+      onSubmit={handleSubmit}
+      libelleValider="Publier le sondage"
+      enCours={submitting}
+      erreur={error}
+      largeur={760}
+      valider={valider}
+      testid="fenetre-nouveau-sondage"
+      pied="Les destinataires sont prévenus et votent depuis l’onglet Sondages ; vous pouvez le clôturer à tout moment."
+    >
+      <Saisie id="sondage-question" label="Question" value={question} onChange={setQuestion} required messageObligatoire="Saisissez la question posée." />
 
-        <Field label="Question" value={question} onChange={(e) => setQuestion(e.target.value)} required autoFocus />
-
-        <div className="mb-4">
-          <label className="mb-1.5 block text-[12.5px] font-semibold text-text">Options</label>
-          <div className="space-y-2">
-            {options.map((option, index) => (
-              <div key={index} className="flex gap-2">
-                <input
-                  value={option}
-                  onChange={(e) => updateOption(index, e.target.value)}
-                  placeholder={`Option ${index + 1}`}
-                  className="w-full rounded-md border border-line bg-surface px-3.5 py-2.5 text-sm focus:border-accent focus:outline focus:outline-2 focus:outline-accent"
-                />
-                {options.length > 2 && (
-                  <button
-                    type="button"
-                    onClick={() => removeOption(index)}
-                    aria-label={`Retirer l'option ${index + 1}`}
-                    className="flex h-[38px] w-[38px] flex-shrink-0 items-center justify-center rounded-md text-text-muted hover:bg-bg"
-                  >
-                    ✕
-                  </button>
-                )}
-              </div>
-            ))}
+      <div className="min-w-0" data-testid="choix-sondage">
+        {options.map((option, index) => (
+          <div key={index} className="flex items-start gap-2">
+            <div className="min-w-0 flex-1">
+              <Saisie id={`sondage-option-${index}`} label={`Choix ${index + 1}`} value={option} onChange={(v) => updateOption(index, v)} placeholder={index === 0 ? 'Par exemple : mardi 10 h' : undefined} />
+            </div>
+            {options.length > 2 && (
+              <button
+                type="button"
+                onClick={() => setOptions((prev) => prev.filter((_, i) => i !== index))}
+                aria-label={`Retirer le choix ${index + 1}`}
+                className="mt-[26px] grid h-10 w-10 flex-none place-items-center rounded-[10px] border border-line text-text-muted hover:bg-bg"
+              >
+                <X aria-hidden size={16} />
+              </button>
+            )}
           </div>
-          <button
-            type="button"
-            onClick={addOption}
-            className="mt-2 text-[12.5px] font-semibold text-accent hover:underline"
-          >
-            + Ajouter une option
-          </button>
-        </div>
+        ))}
+        <button type="button" onClick={() => setOptions((prev) => [...prev, ''])} className="-mt-1 mb-3.5 inline-flex items-center gap-1.5 text-[13px] font-bold text-ink hover:underline">
+          <Plus aria-hidden size={15} /> Ajouter un choix
+        </button>
+      </div>
 
-        <label className="mb-4 flex items-center gap-2 text-[13px]">
-          <input type="checkbox" checked={allowMultiple} onChange={(e) => setAllowMultiple(e.target.checked)} />
-          Autoriser plusieurs choix par personne
-        </label>
+      <ChoixSegment<'un' | 'plusieurs'>
+        id="sondage-reponses"
+        label="Réponses par personne"
+        value={allowMultiple}
+        onChange={setAllowMultiple}
+        options={[
+          { value: 'un', label: 'Un seul choix' },
+          { value: 'plusieurs', label: 'Plusieurs choix' },
+        ]}
+      />
+      <Grille2>
+        <ChampDate id="sondage-cloture" label="Clôture automatique" facultatif value={dateCloture} onChange={setDateCloture} min={aujourdhui()} />
+        <Saisie id="sondage-heure" label="Heure de clôture" facultatif type="time" value={heureCloture} onChange={setHeureCloture} aide={dateCloture && !heureCloture ? 'À défaut : 23 h 59.' : undefined} />
+      </Grille2>
 
-        <Field
-          label="Clôture automatique (optionnel)"
-          type="datetime-local"
-          value={closesAt}
-          onChange={(e) => setClosesAt(e.target.value)}
-        />
-
-        <AudienceScopeFields availableScopes={availableScopes} value={audience} onChange={setAudience} />
-
-        {error && <div className="mb-4 rounded-md bg-clay-soft px-3 py-2.5 text-[13px] text-clay">{error}</div>}
-
-        <div className="flex justify-end gap-2.5">
-          <Button type="button" variant="outline" onClick={onClose}>
-            Annuler
-          </Button>
-          <Button type="submit" variant="solid" disabled={submitting || !question.trim() || validOptions.length < 2}>
-            {submitting ? 'Publication…' : 'Publier le sondage'}
-          </Button>
-        </div>
-      </form>
-    </div>
+      <AudienceScopeFields prefixe="sondage" availableScopes={availableScopes} value={audience} onChange={setAudience} />
+    </FenetreFormulaire>
   );
 }

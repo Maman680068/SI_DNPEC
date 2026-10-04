@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, type InputHTMLAttributes } from 'react';
+import { MessageErreurChamp } from './Formulaire';
 
 interface FieldProps extends InputHTMLAttributes<HTMLInputElement> {
   label: string;
@@ -34,6 +35,8 @@ export function Field({ label, id, className = '', type, ...props }: FieldProps)
           </button>
         )}
       </div>
+      {/* Dans une fenêtre de formulaire : message de validation sous le champ (sans effet ailleurs). */}
+      <MessageErreurChamp id={inputId} />
     </div>
   );
 }

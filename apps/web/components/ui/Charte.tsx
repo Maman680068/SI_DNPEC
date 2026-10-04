@@ -1,8 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { Children, isValidElement, type ReactNode } from 'react';
-import { Check, Search } from 'lucide-react';
+import { Children, isValidElement, useEffect, useId, useState, type ReactNode } from 'react';
+import { Check, Search, SlidersHorizontal } from 'lucide-react';
 
 /**
  * Composants communs de la refonte de l'interface (étapes 3 à 7, maquettes validées) : en-tête de
@@ -153,7 +153,7 @@ export function Recherche({ value, onChange, placeholder, label }: { value: stri
 export function FiltreSelect<T extends string>({ label, value, defaut, onChange, options }: { label: string; value: T; defaut: T; onChange: (v: T) => void; options: { value: T; label: string }[] }) {
   const actif = value !== defaut;
   return (
-    <select aria-label={label} value={value} onChange={(e) => onChange(e.target.value as T)} className={`h-9 max-w-[220px] rounded-[9px] border px-2.5 text-[13px] font-semibold ${actif ? 'border-ink bg-ink-50 text-ink' : 'border-line bg-surface text-text'}`}>
+    <select aria-label={label} value={value} onChange={(e) => onChange(e.target.value as T)} className={`h-9 w-full max-w-full rounded-[9px] border px-2.5 text-[13px] font-semibold md:w-auto md:max-w-[220px] ${actif ? 'border-ink bg-ink-50 text-ink' : 'border-line bg-surface text-text'}`}>
       {options.map((o) => (
         <option key={o.value} value={o.value}>
           {o.label}
@@ -170,6 +170,64 @@ export function BarreOutils({ children, droite }: { children: ReactNode; droite?
       {children}
       {droite && <div className="ml-auto flex items-center gap-2">{droite}</div>}
     </div>
+  );
+}
+
+/**
+ * Filtres d'une barre d'outils (refonte, étape 9) : en ligne sur ordinateur ; sur téléphone, repliés
+ * derrière un bouton « Filtres (N) » (N = filtres actifs) qui ouvre un panneau, refermé par
+ * « Appliquer », Échap ou un clic à côté. Les filtres eux-mêmes ne changent pas.
+ */
+export function Filtres({ actifs = 0, children, onEffacer }: { actifs?: number; children: ReactNode; onEffacer?: () => void }) {
+  const [ouvert, setOuvert] = useState(false);
+  const id = useId();
+  useEffect(() => {
+    if (!ouvert) return;
+    const echap = (e: KeyboardEvent) => e.key === 'Escape' && setOuvert(false);
+    window.addEventListener('keydown', echap);
+    return () => window.removeEventListener('keydown', echap);
+  }, [ouvert]);
+  return (
+    <>
+      <button
+        type="button"
+        aria-expanded={ouvert}
+        aria-controls={id}
+        onClick={() => setOuvert(true)}
+        data-testid="bouton-filtres"
+        className={`inline-flex h-9 items-center gap-1.5 rounded-[9px] border px-3 text-[13px] font-semibold md:hidden ${actifs ? 'border-ink bg-ink-50 text-ink' : 'border-line bg-surface text-text'}`}
+      >
+        <SlidersHorizontal aria-hidden size={15} /> Filtres{actifs ? ` (${actifs})` : ''}
+      </button>
+      {ouvert && <div aria-hidden className="fixed inset-0 z-40 bg-[rgba(20,26,38,0.42)] md:hidden" onClick={() => setOuvert(false)} />}
+      <div
+        id={id}
+        role={ouvert ? 'dialog' : undefined}
+        aria-label={ouvert ? 'Filtres' : undefined}
+        className={
+          ouvert
+            ? 'fixed inset-x-0 bottom-0 z-50 flex max-h-[80vh] flex-col gap-2.5 overflow-y-auto rounded-t-2xl bg-surface p-4 shadow-[0_-12px_30px_rgba(18,28,77,0.2)] md:static md:contents'
+            : 'hidden md:contents'
+        }
+      >
+        {ouvert && (
+          <div className="mb-1 flex items-center justify-between md:hidden">
+            <b className="font-heading text-[16px] font-extrabold text-ink-900">Filtres</b>
+            {onEffacer && actifs > 0 && (
+              <button type="button" className="text-[13px] font-semibold text-ink underline" onClick={onEffacer}>
+                Effacer les filtres
+              </button>
+            )}
+          </div>
+        )}
+        {children}
+        {ouvert && (
+          <button type="button" className={`${BTN_PRINCIPAL} mt-1 w-full md:hidden`} onClick={() => setOuvert(false)}>
+            Appliquer
+          </button>
+        )}
+      </div>
+    </>
   );
 }
 

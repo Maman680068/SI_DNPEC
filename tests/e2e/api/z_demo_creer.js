@@ -69,6 +69,10 @@ const compte = async () => ({
   check('tâche rejetée avec motif (retour en cours, motif conservé)', (await prisma.task.count({ where: { createdBy: demo, validationComment: { contains: 'taux de change' }, status: 'EN_COURS' } })) === 1 && (await prisma.taskComment.count({ where: { author: demo, body: { startsWith: 'Rejet : ' } } })) === 1);
   check('tâche diffusée à toute la division', (await prisma.task.count({ where: { title: 'TEST — Mise à jour des fiches de poste' } })) >= 5);
   check('4 réunions dont une passée avec compte rendu et décisions', n.reunions === 4 && (await prisma.meeting.count({ where: { createdBy: demo, startAt: { lt: new Date() }, minutesText: { not: null } } })) === 1 && (await prisma.decision.count({ where: { meeting: { createdBy: demo } } })) === 2);
+  // Instructions de la Direction (étape 9) : émises par le DN de démonstration seulement, jamais au nom d'un DN réel.
+  const dnDemo = comptes.find((u) => u.email === D.email('dn'));
+  const instructionsDemo = await prisma.instruction.count({ where: { objet: { startsWith: 'TEST — ' } } });
+  check(dnDemo ? `instructions de la Direction : 2, émises par le DN de démonstration (${instructionsDemo})` : `instructions de la Direction : aucune quand un DN réel est en place (${instructionsDemo})`, dnDemo ? instructionsDemo === 2 && (await prisma.instruction.count({ where: { objet: { startsWith: 'TEST — ' }, emetteurId: { not: dnDemo.id } } })) === 0 : instructionsDemo === 0);
   check('décision convertie en tâche', (await prisma.task.count({ where: { sourceDecisionId: { not: null }, createdBy: demo } })) === 1);
   check('réunion ouverte, et salle réservée pour le séminaire', (await prisma.meeting.count({ where: { createdBy: demo, isOpen: true } })) === 1 && (await prisma.reservation.count({ where: { meeting: { createdBy: demo } } })) === 1);
   check('congés (5), dont un congé maladie', n.conges === 5 && (await prisma.leaveRequest.count({ where: { user: demo, leaveType: { code: 'CONGE_MALADIE' } } })) === 1);

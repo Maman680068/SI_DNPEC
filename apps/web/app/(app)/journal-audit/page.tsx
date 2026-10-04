@@ -4,9 +4,12 @@ import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { lireJournalAudit, verifierJournalAudit } from '../../../lib/api/securite';
 import type { EntreeAudit, PageAudit, VerificationAudit } from '../../../lib/securite/types';
 import { ACTIONS_AUDIT } from '../../../lib/securite/types';
-import { Chargement, ErreurChargement, messageChargement } from '../../../components/ui/ErreurChargement';
+import { ErreurChargement, messageChargement } from '../../../components/ui/ErreurChargement';
+import { ChampDate } from '../../../components/ui/Formulaire';
+import { SquelettePage } from '../../../components/ui/Squelette';
+import { messageErreur, useToast } from '../../../components/ui/Toast';
 import { ShieldCheck, X } from 'lucide-react';
-import { Bandeau, BarreOutils, BTN_LIGNE, BTN_SECONDAIRE, CleValeur, EnTetePage, EtatVide, FiltreSelect, LigneTableau, Pastille, SectionFenetre, Tableau } from '../../../components/ui/Charte';
+import { Bandeau, BarreOutils, BTN_LIGNE, BTN_SECONDAIRE, CleValeur, EnTetePage, EtatVide, Filtres, FiltreSelect, LigneTableau, Pastille, SectionFenetre, Tableau } from '../../../components/ui/Charte';
 import { FenetreDetail } from '../../../components/ui/FenetreDetail';
 
 const GRILLE = 'lg:grid-cols-[72px_120px_minmax(0,1fr)_minmax(0,1.2fr)_minmax(0,1fr)_104px_64px]';
@@ -29,6 +32,7 @@ export default function JournalAuditPage() {
   const [detail, setDetail] = useState<EntreeAudit | null>(null);
   /** Nom de l'auteur filtré (affiché dans la barre de filtres ; l'API filtre sur `acteurId`). */
   const [auteurFiltre, setAuteurFiltre] = useState<string | null>(null);
+  const toast = useToast();
 
   const charger = useCallback(() => {
     lireJournalAudit({ ...filtres, page: numero, taille: 50 })
@@ -49,18 +53,24 @@ export default function JournalAuditPage() {
     setFiltres({});
     setAuteurFiltre(null);
   };
-  const verifier = () => verifierJournalAudit().then(setVerif).catch((e) => setErreur(messageChargement(e)));
+  const verifier = () => verifierJournalAudit().then(setVerif).catch((e) => toast.erreur('Vérification impossible', messageErreur(e)));
 
   if (!page)
     return (
       <div>
-        <EnTetePage titre="Journal d’audit" />
         <ErreurChargement message={erreur} />
-        <Chargement erreur={erreur} />
+        {erreur ? <EnTetePage titre="Journal d’audit" /> : <SquelettePage />}
       </div>
     );
   const nbPages = Math.max(1, Math.ceil(page.total / page.taille));
-  const champDate = 'h-9 rounded-[9px] border border-line bg-surface px-2.5 text-[13px]';
+  const filtresActifs = ['du', 'au', 'entityType', 'action', 'acteurId'].filter((k) => filtres[k]).length;
+  /** Date d'un filtre : champ de date compact (libellé visible à gauche, celui du champ réservé aux lecteurs d'écran). */
+  const dateFiltre = (k: 'du' | 'au', libelle: string) => (
+    <div className="flex items-center gap-1.5 text-[12.5px] text-text-muted md:w-[210px] [&>div]:mb-0 [&>div]:min-w-0 [&>div]:flex-1 [&_input]:!h-9 [&_label]:sr-only">
+      <span aria-hidden className="w-6 flex-none md:w-auto">{libelle}</span>
+      <ChampDate id={`journal-${k}`} label={k === 'du' ? 'Du' : 'Au'} value={filtres[k] ?? ''} onChange={(v) => filtre(k, v)} raccourcis={false} />
+    </div>
+  );
 
   return (
     <div>
@@ -93,14 +103,9 @@ export default function JournalAuditPage() {
       )}
 
       <BarreOutils>
-        <label className="flex items-center gap-1.5 text-[12.5px] text-text-muted">
-          Du
-          <input type="date" aria-label="Du" value={filtres.du ?? ''} onChange={(e) => filtre('du', e.target.value)} className={champDate} />
-        </label>
-        <label className="flex items-center gap-1.5 text-[12.5px] text-text-muted">
-          au
-          <input type="date" aria-label="Au" value={filtres.au ?? ''} onChange={(e) => filtre('au', e.target.value)} className={champDate} />
-        </label>
+        <Filtres actifs={filtresActifs} onEffacer={effacer}>
+        {dateFiltre('du', 'Du')}
+        {dateFiltre('au', 'au')}
         <FiltreSelect
           label="Type d’objet"
           value={filtres.entityType ?? ''}
@@ -127,6 +132,7 @@ export default function JournalAuditPage() {
             <X aria-hidden size={14} />
           </button>
         )}
+        </Filtres>
       </BarreOutils>
 
       <Tableau

@@ -3,8 +3,7 @@
 import { useEffect, useState } from 'react';
 import { listerAgentsSansCompte } from '../../lib/api/socle';
 import type { AgentSansCompte } from '../../lib/socle/types';
-import { Field } from '../ui/Input';
-import { Choix } from '../ui/Fenetre';
+import { Saisie, SelecteurPersonnes } from '../ui/Formulaire';
 
 export type SelectionAgent = { agentId?: string; matricule?: string };
 
@@ -25,22 +24,25 @@ export function ChoixAgent({ onChange, onAgentChoisi }: { onChange: (s: Selectio
     onChange(agentId ? { agentId } : matricule.trim() ? { matricule: matricule.trim() } : {});
   }, [agentId, matricule, onChange]);
   return (
-    <div className="mb-2 rounded-md border border-line bg-bg px-3.5 pt-3">
-      <Choix
+    <div className="mb-3.5 rounded-[10px] border border-line bg-bg px-3.5 pt-3">
+      <SelecteurPersonnes
+        id="agent-dossier"
         label="Agent (dossier RH)"
-        value={agentId}
-        onChange={(v) => {
+        facultatif
+        multiple={false}
+        placeholder="Rechercher un agent sans compte…"
+        aide={agentId ? undefined : 'Aucun agent choisi : un nouvel agent est créé avec ce compte.'}
+        options={agents.map((a) => ({ id: a.id, nom: `${a.prenoms} ${a.nom}`, detail: `${a.matricule}${a.unite ? ` · ${a.unite.code}` : ''}` }))}
+        valeurs={agentId ? [agentId] : []}
+        onChange={(ids) => {
+          const v = ids[0] ?? '';
           setAgentId(v);
           const a = agents.find((x) => x.id === v);
           if (a) onAgentChoisi?.(a);
         }}
-        vide="Nouvel agent, créé avec ce compte"
-        options={agents.map((a) => ({ value: a.id, label: `${a.prenoms} ${a.nom} — ${a.matricule}${a.unite ? ` (${a.unite.code})` : ''}` }))}
       />
       {!agentId && (
-        <>
-          <Field label="Matricule du nouvel agent (facultatif)" value={matricule} onChange={(e) => setMatricule(e.target.value)} placeholder="Sinon un matricule provisoire est attribué" />
-        </>
+        <Saisie id="agent-matricule" label="Matricule du nouvel agent" facultatif value={matricule} onChange={setMatricule} placeholder="Sinon un matricule provisoire est attribué" />
       )}
     </div>
   );

@@ -4,21 +4,26 @@ import { useCallback, useEffect, useState } from 'react';
 import { affecterVehicule, ajouterPlein, creerVehicule, getParcVehicules, getVehicule, modifierVehicule, retourMission } from '../../lib/api/vehicules';
 import type { EtatVehicule, MissionVehicule, ParcVehicules, VehiculeDetail } from '../../lib/logistique/vehicules';
 import { LIBELLE_ETAT_VEHICULE } from '../../lib/logistique/vehicules';
-import { Plus } from 'lucide-react';
-import { BTN_LIGNE, BTN_PRINCIPAL, CleValeur, EtatVide, LigneTableau, Panneau, Pastille, SectionFenetre, type TonPastille } from '../ui/Charte';
-import { Fenetre } from '../ui/Fenetre';
+import { Fuel, Plus } from 'lucide-react';
+import { BTN_LIGNE, BTN_PRINCIPAL, BTN_SECONDAIRE, CleValeur, EtatVide, LigneTableau, Panneau, Pastille, SectionFenetre, type TonPastille } from '../ui/Charte';
 import { Chargement, ErreurChargement, messageChargement } from '../ui/ErreurChargement';
+import { ChampDate, ChoixSegment, FenetreFormulaire, Grille2, Liste, Saisie } from '../ui/Formulaire';
+import { messageErreur, useToast } from '../ui/Toast';
+import { jourLocal, useEnvoi } from '../courrier/formulaire';
 import { Panneau as PanneauFiche, dateCourte, nom } from './commun';
 
-const champ = 'mt-1 w-full rounded-md border border-line bg-surface px-3 py-2 text-[13px]';
+const champ = 'mt-1 w-full rounded-[10px] border border-line bg-surface px-3 py-2 text-[13px]';
 const TON_ETAT: Record<EtatVehicule, TonPastille> = { EN_SERVICE: 'vert', EN_PANNE: 'rouge', EN_REPARATION: 'ambre', REFORME: 'gris' };
 const GRILLE_V = 'lg:grid-cols-[140px_minmax(0,1.4fr)_100px_120px_minmax(0,1fr)]';
 const GRILLE_M = 'lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1.1fr)_minmax(0,1.3fr)]';
 const km = (n: number | null) => (n === null ? '—' : `${n.toLocaleString('fr-FR')} km`);
-const aujourdhui = () => new Date().toISOString().slice(0, 10);
+const entier = (v: string, min: number) => Number.isInteger(Number(v)) && Number(v) >= min;
+/** Litres saisis à la française (virgule) ou au point ; NaN si illisible. */
+const litres = (v: string) => (/^\d+([.,]\d{1,2})?$/.test(v.trim()) ? Number(v.trim().replace(',', '.')) : NaN);
 
 /** Véhicules de service, missions et carburant (socle N6, SIG-RF-LOG-03). */
 export function OngletVehicules() {
+  const toast = useToast();
   const [parc, setParc] = useState<ParcVehicules | null>(null);
   const [ouvert, setOuvert] = useState<string | null>(null);
   const [nouveau, setNouveau] = useState(false);
@@ -77,19 +82,39 @@ export function OngletVehicules() {
           </div>
         )}
       </Panneau>
-      {g && <Missions parc={parc} onChange={charger} onErreur={setErreur} />}
-      {nouveau && <FenetreVehicule onClose={() => setNouveau(false)} onFait={() => (setNouveau(false), charger())} />}
+      {g && <Missions parc={parc} onChange={charger} />}
+      {nouveau && (
+        <FenetreVehicule
+          onClose={() => setNouveau(false)}
+          onFait={(immatriculation) => {
+            setNouveau(false);
+            toast.succes('Véhicule ajouté au parc', { detail: immatriculation });
+            charger();
+          }}
+        />
+      )}
       {ouvert && <FicheVehicule id={ouvert} onClose={() => setOuvert(null)} onChange={charger} />}
     </div>
   );
 }
 
-function Missions({ parc, onChange, onErreur }: { parc: ParcVehicules; onChange: () => void; onErreur: (m: string | null) => void }) {
+function Missions({ parc, onChange }: { parc: ParcVehicules; onChange: () => void }) {
+  const toast = useToast();
   const [retour, setRetour] = useState<MissionVehicule | null>(null);
   const enService = parc.vehicules.filter((v) => v.actif && v.etat === 'EN_SERVICE');
-  const agir = (p: Promise<unknown>) => {
-    onErreur(null);
-    p.then(onChange).catch((x) => onErreur(messageChargement(x)));
+  const immat = (id: string | null) => parc.vehicules.find((v) => v.id === id)?.immatriculation ?? '';
+  /** Affectation (ou retrait) du véhicule ; « Annuler » remet le véhicule précédent par la même route. */
+  const affecter = async (m: MissionVehicule, vehiculeId: string | null, precedent: string | null, annulable = true) => {
+    try {
+      await affecterVehicule(m.id, vehiculeId);
+      onChange();
+      toast.succes(vehiculeId ? 'Véhicule affecté' : 'Véhicule retiré de la mission', {
+        detail: vehiculeId ? `${immat(vehiculeId)} pour « ${m.objet} ».` : `« ${m.objet} » part sans véhicule de service.`,
+        annuler: annulable ? () => affecter(m, precedent, vehiculeId, false) : undefined,
+      });
+    } catch (x) {
+      toast.erreur('Affectation impossible', messageErreur(x));
+    }
   };
   return (
     <section aria-label="Ordres de mission à équiper" data-testid="missions-vehicules" className="overflow-hidden rounded-xl border border-line bg-surface">
@@ -124,7 +149,7 @@ function Missions({ parc, onChange, onErreur }: { parc: ParcVehicules; onChange:
                 <span className="flex flex-wrap items-center gap-1.5">
                   {m.kilometrageRetour === null ? (
                     <>
-                      <select aria-label={`Véhicule de la mission ${m.objet}`} value={m.vehiculeId ?? ''} onChange={(e) => agir(affecterVehicule(m.id, e.target.value || null))} className="h-[30px] max-w-full rounded-[7px] border border-line bg-surface px-2 text-[12.5px]">
+                      <select aria-label={`Véhicule de la mission ${m.objet}`} value={m.vehiculeId ?? ''} onChange={(e) => void affecter(m, e.target.value || null, m.vehiculeId)} className="h-[30px] max-w-full rounded-[7px] border border-line bg-surface px-2 text-[12.5px]">
                         <option value="">— Sans véhicule —</option>
                         {parc.vehicules.filter((v) => v.id === m.vehiculeId || enService.includes(v)).map((v) => <option key={v.id} value={v.id}>{v.immatriculation}</option>)}
                       </select>
@@ -143,92 +168,150 @@ function Missions({ parc, onChange, onErreur }: { parc: ParcVehicules; onChange:
           </div>
         </div>
       )}
-      {retour && <FenetreRetour mission={retour} onClose={() => setRetour(null)} onFait={() => (setRetour(null), onChange())} />}
+      {retour && (
+        <FenetreRetour
+          mission={retour}
+          onClose={() => setRetour(null)}
+          onFait={(distance) => {
+            setRetour(null);
+            toast.succes('Retour de mission enregistré', { detail: `${distance.toLocaleString('fr-FR')} km parcourus.` });
+            onChange();
+          }}
+        />
+      )}
     </section>
   );
 }
 
-function FenetreRetour({ mission, onClose, onFait }: { mission: MissionVehicule; onClose: () => void; onFait: () => void }) {
+function FenetreRetour({ mission, onClose, onFait }: { mission: MissionVehicule; onClose: () => void; onFait: (distance: number) => void }) {
   const [k, setK] = useState('');
-  const [erreur, setErreur] = useState<string | null>(null);
-  const [enCours, setEnCours] = useState(false);
+  const { enCours, erreur, envoyer } = useEnvoi();
   return (
-    <Fenetre
+    <FenetreFormulaire
       titre={`Retour de mission — ${mission.objet}`}
+      sousTitre={`Kilométrage au départ : ${km(mission.kilometrageDepart)}.`}
       onClose={onClose}
       enCours={enCours}
       erreur={erreur}
+      largeur={540}
       libelleValider="Enregistrer le retour"
+      pied="Le compteur du véhicule ne recule jamais."
+      valider={() =>
+        k && !entier(k, 0)
+          ? { 'retour-km': 'Indiquez un nombre entier de kilomètres.' }
+          : k && mission.kilometrageDepart !== null && Number(k) < mission.kilometrageDepart
+            ? { 'retour-km': `Le compteur ne peut pas être inférieur au départ (${km(mission.kilometrageDepart)}).` }
+            : {}
+      }
       onSubmit={async () => {
-        setEnCours(true);
-        setErreur(null);
-        try {
-          await retourMission(mission.id, Number(k));
-          onFait();
-        } catch (x) {
-          setErreur(messageChargement(x));
-        } finally {
-          setEnCours(false);
-        }
+        const r = await envoyer(() => retourMission(mission.id, Number(k)));
+        if (r.ok) onFait(r.valeur.distance);
       }}
     >
-      <p className="mb-3 text-[12.5px] text-text-muted">Kilométrage au départ : {km(mission.kilometrageDepart)}.</p>
-      <label className="block text-[12.5px] font-semibold">Kilométrage au retour<input type="number" required min={0} value={k} onChange={(e) => setK(e.target.value)} className={champ} /></label>
-    </Fenetre>
+      <Saisie id="retour-km" label="Kilométrage au retour" type="number" min={0} value={k} onChange={setK} required messageObligatoire="Indiquez le kilométrage du compteur au retour." />
+    </FenetreFormulaire>
   );
 }
 
-function FenetreVehicule({ onClose, onFait }: { onClose: () => void; onFait: () => void }) {
-  const [v, setV] = useState({ immatriculation: '', marque: '', modele: '', energie: 'GAZOLE', kilometrage: '0' });
-  const [erreur, setErreur] = useState<string | null>(null);
-  const [enCours, setEnCours] = useState(false);
-  const set = (k: keyof typeof v) => (e: { target: { value: string } }) => setV((x) => ({ ...x, [k]: e.target.value }));
+function FenetreVehicule({ onClose, onFait }: { onClose: () => void; onFait: (immatriculation: string) => void }) {
+  const [v, setV] = useState({ immatriculation: '', marque: '', modele: '', energie: 'GAZOLE' as 'GAZOLE' | 'ESSENCE', kilometrage: '0' });
+  const { enCours, erreur, envoyer } = useEnvoi();
   return (
-    <Fenetre
+    <FenetreFormulaire
       titre="Nouveau véhicule"
       onClose={onClose}
       enCours={enCours}
       erreur={erreur}
+      largeur={640}
       libelleValider="Ajouter le véhicule"
+      pied="Le véhicule entre au parc « En service » ; le carburant se suit en litres."
+      valider={() => (v.kilometrage && !entier(v.kilometrage, 0) ? { 'veh-km': 'Indiquez un nombre entier de kilomètres.' } : {})}
       onSubmit={async () => {
-        setEnCours(true);
-        setErreur(null);
-        try {
-          await creerVehicule({ ...v, immatriculation: v.immatriculation.toUpperCase(), kilometrage: Number(v.kilometrage) });
-          onFait();
-        } catch (x) {
-          setErreur(messageChargement(x));
-        } finally {
-          setEnCours(false);
-        }
+        const immatriculation = v.immatriculation.trim().toUpperCase();
+        const r = await envoyer(() => creerVehicule({ ...v, immatriculation, marque: v.marque.trim(), modele: v.modele.trim(), kilometrage: Number(v.kilometrage) }));
+        if (r.ok) onFait(immatriculation);
       }}
     >
-      <label className="mb-3 block text-[12.5px] font-semibold">Immatriculation<input required value={v.immatriculation} onChange={set('immatriculation')} className={champ} /></label>
-      <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <label className="block text-[12.5px] font-semibold">Marque<input required value={v.marque} onChange={set('marque')} className={champ} /></label>
-        <label className="block text-[12.5px] font-semibold">Modèle<input required value={v.modele} onChange={set('modele')} className={champ} /></label>
-      </div>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <label className="block text-[12.5px] font-semibold">Énergie
-          <select value={v.energie} onChange={set('energie')} className={champ}><option value="GAZOLE">Gazole</option><option value="ESSENCE">Essence</option></select>
-        </label>
-        <label className="block text-[12.5px] font-semibold">Kilométrage du compteur<input type="number" min={0} required value={v.kilometrage} onChange={set('kilometrage')} className={champ} /></label>
-      </div>
-    </Fenetre>
+      <Saisie id="veh-immat" label="Immatriculation" value={v.immatriculation} onChange={(immatriculation) => setV({ ...v, immatriculation })} required maxLength={20} messageObligatoire="Indiquez l’immatriculation." placeholder="RC-1234-A" />
+      <Grille2>
+        <Saisie id="veh-marque" label="Marque" value={v.marque} onChange={(marque) => setV({ ...v, marque })} required maxLength={60} messageObligatoire="Indiquez la marque." />
+        <Saisie id="veh-modele" label="Modèle" value={v.modele} onChange={(modele) => setV({ ...v, modele })} required maxLength={60} messageObligatoire="Indiquez le modèle." />
+        <ChoixSegment<'GAZOLE' | 'ESSENCE'>
+          id="veh-energie"
+          label="Énergie"
+          value={v.energie}
+          onChange={(energie) => setV({ ...v, energie })}
+          options={[
+            { value: 'GAZOLE', label: 'Gazole' },
+            { value: 'ESSENCE', label: 'Essence' },
+          ]}
+        />
+        <Saisie id="veh-km" label="Kilométrage du compteur" type="number" min={0} value={v.kilometrage} onChange={(kilometrage) => setV({ ...v, kilometrage })} required />
+      </Grille2>
+    </FenetreFormulaire>
+  );
+}
+
+/** Plein de carburant : litres seulement (aucun montant), compteur qui ne recule jamais. */
+function FenetrePlein({ vehicule, onClose, onFait }: { vehicule: VehiculeDetail; onClose: () => void; onFait: (litres: number) => void }) {
+  const [plein, setPlein] = useState({ date: jourLocal(0), litres: '', kilometrage: '', ordreMissionId: '' });
+  const { enCours, erreur, envoyer } = useEnvoi();
+  return (
+    <FenetreFormulaire
+      titre={`Ajouter un plein — ${vehicule.immatriculation}`}
+      sousTitre={`Compteur actuel : ${km(vehicule.kilometrage)}.`}
+      onClose={onClose}
+      enCours={enCours}
+      erreur={erreur}
+      largeur={640}
+      libelleValider="Ajouter le plein"
+      pied="Carburant en litres seulement ; le compteur ne recule jamais."
+      valider={() => ({
+        ...(plein.litres && !(litres(plein.litres) >= 0.5) ? { 'plein-litres': 'Indiquez un nombre de litres (0,5 au moins), par exemple 42,5.' } : {}),
+        ...(plein.kilometrage && !entier(plein.kilometrage, 0)
+          ? { 'plein-km': 'Indiquez un nombre entier de kilomètres.' }
+          : plein.kilometrage && vehicule.kilometrage !== null && Number(plein.kilometrage) < vehicule.kilometrage
+            ? { 'plein-km': `Le compteur ne peut pas être inférieur à ${km(vehicule.kilometrage)}.` }
+            : {}),
+      })}
+      onSubmit={async () => {
+        const r = await envoyer(() => ajouterPlein(vehicule.id, { date: plein.date, litres: litres(plein.litres), kilometrage: Number(plein.kilometrage), ordreMissionId: plein.ordreMissionId || undefined }));
+        if (r.ok) onFait(litres(plein.litres));
+      }}
+    >
+      <Grille2>
+        <ChampDate id="plein-date" label="Date" value={plein.date} max={jourLocal(0)} onChange={(date) => setPlein({ ...plein, date })} required messageObligatoire="Indiquez la date du plein." />
+        <Saisie id="plein-litres" label="Litres" placeholder="42,5" value={plein.litres} onChange={(litres) => setPlein({ ...plein, litres })} required messageObligatoire="Indiquez le nombre de litres." />
+        <Saisie id="plein-km" label="Compteur (km)" type="number" min={0} value={plein.kilometrage} onChange={(kilometrage) => setPlein({ ...plein, kilometrage })} required messageObligatoire="Indiquez le kilométrage du compteur." />
+        <Liste id="plein-mission" label="Mission" facultatif value={plein.ordreMissionId} onChange={(ordreMissionId) => setPlein({ ...plein, ordreMissionId })} vide="Aucune" options={vehicule.missions.map((m) => ({ value: m.id, label: `${m.objet} — ${m.destination}` }))} />
+      </Grille2>
+    </FenetreFormulaire>
   );
 }
 
 function FicheVehicule({ id, onClose, onChange }: { id: string; onClose: () => void; onChange: () => void }) {
+  const toast = useToast();
   const [v, setV] = useState<VehiculeDetail | null>(null);
-  const [plein, setPlein] = useState({ date: aujourdhui(), litres: '', kilometrage: '', ordreMissionId: '' });
+  const [plein, setPlein] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
   const charger = useCallback(() => getVehicule(id).then(setV).catch((x) => setErreur(messageChargement(x))), [id]);
   useEffect(() => {
     charger();
   }, [charger]);
-  const agir = (p: Promise<unknown>) => {
-    setErreur(null);
-    p.then(() => (charger(), onChange())).catch((x) => setErreur(messageChargement(x)));
+  /** Changement d'état ; « Annuler » remet l'état précédent par la même route. */
+  const changerEtat = async (etat: EtatVehicule, precedent: EtatVehicule, annulable = true) => {
+    if (!v) return;
+    try {
+      await modifierVehicule(v.id, { etat });
+      charger();
+      onChange();
+      toast.succes('État du véhicule enregistré', {
+        detail: `${v.immatriculation} : ${LIBELLE_ETAT_VEHICULE[etat]}.`,
+        annuler: annulable ? () => changerEtat(precedent, etat, false) : undefined,
+      });
+    } catch (x) {
+      toast.erreur('Changement impossible', messageErreur(x));
+    }
   };
   return (
     <PanneauFiche
@@ -243,7 +326,7 @@ function FicheVehicule({ id, onClose, onChange }: { id: string; onClose: () => v
             {v.droits.gerer && (
               <label className="mb-[18px] block text-[12.5px] font-semibold">
                 État
-                <select value={v.etat} onChange={(e) => agir(modifierVehicule(v.id, { etat: e.target.value as EtatVehicule }))} className={champ}>
+                <select value={v.etat} onChange={(e) => void changerEtat(e.target.value as EtatVehicule, v.etat)} className={champ}>
                   {(Object.keys(LIBELLE_ETAT_VEHICULE) as EtatVehicule[]).map((x) => <option key={x} value={x}>{LIBELLE_ETAT_VEHICULE[x]}</option>)}
                 </select>
               </label>
@@ -279,26 +362,21 @@ function FicheVehicule({ id, onClose, onChange }: { id: string; onClose: () => v
             )}
           </SectionFenetre>
           {v.droits.gerer && (
-            <SectionFenetre titre="Ajouter un plein" className="">
-              <form
-                className="grid grid-cols-2 gap-2 sm:grid-cols-5"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  agir(ajouterPlein(v.id, { date: plein.date, litres: Number(plein.litres), kilometrage: Number(plein.kilometrage), ordreMissionId: plein.ordreMissionId || undefined }).then(() => setPlein({ date: aujourdhui(), litres: '', kilometrage: '', ordreMissionId: '' })));
-                }}
-              >
-                <label className="text-[12px] font-semibold">Date<input type="date" required value={plein.date} onChange={(e) => setPlein({ ...plein, date: e.target.value })} className={champ} /></label>
-                <label className="text-[12px] font-semibold">Litres<input type="number" step="0.01" min={0.5} required value={plein.litres} onChange={(e) => setPlein({ ...plein, litres: e.target.value })} className={champ} /></label>
-                <label className="text-[12px] font-semibold">Mission (facultatif)
-                  <select value={plein.ordreMissionId} onChange={(e) => setPlein({ ...plein, ordreMissionId: e.target.value })} className={champ}>
-                    <option value="">—</option>
-                    {v.missions.map((m) => <option key={m.id} value={m.id}>{m.objet}</option>)}
-                  </select>
-                </label>
-                <label className="text-[12px] font-semibold">Compteur<input type="number" min={0} required value={plein.kilometrage} onChange={(e) => setPlein({ ...plein, kilometrage: e.target.value })} className={champ} /></label>
-                <div className="col-span-2 flex items-end sm:col-span-1"><button type="submit" className={`${BTN_PRINCIPAL} w-full`}>Ajouter le plein</button></div>
-              </form>
-            </SectionFenetre>
+            <button type="button" className={BTN_SECONDAIRE} onClick={() => setPlein(true)}>
+              <Fuel aria-hidden size={16} /> Ajouter un plein
+            </button>
+          )}
+          {plein && (
+            <FenetrePlein
+              vehicule={v}
+              onClose={() => setPlein(false)}
+              onFait={(litres) => {
+                setPlein(false);
+                toast.succes('Plein enregistré', { detail: `${litres.toLocaleString('fr-FR')} L pour ${v.immatriculation}.` });
+                charger();
+                onChange();
+              }}
+            />
           )}
         </div>
       )}

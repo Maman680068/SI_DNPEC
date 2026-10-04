@@ -8,9 +8,10 @@ import { useAuth } from '../../../lib/auth/AuthProvider';
 import { ROLE_LABEL } from '../../../lib/users/types';
 import { getDirectory } from '../../../lib/api/org';
 import type { DirectoryUser as PersonneAnnuaire } from '../../../lib/org/types';
-import { BarreOutils, BTN_SECONDAIRE, EnTetePage, EtatVide, FiltreSelect, Initiales, initialesDe, LigneTableau, Recherche, Tableau } from '../../../components/ui/Charte';
+import { BarreOutils, BTN_SECONDAIRE, EnTetePage, EtatVide, Filtres, FiltreSelect, Initiales, initialesDe, LigneTableau, Recherche, Tableau } from '../../../components/ui/Charte';
 import { PersonDetailModal } from '../../../components/directory/PersonDetailModal';
 import { Chargement, ErreurChargement, messageChargement } from '../../../components/ui/ErreurChargement';
+import { SqueletteCartes } from '../../../components/ui/Squelette';
 
 /** Unité choisie dans l'arbre (ou le menu sur téléphone) : un utilisateur est rattaché à une
  * division (et éventuellement une section) OU à une cellule, jamais aux deux (voir schema.prisma) ;
@@ -149,24 +150,30 @@ export default function AnnuairePage() {
         }
       >
         <Recherche value={query} onChange={setQuery} placeholder="Nom, poste, unité…" label="Rechercher un nom, un poste ou une unité" />
-        <FiltreSelect label="Fonction" value={fonction} defaut="" onChange={setFonction} options={[{ value: '', label: 'Fonction : toutes' }, ...fonctions.map((f) => ({ value: f, label: f }))]} />
-        <select
-          aria-label="Unité"
-          value={encoder(unite)}
-          onChange={(e) => setUnite(decoder(e.target.value))}
-          className={`h-9 w-full rounded-[9px] border px-2.5 text-[13px] font-semibold sm:w-auto sm:max-w-[260px] lg:hidden ${unite.kind !== 'all' ? 'border-ink bg-ink-50 text-ink' : 'border-line bg-surface text-text'}`}
-        >
-          {arbre.map((a) => (
-            <option key={encoder(a.unite)} value={encoder(a.unite)}>
-              {a.niveau ? '— ' : ''}
-              {a.unite.kind === 'all' ? 'Unité : toutes' : a.libelle}
-            </option>
-          ))}
-        </select>
+        <Filtres actifs={(fonction ? 1 : 0) + (unite.kind !== 'all' ? 1 : 0)} onEffacer={() => (setFonction(''), setUnite({ kind: 'all' }))}>
+          <FiltreSelect label="Fonction" value={fonction} defaut="" onChange={setFonction} options={[{ value: '', label: 'Fonction : toutes' }, ...fonctions.map((f) => ({ value: f, label: f }))]} />
+          <select
+            aria-label="Unité"
+            value={encoder(unite)}
+            onChange={(e) => setUnite(decoder(e.target.value))}
+            className={`h-9 w-full rounded-[9px] border px-2.5 text-[13px] font-semibold sm:w-auto sm:max-w-[260px] lg:hidden ${unite.kind !== 'all' ? 'border-ink bg-ink-50 text-ink' : 'border-line bg-surface text-text'}`}
+          >
+            {arbre.map((a) => (
+              <option key={encoder(a.unite)} value={encoder(a.unite)}>
+                {a.niveau ? '— ' : ''}
+                {a.unite.kind === 'all' ? 'Unité : toutes' : a.libelle}
+              </option>
+            ))}
+          </select>
+        </Filtres>
       </BarreOutils>
 
       {people === null ? (
-        <Chargement erreur={erreurChargement} className="py-8 text-center text-[13px] text-text-muted" />
+        vue === 'cartes' && !erreurChargement ? (
+          <SqueletteCartes cartes={6} />
+        ) : (
+          <Chargement erreur={erreurChargement} lignes={6} />
+        )
       ) : (
         <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[248px_minmax(0,1fr)]">
           <nav aria-label="Unités" className="hidden rounded-xl border border-line bg-surface p-2.5 lg:block" data-testid="arbre-unites">

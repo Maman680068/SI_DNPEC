@@ -6,10 +6,12 @@ import { creerUnite, fermerUnite, getHistoriqueUnite, getOrganigramme, modifierU
 import type { EvenementUnite, Organigramme as Donnees, TypeUnite, UniteOrganigramme } from '../../lib/socle/types';
 import { LIBELLE_EVENEMENT_UNITE } from '../../lib/socle/types';
 import { Chargement, ErreurChargement, messageChargement } from '../ui/ErreurChargement';
-import { Field } from '../ui/Input';
-import { BandeCompteurs, BarreOutils, BTN_DANGER_CONTOUR, BTN_LIGNE, BTN_PRINCIPAL, BTN_SECONDAIRE, CleValeur, EtatVide, Pastille, Recherche, SectionFenetre } from '../ui/Charte';
+import { BandeCompteurs, BarreOutils, Filtres, BTN_DANGER_CONTOUR, BTN_LIGNE, BTN_PRINCIPAL, BTN_SECONDAIRE, CleValeur, EtatVide, Pastille, Recherche, SectionFenetre } from '../ui/Charte';
 import { FenetreDetail } from '../ui/FenetreDetail';
-import { Choix, Fenetre, Texte } from '../ui/Fenetre';
+import { Fenetre, Texte } from '../ui/Fenetre';
+import { ChoixSegment, FenetreFormulaire, Grille2, Liste, Saisie } from '../ui/Formulaire';
+import { SqueletteListe } from '../ui/Squelette';
+import { messageErreur, useToast } from '../ui/Toast';
 
 type Action =
   | { nature: 'creer'; parent: UniteOrganigramme }
@@ -34,6 +36,7 @@ export function Organigramme() {
   const [action, setAction] = useState<Action | null>(null);
   const [ouverte, setOuverte] = useState<string | null>(null);
   const [recherche, setRecherche] = useState('');
+  const toast = useToast();
 
   const charger = useCallback(() => {
     getOrganigramme()
@@ -68,7 +71,7 @@ export function Organigramme() {
     return ok;
   }, [enfants, q]);
 
-  if (!donnees) return <Chargement erreur={erreur} />;
+  if (!donnees) return <><ErreurChargement message={erreur} /><Chargement erreur={erreur} lignes={8} /></>;
   const racines = (enfants.get(null) ?? []).filter((u) => !visibles || visibles.has(u.id));
   const actives = donnees.unites.filter((u) => !u.fermee);
   const nbFermees = donnees.unites.length - actives.length;
@@ -167,17 +170,16 @@ export function Organigramme() {
           { valeur: sansResponsable, label: 'Sans responsable', sous: 'unités actives sans responsable désigné', ton: sansResponsable ? 'rouge' : 'encre', testid: 'compteur-sans-responsable' },
         ]}
       />
-      <BarreOutils
-        droite={
-          nbFermees > 0 ? (
-            <label className="flex items-center gap-2 text-[12.5px] text-text-muted">
-              <input type="checkbox" checked={voirFermees} onChange={(e) => setVoirFermees(e.target.checked)} />
+      <BarreOutils>
+        <Recherche value={recherche} onChange={setRecherche} placeholder="Code, libellé, responsable…" label="Rechercher une unité" />
+        {nbFermees > 0 && (
+          <Filtres actifs={voirFermees ? 1 : 0} onEffacer={() => setVoirFermees(false)}>
+            <label className="flex items-center gap-2 text-[13px] text-text-muted md:ml-auto md:text-[12.5px]">
+              <input type="checkbox" checked={voirFermees} onChange={(e) => setVoirFermees(e.target.checked)} className="h-4 w-4 accent-ink" />
               Afficher les unités fermées ({nbFermees})
             </label>
-          ) : undefined
-        }
-      >
-        <Recherche value={recherche} onChange={setRecherche} placeholder="Code, libellé, responsable…" label="Rechercher une unité" />
+          </Filtres>
+        )}
       </BarreOutils>
       <div className="overflow-hidden rounded-xl border border-line bg-surface">
         {racines.length === 0 ? (
@@ -203,13 +205,38 @@ export function Organigramme() {
         />
       )}
       {action?.nature === 'creer' && (
-        <FenetreCreation parent={action.parent} onClose={() => setAction(null)} onFait={() => { setAction(null); charger(); }} />
+        <FenetreCreation
+          parent={action.parent}
+          onClose={() => setAction(null)}
+          onFait={(code) => {
+            setAction(null);
+            charger();
+            toast.succes('Unité créée', { detail: `${code}, sous ${action.parent.code}.` });
+          }}
+        />
       )}
       {action?.nature === 'modifier' && (
-        <FenetreModification unite={action.unite} onClose={() => setAction(null)} onFait={() => { setAction(null); charger(); }} />
+        <FenetreModification
+          unite={action.unite}
+          onClose={() => setAction(null)}
+          onFait={() => {
+            setAction(null);
+            charger();
+            toast.succes('Unité modifiée', { detail: 'La modification est inscrite à l’historique.' });
+          }}
+        />
       )}
       {action?.nature === 'fermer' && (
-        <FenetreFermeture unite={action.unite} onClose={() => setAction(null)} onFait={() => { setAction(null); setOuverte(null); charger(); }} />
+        <FenetreFermeture
+          unite={action.unite}
+          onClose={() => setAction(null)}
+          onFait={() => {
+            setAction(null);
+            setOuverte(null);
+            charger();
+            toast.succes('Unité fermée', { detail: `${action.unite.code} reste consultable dans les unités fermées.` });
+          }}
+        />
       )}
     </div>
   );
@@ -278,7 +305,7 @@ function FenetreUnite({ unite, parent, onClose, onAction }: { unite: UniteOrgani
       <SectionFenetre titre="Historique" n={lignes?.length}>
         <ErreurChargement message={erreur} />
         {!lignes ? (
-          !erreur && <p className="text-[13px] text-text-muted">Chargement…</p>
+          !erreur && <SqueletteListe lignes={3} colonnes={1} />
         ) : lignes.length === 0 ? (
           <p className="text-[13px] text-text-muted">Aucun événement enregistré.</p>
         ) : (
@@ -319,32 +346,43 @@ function useEnvoi(onFait: () => void) {
       await f();
       onFait();
     } catch (e) {
-      setErreur(e instanceof Error ? e.message : 'Une erreur est survenue');
+      setErreur(messageErreur(e));
       setEnCours(false);
     }
   };
   return { enCours, erreur, envoyer };
 }
 
-function FenetreCreation({ parent, onClose, onFait }: { parent: UniteOrganigramme; onClose: () => void; onFait: () => void }) {
+const AIDE_CODE = 'Lettres majuscules, chiffres ou tirets (ex. SGOP, CSID).';
+
+function FenetreCreation({ parent, onClose, onFait }: { parent: UniteOrganigramme; onClose: () => void; onFait: (code: string) => void }) {
   const [type, setType] = useState<TypeUnite>(parent.droits.typesEnfants[0]!.type);
   const [code, setCode] = useState('');
   const [libelle, setLibelle] = useState('');
-  const { enCours, erreur, envoyer } = useEnvoi(onFait);
+  const { enCours, erreur, envoyer } = useEnvoi(() => onFait(code.trim().toUpperCase()));
+  const types = parent.droits.typesEnfants.map((t) => ({ value: t.type, label: t.libelle }));
   return (
-    <Fenetre
-      titre={`Nouvelle unité sous ${parent.code}`}
+    <FenetreFormulaire
+      titre="Nouvelle unité"
+      sousTitre={`Rattachée à ${parent.code} — ${parent.libelle}`}
       onClose={onClose}
+      largeur={640}
       enCours={enCours}
       erreur={erreur}
       libelleValider="Créer l’unité"
+      pied="L’unité apparaît aussitôt dans l’organigramme et les listes de choix."
       onSubmit={() => envoyer(() => creerUnite({ type, parentId: parent.id, code: code.trim().toUpperCase(), libelle: libelle.trim() }))}
     >
-      <Choix label="Type" value={type} onChange={(v) => setType(v as TypeUnite)} options={parent.droits.typesEnfants.map((t) => ({ value: t.type, label: t.libelle }))} />
-      <Field label="Code" value={code} onChange={(e) => setCode(e.target.value)} required maxLength={20} />
-      <p className="-mt-3 mb-4 text-[11.5px] text-text-faint">Lettres majuscules, chiffres ou tirets (ex. SGOP, CSID).</p>
-      <Field label="Libellé" value={libelle} onChange={(e) => setLibelle(e.target.value)} required maxLength={150} />
-    </Fenetre>
+      {types.length > 1 && types.length <= 5 ? (
+        <ChoixSegment<TypeUnite> id="un-type" label="Type" options={types} value={type} onChange={setType} />
+      ) : (
+        <Liste id="un-type" label="Type" value={type} onChange={(v) => setType(v as TypeUnite)} options={types} />
+      )}
+      <Grille2>
+        <Saisie id="un-code" label="Code" value={code} onChange={setCode} required maxLength={20} aide={AIDE_CODE} />
+        <Saisie id="un-libelle" label="Libellé" value={libelle} onChange={setLibelle} required maxLength={150} />
+      </Grille2>
+    </FenetreFormulaire>
   );
 }
 
@@ -353,20 +391,30 @@ function FenetreModification({ unite, onClose, onFait }: { unite: UniteOrganigra
   const [libelle, setLibelle] = useState(unite.libelle);
   const [type, setType] = useState<TypeUnite>(unite.type);
   const { enCours, erreur, envoyer } = useEnvoi(onFait);
+  const types = unite.droits.typesPossibles.map((t) => ({ value: t.type, label: t.libelle }));
   return (
-    <Fenetre
-      titre={`Modifier ${unite.code}`}
+    <FenetreFormulaire
+      titre="Modifier l’unité"
+      sousTitre={`${unite.code} — ${unite.libelle}`}
       onClose={onClose}
+      largeur={640}
       enCours={enCours}
       erreur={erreur}
+      libelleValider="Enregistrer"
+      pied="La modification est inscrite à l’historique de l’unité."
       onSubmit={() => envoyer(() => modifierUnite(unite.id, { code: code.trim().toUpperCase(), libelle: libelle.trim(), ...(type !== unite.type ? { type } : {}) }))}
     >
-      <Field label="Code" value={code} onChange={(e) => setCode(e.target.value)} required maxLength={20} />
-      <Field label="Libellé" value={libelle} onChange={(e) => setLibelle(e.target.value)} required maxLength={150} />
-      {unite.droits.typesPossibles.length > 0 && (
-        <Choix label="Type" value={type} onChange={(v) => setType(v as TypeUnite)} options={unite.droits.typesPossibles.map((t) => ({ value: t.type, label: t.libelle }))} />
-      )}
-    </Fenetre>
+      <Grille2>
+        <Saisie id="un-code" label="Code" value={code} onChange={setCode} required maxLength={20} aide={AIDE_CODE} />
+        <Saisie id="un-libelle" label="Libellé" value={libelle} onChange={setLibelle} required maxLength={150} />
+      </Grille2>
+      {types.length > 0 &&
+        (types.length <= 5 ? (
+          <ChoixSegment<TypeUnite> id="un-type" label="Type" options={types} value={type} onChange={setType} />
+        ) : (
+          <Liste id="un-type" label="Type" value={type} onChange={(v) => setType(v as TypeUnite)} options={types} />
+        ))}
+    </FenetreFormulaire>
   );
 }
 
@@ -381,10 +429,11 @@ function FenetreFermeture({ unite, onClose, onFait }: { unite: UniteOrganigramme
       erreur={erreur}
       danger
       libelleValider="Fermer l’unité"
+      pied="La fermeture est définitive et datée d’aujourd’hui."
       onSubmit={() => envoyer(() => fermerUnite(unite.id, { motif: motif.trim() }))}
     >
-      <p className="mb-4 text-[13px] text-text-muted">
-        La fermeture est définitive et datée d’aujourd’hui. L’unité disparaît des listes de choix ; son historique et ses documents restent consultables.
+      <p className="mb-4 text-[13px] text-text">
+        L’unité disparaît des listes de choix ; son historique et ses documents restent consultables.
       </p>
       {unite.droits.fermetureBloquee && (
         <p className="mb-4 rounded-md bg-gold-soft px-3 py-2 text-[12.5px] text-ink">

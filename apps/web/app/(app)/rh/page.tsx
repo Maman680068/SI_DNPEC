@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { exporterEffectifs, getAlertesRh, getOngletsRh } from '../../../lib/api/rh';
 import type { AlerteRh, TypeAlerteRh } from '../../../lib/rh/types';
 import { FileSpreadsheet } from 'lucide-react';
-import { Chargement, ErreurChargement, messageChargement } from '../../../components/ui/ErreurChargement';
+import { ErreurChargement, messageChargement } from '../../../components/ui/ErreurChargement';
 import { OngletEffectifs } from '../../../components/rh/OngletEffectifs';
 import { OngletAlertes } from '../../../components/rh/OngletAlertes';
 import { OngletCarriere } from '../../../components/rh/OngletCarriere';
@@ -12,6 +12,8 @@ import { OngletFiches } from '../../../components/rh/OngletFiches';
 import { OngletFormation } from '../../../components/rh/OngletFormation';
 import { OngletPieces } from '../../../components/rh/OngletPieces';
 import { BTN_SECONDAIRE, EnTetePage, Onglets } from '../../../components/ui/Charte';
+import { SquelettePage } from '../../../components/ui/Squelette';
+import { messageErreur, useToast } from '../../../components/ui/Toast';
 
 type Cle = 'effectifs' | 'alertes' | 'carriere' | 'fiches' | 'formation' | 'pieces';
 const LIBELLES: Record<Cle, string> = {
@@ -32,6 +34,7 @@ export default function RhPage() {
   // Alertes (DRH seul, selon l'onglet renvoyé par l'API) : compteur de l'onglet et panneau des effectifs.
   const [alertes, setAlertes] = useState<AlerteRh[] | null>(null);
   const [typeAlerte, setTypeAlerte] = useState<TypeAlerteRh | ''>('');
+  const toast = useToast();
 
   useEffect(() => {
     const p = new URLSearchParams(window.location.search);
@@ -50,9 +53,8 @@ export default function RhPage() {
   if (!onglets) {
     return (
       <div>
-        <EnTetePage titre="Ressources humaines" />
         <ErreurChargement message={erreur} />
-        <Chargement erreur={erreur} />
+        {erreur ? <EnTetePage titre="Ressources humaines" /> : <SquelettePage />}
       </div>
     );
   }
@@ -67,7 +69,7 @@ export default function RhPage() {
         titre="Ressources humaines"
         actions={
           onglet === 'effectifs' && (
-            <button type="button" className={BTN_SECONDAIRE} onClick={() => void exporterEffectifs().catch((e) => setErreur(messageChargement(e)))}>
+            <button type="button" className={BTN_SECONDAIRE} onClick={() => void exporterEffectifs().then(() => toast.succes('Effectifs exportés', { detail: 'Le fichier Excel est téléchargé.' })).catch((e) => toast.erreur('Export impossible', messageErreur(e)))}>
               <FileSpreadsheet aria-hidden size={16} />
               Exporter
             </button>

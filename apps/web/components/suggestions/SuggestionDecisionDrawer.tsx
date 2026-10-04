@@ -9,10 +9,19 @@ import { STATUS_LABEL } from '../../lib/suggestions/types';
 import { BTN_PRINCIPAL, CleValeur, Etapes, Pastille, SectionFenetre, type EtatEtape } from '../ui/Charte';
 import { STATUS_TON } from './MySuggestionList';
 import { FenetreDetail } from '../ui/FenetreDetail';
+import { ChoixSegment, ZoneTexte } from '../ui/Formulaire';
+import { messageErreur, useToast } from '../ui/Toast';
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
 }
+
+const TITRE_TOAST: Record<SuggestionStatus, string> = {
+  RECUE: 'Suggestion remise à « Reçue »',
+  EN_ETUDE: 'Suggestion mise en étude',
+  RETENUE: 'Suggestion retenue',
+  NON_RETENUE: 'Suggestion non retenue',
+};
 
 const STATUS_OPTIONS: SuggestionStatus[] = ['RECUE', 'EN_ETUDE', 'RETENUE', 'NON_RETENUE'];
 
@@ -45,6 +54,7 @@ export function SuggestionDecisionDrawer({
   const [response, setResponse] = useState(suggestion.response ?? '');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const toast = useToast();
 
   const authorLabel = suggestion.isAnonymous
     ? 'Anonyme'
@@ -58,9 +68,13 @@ export function SuggestionDecisionDrawer({
     setError(null);
     try {
       const updated = await updateSuggestionStatus(suggestion.id, { status, response: response.trim() || undefined });
+      // Pas d'« Annuler » : remettre l'ancien statut notifierait l'auteur une seconde fois.
+      toast.succes(updated.status === suggestion.status ? 'Suggestion enregistrée' : TITRE_TOAST[updated.status], {
+        detail: suggestion.isAnonymous ? 'Suggestion anonyme : personne n’est notifié.' : 'L’auteur est notifié et voit la réponse.',
+      });
       onUpdated(updated);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Impossible d’enregistrer');
+      setError(messageErreur(err, 'Impossible d’enregistrer.'));
     } finally {
       setSubmitting(false);
     }
@@ -96,29 +110,21 @@ export function SuggestionDecisionDrawer({
               void handleSave();
             }}
           >
-            <label className="mb-3 block text-[12.5px] font-semibold text-text">
-              Statut
-              <select
-                value={status}
-                onChange={(e) => setStatus(e.target.value as SuggestionStatus)}
-                className="mt-1 h-[38px] w-full rounded-[9px] border border-line bg-surface px-3 text-[13.5px] font-normal"
-              >
-                {STATUS_OPTIONS.map((s) => (
-                  <option key={s} value={s}>
-                    {STATUS_LABEL[s]}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="mb-3 block text-[12.5px] font-semibold text-text">
-              Réponse {!suggestion.isAnonymous && '(visible par l’auteur)'}
-              <textarea
-                value={response}
-                onChange={(e) => setResponse(e.target.value)}
-                rows={4}
-                className="mt-1 w-full rounded-[9px] border border-line bg-surface px-3 py-2 text-[13.5px] font-normal"
-              />
-            </label>
+            <ChoixSegment<SuggestionStatus>
+              id="suggestion-statut"
+              label="Statut"
+              value={status}
+              onChange={setStatus}
+              options={STATUS_OPTIONS.map((s) => ({ value: s, label: STATUS_LABEL[s] }))}
+            />
+            <ZoneTexte
+              id="suggestion-reponse"
+              label={`Réponse${suggestion.isAnonymous ? '' : ' (visible par l’auteur)'}`}
+              facultatif
+              value={response}
+              onChange={setResponse}
+              lignes={4}
+            />
             {error && (
               <div role="alert" className="mb-3 rounded-[9px] bg-clay-50 px-3 py-2 text-[13px] text-clay">
                 {error}

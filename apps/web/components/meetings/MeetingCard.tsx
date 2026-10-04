@@ -8,20 +8,30 @@ import { respondToMeeting } from '../../lib/api/meetings';
 import type { Meeting } from '../../lib/meetings/types';
 import { dateCourte, dateLongue, horaire, jourCourt } from '../../lib/meetings/affichage';
 import { Pastille } from '../ui/Charte';
+import { messageErreur, useToast } from '../ui/Toast';
 
 /** Boutons « Je participe » / « Absent » (même appel que la fenêtre : respondToMeeting). */
 export function ReponseReunion({ meeting, onUpdated, grand = false }: { meeting: Meeting; onUpdated: (m: Meeting) => void; grand?: boolean }) {
   const { user } = useAuth();
   const [enCours, setEnCours] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
+  const toast = useToast();
   const moi = meeting.participants.find((p) => p.userId === user?.id);
   if (!moi || meeting.createdById === user?.id || meeting.status !== 'PLANIFIEE') return null;
-  const repondre = (status: 'CONFIRME' | 'DECLINE') => {
+  const avant = moi.responseStatus;
+  const repondre = (status: 'CONFIRME' | 'DECLINE', annulable = true) => {
     setEnCours(true);
     setErreur(null);
     respondToMeeting(meeting.id, status)
-      .then(onUpdated)
-      .catch((e) => setErreur(e instanceof Error ? e.message : 'Impossible d’enregistrer votre réponse'))
+      .then((m) => {
+        onUpdated(m);
+        // « Annuler » : la même route remet la réponse précédente (jamais « sans réponse », que l'API refuse).
+        toast.succes(status === 'CONFIRME' ? 'Présence confirmée' : 'Absence signalée', {
+          detail: `${meeting.title} · l’organisateur voit votre réponse.`,
+          annuler: annulable && (avant === 'CONFIRME' || avant === 'DECLINE') ? () => repondre(avant, false) : undefined,
+        });
+      })
+      .catch((e) => setErreur(messageErreur(e, 'Impossible d’enregistrer votre réponse')))
       .finally(() => setEnCours(false));
   };
   const oui = moi.responseStatus === 'CONFIRME';

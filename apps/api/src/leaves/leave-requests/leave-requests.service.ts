@@ -313,6 +313,48 @@ export class LeaveRequestsService {
     return v;
   }
 
+  // ------------------------------------------------------------------ simulation (formulaire de demande)
+
+  /**
+   * Simulation d'une demande de l'acteur pendant la saisie (refonte, étape 9) : même règle que
+   * `create` (jours calendaires, jours fériés exclus), date de reprise (premier jour suivant la fin
+   * qui n'est ni un samedi, ni un dimanche, ni un jour férié), solde du type demandé avant et après,
+   * chef(s) qui donneront l'avis et délai d'avis. Ne lit que les données du demandeur ; rien n'est écrit.
+   */
+  async simulation(actor: AuthenticatedUser, leaveTypeId: string, debut: string, fin: string) {
+    const leaveType = await this.prisma.leaveType.findUnique({ where: { id: leaveTypeId }, select: { id: true, name: true } });
+    if (!leaveType) throw new NotFoundException('Type de congé introuvable');
+    const startDate = new Date(debut);
+    const endDate = new Date(fin);
+    if (endDate < startDate) throw new BadRequestException('La date de fin ne peut pas être antérieure à la date de début.');
+    if (endDate.getTime() - startDate.getTime() > 366 * 864e5) throw new BadRequestException('La période ne peut pas dépasser un an.');
+    const { jours } = await this.feries.joursDecomptes(startDate, endDate);
+    const iso = (d: Date) => d.toISOString().slice(0, 10);
+    const feriesPeriode = await this.prisma.jourFerie.findMany({
+      where: { date: { gte: new Date(`${iso(startDate)}T00:00:00Z`), lte: new Date(`${iso(endDate)}T00:00:00Z`) } },
+      select: { date: true, libelle: true },
+      orderBy: { date: 'asc' },
+    });
+    const apres = new Date(`${iso(endDate)}T00:00:00Z`);
+    const proches = await this.feries.ensemble(apres, new Date(apres.getTime() + 40 * 864e5));
+    let reprise = new Date(apres.getTime() + 864e5);
+    while (reprise.getUTCDay() === 0 || reprise.getUTCDay() === 6 || proches.has(iso(reprise))) reprise = new Date(reprise.getTime() + 864e5);
+    const annee = startDate.getUTCFullYear();
+    const solde = await this.prisma.leaveBalance.findFirst({ where: { userId: actor.id, year: annee, leaveTypeId }, select: { totalDays: true, usedDays: true } });
+    const moi = await this.prisma.user.findUnique({ where: { id: actor.id }, select: { id: true, firstName: true, lastName: true, role: true, divisionId: true, sectionId: true, celluleId: true, supervisorId: true } });
+    const idsAvisants = moi ? await this.avisants(moi) : [];
+    const avisants = (await this.prisma.user.findMany({ where: { id: { in: idsAvisants } }, select: { id: true, firstName: true, lastName: true } })).map((u) => ({ id: u.id, nom: `${u.firstName} ${u.lastName}` }));
+    return {
+      leaveType,
+      jours,
+      feries: feriesPeriode.map((f) => ({ date: iso(f.date), libelle: f.libelle })),
+      reprise: iso(reprise),
+      solde: solde ? { annee, avant: solde.totalDays - solde.usedDays, apres: solde.totalDays - solde.usedDays - jours } : null,
+      avisants,
+      delaiAvisHeures: await this.parametres.valeur('conges.delaiAvisHeures'),
+    };
+  }
+
   // ------------------------------------------------------------------ contexte (fenêtre d'avis ou de décision)
 
   /**

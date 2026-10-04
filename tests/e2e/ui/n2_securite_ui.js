@@ -60,7 +60,9 @@ const sansDefilementHorizontal = (p) => p.evaluate(() => document.documentElemen
   check('valeur hors bornes : refus du serveur affiché sous la ligne', /entre 6 et 36/.test(await conservation.getByRole('alert').innerText()));
   await conservation.getByLabel('Conservation des journaux de connexion').fill('24');
   await p.getByTestId('enregistrer-parametres').click();
-  await p.getByTestId('parametres-enregistres').waitFor();
+  // Refonte (étape 9) : confirmation par un message (toast) avec « Annuler » (même route, valeur d'avant).
+  await p.getByTestId('toast').getByText('1 paramètre enregistré').waitFor();
+  check('message « 1 paramètre enregistré » avec « Annuler »', (await p.getByTestId('toast').getByRole('button', { name: 'Annuler' }).count()) === 1);
   check('valeur enregistrée : 24 mois, « Modifié le … par ADMIN Test »', (await conservation.getByTestId('champ-valeur').inputValue()) === '24' && /Modifié le .+\s*par ADMIN Test/.test(await conservation.getByTestId('etat-parametre').innerText()) && (await conservation.getByRole('alert').count()) === 0);
   await p.screenshot({ path: `${E.SHOTS}/n2_parametres_bureau.png`, fullPage: true });
   const ongletSupervision = await p.getByRole('tab', { name: /Supervision/ }).innerText();
@@ -77,6 +79,7 @@ const sansDefilementHorizontal = (p) => p.evaluate(() => document.documentElemen
   await ft.getByRole('button', { name: 'Déclarer' }).click();
   await ft.waitFor({ state: 'detached' });
   await p.waitForFunction(() => /réussi/.test(document.querySelector('[data-testid=sauvegardes]')?.textContent ?? ''));
+  check('message « Test de restauration déclaré »', /Test de restauration déclaré/.test(await p.getByTestId('toast').innerText()));
   check('test de restauration déclaré : affiché « réussi »', true);
   await p.screenshot({ path: `${E.SHOTS}/n2_supervision_bureau.png`, fullPage: true });
   await p.goto(`${WEB}/journal-audit`);
@@ -117,6 +120,7 @@ const sansDefilementHorizontal = (p) => p.evaluate(() => document.documentElemen
   await p.goto(`${WEB}/journal-audit`);
   await p.locator('[data-testid=entree-audit]').first().waitFor();
   check('journal d’audit sur téléphone : sans défilement horizontal de la page', await sansDefilementHorizontal(p));
+  check('journal d’audit sur téléphone : filtres (dates, objet, action) repliés derrière « Filtres »', (await p.getByTestId('bouton-filtres').innerText()).trim() === 'Filtres' && !(await p.getByLabel('Action', { exact: true }).isVisible()));
   await p.screenshot({ path: `${E.SHOTS}/n2_journal_mobile.png` });
   await p.locator('[data-testid=entree-audit]').first().getByRole('button', { name: /^Voir/ }).click();
   await p.getByTestId('fenetre-entree-audit').waitFor();

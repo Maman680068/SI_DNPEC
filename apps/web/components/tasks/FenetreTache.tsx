@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useRef, useState, type DragEvent } from 'react';
-import { Check, CircleCheck, Lock, Plus } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Check, CircleCheck, Lock } from 'lucide-react';
 import { useAuth } from '../../lib/auth/AuthProvider';
 import { useInterim } from '../../lib/interim/InterimProvider';
 import { useOrg } from '../../lib/org/OrgProvider';
@@ -27,6 +27,11 @@ import { SubtaskChecklist } from './SubtaskChecklist';
 import { CommentThread } from './CommentThread';
 import { DocumentsIssus } from '../documents/DocumentsIssus';
 import { BarreAvancement, PastilleStatut, Priorite } from './ElementsTache';
+import { Fenetre, Texte } from '../ui/Fenetre';
+import { ZoneDepot } from '../ui/Formulaire';
+import { SqueletteListe } from '../ui/Squelette';
+import { messageErreur, useToast } from '../ui/Toast';
+import { phrasePrevenus } from './CreateTaskModal';
 
 const CONFIDENTIALITY_LABEL: Record<Task['confidentiality'], string> = {
   PUBLIC_INTERNE: 'Public interne',
@@ -94,8 +99,8 @@ export function FenetreTache({
   const [rejectComment, setRejectComment] = useState('');
   const [attachmentBusy, setAttachmentBusy] = useState(false);
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
-  const [survol, setSurvol] = useState(false);
-  const champFichier = useRef<HTMLInputElement>(null);
+  const [rejectError, setRejectError] = useState<string | null>(null);
+  const toast = useToast();
 
   useEffect(() => {
     if (!taskId) return;
@@ -135,16 +140,24 @@ export function FenetreTache({
     onTaskChanged(updated);
   }
 
-  async function runAction(action: () => Promise<Task>) {
+  /** Noms des personnes assignées (hors soi-même : l'API ne prévient pas l'auteur de l'action). */
+  const nomsAssignes = (t: Task) => t.assignees.filter((a) => a.userId !== currentUser?.id).map((a) => getUserLabel(a.userId));
+
+  async function runAction(action: () => Promise<Task>, succes: (t: Task) => [string, string?]) {
     setActionBusy(true);
     setActionError(null);
+    setRejectError(null);
     try {
       const updated = await action();
       applyUpdate(updated);
       setShowRejectForm(false);
       setRejectComment('');
+      const [titre, detail] = succes(updated);
+      toast.succes(titre, detail ? { detail } : undefined);
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : 'Action impossible.');
+      const m = messageErreur(err, 'L’action n’a pas abouti.');
+      if (showRejectForm) setRejectError(m);
+      else setActionError(m);
     } finally {
       setActionBusy(false);
     }
@@ -170,22 +183,24 @@ export function FenetreTache({
     try {
       const added = await addAttachments(task.id, fichiers);
       setAttachments((prev) => [...added, ...prev]);
+      toast.succes(added.length > 1 ? `${added.length} pièces jointes ajoutées` : 'Pièce jointe ajoutée', { detail: added.map((a) => a.fileName).join(', ') });
     } catch (err) {
-      setAttachmentError(err instanceof Error ? err.message : 'Envoi impossible.');
+      setAttachmentError(messageErreur(err, 'Envoi impossible.'));
     } finally {
       setAttachmentBusy(false);
-      if (champFichier.current) champFichier.current.value = '';
     }
   }
 
   async function handleRemoveAttachment(attachmentId: string) {
     if (!task) return;
     setAttachmentError(null);
+    const nomFichier = attachments.find((a) => a.id === attachmentId)?.fileName;
     try {
       await removeAttachment(task.id, attachmentId);
       setAttachments((prev) => prev.filter((a) => a.id !== attachmentId));
+      toast.succes('Pièce jointe supprimée', nomFichier ? { detail: nomFichier } : undefined);
     } catch (err) {
-      setAttachmentError(err instanceof Error ? err.message : 'Suppression impossible.');
+      toast.erreur('Action impossible', messageErreur(err, 'La pièce jointe n’a pas pu être supprimée.'));
     }
   }
 
@@ -196,7 +211,7 @@ export function FenetreTache({
    */
   function handleSubtasksChange(next: Task[]) {
     setSubtasks(next);
-    if (task) getTask(task.id).then(applyUpdate).catch((err) => setActionError(err instanceof Error ? err.message : 'Impossible de recharger la tâche'));
+    if (task) getTask(task.id).then(applyUpdate).catch((err) => setActionError(messageErreur(err, 'Impossible de recharger la tâche')));
   }
 
   const currentStepIndex = task ? STATUS_STEPS.findIndex((s) => s.status === task.status) : -1;
@@ -266,23 +281,16 @@ export function FenetreTache({
           {attachments.length === 0 && !canAttach && <p className="text-[13px] text-text-faint">Aucune pièce jointe.</p>}
         </div>
         {canAttach && (
-          <label
-            onDragOver={(e: DragEvent) => {
-              e.preventDefault();
-              setSurvol(true);
-            }}
-            onDragLeave={() => setSurvol(false)}
-            onDrop={(e: DragEvent) => {
-              e.preventDefault();
-              setSurvol(false);
-              void deposer(Array.from(e.dataTransfer.files));
-            }}
-            className={`mt-2 inline-flex cursor-pointer items-center gap-2 rounded-[9px] border-[1.5px] border-dashed px-3.5 py-2 text-[13px] font-semibold text-text-muted focus-within:outline focus-within:outline-2 focus-within:outline-ink ${survol ? 'border-ink bg-ink-50' : 'border-[#C3C8DA]'}`}
-          >
-            <Plus aria-hidden size={16} />
-            {attachmentBusy ? 'Envoi…' : 'Déposer un fichier'}
-            <input ref={champFichier} type="file" multiple className="sr-only" onChange={(e) => void deposer(Array.from(e.target.files ?? []))} />
-          </label>
+          <div className="mt-2">
+            <ZoneDepot
+              id="tache-piece-jointe"
+              label="Ajouter une pièce jointe"
+              multiple
+              fichiers={[]}
+              onChange={(f) => void deposer(f)}
+              aide={attachmentBusy ? 'Envoi en cours…' : 'PDF, Word, Excel, images · 25 Mo au plus par fichier'}
+            />
+          </div>
         )}
         {attachmentError && <p className="mt-1.5 text-[12px] text-clay">{attachmentError}</p>}
       </section>
@@ -307,46 +315,31 @@ export function FenetreTache({
   const cote = task && (
     <>
       <div className="mb-[18px] flex flex-col gap-2">
-        {task.status === 'SOUMISE_VALIDATION' && canDecide && !showRejectForm && (
+        {task.status === 'SOUMISE_VALIDATION' && canDecide && (
           <>
-            <button type="button" disabled={actionBusy} onClick={() => runAction(() => validateTask(task.id))} className="flex h-[42px] items-center justify-center gap-2 rounded-[10px] bg-sage font-bold text-white disabled:opacity-60">
+            <button type="button" disabled={actionBusy} onClick={() => runAction(() => validateTask(task.id), (t) => ['Tâche validée', phrasePrevenus(nomsAssignes(t)) || undefined])} className="flex h-[42px] items-center justify-center gap-2 rounded-[10px] bg-sage font-bold text-white disabled:opacity-60">
               <CircleCheck aria-hidden size={18} /> Valider la tâche
             </button>
-            <button type="button" disabled={actionBusy} onClick={() => setShowRejectForm(true)} className="flex h-10 items-center justify-center rounded-[10px] border border-[#E7B3BB] bg-surface font-bold text-clay disabled:opacity-60">
+            <button type="button" disabled={actionBusy} onClick={() => {
+                setRejectError(null);
+                setShowRejectForm(true);
+              }} className="flex h-10 items-center justify-center rounded-[10px] border border-[#E7B3BB] bg-surface font-bold text-clay disabled:opacity-60">
               Rejeter avec un motif
             </button>
           </>
         )}
-        {task.status === 'SOUMISE_VALIDATION' && canDecide && showRejectForm && (
-          <div>
-            <label htmlFor="motif-rejet" className="mb-1 block text-[12.5px] font-semibold">
-              Motif du rejet
-            </label>
-            <textarea
-              id="motif-rejet"
-              value={rejectComment}
-              onChange={(e) => setRejectComment(e.target.value)}
-              placeholder="Motif du rejet (visible par la personne assignée)…"
-              rows={3}
-              className="mb-2 w-full rounded-[9px] border border-line px-3 py-2 text-[13px] focus:border-accent focus:outline focus:outline-2 focus:outline-accent"
-            />
-            <div className="flex gap-2">
-              <button type="button" disabled={actionBusy || rejectComment.trim().length < 2} onClick={() => runAction(() => rejectTask(task.id, rejectComment.trim()))} className="h-10 flex-1 rounded-[10px] bg-clay font-bold text-white disabled:opacity-60">
-                Confirmer le rejet
-              </button>
-              <button type="button" onClick={() => setShowRejectForm(false)} className="h-10 rounded-[10px] border border-line px-3 font-semibold text-ink">
-                Annuler
-              </button>
-            </div>
-          </div>
-        )}
         {task.status === 'A_FAIRE' && canStart && (
-          <button type="button" disabled={actionBusy} onClick={() => runAction(() => startTask(task.id))} className="h-[42px] rounded-[10px] bg-ink font-bold text-white disabled:opacity-60">
+          <button type="button" disabled={actionBusy} onClick={() => runAction(() => startTask(task.id), () => ['Tâche démarrée', 'Elle passe « En cours ».'])} className="h-[42px] rounded-[10px] bg-ink font-bold text-white disabled:opacity-60">
             Démarrer
           </button>
         )}
         {task.status === 'EN_COURS' && canSubmit && (
-          <button type="button" disabled={actionBusy} onClick={() => runAction(() => submitTask(task.id))} className="h-[42px] rounded-[10px] bg-gold font-bold text-ink-900 disabled:opacity-60">
+          <button type="button" disabled={actionBusy} onClick={() =>
+              runAction(
+                () => submitTask(task.id),
+                (t) => ['Tâche soumise pour validation', t.createdById !== currentUser?.id ? `${getUserLabel(t.createdById)} a été prévenu.` : undefined],
+              )
+            } className="h-[42px] rounded-[10px] bg-gold font-bold text-ink-900 disabled:opacity-60">
             Soumettre pour validation
           </button>
         )}
@@ -409,15 +402,36 @@ export function FenetreTache({
   );
 
   return (
-    <FenetreDetail titre={task?.title ?? (loadError ? 'Tâche indisponible' : 'Chargement…')} onClose={onClose} filAriane={filAriane} entete={etapes} cote={cote || undefined} testid="fenetre-tache">
+    <FenetreDetail titre={task?.title ?? (loadError ? 'Tâche indisponible' : 'Tâche')} onClose={onClose} filAriane={filAriane} entete={etapes} cote={cote || undefined} testid="fenetre-tache">
       {loadError ? (
         <div role="alert" className="rounded-md bg-clay-soft px-3.5 py-3 text-[13px] text-clay">
           {loadError}
         </div>
       ) : loading || !task ? (
-        <p className="text-sm text-text-muted">Chargement…</p>
+        <SqueletteListe lignes={4} colonnes={1} />
       ) : (
         contenu
+      )}
+      {task && showRejectForm && (
+        <Fenetre
+          titre="Rejeter la tâche"
+          onClose={() => setShowRejectForm(false)}
+          onSubmit={() =>
+            rejectComment.trim().length < 2
+              ? setRejectError('Le motif doit compter au moins 2 caractères.')
+              : runAction(
+              () => rejectTask(task.id, rejectComment.trim()),
+              (t) => ['Tâche rejetée', phrasePrevenus(nomsAssignes(t)).replace(/\.$/, ', avec votre motif.') || 'Elle revient « En cours ».'],
+            )
+          }
+          libelleValider="Rejeter la tâche"
+          danger
+          enCours={actionBusy}
+          erreur={rejectError}
+          pied="La tâche revient « En cours » ; le motif est visible des personnes assignées."
+        >
+          <Texte label="Motif du rejet" value={rejectComment} onChange={setRejectComment} required placeholder="Ce qui doit être repris…" />
+        </Fenetre>
       )}
     </FenetreDetail>
   );

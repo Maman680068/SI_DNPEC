@@ -16,7 +16,8 @@ import { useOrg } from '../../lib/org/OrgProvider';
 import { ROLE_LABEL } from '../../lib/users/types';
 import type { SystemRole } from '../../lib/auth/types';
 import { Plus } from 'lucide-react';
-import { Fenetre } from '../ui/Fenetre';
+import { ChampDate, ChoixSegment, FenetreFormulaire, Grille2, Liste, Saisie, SelecteurPersonnes, ZoneTexte } from '../ui/Formulaire';
+import { messageErreur, useToast } from '../ui/Toast';
 import { FenetreDetail } from '../ui/FenetreDetail';
 import {
   BandeCompteurs,
@@ -36,7 +37,6 @@ import {
 } from '../ui/Charte';
 import { Chargement, ErreurChargement, messageChargement } from '../ui/ErreurChargement';
 
-const champ = 'mt-1 w-full rounded-[9px] border border-line bg-surface px-3 py-2 text-[13.5px] font-normal';
 const DROITS: Record<'EN_ATTENTE' | 'APPLIQUE' | 'REFUSE', { libelle: string; ton: TonPastille }> = {
   APPLIQUE: { libelle: 'Droits appliqués', ton: 'vert' },
   EN_ATTENTE: { libelle: 'Droits en attente (administrateur)', ton: 'ambre' },
@@ -65,10 +65,16 @@ export function OngletCarriere({ userId, voirFamilles }: { userId?: string; voir
   }, [charger]);
   const valeur = (cle: string, v: string | null) =>
     !v ? '—' : cle === 'role' ? ROLE_LABEL[v as SystemRole] ?? v : cle === 'divisionId' ? getDivisionName(v) ?? v : cle === 'sectionId' ? getSectionName(v) ?? v : cle === 'celluleId' ? getCelluleName(v) ?? v : v;
-  const agir = (p: Promise<unknown>) => {
-    setErreur(null);
-    p.then(charger).catch((x) => setErreur(messageChargement(x)));
+  const toast = useToast();
+  const agir = (p: Promise<unknown>, titre: string, options?: { detail?: string; annuler?: () => void | Promise<void> }) => {
+    p.then(() => {
+      charger();
+      toast.succes(titre, options);
+    }).catch((x) => toast.erreur('Action impossible', messageErreur(x)));
   };
+  const remettre = (p: Promise<unknown>) => p.then(charger).catch((x) => toast.erreur('Action impossible', messageErreur(x)));
+  const acte = (id: string) => agir(preparerActeMouvement(id), 'Acte préparé', { detail: 'Il suit le circuit du Courrier jusqu’à la signature.' });
+  const annuler = (id: string) => agir(annulerMouvement(id), 'Mouvement annulé', { detail: 'Il reste au journal, sans effet sur le dossier.' });
   const detail = ouvert ? l?.mouvements.find((m) => m.id === ouvert) ?? null : null;
   if (!l) return <><ErreurChargement message={erreur} /><Chargement erreur={erreur} /></>;
   const changements = (m: Mouvement) =>
@@ -85,12 +91,12 @@ export function OngletCarriere({ userId, voirFamilles }: { userId?: string; voir
         </Link>
       )}
       {m.droits.preparerActe && (
-        <button type="button" className={BTN_LIGNE_PRINCIPAL} onClick={(e) => (e.stopPropagation(), agir(preparerActeMouvement(m.id)))}>
+        <button type="button" className={BTN_LIGNE_PRINCIPAL} onClick={(e) => (e.stopPropagation(), acte(m.id))}>
           Préparer l’acte
         </button>
       )}
       {m.droits.annuler && (
-        <button type="button" className={BTN_LIGNE} onClick={(e) => (e.stopPropagation(), agir(annulerMouvement(m.id)))}>
+        <button type="button" className={BTN_LIGNE} onClick={(e) => (e.stopPropagation(), annuler(m.id))}>
           Annuler
         </button>
       )}
@@ -176,7 +182,13 @@ export function OngletCarriere({ userId, voirFamilles }: { userId?: string; voir
                   <select
                     aria-label={`Registre de la famille ${x.libelle}`}
                     value={x.registre?.id ?? ''}
-                    onChange={(e) => agir(choisirRegistreFamille(x.code, e.target.value || null))}
+                    onChange={(e) => {
+                      const avant = x.registre?.id ?? null;
+                      agir(choisirRegistreFamille(x.code, e.target.value || null), 'Registre enregistré', {
+                        detail: `Famille « ${x.libelle} ».`,
+                        annuler: () => remettre(choisirRegistreFamille(x.code, avant)),
+                      });
+                    }}
                     className="h-9 max-w-full rounded-[9px] border border-line bg-surface px-2.5 text-[13px]"
                   >
                     <option value="">— Registre à choisir —</option>
@@ -190,7 +202,20 @@ export function OngletCarriere({ userId, voirFamilles }: { userId?: string; voir
           </ul>
         </Panneau>
       )}
-      {nouveau && <FenetreMouvement liste={l} onClose={() => setNouveau(false)} onFait={() => (setNouveau(false), charger())} />}
+      {nouveau && (
+        <FenetreMouvement
+          liste={l}
+          onClose={() => setNouveau(false)}
+          onFait={(m) => {
+            setNouveau(false);
+            charger();
+            toast.succes('Mouvement préparé', {
+              detail: 'Préparez ensuite l’acte du Courrier.',
+              ...(m?.id ? { annuler: () => remettre(annulerMouvement(m.id)) } : {}),
+            });
+          }}
+        />
+      )}
       {detail && (
         <FenetreDetail
           titre={`${LIBELLE_TYPE_MOUVEMENT[detail.type]} — ${detail.agent ?? ''}`}
@@ -211,7 +236,7 @@ export function OngletCarriere({ userId, voirFamilles }: { userId?: string; voir
             <div>
               <div className="grid gap-2">
                 {detail.droits.preparerActe && (
-                  <button type="button" className={BTN_PRINCIPAL} onClick={() => agir(preparerActeMouvement(detail.id))}>
+                  <button type="button" className={BTN_PRINCIPAL} onClick={() => acte(detail.id)}>
                     Préparer l’acte
                   </button>
                 )}
@@ -221,7 +246,7 @@ export function OngletCarriere({ userId, voirFamilles }: { userId?: string; voir
                   </Link>
                 )}
                 {detail.droits.annuler && (
-                  <button type="button" className={BTN_DANGER_CONTOUR} onClick={() => agir(annulerMouvement(detail.id))}>
+                  <button type="button" className={BTN_DANGER_CONTOUR} onClick={() => annuler(detail.id)}>
                     Annuler le mouvement
                   </button>
                 )}
@@ -275,13 +300,13 @@ export function OngletCarriere({ userId, voirFamilles }: { userId?: string; voir
   );
 }
 
-function FenetreMouvement({ liste, onClose, onFait }: { liste: ListeMouvements; onClose: () => void; onFait: () => void }) {
+function FenetreMouvement({ liste, onClose, onFait }: { liste: ListeMouvements; onClose: () => void; onFait: (m: Mouvement) => void }) {
   const { divisions, sections, cellules } = useOrg();
   const [v, setV] = useState({ userId: '', type: 'AVANCEMENT_ECHELON' as TypeMouvement, dateEffet: new Date().toISOString().slice(0, 10), motif: '', fonction: '', poste: '', echelon: '', grade: '', categorie: '', divisionId: '', sectionId: '', celluleId: '' });
   const [erreur, setErreur] = useState<string | null>(null);
   const [enCours, setEnCours] = useState(false);
   const poste = liste.postes.find((x) => x.cle === v.poste) ?? null;
-  const set = (k: keyof typeof v) => (e: { target: { value: string } }) => setV((x) => ({ ...x, [k]: e.target.value }));
+  const set = (k: keyof typeof v) => (x: string) => setV((o) => ({ ...o, [k]: x }));
   const apres: Record<TypeMouvement, Record<string, string | null>> = {
     NOMINATION: poste ? { role: poste.role, divisionId: poste.divisionId, sectionId: poste.sectionId, celluleId: poste.celluleId } : { fonction: v.fonction },
     AVANCEMENT_ECHELON: { echelon: v.echelon },
@@ -289,102 +314,96 @@ function FenetreMouvement({ liste, onClose, onFait }: { liste: ListeMouvements; 
     MUTATION: { divisionId: v.divisionId || null, sectionId: v.sectionId || null, celluleId: v.celluleId || null },
     FIN_CONTRAT: {},
   };
+  const opt = (l: { id: string; name: string }[]) => l.map((x) => ({ value: x.id, label: x.name }));
   return (
-    <Fenetre
+    <FenetreFormulaire
       titre="Nouveau mouvement de carrière"
+      sousTitre="Le mouvement est porté par un acte du Courrier, dans le registre de sa famille d’actes."
       onClose={onClose}
-      largeur={560}
       enCours={enCours}
       erreur={erreur}
       libelleValider="Préparer le mouvement"
+      pied="Le dossier n’est modifié qu’à la signature de l’acte par le DN ou la DNA."
+      testid="fenetre-mouvement"
+      valider={() => (v.type === 'MUTATION' && !v.divisionId && !v.celluleId ? { 'mv-division': 'Choisissez la division ou la cellule d’accueil.' } : {})}
       onSubmit={async () => {
         setEnCours(true);
         setErreur(null);
         try {
-          await preparerMouvement({ userId: v.userId, type: v.type, dateEffet: v.dateEffet, motif: v.motif || undefined, apres: apres[v.type] });
-          onFait();
+          const m = await preparerMouvement({ userId: v.userId, type: v.type, dateEffet: v.dateEffet, motif: v.motif || undefined, apres: apres[v.type] });
+          onFait(m);
         } catch (x) {
-          setErreur(messageChargement(x));
+          setErreur(messageErreur(x));
         } finally {
           setEnCours(false);
         }
       }}
     >
-      <label className="mb-3 block text-[12.5px] font-semibold">
-        Agent
-        <select required value={v.userId} onChange={set('userId')} className={champ}>
-          <option value="">— Choisir —</option>
-          {liste.agents.map((a) => <option key={a.id} value={a.id}>{a.lastName} {a.firstName}</option>)}
-        </select>
-      </label>
-      <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <label className="block text-[12.5px] font-semibold">
-          Mouvement
-          <select value={v.type} onChange={set('type')} className={champ}>
-            {(Object.keys(LIBELLE_TYPE_MOUVEMENT) as TypeMouvement[]).map((t) => <option key={t} value={t}>{LIBELLE_TYPE_MOUVEMENT[t]}</option>)}
-          </select>
-        </label>
-        <label className="block text-[12.5px] font-semibold">
-          Date d’effet
-          <input type="date" required value={v.dateEffet} onChange={set('dateEffet')} className={champ} />
-        </label>
-      </div>
+      <SelecteurPersonnes
+        id="mv-agent"
+        label="Agent"
+        multiple={false}
+        required
+        messageObligatoire="Choisissez l’agent concerné."
+        options={liste.agents.map((a) => ({ id: a.id, nom: `${a.firstName} ${a.lastName}` }))}
+        valeurs={v.userId ? [v.userId] : []}
+        onChange={(ids) => set('userId')(ids[0] ?? '')}
+      />
+      <ChoixSegment<TypeMouvement>
+        id="mv-type"
+        label="Mouvement"
+        options={(Object.keys(LIBELLE_TYPE_MOUVEMENT) as TypeMouvement[]).map((t) => ({ value: t, label: LIBELLE_TYPE_MOUVEMENT[t] }))}
+        value={v.type}
+        onChange={set('type')}
+      />
+      <Grille2>
+        <ChampDate id="mv-effet" label="Date d’effet" required value={v.dateEffet} onChange={set('dateEffet')} />
+      </Grille2>
       {v.type === 'NOMINATION' && (
         <>
-          <label className="mb-3 block text-[12.5px] font-semibold">
-            Poste visé
-            <select value={v.poste} onChange={set('poste')} className={champ}>
-              <option value="">Autre fonction (texte libre, sans effet sur les droits)</option>
-              {liste.postes.map((x) => (
-                <option key={x.cle} value={x.cle}>{x.fonction}{x.titulaire ? ` (actuel : ${x.titulaire})` : ' (vacant)'}</option>
-              ))}
-            </select>
-          </label>
+          <Liste
+            id="mv-poste"
+            label="Poste visé"
+            value={v.poste}
+            onChange={set('poste')}
+            vide="Autre fonction (texte libre, sans effet sur les droits)"
+            options={liste.postes.map((x) => ({ value: x.cle, label: `${x.fonction}${x.titulaire ? ` (actuel : ${x.titulaire})` : ' (vacant)'}` }))}
+          />
           {poste ? (
-            <p className="mb-3 text-[12px] text-text-muted" data-testid="poste-vise">
+            <p className="mb-3.5 rounded-[10px] bg-ink-50 px-3 py-2.5 text-[12.5px] text-text" data-testid="poste-vise">
               Fonction au dossier : <strong>{poste.fonction}</strong>. À la signature de l’acte, l’administrateur reçoit le changement de rôle pré-rempli
               {poste.titulaire ? ` (${poste.titulaire} redevient Chargé(e) d’Études dans la même unité, sauf choix contraire de l’administrateur)` : ''} et le confirme ou le refuse ;
               l’état des droits s’affiche sur le mouvement.
             </p>
           ) : (
-            <label className="mb-3 block text-[12.5px] font-semibold">Nouvelle fonction<input required value={v.fonction} onChange={set('fonction')} className={champ} /></label>
+            <Saisie id="mv-fonction" label="Nouvelle fonction" required value={v.fonction} onChange={set('fonction')} />
           )}
         </>
       )}
       {(v.type === 'AVANCEMENT_ECHELON' || v.type === 'PROMOTION') && (
-        <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
-          {v.type === 'PROMOTION' && <label className="block text-[12.5px] font-semibold">Nouveau grade<input required value={v.grade} onChange={set('grade')} className={champ} /></label>}
-          <label className="block text-[12.5px] font-semibold">Nouvel échelon<input required={v.type === 'AVANCEMENT_ECHELON'} value={v.echelon} onChange={set('echelon')} className={champ} /></label>
-          {v.type === 'PROMOTION' && <label className="block text-[12.5px] font-semibold">Catégorie<input value={v.categorie} onChange={set('categorie')} className={champ} /></label>}
-        </div>
+        <Grille2>
+          {v.type === 'PROMOTION' && <Saisie id="mv-grade" label="Nouveau grade" required value={v.grade} onChange={set('grade')} />}
+          <Saisie id="mv-echelon" label="Nouvel échelon" required={v.type === 'AVANCEMENT_ECHELON'} facultatif={v.type === 'PROMOTION'} value={v.echelon} onChange={set('echelon')} />
+          {v.type === 'PROMOTION' && <Saisie id="mv-categorie" label="Catégorie" facultatif value={v.categorie} onChange={set('categorie')} />}
+        </Grille2>
       )}
       {v.type === 'MUTATION' && (
-        <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <label className="block text-[12.5px] font-semibold">Division
-            <select value={v.divisionId} onChange={(e) => setV((x) => ({ ...x, divisionId: e.target.value, sectionId: '', celluleId: e.target.value ? '' : x.celluleId }))} className={champ}>
-              <option value="">—</option>
-              {divisions.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
-            </select>
-          </label>
-          <label className="block text-[12.5px] font-semibold">Section
-            <select value={v.sectionId} onChange={set('sectionId')} className={champ} disabled={!v.divisionId}>
-              <option value="">—</option>
-              {sections.filter((s) => s.divisionId === v.divisionId).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-            </select>
-          </label>
-          <label className="block text-[12.5px] font-semibold">Cellule
-            <select value={v.celluleId} onChange={(e) => setV((x) => ({ ...x, celluleId: e.target.value, divisionId: e.target.value ? '' : x.divisionId, sectionId: '' }))} className={champ}>
-              <option value="">—</option>
-              {cellules.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
-          </label>
-        </div>
+        <Grille2>
+          <Liste id="mv-division" label="Division" vide="—" value={v.divisionId} options={opt(divisions)} onChange={(x) => setV((o) => ({ ...o, divisionId: x, sectionId: '', celluleId: x ? '' : o.celluleId }))} />
+          <Liste id="mv-cellule" label="Ou cellule" vide="—" value={v.celluleId} options={opt(cellules)} onChange={(x) => setV((o) => ({ ...o, celluleId: x, divisionId: x ? '' : o.divisionId, sectionId: '' }))} />
+          {v.divisionId && <Liste id="mv-section" label="Section" facultatif vide="—" value={v.sectionId} options={opt(sections.filter((s) => s.divisionId === v.divisionId))} onChange={set('sectionId')} />}
+        </Grille2>
       )}
-      <label className="block text-[12.5px] font-semibold">
-        Motif {v.type === 'FIN_CONTRAT' ? '(obligatoire)' : '(facultatif)'}
-        <textarea rows={2} value={v.motif} onChange={set('motif')} className={champ} />
-      </label>
-      <p className="mt-2 text-[12px] text-text-muted">Le dossier n’est modifié qu’à la signature de l’acte par le DN ou la DNA.</p>
-    </Fenetre>
+      <ZoneTexte
+        id="mv-motif"
+        label="Motif"
+        facultatif={v.type !== 'FIN_CONTRAT'}
+        required={v.type === 'FIN_CONTRAT'}
+        messageObligatoire="Le motif est obligatoire pour une fin de contrat."
+        lignes={2}
+        value={v.motif}
+        onChange={set('motif')}
+      />
+    </FenetreFormulaire>
   );
 }

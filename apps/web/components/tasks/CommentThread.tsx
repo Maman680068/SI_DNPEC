@@ -5,6 +5,7 @@ import { useOrg } from '../../lib/org/OrgProvider';
 import { useAuth } from '../../lib/auth/AuthProvider';
 import { addComment } from '../../lib/api/tasks';
 import type { TaskComment } from '../../lib/tasks/types';
+import { messageErreur, useToast } from '../ui/Toast';
 
 function formatWhen(iso: string): string {
   const date = new Date(iso);
@@ -30,6 +31,7 @@ export function CommentThread({
   const [mentionedUserIds, setMentionedUserIds] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const toast = useToast();
 
   const mentionQuery = useMemo(() => {
     const at = body.lastIndexOf('@');
@@ -62,10 +64,12 @@ export function CommentThread({
     try {
       const comment = await addComment(taskId, body.trim(), mentionedUserIds);
       onPosted(comment);
+      const mentions = mentionedUserIds.map((id) => getUserLabel(id));
       setBody('');
       setMentionedUserIds([]);
+      toast.succes('Commentaire publié', mentions.length ? { detail: `${mentions.join(', ')} ${mentions.length > 1 ? 'ont été prévenus' : 'a été prévenu'}.` } : undefined);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Impossible de publier le commentaire');
+      setError(messageErreur(err, 'Impossible de publier le commentaire'));
     } finally {
       setSubmitting(false);
     }

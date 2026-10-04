@@ -157,3 +157,24 @@ export const configurerDoubleAuth = () =>
   apiFetch<{ secret: string; otpAuthUrl: string; qrCodeDataUrl: string }>('/auth/2fa/setup', { method: 'POST' });
 export const activerDoubleAuth = (code: string) => apiFetch<{ enabled: true }>('/auth/2fa/activate', { method: 'POST', body: JSON.stringify({ code }) });
 export const desactiverDoubleAuth = (code: string) => apiFetch<void>('/auth/2fa/disable', { method: 'POST', body: JSON.stringify({ code }) });
+
+/** Sessions ouvertes du compte (page « Mon profil ») et déconnexion d'une session (routes existantes). */
+export type SessionOuverte = { id: string; deviceLabel: string | null; createdAt: string; lastUsedAt: string };
+export const listerSessions = () => apiFetch<SessionOuverte[]>('/auth/sessions');
+export const fermerSession = (id: string) => apiFetch<void>(`/auth/sessions/${id}`, { method: 'DELETE' });
+
+/** Page « Mon profil » (GET api/v1/profil) : son propre profil seulement. */
+export type Profil = {
+  prenom: string;
+  nom: string;
+  role: string;
+  fonction: string | null;
+  email: string;
+  telephone: string | null;
+  unite: string | null;
+  chefDirect: string | null;
+  matricule: { valeur: string; provisoire: boolean } | null;
+  completude: { pourcentage: number; manquants: string[] };
+  deuxFacteurs: boolean;
+};
+export const getProfil = () => apiFetch<Profil>('/api/v1/profil');

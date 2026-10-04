@@ -21,7 +21,9 @@ import {
   FormulaireImputer,
   ID_FORMULAIRE_IMPUTER,
 } from './FenetresArrivee';
-import { Erreur, messageErreur } from './ui';
+import { messageErreur } from './ui';
+import { messageErreur as messageAction, useToast } from '../ui/Toast';
+import { SqueletteChamps } from './formulaire';
 
 type Fenetre =
   | { type: 'sous-imputer'; imp: Imputation }
@@ -36,11 +38,10 @@ export const ACTION_DANGER = 'mx-auto mt-1 block text-[13px] font-semibold text-
 
 /** Liste des fichiers (scans, annexes, acte signé) : vignette, nom à télécharger, taille, dépôt. */
 export function Pieces({ pieces, telecharger, personnes }: { pieces: Arrivee['pieces']; telecharger: (id: string, nom: string) => Promise<void>; personnes: Arrivee['personnes'] }) {
-  const [erreur, setErreur] = useState<string | null>(null);
+  const toast = useToast();
   if (pieces.length === 0) return <p className="text-[12.5px] text-text-faint">Aucun fichier.</p>;
   return (
     <>
-      <Erreur message={erreur} />
       <ul className="flex flex-col gap-2">
         {pieces.map((p) => (
           <li key={p.id} className="flex min-w-0 items-center gap-[9px] rounded-[9px] border border-line bg-surface px-2.5 py-2 text-[13px]">
@@ -49,7 +50,7 @@ export function Pieces({ pieces, telecharger, personnes }: { pieces: Arrivee['pi
               <button
                 type="button"
                 className="block max-w-full break-all text-left font-semibold text-ink hover:underline"
-                onClick={() => telecharger(p.id, p.fileName).catch((e) => setErreur(messageErreur(e, 'Téléchargement impossible')))}
+                onClick={() => telecharger(p.id, p.fileName).catch((e) => toast.erreur('Téléchargement impossible', messageAction(e)))}
               >
                 {p.fileName}
               </button>
@@ -136,9 +137,9 @@ export function TiroirArrivee({
   onOuvrirActe?: (id: string) => void;
 }) {
   const { interim } = useInterim();
+  const toast = useToast();
   const [a, setA] = useState<Arrivee | null>(null);
   const [erreurChargement, setErreurChargement] = useState<string | null>(null);
-  const [erreur, setErreur] = useState<string | null>(null);
   const [fenetre, setFenetre] = useState<Fenetre | null>(null);
   const [imputationEnCours, setImputationEnCours] = useState(false);
 
@@ -162,12 +163,12 @@ export function TiroirArrivee({
     if (!a) return;
     const auNom = interim ? `\n\nSera enregistré par vous, au nom de ${interim.titulaireName} (par intérim).` : '';
     if (!window.confirm(`Classer le courrier ${a.numero} ? Il sortira des courriers en cours.${auNom}`)) return;
-    setErreur(null);
     try {
       await classerArrivee(a.id);
+      toast.succes(`Courrier ${a.numero} classé`, { detail: 'Il sort des courriers en cours.' });
       apres();
     } catch (e) {
-      setErreur(messageErreur(e, 'Classement impossible'));
+      toast.erreur('Classement impossible', messageAction(e));
     }
   }
 
@@ -183,7 +184,6 @@ export function TiroirArrivee({
   const cote =
     a && d ? (
       <>
-        <Erreur message={erreur} />
         <div className="mb-[18px] flex flex-col gap-2" data-testid="actions-arrivee">
           {formulaire && (
             <button type="submit" form={ID_FORMULAIRE_IMPUTER} className={ACTION_PRINCIPALE} disabled={imputationEnCours}>
@@ -260,7 +260,7 @@ export function TiroirArrivee({
           {erreurChargement}
         </div>
       ) : !a || !d ? (
-        <p className="text-sm text-text-muted">Chargement…</p>
+        <SqueletteChamps champs={4} />
       ) : (
         <>
           {a.statut === 'ANNULE' && a.motifAnnulation && <div className="mb-4 rounded-md bg-clay-soft px-3.5 py-2.5 text-[12.5px] text-clay">Annulé : {a.motifAnnulation}</div>}
@@ -336,10 +336,9 @@ export function TiroirArrivee({
               arrivee={a}
               sousImputable={sousImputable}
               onEnCours={setImputationEnCours}
-              onFait={(avertissement) => {
+              onFait={() => {
                 setImputationEnCours(false);
                 apres();
-                setErreur(avertissement ?? null);
               }}
             />
           )}
@@ -369,6 +368,7 @@ export function TiroirArrivee({
               titre="Annuler l’enregistrement"
               explication={`Le numéro ${a.numero} reste consommé (jamais réattribué) ; le courrier apparaît « annulé » dans le registre.`}
               valider="Annuler l’enregistrement"
+              succes={{ titre: 'Enregistrement annulé', detail: `Le numéro ${a.numero} reste consommé.` }}
               onClose={() => setFenetre(null)}
               onValider={async (motif) => {
                 await annulerArrivee(a.id, motif);
@@ -380,6 +380,7 @@ export function TiroirArrivee({
             <FenetreFichiers
               titre="Ajouter un scan"
               explication={`Courrier ${a.numero}`}
+              succes="Scan ajouté"
               onClose={() => setFenetre(null)}
               onValider={async (fichiers) => {
                 await ajouterPiecesArrivee(a.id, fichiers);

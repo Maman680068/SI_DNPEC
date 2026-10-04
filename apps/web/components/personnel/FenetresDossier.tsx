@@ -14,11 +14,12 @@ import type { DossierPersonnel, EmploymentStatus, NiveauDeux } from '../../lib/p
 import { EMPLOYMENT_STATUS_LABEL } from '../../lib/personnel/types';
 import { getPiecesRequises } from '../../lib/api/rh';
 import type { PieceRequise } from '../../lib/rh/types';
-import { Erreur, Fenetre, Libelle, SELECT_CLASS, TEXTAREA_CLASS, messageErreur } from '../courrier/ui';
+import { ChampDate, FenetreFormulaire, Grille2, Liste, Saisie, ZoneDepot, ZoneTexte } from '../ui/Formulaire';
+import { messageErreur } from '../ui/Toast';
 
 type Props = { dossier: DossierPersonnel; onClose: () => void; onDone: () => void };
 
-/** Exécute une écriture et affiche le refus de l'API tel quel. */
+/** Exécute une écriture et affiche le refus de l'API en bas de la fenêtre. */
 function useEnvoi(onDone: () => void) {
   const [enCours, setEnCours] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
@@ -37,15 +38,6 @@ function useEnvoi(onDone: () => void) {
   return { enCours, erreur, envoyer };
 }
 
-function Champ({ id, label, value, onChange, type = 'text', maxLength }: { id: string; label: string; value: string; onChange: (v: string) => void; type?: string; maxLength?: number }) {
-  return (
-    <div className="mb-3.5">
-      <Libelle htmlFor={id}>{label}</Libelle>
-      <input id={id} type={type} className={SELECT_CLASS} value={value} onChange={(e) => onChange(e.target.value)} maxLength={maxLength} />
-    </div>
-  );
-}
-
 /** Seuls les champs modifiés sont envoyés : l'API repasse « à vérifier »
  * chaque champ reçu. */
 export function FenetreNiveauUn({ dossier, onClose, onDone }: Props) {
@@ -59,8 +51,9 @@ export function FenetreNiveauUn({ dossier, onClose, onDone }: Props) {
     serviceStartDate: b.serviceStartDate ? b.serviceStartDate.slice(0, 10) : '',
   };
   const [v, setV] = useState(initial);
-  const [fiche, setFiche] = useState<File | null>(null);
+  const [fiche, setFiche] = useState<File[]>([]);
   const { enCours, erreur, envoyer } = useEnvoi(onDone);
+  const set = (k: keyof typeof initial) => (x: string) => setV((o) => ({ ...o, [k]: x }));
 
   function valider() {
     const input: NiveauUnInput = {};
@@ -72,34 +65,45 @@ export function FenetreNiveauUn({ dossier, onClose, onDone }: Props) {
     if (v.echelonDepuis && v.echelonDepuis !== initial.echelonDepuis) input.echelonDepuis = v.echelonDepuis;
     return envoyer(async () => {
       if (Object.keys(input).length > 0) await modifierNiveauUn(dossier.userId, input);
-      if (fiche) await deposerFicheDePoste(dossier.userId, fiche);
+      if (fiche[0]) await deposerFicheDePoste(dossier.userId, fiche[0]);
     }, 'Enregistrement impossible');
   }
 
   return (
-    <Fenetre titre="Situation administrative" sousTitre="Chaque champ modifié repasse « à vérifier » jusqu’à confirmation par la personne." onClose={onClose} onSubmit={valider} valider="Enregistrer" enCours={enCours}>
-      <div className="mb-3.5">
-        <Libelle htmlFor="n1-statut">Statut d’emploi</Libelle>
-        <select id="n1-statut" className={SELECT_CLASS} value={v.employmentStatus} onChange={(e) => setV({ ...v, employmentStatus: e.target.value })}>
-          <option value="">—</option>
-          {(Object.keys(EMPLOYMENT_STATUS_LABEL) as EmploymentStatus[]).map((s) => (
-            <option key={s} value={s}>
-              {EMPLOYMENT_STATUS_LABEL[s]}
-            </option>
-          ))}
-        </select>
-      </div>
-      <Champ id="n1-grade" label="Grade" value={v.grade} onChange={(x) => setV({ ...v, grade: x })} maxLength={100} />
-      <Champ id="n1-echelon" label="Échelon" value={v.echelon} onChange={(x) => setV({ ...v, echelon: x })} maxLength={50} />
-      <Champ id="n1-echelon-depuis" label="Dans cet échelon depuis le" type="date" value={v.echelonDepuis} onChange={(x) => setV({ ...v, echelonDepuis: x })} />
-      <Champ id="n1-categorie" label="Catégorie (A, B, C, D…)" value={v.categorie} onChange={(x) => setV({ ...v, categorie: x })} maxLength={20} />
-      <Champ id="n1-date" label="Date de prise de service" type="date" value={v.serviceStartDate} onChange={(x) => setV({ ...v, serviceStartDate: x })} />
-      <div className="mb-3.5">
-        <Libelle htmlFor="n1-fiche">Fiche de poste {dossier.basic.jobDescriptionFileName ? '(remplace l’actuelle)' : ''}</Libelle>
-        <input id="n1-fiche" type="file" className="block w-full text-[13px]" onChange={(e) => setFiche(e.target.files?.[0] ?? null)} />
-      </div>
-      <Erreur message={erreur} />
-    </Fenetre>
+    <FenetreFormulaire
+      titre="Situation administrative"
+      sousTitre={`${dossier.identite.firstName} ${dossier.identite.lastName}`}
+      onClose={onClose}
+      onSubmit={valider}
+      libelleValider="Enregistrer"
+      enCours={enCours}
+      erreur={erreur}
+      pied="Chaque champ modifié repasse « à vérifier » jusqu’à confirmation par la personne."
+      testid="fenetre-niveau-1"
+    >
+      <Grille2>
+        <Liste
+          id="n1-statut"
+          label="Statut d’emploi"
+          vide="—"
+          value={v.employmentStatus}
+          onChange={set('employmentStatus')}
+          options={(Object.keys(EMPLOYMENT_STATUS_LABEL) as EmploymentStatus[]).map((s) => ({ value: s, label: EMPLOYMENT_STATUS_LABEL[s] }))}
+        />
+        <Saisie id="n1-categorie" label="Catégorie (A, B, C, D…)" value={v.categorie} onChange={set('categorie')} maxLength={20} />
+        <Saisie id="n1-grade" label="Grade" value={v.grade} onChange={set('grade')} maxLength={100} />
+        <Saisie id="n1-echelon" label="Échelon" value={v.echelon} onChange={set('echelon')} maxLength={50} />
+        <ChampDate id="n1-echelon-depuis" label="Dans cet échelon depuis le" value={v.echelonDepuis} onChange={set('echelonDepuis')} raccourcis={false} />
+        <ChampDate id="n1-date" label="Date de prise de service" value={v.serviceStartDate} onChange={set('serviceStartDate')} raccourcis={false} />
+      </Grille2>
+      <ZoneDepot
+        id="n1-fiche"
+        label={`Fiche de poste${dossier.basic.jobDescriptionFileName ? ' (remplace l’actuelle)' : ''}`}
+        facultatif
+        fichiers={fiche}
+        onChange={setFiche}
+      />
+    </FenetreFormulaire>
   );
 }
 
@@ -115,6 +119,7 @@ export function FenetreNiveauDeux({ dossier, onClose, onDone }: Props) {
   };
   const [v, setV] = useState(initial);
   const { enCours, erreur, envoyer } = useEnvoi(onDone);
+  const set = (k: keyof typeof initial) => (x: string) => setV((o) => ({ ...o, [k]: x }));
 
   function valider() {
     const input: Partial<NiveauDeux> = {};
@@ -127,15 +132,28 @@ export function FenetreNiveauDeux({ dossier, onClose, onDone }: Props) {
   }
 
   return (
-    <Fenetre titre="Informations personnelles" sousTitre="Réservées à la personne et au DRH." onClose={onClose} onSubmit={valider} valider="Enregistrer" enCours={enCours}>
-      <Champ id="n2-adresse" label="Adresse personnelle" value={v.personalAddress} onChange={(x) => setV({ ...v, personalAddress: x })} maxLength={300} />
-      <Champ id="n2-tel" label="Téléphone personnel" value={v.personalPhone} onChange={(x) => setV({ ...v, personalPhone: x })} maxLength={30} />
-      <Champ id="n2-email" label="Email personnel" type="email" value={v.personalEmail} onChange={(x) => setV({ ...v, personalEmail: x })} />
-      <Champ id="n2-urg-nom" label="Contact d’urgence — nom" value={v.emergencyContactName} onChange={(x) => setV({ ...v, emergencyContactName: x })} maxLength={150} />
-      <Champ id="n2-urg-lien" label="Contact d’urgence — lien" value={v.emergencyContactRelation} onChange={(x) => setV({ ...v, emergencyContactRelation: x })} maxLength={100} />
-      <Champ id="n2-urg-tel" label="Contact d’urgence — téléphone" value={v.emergencyContactPhone} onChange={(x) => setV({ ...v, emergencyContactPhone: x })} maxLength={30} />
-      <Erreur message={erreur} />
-    </Fenetre>
+    <FenetreFormulaire
+      titre="Informations personnelles"
+      sousTitre="Réservées à la personne et au DRH."
+      onClose={onClose}
+      onSubmit={valider}
+      libelleValider="Enregistrer"
+      enCours={enCours}
+      erreur={erreur}
+      pied="Chaque champ modifié repasse « à vérifier » jusqu’à confirmation par la personne."
+      testid="fenetre-niveau-2"
+    >
+      <Saisie id="n2-adresse" label="Adresse personnelle" value={v.personalAddress} onChange={set('personalAddress')} maxLength={300} />
+      <Grille2>
+        <Saisie id="n2-tel" label="Téléphone personnel" type="tel" value={v.personalPhone} onChange={set('personalPhone')} maxLength={30} />
+        <Saisie id="n2-email" label="Email personnel" type="email" value={v.personalEmail} onChange={set('personalEmail')} />
+      </Grille2>
+      <Grille2>
+        <Saisie id="n2-urg-nom" label="Contact d’urgence — nom" value={v.emergencyContactName} onChange={set('emergencyContactName')} maxLength={150} />
+        <Saisie id="n2-urg-lien" label="Contact d’urgence — lien" value={v.emergencyContactRelation} onChange={set('emergencyContactRelation')} maxLength={100} />
+        <Saisie id="n2-urg-tel" label="Contact d’urgence — téléphone" type="tel" value={v.emergencyContactPhone} onChange={set('emergencyContactPhone')} maxLength={30} />
+      </Grille2>
+    </FenetreFormulaire>
   );
 }
 
@@ -143,30 +161,33 @@ export function FenetreDiplome({ dossier, onClose, onDone }: Props) {
   const [titre, setTitre] = useState('');
   const [etablissement, setEtablissement] = useState('');
   const [annee, setAnnee] = useState('');
-  const [fichier, setFichier] = useState<File | null>(null);
+  const [fichier, setFichier] = useState<File[]>([]);
   const { enCours, erreur, envoyer } = useEnvoi(onDone);
+  const anneeMax = new Date().getFullYear();
   return (
-    <Fenetre
+    <FenetreFormulaire
       titre="Ajouter un diplôme"
+      sousTitre={`${dossier.identite.firstName} ${dossier.identite.lastName}`}
       onClose={onClose}
+      largeur={640}
       onSubmit={() =>
         envoyer(
-          () => ajouterDiplome(dossier.userId, { title: titre.trim(), institution: etablissement.trim() || undefined, obtainedYear: annee ? Number(annee) : undefined }, fichier),
+          () => ajouterDiplome(dossier.userId, { title: titre.trim(), institution: etablissement.trim() || undefined, obtainedYear: annee ? Number(annee) : undefined }, fichier[0] ?? null),
           'Ajout impossible',
         )
       }
-      valider="Ajouter"
+      libelleValider="Ajouter le diplôme"
       enCours={enCours}
+      erreur={erreur}
+      pied="Le diplôme reste « à vérifier » jusqu’à confirmation."
     >
-      <Champ id="dip-titre" label="Intitulé" value={titre} onChange={setTitre} maxLength={200} />
-      <Champ id="dip-etab" label="Établissement (facultatif)" value={etablissement} onChange={setEtablissement} maxLength={200} />
-      <Champ id="dip-annee" label="Année d’obtention (facultatif)" type="number" value={annee} onChange={setAnnee} />
-      <div className="mb-3.5">
-        <Libelle htmlFor="dip-fichier">Justificatif (facultatif)</Libelle>
-        <input id="dip-fichier" type="file" className="block w-full text-[13px]" onChange={(e) => setFichier(e.target.files?.[0] ?? null)} />
-      </div>
-      <Erreur message={erreur} />
-    </Fenetre>
+      <Saisie id="dip-titre" label="Intitulé" required value={titre} onChange={setTitre} maxLength={200} placeholder="Ex. : Master en économie" />
+      <Grille2>
+        <Saisie id="dip-etab" label="Établissement" facultatif value={etablissement} onChange={setEtablissement} maxLength={200} />
+        <Saisie id="dip-annee" label="Année d’obtention" facultatif type="number" min={1950} max={anneeMax} value={annee} onChange={setAnnee} />
+      </Grille2>
+      <ZoneDepot id="dip-fichier" label="Justificatif" facultatif fichiers={fichier} onChange={setFichier} />
+    </FenetreFormulaire>
   );
 }
 
@@ -174,49 +195,42 @@ export function FenetrePiece({ dossier, onClose, onDone }: Props) {
   const [libelle, setLibelle] = useState('');
   const [pieceRequiseId, setPieceRequiseId] = useState('');
   const [requises, setRequises] = useState<PieceRequise[]>([]);
-  const [fichier, setFichier] = useState<File | null>(null);
+  const [fichier, setFichier] = useState<File[]>([]);
   const { enCours, erreur, envoyer } = useEnvoi(onDone);
   useEffect(() => {
     // Socle N6 : une pièce peut fournir une pièce de la liste des pièces requises (dossier complet).
     getPiecesRequises().then((l) => setRequises(l.pieces.filter((p) => p.actif))).catch(() => setRequises([]));
   }, []);
   return (
-    <Fenetre
+    <FenetreFormulaire
       titre="Ajouter une pièce administrative"
+      sousTitre={`${dossier.identite.firstName} ${dossier.identite.lastName}`}
       onClose={onClose}
-      onSubmit={() => (fichier ? envoyer(() => ajouterPiece(dossier.userId, libelle.trim(), fichier, pieceRequiseId || undefined), 'Ajout impossible') : undefined)}
-      valider="Ajouter"
+      largeur={640}
+      onSubmit={() => envoyer(() => ajouterPiece(dossier.userId, libelle.trim(), fichier[0]!, pieceRequiseId || undefined), 'Ajout impossible')}
+      libelleValider="Ajouter la pièce"
       enCours={enCours}
+      erreur={erreur}
+      pied="Une pièce requise fournie complète le dossier."
     >
       {requises.length > 0 && (
-        <div className="mb-3.5">
-          <Libelle htmlFor="piece-requise">Pièce requise fournie (facultatif)</Libelle>
-          <select
-            id="piece-requise"
-            className={SELECT_CLASS}
-            value={pieceRequiseId}
-            onChange={(e) => {
-              setPieceRequiseId(e.target.value);
-              const p = requises.find((x) => x.id === e.target.value);
-              if (p && !libelle.trim()) setLibelle(p.libelle);
-            }}
-          >
-            <option value="">— Autre pièce —</option>
-            {requises.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.libelle}
-              </option>
-            ))}
-          </select>
-        </div>
+        <Liste
+          id="piece-requise"
+          label="Pièce requise fournie"
+          facultatif
+          vide="— Autre pièce —"
+          value={pieceRequiseId}
+          onChange={(x) => {
+            setPieceRequiseId(x);
+            const p = requises.find((r) => r.id === x);
+            if (p && !libelle.trim()) setLibelle(p.libelle);
+          }}
+          options={requises.map((p) => ({ value: p.id, label: p.libelle }))}
+        />
       )}
-      <Champ id="piece-libelle" label="Libellé" value={libelle} onChange={setLibelle} maxLength={150} />
-      <div className="mb-3.5">
-        <Libelle htmlFor="piece-fichier">Fichier</Libelle>
-        <input id="piece-fichier" type="file" required className="block w-full text-[13px]" onChange={(e) => setFichier(e.target.files?.[0] ?? null)} />
-      </div>
-      <Erreur message={erreur} />
-    </Fenetre>
+      <Saisie id="piece-libelle" label="Libellé" required value={libelle} onChange={setLibelle} maxLength={150} />
+      <ZoneDepot id="piece-fichier" label="Fichier" required fichiers={fichier} onChange={setFichier} />
+    </FenetreFormulaire>
   );
 }
 
@@ -241,27 +255,19 @@ export function FenetreSignaler({ dossier, onClose, onDone }: Props) {
   const [commentaire, setCommentaire] = useState('');
   const { enCours, erreur, envoyer } = useEnvoi(onDone);
   return (
-    <Fenetre
+    <FenetreFormulaire
       titre="Signaler une erreur"
-      sousTitre="Le DRH est prévenu et corrige le dossier."
+      sousTitre="Dans votre dossier du personnel"
       onClose={onClose}
+      largeur={600}
       onSubmit={() => envoyer(() => signalerErreur(dossier.userId, champ, commentaire.trim()), 'Signalement impossible')}
-      valider="Envoyer au DRH"
+      libelleValider="Envoyer au DRH"
       enCours={enCours}
+      erreur={erreur}
+      pied="Le DRH est prévenu et corrige le dossier."
     >
-      <div className="mb-3.5">
-        <Libelle htmlFor="sig-champ">Information concernée</Libelle>
-        <select id="sig-champ" className={SELECT_CLASS} value={champ} onChange={(e) => setChamp(e.target.value)}>
-          {CHAMPS_SIGNALABLES.map((c) => (
-            <option key={c}>{c}</option>
-          ))}
-        </select>
-      </div>
-      <div className="mb-3.5">
-        <Libelle htmlFor="sig-commentaire">Ce qui est inexact</Libelle>
-        <textarea id="sig-commentaire" className={TEXTAREA_CLASS} value={commentaire} onChange={(e) => setCommentaire(e.target.value)} required maxLength={2000} />
-      </div>
-      <Erreur message={erreur} />
-    </Fenetre>
+      <Liste id="sig-champ" label="Information concernée" value={champ} onChange={setChamp} options={CHAMPS_SIGNALABLES.map((c) => ({ value: c, label: c }))} />
+      <ZoneTexte id="sig-commentaire" label="Ce qui est inexact" required messageObligatoire="Décrivez ce qui est inexact." value={commentaire} onChange={setCommentaire} maxLength={2000} lignes={4} />
+    </FenetreFormulaire>
   );
 }

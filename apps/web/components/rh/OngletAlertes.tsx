@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { getAlertesRh } from '../../lib/api/rh';
 import type { AlerteRh, TypeAlerteRh } from '../../lib/rh/types';
-import { BandeCompteurs, BarreOutils, BTN_LIGNE, EtatVide, FiltreSelect, LigneTableau, Pastille, Tableau } from '../ui/Charte';
+import { BandeCompteurs, BarreOutils, BTN_LIGNE, EtatVide, Filtres, FiltreSelect, LigneTableau, Pastille, Tableau } from '../ui/Charte';
 import { Chargement, ErreurChargement, messageChargement } from '../ui/ErreurChargement';
 
 const TON = { HAUTE: 'rouge', MOYENNE: 'ambre', BASSE: 'gris' } as const;
@@ -42,6 +42,7 @@ export function OngletAlertes({ typeInitial = '' }: { typeInitial?: TypeAlerteRh
         }))}
       />
       <BarreOutils>
+        <Filtres actifs={type ? 1 : 0} onEffacer={() => setType('')}>
         <FiltreSelect<TypeAlerteRh | ''>
           label="Nature de l’alerte"
           value={type}
@@ -49,6 +50,7 @@ export function OngletAlertes({ typeInitial = '' }: { typeInitial?: TypeAlerteRh
           onChange={setType}
           options={[{ value: '', label: 'Toutes les alertes' }, ...(Object.keys(TYPE) as TypeAlerteRh[]).map((t) => ({ value: t, label: TYPE[t] }))]}
         />
+        </Filtres>
       </BarreOutils>
       <Tableau
         label="Alertes RH"

@@ -16,9 +16,10 @@ async function suppleance(titulaire, suppleant) {
   const r = await call(titulaire, 'POST', '/suppleances', { titulaireId: ids[titulaire], suppleantId: ids[suppleant], startDate: iso(-J / 24), endDate: iso(10 * J) });
   if (r.status !== 201) throw new Error('suppléance ' + JSON.stringify(r.body));
 }
-const dlg = (p) => p.locator('form[role=dialog]');
+const dlg = (p) => p.locator('div[role=dialog]:has(> form)');
 const champ = (p, label) => dlg(p).getByLabel(label, { exact: true });
-const tiroir = (p) => p.locator('div[role=dialog]');
+const tiroir = (p) => p.getByTestId('fenetre-acte');
+const toast = async (p) => { const t = p.getByTestId('toast'); await t.waitFor(); return t.innerText(); };
 // Pastille de statut de l'en-tête de la fenêtre.
 const statut = (p, t) => tiroir(p).getByTestId('statut-acte').getByText(t, { exact: true }).waitFor();
 // Circuit vertical du cycle en cours : « ligne:état:Titre / détail » (ligne = redige, visa, signature, numero,
@@ -54,6 +55,7 @@ async function ouvrir(b, key, acteId, viewport) {
   await champ(ag, 'Annexes (facultatif)').setInputFiles({ name: 'note.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF note') });
   await dlg(ag).getByRole('button', { name: 'Enregistrer le brouillon' }).click();
   await ag.waitForURL(/acte=/);
+  check('toast « Brouillon enregistré »', /Brouillon enregistré/.test(await toast(ag)));
   const K = new URL(ag.url()).searchParams.get('acte');
   await statut(ag, 'Brouillon');
   check('brouillon créé, non numéroté, annexe jointe', (await tiroir(ag).innerText()).includes('Non numéroté') && (await tiroir(ag).getByRole('button', { name: 'note.pdf', exact: true }).count()) === 1);
@@ -72,14 +74,18 @@ async function ouvrir(b, key, acteId, viewport) {
   await tiroir(ssr).getByRole('button', { name: 'Viser' }).click();
   await champ(ssr, 'Commentaire (facultatif)').fill('Bon pour moi.');
   await dlg(ssr).getByRole('button', { name: 'Viser' }).click();
+  check('toast « Acte visé »', /Acte visé/.test(await toast(ssr)));
   await ssr.locator('[data-testid=circuit] li[data-cle=visa][data-etape=fait]').first().waitFor();
   const vs = visas(await etapes(ssr));
   check('visa enregistré (étape faite, « Visé par …, chef de section », commentaire)', vs[0].startsWith('visa:fait:Visé par CHEFSSR Test, chef de section') && vs[0].includes('« Bon pour moi. »'), vs[0]);
   check('après son visa : plus d’action de visa', (await tiroir(ssr).getByRole('button', { name: 'Viser' }).count()) === 0);
   const dpe = await ouvrir(b, 'chefdpe', K);
   await tiroir(dpe).getByRole('button', { name: 'Renvoyer au rédacteur' }).click();
-  await champ(dpe, 'Motif (obligatoire)').fill('Préciser le calendrier.');
   await dlg(dpe).getByRole('button', { name: 'Renvoyer' }).click();
+  check('renvoi sans motif : message sous le champ, fenêtre ouverte', (await dlg(dpe).getByTestId('erreur-champ').first().innerText()) === 'Indiquez le motif.');
+  await champ(dpe, 'Motif').fill('Préciser le calendrier.');
+  await dlg(dpe).getByRole('button', { name: 'Renvoyer' }).click();
+  check('toast « Acte renvoyé au rédacteur »', /Acte renvoyé au rédacteur/.test(await toast(dpe)));
   await statut(dpe, 'Renvoyé');
   await ag.reload();
   await ag.locator('[data-testid=bandeau-renvoi]').waitFor();
@@ -121,6 +127,7 @@ async function ouvrir(b, key, acteId, viewport) {
   await champ(dn, 'Acte signé scanné (facultatif)').setInputFiles({ name: 'signe.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF signé') });
   await dlg(dn).getByRole('button', { name: 'Signer' }).click();
   await statut(dn, 'Signé');
+  check('toast « Acte signé — Numéro … attribué »', /Acte signé[\s\S]*Numéro \S+ attribué/.test(await toast(dn)));
   const fil = (await tiroir(dn).getByRole('navigation', { name: 'Fil d’Ariane' }).innerText()).trim();
   const e4 = await etapes(dn);
   check('signé : numéro attribué (fil « … · N° … », ligne « Numéro … attribué »), scan joint, signature faite', / · N° \S+$/.test(fil) && ligneDe(e4, 'numero').startsWith('numero:fait:Numéro ') && (await tiroir(dn).getByRole('button', { name: 'signe.pdf', exact: true }).count()) === 1 && ligneDe(e4, 'signature').startsWith('signature:fait:Signé par DN Test'), fil + ' | ' + e4.join(' | '));
@@ -129,9 +136,10 @@ async function ouvrir(b, key, acteId, viewport) {
   console.log('— Expédition (secrétariat) et lien vers la réponse');
   const sdg = await ouvrir(b, 'secdg', K);
   await tiroir(sdg).getByRole('button', { name: 'Expédier' }).click();
-  await champ(sdg, 'Mode d’expédition').fill('Porteur');
+  await champ(sdg, 'Mode d’expédition').selectOption('Porteur');
   await dlg(sdg).getByRole('button', { name: 'Marquer expédié' }).click();
   await statut(sdg, 'Expédié');
+  check('toast « Acte expédié »', /Acte expédié[\s\S]*Porteur/.test(await toast(sdg)));
   check('expédié : ligne « Expédié par … · Porteur », étape Expédition faite', /^expedition:fait:Expédié par [\s\S]*Porteur/.test(ligneDe(await etapes(sdg), 'expedition')) && (await tiroir(sdg).getByRole('list', { name: 'Étapes du circuit' }).locator('li').last().innerText()).includes('(fait)'), ligneDe(await etapes(sdg), 'expedition'));
   await tiroir(sdg).getByRole('button', { name: 'Voir le courrier arrivée' }).click();
   await sdg.waitForURL(/arrivee=/);
@@ -147,6 +155,7 @@ async function ouvrir(b, key, acteId, viewport) {
   check('titre « objet — bénéficiaire », Bénéficiaire dans les informations, ligne « Prise de connaissance » en cours', (await tiroir(a2).getByRole('heading').first().innerText()).trim() === `Attestation ${S} — AGENT2 Test` && /Bénéficiaire\s+AGENT2 Test/.test(await tiroir(a2).locator('dl').first().innerText()) && ligneDe(await etapes(a2), 'connaissance').startsWith('connaissance:courant:Prise de connaissance par AGENT2 Test'));
   await tiroir(a2).getByRole('button', { name: 'J’ai pris connaissance' }).click();
   await tiroir(a2).getByText(/A pris connaissance le/).waitFor();
+  check('toast « Prise de connaissance confirmée »', /Prise de connaissance confirmée/.test(await toast(a2)));
   check('prise de connaissance enregistrée, bouton retiré', (await tiroir(a2).getByRole('button', { name: 'J’ai pris connaissance' }).count()) === 0 && (await a2.locator('[data-testid=bandeau-connaissance]').count()) === 0);
 
   console.log('— Refus affichés');
@@ -158,8 +167,9 @@ async function ouvrir(b, key, acteId, viewport) {
   const ag2 = await ouvrir(b, 'agent1', kc.id);
   await call('agent1', 'POST', `/courrier/actes/${kc.id}/soumettre`);
   await tiroir(ag2).getByRole('button', { name: 'Soumettre au visa' }).click();
-  await tiroir(ag2).getByRole('alert').waitFor();
-  check('soumission déjà faite ailleurs : refus 409 affiché', /brouillon|soumis/i.test(await tiroir(ag2).getByRole('alert').innerText()), await tiroir(ag2).getByRole('alert').innerText());
+  const r409 = ag2.locator('[data-testid=toast][data-ton=erreur]');
+  await r409.waitFor();
+  check('soumission déjà faite ailleurs : refus 409 en message bref, en français', /brouillon|soumis/i.test(await r409.innerText()), await r409.innerText());
 
   console.log('— Circuit obsolète : Resoumettre');
   await prisma.user.update({ where: { id: ids.chefssr }, data: { status: 'SUSPENDU' } });
@@ -177,7 +187,7 @@ async function ouvrir(b, key, acteId, viewport) {
 
   console.log('— Mobile');
   const m = await ouvrir(b, 'dn', K, { width: 390, height: 844 });
-  const larg = await m.evaluate(() => [document.documentElement.scrollWidth, document.querySelector('div[role=dialog]').scrollWidth]);
+  const larg = await m.evaluate(() => [document.documentElement.scrollWidth, document.querySelector('[data-testid=fenetre-acte]').scrollWidth]);
   check('mobile : fiche acte sans défilement horizontal', larg[0] <= 390 && larg[1] <= 390, JSON.stringify(larg));
   await m.screenshot({ path: `${SHOTS}/c2_acte_circuit_mobile.png` });
   await b.close();

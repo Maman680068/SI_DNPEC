@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Check } from 'lucide-react';
 import { listerParametres, modifierParametre } from '../../lib/api/securite';
 import type { ListeParametres, Parametre } from '../../lib/securite/types';
-import { Chargement, messageChargement } from '../ui/ErreurChargement';
+import { Chargement, ErreurChargement, messageChargement } from '../ui/ErreurChargement';
+import { messageErreur, useToast } from '../ui/Toast';
 import { Bandeau, BTN_PRINCIPAL } from '../ui/Charte';
 
 /**
@@ -37,7 +38,7 @@ export function Parametres({ onActions }: { onActions: (actions: ReactNode) => v
   const [saisies, setSaisies] = useState<Record<string, string>>({});
   const [refus, setRefus] = useState<Record<string, string>>({});
   const [enCours, setEnCours] = useState(false);
-  const [enregistres, setEnregistres] = useState<number | null>(null);
+  const toast = useToast();
 
   useEffect(() => {
     listerParametres()
@@ -57,25 +58,39 @@ export function Parametres({ onActions }: { onActions: (actions: ReactNode) => v
   async function enregistrer() {
     if (modifies.length === 0) return;
     setEnCours(true);
-    setEnregistres(null);
     const nouveauxRefus: Record<string, string> = {};
     let derniere: ListeParametres | null = null;
-    let faits = 0;
+    // Valeurs d'avant, pour « Annuler » (remise en l'état par la même route, même droit).
+    const anciennes: { cle: string; valeur: number }[] = [];
     for (const p of modifies) {
       const texte = (saisies[p.cle] ?? '').trim();
       try {
         derniere = await modifierParametre(p.cle, texte === '' ? Number.NaN : Number(texte));
-        faits++;
+        anciennes.push({ cle: p.cle, valeur: p.valeur });
       } catch (e) {
-        nouveauxRefus[p.cle] = e instanceof Error ? e.message : 'Modification impossible';
+        nouveauxRefus[p.cle] = messageErreur(e, 'Modification impossible');
       }
     }
     if (derniere) setListe(derniere);
     // Les valeurs refusées restent saisies (à corriger) ; les autres reprennent la valeur enregistrée.
     setSaisies((s) => Object.fromEntries(Object.entries(s).filter(([cle]) => nouveauxRefus[cle])));
     setRefus(nouveauxRefus);
-    setEnregistres(faits);
     setEnCours(false);
+    const faits = anciennes.length;
+    if (faits > 0 && Object.keys(nouveauxRefus).length === 0)
+      toast.succes(`${faits} paramètre${faits > 1 ? 's' : ''} enregistré${faits > 1 ? 's' : ''}`, {
+        detail: 'La nouvelle valeur s’applique aussitôt.',
+        annuler: async () => {
+          let l: ListeParametres | null = null;
+          try {
+            for (const a of anciennes) l = await modifierParametre(a.cle, a.valeur);
+            if (l) setListe(l);
+            toast.succes('Modification annulée', { detail: 'Les valeurs précédentes sont rétablies.' });
+          } catch (e) {
+            toast.erreur('Annulation impossible', messageErreur(e));
+          }
+        },
+      });
   }
 
   // Bouton « Enregistrer » de l'en-tête de page (administrateur seulement, actif dès qu'une valeur change).
@@ -93,15 +108,10 @@ export function Parametres({ onActions }: { onActions: (actions: ReactNode) => v
   }, [peutModifier, nbModifies, enCours, saisies]);
   useEffect(() => () => onActions(null), [onActions]);
 
-  if (!liste || !active) return <Chargement erreur={erreur} />;
+  if (!liste || !active) return <><ErreurChargement message={erreur} /><Chargement erreur={erreur} lignes={6} /></>;
 
   return (
     <>
-      {enregistres !== null && enregistres > 0 && Object.keys(refus).length === 0 && (
-        <Bandeau ton="vert" testid="parametres-enregistres">
-          {enregistres} paramètre{enregistres > 1 ? 's' : ''} enregistré{enregistres > 1 ? 's' : ''} : la nouvelle valeur s’applique aussitôt.
-        </Bandeau>
-      )}
       {Object.keys(refus).length > 0 && (
         <Bandeau ton="rouge" testid="parametres-refuses">
           {Object.keys(refus).length} valeur{Object.keys(refus).length > 1 ? 's' : ''} refusée{Object.keys(refus).length > 1 ? 's' : ''} : corrigez la saisie signalée puis « Enregistrer ».
@@ -145,10 +155,7 @@ export function Parametres({ onActions }: { onActions: (actions: ReactNode) => v
                 peutModifier={peutModifier}
                 saisie={saisies[p.cle]}
                 refus={refus[p.cle]}
-                onSaisie={(v) => {
-                  setEnregistres(null);
-                  setSaisies((s) => ({ ...s, [p.cle]: v }));
-                }}
+                onSaisie={(v) => setSaisies((s) => ({ ...s, [p.cle]: v }))}
               />
             ))}
           </ul>

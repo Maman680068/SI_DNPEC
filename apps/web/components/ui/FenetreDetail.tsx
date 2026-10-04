@@ -53,7 +53,8 @@ export function FenetreDetail({
     boite.current?.focus();
     const clavier = (e: KeyboardEvent) => {
       if (!auPremierPlan(boite.current)) return;
-      if (e.key === 'Escape') {
+      // Échap déjà pris par une liste ou un calendrier ouvert dans la fenêtre : il ne la ferme pas.
+      if (e.key === 'Escape' && !e.defaultPrevented) {
         e.stopPropagation();
         fermer.current();
         return;

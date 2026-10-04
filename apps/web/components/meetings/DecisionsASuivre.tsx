@@ -4,6 +4,7 @@ import type { DecisionsASuivre as Donnees } from '../../lib/meetings/types';
 import { STATUT_LIBELLE } from '../../lib/tasks/affichage';
 import { dateCourte } from '../../lib/meetings/affichage';
 import { Pastille } from '../ui/Charte';
+import { Barre } from '../ui/Squelette';
 
 /** Panneau « Décisions à suivre » (maquette Réunions) : retards en rouge, décisions devenues des tâches. */
 export function DecisionsASuivre({ donnees, erreur, onOuvrir }: { donnees: Donnees | null; erreur: string | null; onOuvrir: (meetingId: string) => void }) {
@@ -22,7 +23,11 @@ export function DecisionsASuivre({ donnees, erreur, onOuvrir }: { donnees: Donne
       {erreur ? (
         <p className="border-t border-[#F0F1F6] px-4 py-3 text-[13px] text-clay">{erreur}</p>
       ) : !donnees ? (
-        <p className="border-t border-[#F0F1F6] px-4 py-3 text-[13px] text-text-muted">Chargement…</p>
+        <div role="status" aria-label="Chargement en cours" data-testid="squelette" className="space-y-3 border-t border-[#F0F1F6] px-4 py-4">
+          <Barre className="h-3 w-[75%]" />
+          <Barre className="h-3 w-[60%]" />
+          <Barre className="h-3 w-[68%]" />
+        </div>
       ) : donnees.decisions.length === 0 ? (
         <p className="border-t border-[#F0F1F6] px-4 py-3 text-[13px] text-text-muted">Aucune décision à suivre : elles se consignent dans la fenêtre d’une réunion.</p>
       ) : (

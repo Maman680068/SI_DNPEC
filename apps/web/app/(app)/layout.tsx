@@ -11,6 +11,9 @@ import { Sidebar } from '../../components/layout/Sidebar';
 import { Topbar } from '../../components/layout/Topbar';
 import { ReauthProvider } from '../../lib/securite/ReauthProvider';
 import { NavigationProvider } from '../../lib/navigation/NavigationProvider';
+import { SqueletteApplication } from '../../components/ui/Squelette';
+import { ToastProvider } from '../../components/ui/Toast';
+import { DefilementVisible } from '../../components/layout/DefilementVisible';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -25,7 +28,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }, [status, router]);
 
   if (status !== 'authenticated') {
-    return <div className="flex min-h-screen items-center justify-center text-text-muted">Chargement…</div>;
+    return <SqueletteApplication />;
   }
 
   return (
@@ -33,6 +36,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <InterimProvider>
        <ReauthProvider>
         <NavigationProvider>
+        <ToastProvider>
+        <DefilementVisible />
         {/* Refonte de l'interface : menu fixe à gauche (son propre défilement), barre du haut
          * toujours visible ; seule la page défile. La bande tricolore reste sur les pages publiques. */}
         <div className="contraste-aa flex h-screen overflow-hidden bg-bg">
@@ -43,6 +48,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <InterimScopedContent>{children}</InterimScopedContent>
           </div>
         </div>
+        </ToastProvider>
         </NavigationProvider>
        </ReauthProvider>
       </InterimProvider>

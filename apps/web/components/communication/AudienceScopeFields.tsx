@@ -4,21 +4,28 @@ import { useAuth } from '../../lib/auth/AuthProvider';
 import { useOrg } from '../../lib/org/OrgProvider';
 import type { AnnouncementScope, AudienceScopeValue } from '../../lib/communication/types';
 import { SCOPE_LABEL } from '../../lib/communication/types';
+import { ChoixSegment, Liste, SelecteurPersonnes } from '../ui/Formulaire';
 
 /**
  * Sélecteur de portée d'audience partagé entre annonces et sondages — même
  * ciblage cascade (DNPEC/Division/Section/Cellule/Groupe personnalisé), même
  * autorité vérifiée côté API pour les deux. Extrait de CreateAnnouncementModal
  * pour ne pas dupliquer ce bloc dans CreatePollModal.
+ *
+ * Refonte (étape 9) : portée en un clic, unité en liste validée dans la fenêtre, destinataires d'un
+ * groupe personnalisé avec le sélecteur de personnes (recherche, étiquettes).
+ * `prefixe` : identifiants des champs propres à chaque formulaire.
  */
 export function AudienceScopeFields({
   availableScopes,
   value,
   onChange,
+  prefixe = 'audience',
 }: {
   availableScopes: AnnouncementScope[];
   value: AudienceScopeValue;
   onChange: (next: AudienceScopeValue) => void;
+  prefixe?: string;
 }) {
   const { user: currentUser } = useAuth();
   const { divisions, sections, cellules, users } = useOrg();
@@ -27,142 +34,107 @@ export function AudienceScopeFields({
   const isChefSection = currentUser?.role === 'CHEF_SECTION';
   const isChefCellule = currentUser?.role === 'CHEF_CELLULE';
   const sectionsForDivision = sections.filter((s) => s.divisionId === value.divisionId);
+  const uniteDe = (u: (typeof users)[number]) =>
+    u.celluleId
+      ? cellules.find((c) => c.id === u.celluleId)?.name
+      : u.sectionId
+        ? sections.find((s) => s.id === u.sectionId)?.name
+        : u.divisionId
+          ? divisions.find((d) => d.id === u.divisionId)?.name
+          : 'Direction';
+  const personnes = users
+    .filter((u) => u.id !== currentUser?.id)
+    .map((u) => ({ id: u.id, nom: `${u.firstName} ${u.lastName}`, detail: [u.jobTitle, uniteDe(u)].filter(Boolean).join(' · ') || null }));
 
-  function toggleRecipient(userId: string) {
-    onChange({
-      ...value,
-      recipientUserIds: value.recipientUserIds.includes(userId)
-        ? value.recipientUserIds.filter((id) => id !== userId)
-        : [...value.recipientUserIds, userId],
-    });
-  }
+  const votre = (libelle: string, nom?: string) => (
+    <p className="mb-3.5 text-[13px] text-text-muted">
+      {libelle} : <strong className="text-text">{nom ?? '—'}</strong>
+    </p>
+  );
 
   return (
     <>
-      <div className="mb-4">
-        <label className="mb-1.5 block text-[12.5px] font-semibold text-text">Portée</label>
-        <select
-          value={value.scope}
-          onChange={(e) => onChange({ ...value, scope: e.target.value as AnnouncementScope })}
-          className="w-full rounded-md border border-line bg-surface px-3 py-2.5 text-sm"
-        >
-          {availableScopes.map((s) => (
-            <option key={s} value={s}>
-              {SCOPE_LABEL[s]}
-            </option>
-          ))}
-        </select>
-      </div>
+      <ChoixSegment<AnnouncementScope>
+        id={`${prefixe}-portee`}
+        label="Portée"
+        value={value.scope}
+        onChange={(scope) => onChange({ ...value, scope })}
+        options={availableScopes.map((s) => ({ value: s, label: SCOPE_LABEL[s] }))}
+      />
 
-      {value.scope === 'DIVISION' && (
-        <div className="mb-4">
-          {isChefDivision ? (
-            <p className="text-[13px] text-text-muted">
-              Votre division : <strong>{divisions.find((d) => d.id === currentUser?.divisionId)?.name}</strong>
-            </p>
-          ) : (
-            <select
-              value={value.divisionId}
-              onChange={(e) => onChange({ ...value, divisionId: e.target.value })}
-              required
-              className="w-full rounded-md border border-line bg-surface px-3 py-2.5 text-sm"
-            >
-              <option value="">Choisir une division…</option>
-              {divisions.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.name}
-                </option>
-              ))}
-            </select>
-          )}
-        </div>
-      )}
+      {value.scope === 'DIVISION' &&
+        (isChefDivision ? (
+          votre('Votre division', divisions.find((d) => d.id === currentUser?.divisionId)?.name)
+        ) : (
+          <Liste
+            id={`${prefixe}-division`}
+            label="Division"
+            value={value.divisionId}
+            onChange={(divisionId) => onChange({ ...value, divisionId })}
+            vide="Choisir une division…"
+            required
+            messageObligatoire="Choisissez une division."
+            options={divisions.map((d) => ({ value: d.id, label: d.name }))}
+          />
+        ))}
 
-      {value.scope === 'SECTION' && (
-        <div className="mb-4 space-y-2.5">
-          {isChefSection ? (
-            <p className="text-[13px] text-text-muted">
-              Votre section : <strong>{sections.find((s) => s.id === currentUser?.sectionId)?.name}</strong>
-            </p>
-          ) : (
-            <>
-              {!isChefDivision && (
-                <select
-                  value={value.divisionId}
-                  onChange={(e) => onChange({ ...value, divisionId: e.target.value, sectionId: '' })}
-                  required
-                  className="w-full rounded-md border border-line bg-surface px-3 py-2.5 text-sm"
-                >
-                  <option value="">Choisir une division…</option>
-                  {divisions.map((d) => (
-                    <option key={d.id} value={d.id}>
-                      {d.name}
-                    </option>
-                  ))}
-                </select>
-              )}
-              <select
-                value={value.sectionId}
-                onChange={(e) => onChange({ ...value, sectionId: e.target.value })}
+      {value.scope === 'SECTION' &&
+        (isChefSection ? (
+          votre('Votre section', sections.find((s) => s.id === currentUser?.sectionId)?.name)
+        ) : (
+          <div className={isChefDivision ? '' : 'grid gap-x-4 sm:grid-cols-2'}>
+            {!isChefDivision && (
+              <Liste
+                id={`${prefixe}-division`}
+                label="Division"
+                value={value.divisionId}
+                onChange={(divisionId) => onChange({ ...value, divisionId, sectionId: '' })}
+                vide="Choisir une division…"
                 required
-                disabled={!value.divisionId}
-                className="w-full rounded-md border border-line bg-surface px-3 py-2.5 text-sm disabled:opacity-60"
-              >
-                <option value="">Choisir une section…</option>
-                {sectionsForDivision.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
-            </>
-          )}
-        </div>
-      )}
-
-      {value.scope === 'CELLULE' && (
-        <div className="mb-4">
-          {isChefCellule ? (
-            <p className="text-[13px] text-text-muted">
-              Votre cellule : <strong>{cellules.find((c) => c.id === currentUser?.celluleId)?.name}</strong>
-            </p>
-          ) : (
-            <select
-              value={value.celluleId}
-              onChange={(e) => onChange({ ...value, celluleId: e.target.value })}
+                messageObligatoire="Choisissez une division."
+                options={divisions.map((d) => ({ value: d.id, label: d.name }))}
+              />
+            )}
+            <Liste
+              id={`${prefixe}-section`}
+              label="Section"
+              value={value.sectionId}
+              onChange={(sectionId) => onChange({ ...value, sectionId })}
+              vide={value.divisionId ? 'Choisir une section…' : 'Choisissez d’abord une division'}
               required
-              className="w-full rounded-md border border-line bg-surface px-3 py-2.5 text-sm"
-            >
-              <option value="">Choisir une cellule…</option>
-              {cellules.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          )}
-        </div>
-      )}
+              messageObligatoire="Choisissez une section."
+              options={sectionsForDivision.map((s) => ({ value: s.id, label: s.name }))}
+            />
+          </div>
+        ))}
+
+      {value.scope === 'CELLULE' &&
+        (isChefCellule ? (
+          votre('Votre cellule', cellules.find((c) => c.id === currentUser?.celluleId)?.name)
+        ) : (
+          <Liste
+            id={`${prefixe}-cellule`}
+            label="Cellule"
+            value={value.celluleId}
+            onChange={(celluleId) => onChange({ ...value, celluleId })}
+            vide="Choisir une cellule…"
+            required
+            messageObligatoire="Choisissez une cellule."
+            options={cellules.map((c) => ({ value: c.id, label: c.name }))}
+          />
+        ))}
 
       {value.scope === 'GROUPE_PERSONNALISE' && (
-        <div className="mb-4">
-          <label className="mb-1.5 block text-[12.5px] font-semibold text-text">Destinataires</label>
-          <div className="max-h-32 overflow-y-auto rounded-md border border-line p-2">
-            {users
-              .filter((u) => u.id !== currentUser?.id)
-              .map((u) => (
-                <label key={u.id} className="flex items-center gap-2 py-1 text-[13px]">
-                  <input
-                    type="checkbox"
-                    checked={value.recipientUserIds.includes(u.id)}
-                    onChange={() => toggleRecipient(u.id)}
-                  />
-                  {u.firstName} {u.lastName}
-                </label>
-              ))}
-            {users.length <= 1 && <p className="text-[12.5px] text-text-faint">Aucun destinataire disponible.</p>}
-          </div>
-        </div>
+        <SelecteurPersonnes
+          id={`${prefixe}-destinataires`}
+          label="Destinataires"
+          options={personnes}
+          valeurs={value.recipientUserIds}
+          onChange={(recipientUserIds) => onChange({ ...value, recipientUserIds })}
+          required
+          messageObligatoire="Choisissez au moins un destinataire."
+          aide={personnes.length === 0 ? 'Aucun destinataire disponible dans votre périmètre.' : 'Personnes de votre périmètre.'}
+        />
       )}
     </>
   );

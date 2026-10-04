@@ -5,6 +5,7 @@ import { useOrg } from '../../lib/org/OrgProvider';
 import { getRegistrationSupervisorOptionsRequest } from '../../lib/api/auth';
 import type { RegistrationSupervisorOption, SystemRole } from '../../lib/auth/types';
 import type { OrgAttachment } from '../../lib/users/types';
+import { ChoixSegment, Grille2, Liste, SelecteurPersonnes } from '../ui/Formulaire';
 
 type Kind = 'none' | 'division' | 'division_section' | 'cellule' | 'cellule_optional' | 'agent' | 'stagiaire' | 'supervisor';
 type AgentMode = 'division' | 'cellule';
@@ -108,7 +109,7 @@ export function OrgAttachmentFields({
 
   if (kind === 'none') {
     return (
-      <p className="mb-4 rounded-md bg-bg px-3.5 py-2.5 text-[12.5px] text-text-faint">
+      <p className="mb-3.5 rounded-[10px] bg-bg px-3.5 py-2.5 text-[12.5px] text-text-muted">
         Ce rôle n’a pas de rattachement Division/Section/Cellule (direction générale).
       </p>
     );
@@ -124,118 +125,82 @@ export function OrgAttachmentFields({
   const sectionsForDivision = sections.filter((s) => s.divisionId === value.divisionId);
 
   return (
-    <div className="mb-4">
+    <div className="min-w-0">
       {kind === 'stagiaire' && (
-        <p className="mb-2 text-[11.5px] text-text-faint">Facultatif : la rotation du stage met ce rattachement à jour à chaque période.</p>
+        <p className="mb-2 text-[12px] text-text-muted">Facultatif : la rotation du stage met ce rattachement à jour à chaque période.</p>
       )}
       {(kind === 'agent' || kind === 'stagiaire') && (
-        <div className="mb-2.5 flex gap-0.5 rounded-md border border-line bg-bg p-0.5" style={{ width: 'fit-content' }}>
-          {(
-            [
-              { key: 'division', label: 'Division' },
-              { key: 'cellule', label: 'Cellule transversale' },
-            ] as const
-          ).map((option) => (
-            <button
-              type="button"
-              key={option.key}
-              onClick={() => {
-                setAgentMode(option.key);
-                onChange(EMPTY);
-              }}
-              className={`rounded-[6px] px-3 py-1.5 text-[12px] font-semibold ${
-                agentMode === option.key ? 'bg-surface text-ink shadow-sm' : 'text-text-muted'
-              }`}
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
+        <ChoixSegment<AgentMode>
+          id="rat-mode"
+          label="Rattachement"
+          options={[
+            { value: 'division', label: 'Division' },
+            { value: 'cellule', label: 'Cellule transversale' },
+          ]}
+          value={agentMode}
+          onChange={(m) => {
+            setAgentMode(m);
+            onChange(EMPTY);
+          }}
+        />
       )}
 
-      {showDivision && (
-        <div className="mb-3">
-          <label className="mb-1.5 block text-[12.5px] font-semibold text-text">
-            Division {divisionRequired && <span className="text-clay">*</span>}
-          </label>
-          <select
-            value={value.divisionId ?? ''}
-            onChange={(e) => onChange({ ...EMPTY, divisionId: e.target.value || null })}
-            required={divisionRequired}
-            className="w-full rounded-md border border-line bg-surface px-3 py-2.5 text-sm"
-          >
-            <option value="">— Sélectionner —</option>
-            {divisions.map((d) => (
-              <option key={d.id} value={d.id}>
-                {d.name}
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
-
-      {showSection && (
-        <div className="mb-3">
-          <label className="mb-1.5 block text-[12.5px] font-semibold text-text">
-            Section {sectionRequired && <span className="text-clay">*</span>}
-          </label>
-          <select
-            value={value.sectionId ?? ''}
-            onChange={(e) => onChange({ ...value, sectionId: e.target.value || null })}
-            required={sectionRequired}
-            disabled={!value.divisionId}
-            className="w-full rounded-md border border-line bg-surface px-3 py-2.5 text-sm disabled:opacity-50"
-          >
-            <option value="">{sectionRequired ? '— Sélectionner —' : '— Aucune (optionnel) —'}</option>
-            {sectionsForDivision.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </select>
-        </div>
+      {(showDivision || showSection) && (
+        <Grille2>
+          {showDivision && (
+            <Liste
+              id="rat-division"
+              label="Division"
+              facultatif={!divisionRequired}
+              required={divisionRequired}
+              messageObligatoire="Choisissez la division."
+              vide="— Sélectionner —"
+              value={value.divisionId ?? ''}
+              onChange={(v) => onChange({ ...EMPTY, divisionId: v || null })}
+              options={divisions.map((d) => ({ value: d.id, label: d.name }))}
+            />
+          )}
+          {showSection && (
+            <Liste
+              id="rat-section"
+              label="Section"
+              facultatif={!sectionRequired}
+              required={sectionRequired}
+              messageObligatoire="Choisissez la section."
+              vide={value.divisionId ? (sectionRequired ? '— Sélectionner —' : '— Aucune —') : 'Choisissez d’abord la division'}
+              value={value.sectionId ?? ''}
+              onChange={(v) => onChange({ ...value, sectionId: v || null })}
+              options={sectionsForDivision.map((s) => ({ value: s.id, label: s.name }))}
+            />
+          )}
+        </Grille2>
       )}
 
       {showCellule && (
-        <div className="mb-3">
-          <label className="mb-1.5 block text-[12.5px] font-semibold text-text">
-            Cellule {celluleRequired && <span className="text-clay">*</span>}
-          </label>
-          <select
-            value={value.celluleId ?? ''}
-            onChange={(e) => onChange({ ...EMPTY, celluleId: e.target.value || null })}
-            required={celluleRequired}
-            className="w-full rounded-md border border-line bg-surface px-3 py-2.5 text-sm"
-          >
-            <option value="">— Sélectionner —</option>
-            {cellules.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-        </div>
+        <Liste
+          id="rat-cellule"
+          label="Cellule"
+          facultatif={!celluleRequired}
+          required={celluleRequired}
+          messageObligatoire="Choisissez la cellule."
+          vide="— Sélectionner —"
+          value={value.celluleId ?? ''}
+          onChange={(v) => onChange({ ...EMPTY, celluleId: v || null })}
+          options={cellules.map((c) => ({ value: c.id, label: c.name }))}
+        />
       )}
 
       {showSupervisor && (
-        <div className="mb-3">
-          <label className="mb-1.5 block text-[12.5px] font-semibold text-text">
-            Personne assistée <span className="text-clay">*</span>
-          </label>
-          <select
-            value={value.supervisorId ?? ''}
-            onChange={(e) => onChange({ ...EMPTY, supervisorId: e.target.value || null })}
-            required
-            className="w-full rounded-md border border-line bg-surface px-3 py-2.5 text-sm"
-          >
-            <option value="">— Sélectionner —</option>
-            {supervisorOptions.map((s) => (
-              <option key={s.id} value={s.id}>
-                {supervisorLabel(s)}
-              </option>
-            ))}
-          </select>
-        </div>
+        <SelecteurPersonnes
+          id="rat-superviseur"
+          label="Personne assistée"
+          multiple={false}
+          required
+          messageObligatoire="Choisissez la personne assistée."
+          options={supervisorOptions.map((o) => ({ id: o.id, nom: `${o.firstName} ${o.lastName}`, detail: supervisorLabel(o).split(' — ')[1] ?? null }))}
+          valeurs={value.supervisorId ? [value.supervisorId] : []}
+          onChange={(ids) => onChange({ ...EMPTY, supervisorId: ids[0] ?? null })}
+        />
       )}
     </div>
   );

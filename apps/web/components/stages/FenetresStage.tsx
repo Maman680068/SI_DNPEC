@@ -18,11 +18,13 @@ import {
 } from '../../lib/api/stages';
 import type { Candidat, FormatEvaluation, Periode, Personne, Stage } from '../../lib/stages/types';
 import { FORMAT_LABEL } from '../../lib/stages/types';
-import { Erreur, Fenetre, Libelle, SELECT_CLASS, TEXTAREA_CLASS, messageErreur } from '../courrier/ui';
+import { SELECT_CLASS } from '../courrier/ui';
+import { ChampDate, ChoixSegment, FenetreFormulaire, Grille2, Liste, MessageErreurChamp, Saisie, SelecteurPersonnes, ZoneTexte } from '../ui/Formulaire';
+import { messageErreur } from '../ui/Toast';
 
 const jourIso = (d: string) => d.slice(0, 10);
 
-/** Exécute une action et affiche le refus de l'API tel quel. */
+/** Exécute une action et affiche le refus de l'API en bas de la fenêtre. */
 function useAction(onDone: (s?: Stage) => void) {
   const [enCours, setEnCours] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
@@ -41,14 +43,10 @@ function useAction(onDone: (s?: Stage) => void) {
   return { enCours, erreur, lancer };
 }
 
-function Champ({ id, label, children }: { id: string; label: string; children: React.ReactNode }) {
-  return (
-    <div className="mb-3.5">
-      <Libelle htmlFor={id}>{label}</Libelle>
-      {children}
-    </div>
-  );
-}
+const nomComplet = (p: Personne) => `${p.firstName} ${p.lastName}`;
+/** Règle de la fenêtre : la fin ne précède pas le début. */
+const finApresDebut = (debut: string, fin: string, idFin: string) => (debut && fin && fin < debut ? { [idFin]: 'La fin ne peut pas précéder le début.' } : {});
+const motifValide = (motif: string, id: string) => (motif.trim() && motif.trim().length < 5 ? { [id]: 'Le motif doit compter au moins 5 caractères.' } : {});
 
 // ---------------------------------------------------------------- stage
 
@@ -57,13 +55,14 @@ export function FenetreNouveauStage({ onClose, onCreated }: { onClose: () => voi
   const [v, setV] = useState({ stagiaireId: '', etablissement: '', diplomePrepare: '', encadrantAcademique: '', dateDebut: '', dateFin: '' });
   const { enCours, erreur, lancer } = useAction((s) => s && onCreated(s));
   const [erreurListe, setErreurListe] = useState<string | null>(null);
+  const set = (k: keyof typeof v) => (x: string) => setV((o) => ({ ...o, [k]: x }));
   useEffect(() => {
     getStagiairesDisponibles()
       .then(setCandidats)
       .catch((e) => setErreurListe(messageErreur(e, 'Impossible de charger les stagiaires')));
   }, []);
   return (
-    <Fenetre
+    <FenetreFormulaire
       titre="Nouveau stage"
       sousTitre="Le compte du stagiaire est créé auparavant (administrateur, ou import Excel avec le rôle Stagiaire)."
       onClose={onClose}
@@ -79,38 +78,34 @@ export function FenetreNouveauStage({ onClose, onCreated }: { onClose: () => voi
           'Création impossible',
         )
       }
-      valider="Créer le stage"
+      valider={() => ({
+        ...finApresDebut(v.dateDebut, v.dateFin, 'ns-fin'),
+        ...(v.etablissement.trim() && v.etablissement.trim().length < 2 ? { 'ns-etab': 'Le nom est trop court.' } : {}),
+      })}
+      libelleValider="Créer le stage"
       enCours={enCours}
+      erreur={erreurListe ?? erreur}
+      pied="Vous ajoutez ensuite les périodes : chaque unité d’accueil accepte la sienne et désigne le tuteur."
     >
-      <Champ id="ns-stagiaire" label="Stagiaire">
-        <select id="ns-stagiaire" className={SELECT_CLASS} value={v.stagiaireId} onChange={(e) => setV({ ...v, stagiaireId: e.target.value })} required>
-          <option value="">{candidats ? (candidats.length ? 'Choisir…' : 'Aucun compte stagiaire disponible') : 'Chargement…'}</option>
-          {candidats?.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.firstName} {c.lastName} — {c.email}
-            </option>
-          ))}
-        </select>
-      </Champ>
-      <Champ id="ns-etab" label="Établissement d’origine">
-        <input id="ns-etab" className={SELECT_CLASS} value={v.etablissement} onChange={(e) => setV({ ...v, etablissement: e.target.value })} required minLength={2} maxLength={200} />
-      </Champ>
-      <Champ id="ns-diplome" label="Diplôme préparé (facultatif)">
-        <input id="ns-diplome" className={SELECT_CLASS} value={v.diplomePrepare} onChange={(e) => setV({ ...v, diplomePrepare: e.target.value })} maxLength={200} />
-      </Champ>
-      <Champ id="ns-encadrant" label="Encadrant académique (facultatif)">
-        <input id="ns-encadrant" className={SELECT_CLASS} value={v.encadrantAcademique} onChange={(e) => setV({ ...v, encadrantAcademique: e.target.value })} maxLength={200} />
-      </Champ>
-      <div className="grid grid-cols-2 gap-3">
-        <Champ id="ns-debut" label="Début">
-          <input id="ns-debut" type="date" className={SELECT_CLASS} value={v.dateDebut} onChange={(e) => setV({ ...v, dateDebut: e.target.value })} required />
-        </Champ>
-        <Champ id="ns-fin" label="Fin">
-          <input id="ns-fin" type="date" className={SELECT_CLASS} value={v.dateFin} onChange={(e) => setV({ ...v, dateFin: e.target.value })} required />
-        </Champ>
-      </div>
-      <Erreur message={erreurListe ?? erreur} />
-    </Fenetre>
+      <SelecteurPersonnes
+        id="ns-stagiaire"
+        label="Stagiaire"
+        multiple={false}
+        required
+        messageObligatoire="Choisissez le stagiaire."
+        placeholder={candidats ? (candidats.length ? 'Rechercher un stagiaire…' : 'Aucun compte stagiaire disponible') : 'Chargement des stagiaires…'}
+        options={(candidats ?? []).map((c) => ({ id: c.id, nom: nomComplet(c), detail: c.email }))}
+        valeurs={v.stagiaireId ? [v.stagiaireId] : []}
+        onChange={(ids) => set('stagiaireId')(ids[0] ?? '')}
+      />
+      <Saisie id="ns-etab" label="Établissement d’origine" value={v.etablissement} onChange={set('etablissement')} required maxLength={200} />
+      <Grille2>
+        <Saisie id="ns-diplome" label="Diplôme préparé" facultatif value={v.diplomePrepare} onChange={set('diplomePrepare')} maxLength={200} />
+        <Saisie id="ns-encadrant" label="Encadrant académique" facultatif value={v.encadrantAcademique} onChange={set('encadrantAcademique')} maxLength={200} />
+        <ChampDate id="ns-debut" label="Début" value={v.dateDebut} onChange={set('dateDebut')} required />
+        <ChampDate id="ns-fin" label="Fin" value={v.dateFin} onChange={set('dateFin')} required />
+      </Grille2>
+    </FenetreFormulaire>
   );
 }
 
@@ -123,9 +118,11 @@ export function FenetreModifierStage({ stage, onClose, onDone }: { stage: Stage;
     dateFin: jourIso(stage.dateFin),
   });
   const { enCours, erreur, lancer } = useAction(onDone);
+  const set = (k: keyof typeof v) => (x: string) => setV((o) => ({ ...o, [k]: x }));
   return (
-    <Fenetre
+    <FenetreFormulaire
       titre="Modifier le stage"
+      sousTitre={nomComplet(stage.stagiaire)}
       onClose={onClose}
       onSubmit={() =>
         lancer(
@@ -140,28 +137,20 @@ export function FenetreModifierStage({ stage, onClose, onDone }: { stage: Stage;
           'Modification impossible',
         )
       }
-      valider="Enregistrer"
+      valider={() => finApresDebut(v.dateDebut, v.dateFin, 'ms-fin')}
+      libelleValider="Enregistrer"
       enCours={enCours}
+      erreur={erreur}
+      pied="Les dates des périodes doivent rester comprises dans celles du stage."
     >
-      <Champ id="ms-etab" label="Établissement d’origine">
-        <input id="ms-etab" className={SELECT_CLASS} value={v.etablissement} onChange={(e) => setV({ ...v, etablissement: e.target.value })} required minLength={2} />
-      </Champ>
-      <Champ id="ms-diplome" label="Diplôme préparé">
-        <input id="ms-diplome" className={SELECT_CLASS} value={v.diplomePrepare} onChange={(e) => setV({ ...v, diplomePrepare: e.target.value })} />
-      </Champ>
-      <Champ id="ms-encadrant" label="Encadrant académique">
-        <input id="ms-encadrant" className={SELECT_CLASS} value={v.encadrantAcademique} onChange={(e) => setV({ ...v, encadrantAcademique: e.target.value })} />
-      </Champ>
-      <div className="grid grid-cols-2 gap-3">
-        <Champ id="ms-debut" label="Début">
-          <input id="ms-debut" type="date" className={SELECT_CLASS} value={v.dateDebut} onChange={(e) => setV({ ...v, dateDebut: e.target.value })} required />
-        </Champ>
-        <Champ id="ms-fin" label="Fin">
-          <input id="ms-fin" type="date" className={SELECT_CLASS} value={v.dateFin} onChange={(e) => setV({ ...v, dateFin: e.target.value })} required />
-        </Champ>
-      </div>
-      <Erreur message={erreur} />
-    </Fenetre>
+      <Saisie id="ms-etab" label="Établissement d’origine" value={v.etablissement} onChange={set('etablissement')} required />
+      <Grille2>
+        <Saisie id="ms-diplome" label="Diplôme préparé" facultatif value={v.diplomePrepare} onChange={set('diplomePrepare')} />
+        <Saisie id="ms-encadrant" label="Encadrant académique" facultatif value={v.encadrantAcademique} onChange={set('encadrantAcademique')} />
+        <ChampDate id="ms-debut" label="Début" value={v.dateDebut} onChange={set('dateDebut')} required />
+        <ChampDate id="ms-fin" label="Fin" value={v.dateFin} onChange={set('dateFin')} required />
+      </Grille2>
+    </FenetreFormulaire>
   );
 }
 
@@ -172,9 +161,12 @@ export function FenetreModifierStage({ stage, onClose, onDone }: { stage: Stage;
 export function ChoixUnite({
   value,
   onChange,
+  id,
 }: {
   value: { divisionId: string | null; sectionId: string | null; celluleId: string | null };
   onChange: (v: { divisionId: string | null; sectionId: string | null; celluleId: string | null }) => void;
+  /** Dans une fenêtre de formulaire : identifiants des listes, pour le message « obligatoire » sous le champ. */
+  id?: string;
 }) {
   const { divisions, sections, cellules } = useOrg();
   const [mode, setMode] = useState<'division' | 'cellule'>(value.celluleId ? 'cellule' : 'division');
@@ -191,6 +183,7 @@ export function ChoixUnite({
           <button
             key={k}
             type="button"
+            aria-pressed={mode === k}
             onClick={() => {
               setMode(k);
               onChange(vide);
@@ -203,7 +196,7 @@ export function ChoixUnite({
       </div>
       {mode === 'division' ? (
         <div className="grid gap-2 sm:grid-cols-2">
-          <select aria-label="Division" className={SELECT_CLASS} value={value.divisionId ?? ''} onChange={(e) => onChange({ ...vide, divisionId: e.target.value || null })} required>
+          <select id={id ? `${id}-division` : undefined} aria-label="Division" data-message-obligatoire={id ? 'Choisissez la division d’accueil.' : undefined} className={SELECT_CLASS} value={value.divisionId ?? ''} onChange={(e) => onChange({ ...vide, divisionId: e.target.value || null })} required>
             <option value="">Division…</option>
             {divisions.filter((d) => d.isActive).map((d) => (
               <option key={d.id} value={d.id}>
@@ -227,7 +220,7 @@ export function ChoixUnite({
           </select>
         </div>
       ) : (
-        <select aria-label="Cellule" className={SELECT_CLASS} value={value.celluleId ?? ''} onChange={(e) => onChange({ ...vide, celluleId: e.target.value || null })} required>
+        <select id={id ? `${id}-cellule` : undefined} aria-label="Cellule" data-message-obligatoire={id ? 'Choisissez la cellule d’accueil.' : undefined} className={SELECT_CLASS} value={value.celluleId ?? ''} onChange={(e) => onChange({ ...vide, celluleId: e.target.value || null })} required>
           <option value="">Cellule…</option>
           {cellules.filter((c) => c.isActive).map((c) => (
             <option key={c.id} value={c.id}>
@@ -236,6 +229,7 @@ export function ChoixUnite({
           ))}
         </select>
       )}
+      {id && <MessageErreurChamp id={`${id}-${mode}`} />}
     </div>
   );
 }
@@ -251,63 +245,50 @@ export function FenetrePeriode({ stage, periode, onClose, onDone }: { stage: Sta
     motif: '',
   });
   const { enCours, erreur, lancer } = useAction(onDone);
+  const set = (k: 'dateDebut' | 'dateFin' | 'objectifs' | 'motif') => (x: string) => setV((o) => ({ ...o, [k]: x }));
   function valider() {
     if (periode && commencee) return lancer(() => modifierPeriode(stage.id, periode.id, { dateFin: v.dateFin, motif: v.motif.trim() }), 'Modification impossible');
     const input = { ...unite, dateDebut: v.dateDebut, dateFin: v.dateFin, formatEvaluation: v.formatEvaluation, objectifs: v.objectifs.trim() };
     return lancer(() => (periode ? modifierPeriode(stage.id, periode.id, input) : ajouterPeriode(stage.id, input)), 'Enregistrement impossible');
   }
+  const min = jourIso(stage.dateDebut);
+  const max = jourIso(stage.dateFin);
   return (
-    <Fenetre
+    <FenetreFormulaire
       titre={periode ? 'Modifier la période' : 'Ajouter une période'}
-      sousTitre={
-        commencee
-          ? 'Période en cours : seule la date de fin se modifie, avec un motif.'
-          : 'La capacité d’accueil de l’unité est vérifiée ; l’unité accepte ensuite la période et désigne le tuteur.'
-      }
+      sousTitre={commencee ? 'Période en cours : seule la date de fin se modifie, avec un motif.' : `${nomComplet(stage.stagiaire)} · stage du ${new Date(stage.dateDebut).toLocaleDateString('fr-FR', { timeZone: 'UTC' })} au ${new Date(stage.dateFin).toLocaleDateString('fr-FR', { timeZone: 'UTC' })}`}
       onClose={onClose}
       onSubmit={valider}
-      valider="Enregistrer"
+      valider={() => ({ ...(!commencee ? finApresDebut(v.dateDebut, v.dateFin, 'pe-fin') : {}), ...(commencee ? motifValide(v.motif, 'pe-motif') : {}) })}
+      libelleValider="Enregistrer"
       enCours={enCours}
+      erreur={erreur}
+      pied={commencee ? 'Le tuteur et l’unité d’accueil sont prévenus.' : 'La capacité d’accueil de l’unité est vérifiée ; l’unité accepte ensuite la période et désigne le tuteur.'}
     >
       {!commencee && (
         <>
-          <Libelle>Unité d’accueil</Libelle>
-          <ChoixUnite value={unite} onChange={setUnite} />
+          <p className="mb-1.5 block text-[13px] font-semibold text-text">Unité d’accueil</p>
+          <ChoixUnite id="pe-unite" value={unite} onChange={setUnite} />
         </>
       )}
-      <div className="grid grid-cols-2 gap-3">
-        {!commencee && (
-          <Champ id="pe-debut" label="Du">
-            <input id="pe-debut" type="date" className={SELECT_CLASS} value={v.dateDebut} min={jourIso(stage.dateDebut)} max={jourIso(stage.dateFin)} onChange={(e) => setV({ ...v, dateDebut: e.target.value })} required />
-          </Champ>
-        )}
-        <Champ id="pe-fin" label="Au">
-          <input id="pe-fin" type="date" className={SELECT_CLASS} value={v.dateFin} min={jourIso(stage.dateDebut)} max={jourIso(stage.dateFin)} onChange={(e) => setV({ ...v, dateFin: e.target.value })} required />
-        </Champ>
-      </div>
+      <Grille2>
+        {!commencee && <ChampDate id="pe-debut" label="Du" value={v.dateDebut} min={min} max={max} onChange={set('dateDebut')} required raccourcis={false} />}
+        <ChampDate id="pe-fin" label="Au" value={v.dateFin} min={min} max={max} onChange={set('dateFin')} required raccourcis={false} />
+      </Grille2>
       {!commencee && (
         <>
-          <Champ id="pe-format" label="Évaluation de fin de période">
-            <select id="pe-format" className={SELECT_CLASS} value={v.formatEvaluation} onChange={(e) => setV({ ...v, formatEvaluation: e.target.value as FormatEvaluation })}>
-              {(Object.keys(FORMAT_LABEL) as FormatEvaluation[]).map((f) => (
-                <option key={f} value={f}>
-                  {FORMAT_LABEL[f]}
-                </option>
-              ))}
-            </select>
-          </Champ>
-          <Champ id="pe-obj" label="Objectifs (facultatif)">
-            <textarea id="pe-obj" className={TEXTAREA_CLASS} value={v.objectifs} onChange={(e) => setV({ ...v, objectifs: e.target.value })} maxLength={2000} />
-          </Champ>
+          <ChoixSegment<FormatEvaluation>
+            id="pe-format"
+            label="Évaluation de fin de période"
+            options={(Object.keys(FORMAT_LABEL) as FormatEvaluation[]).map((f) => ({ value: f, label: FORMAT_LABEL[f] }))}
+            value={v.formatEvaluation}
+            onChange={(f) => setV((o) => ({ ...o, formatEvaluation: f }))}
+          />
+          <ZoneTexte id="pe-obj" label="Objectifs" facultatif value={v.objectifs} onChange={set('objectifs')} maxLength={2000} />
         </>
       )}
-      {commencee && (
-        <Champ id="pe-motif" label="Motif">
-          <textarea id="pe-motif" className={TEXTAREA_CLASS} value={v.motif} onChange={(e) => setV({ ...v, motif: e.target.value })} required minLength={5} />
-        </Champ>
-      )}
-      <Erreur message={erreur} />
-    </Fenetre>
+      {commencee && <ZoneTexte id="pe-motif" label="Motif" value={v.motif} onChange={set('motif')} required />}
+    </FenetreFormulaire>
   );
 }
 
@@ -323,28 +304,33 @@ export function FenetreTuteur({ stage, periode, mode, onClose, onDone }: { stage
       .then(setCandidats)
       .catch((e) => setErreurListe(messageErreur(e, 'Impossible de charger les tuteurs possibles')));
   }, [stage.id, periode.id]);
+  // Le tuteur actuel reste affiché même s'il n'est plus proposé.
+  const options = (candidats ?? []).map((c) => ({ id: c.id, nom: nomComplet(c), detail: c.jobTitle ?? null }));
+  if (periode.tuteur && !options.some((o) => o.id === periode.tuteur!.id)) options.unshift({ id: periode.tuteur.id, nom: nomComplet(periode.tuteur), detail: 'Tuteur actuel' });
   return (
-    <Fenetre
+    <FenetreFormulaire
       titre={mode === 'accepter' ? 'Accepter la période' : 'Changer de tuteur'}
-      sousTitre={`${stage.stagiaire.firstName} ${stage.stagiaire.lastName} — ${periode.unite}`}
+      sousTitre={`${nomComplet(stage.stagiaire)} — ${periode.unite}`}
       onClose={onClose}
+      largeur={600}
       onSubmit={() => lancer(() => (mode === 'accepter' ? accepterPeriode(stage.id, periode.id, tuteurId) : changerTuteur(stage.id, periode.id, tuteurId)), 'Action impossible')}
-      valider={mode === 'accepter' ? 'Accepter' : 'Changer'}
+      libelleValider={mode === 'accepter' ? 'Accepter' : 'Changer'}
       enCours={enCours}
+      erreur={erreurListe ?? erreur}
+      pied="Le tuteur et le stagiaire sont prévenus."
     >
-      <Champ id="tu-tuteur" label="Tuteur">
-        <select id="tu-tuteur" className={SELECT_CLASS} value={tuteurId} onChange={(e) => setTuteurId(e.target.value)} required>
-          <option value="">{candidats ? 'Choisir…' : 'Chargement…'}</option>
-          {candidats?.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.firstName} {c.lastName}
-              {c.jobTitle ? ` — ${c.jobTitle}` : ''}
-            </option>
-          ))}
-        </select>
-      </Champ>
-      <Erreur message={erreurListe ?? erreur} />
-    </Fenetre>
+      <SelecteurPersonnes
+        id="tu-tuteur"
+        label="Tuteur"
+        multiple={false}
+        required
+        messageObligatoire="Choisissez le tuteur."
+        placeholder={candidats ? 'Rechercher un tuteur…' : 'Chargement des tuteurs possibles…'}
+        options={options}
+        valeurs={tuteurId ? [tuteurId] : []}
+        onChange={(ids) => setTuteurId(ids[0] ?? '')}
+      />
+    </FenetreFormulaire>
   );
 }
 
@@ -353,12 +339,20 @@ export function FenetreMotif({ titre, sousTitre, valider, action, onClose, onDon
   const [motif, setMotif] = useState('');
   const { enCours, erreur, lancer } = useAction(onDone);
   return (
-    <Fenetre titre={titre} sousTitre={sousTitre} onClose={onClose} onSubmit={() => lancer(() => action(motif.trim()), 'Action impossible')} valider={valider} enCours={enCours} danger>
-      <Champ id="mo-motif" label="Motif">
-        <textarea id="mo-motif" className={TEXTAREA_CLASS} value={motif} onChange={(e) => setMotif(e.target.value)} required minLength={5} maxLength={1000} />
-      </Champ>
-      <Erreur message={erreur} />
-    </Fenetre>
+    <FenetreFormulaire
+      titre={titre}
+      onClose={onClose}
+      largeur={560}
+      onSubmit={() => lancer(() => action(motif.trim()), 'Action impossible')}
+      valider={() => motifValide(motif, 'mo-motif')}
+      libelleValider={valider}
+      enCours={enCours}
+      erreur={erreur}
+      danger
+      pied={sousTitre}
+    >
+      <ZoneTexte id="mo-motif" label="Motif" value={motif} onChange={setMotif} required messageObligatoire="Indiquez le motif." maxLength={1000} />
+    </FenetreFormulaire>
   );
 }
 
@@ -377,26 +371,31 @@ export function FenetreActeAttestation({ stage, onClose, onDone }: { stage: Stag
       .catch((e) => setErreurListe(messageErreur(e, 'Impossible de charger les registres')));
   }, []);
   return (
-    <Fenetre
+    <FenetreFormulaire
       titre="Préparer l’attestation finale"
-      sousTitre="Un acte est créé dans le module Courrier avec le document rempli ; il suit le circuit habituel (visa, signature par le DN ou la DNA, numéro). Le stagiaire en est bénéficiaire et en prend connaissance depuis son stage."
+      sousTitre={nomComplet(stage.stagiaire)}
       onClose={onClose}
+      largeur={640}
       onSubmit={() => lancer(() => creerActeAttestation(stage.id, registreId), 'Préparation impossible')}
-      valider="Créer l’acte"
+      libelleValider="Créer l’acte"
       enCours={enCours}
+      erreur={erreurListe ?? erreur}
+      pied="Le stagiaire est bénéficiaire de l’acte et en prend connaissance depuis son stage."
     >
-      <Champ id="ac-registre" label="Registre d’attestations">
-        <select id="ac-registre" className={SELECT_CLASS} value={registreId} onChange={(e) => setRegistreId(e.target.value)} required>
-          <option value="">{registres ? (registres.length ? 'Choisir…' : 'Aucun registre d’actes de la Direction') : 'Chargement…'}</option>
-          {registres?.map((r) => (
-            <option key={r.id} value={r.id}>
-              {r.code} — {r.libelle}
-            </option>
-          ))}
-        </select>
-      </Champ>
-      <Erreur message={erreurListe ?? erreur} />
-    </Fenetre>
+      <p className="mb-3.5 text-[13px] text-text">
+        Un acte est créé dans le module Courrier avec le document rempli ; il suit le circuit habituel (visa, signature par le DN ou la DNA, numéro).
+      </p>
+      <Liste
+        id="ac-registre"
+        label="Registre d’attestations"
+        value={registreId}
+        onChange={setRegistreId}
+        required
+        messageObligatoire="Choisissez le registre."
+        vide={registres ? (registres.length ? 'Choisir…' : 'Aucun registre d’actes de la Direction') : 'Chargement…'}
+        options={(registres ?? []).map((r) => ({ value: r.id, label: `${r.code} — ${r.libelle}` }))}
+      />
+    </FenetreFormulaire>
   );
 }
 
@@ -411,26 +410,31 @@ export function FenetreEncadrant({ stage, onClose, onDone }: { stage: Stage; onC
       .then(setChoix)
       .catch((e) => setErreurListe(messageErreur(e, 'Impossible de charger les encadreurs possibles')));
   }, [stage.id]);
+  const options = (choix ?? []).map((c) => ({ id: c.id, nom: nomComplet(c) }));
+  if (stage.encadrantPrincipal && !options.some((o) => o.id === stage.encadrantPrincipal!.id)) options.unshift({ id: stage.encadrantPrincipal.id, nom: nomComplet(stage.encadrantPrincipal) });
   return (
-    <Fenetre
+    <FenetreFormulaire
       titre="Encadreur principal"
-      sousTitre="Il suit le stagiaire sur toute la durée du stage et valide son rapport."
+      sousTitre={nomComplet(stage.stagiaire)}
       onClose={onClose}
+      largeur={600}
       onSubmit={() => lancer(() => designerEncadrant(stage.id, userId), 'Désignation impossible')}
-      valider="Désigner"
+      libelleValider="Désigner"
       enCours={enCours}
+      erreur={erreurListe ?? erreur}
+      pied="Il suit le stagiaire sur toute la durée du stage et valide son rapport ; il est prévenu."
     >
-      <Champ id="en-encadrant" label="Encadreur (parmi les tuteurs du plan)">
-        <select id="en-encadrant" className={SELECT_CLASS} value={userId} onChange={(e) => setUserId(e.target.value)} required>
-          <option value="">{choix ? (choix.length ? 'Choisir…' : 'Aucun tuteur désigné dans le plan') : 'Chargement…'}</option>
-          {choix?.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.firstName} {c.lastName}
-            </option>
-          ))}
-        </select>
-      </Champ>
-      <Erreur message={erreurListe ?? erreur} />
-    </Fenetre>
+      <SelecteurPersonnes
+        id="en-encadrant"
+        label="Encadreur (parmi les tuteurs du plan)"
+        multiple={false}
+        required
+        messageObligatoire="Choisissez l’encadreur."
+        placeholder={choix ? (choix.length ? 'Rechercher un tuteur…' : 'Aucun tuteur désigné dans le plan') : 'Chargement…'}
+        options={options}
+        valeurs={userId ? [userId] : []}
+        onChange={(ids) => setUserId(ids[0] ?? '')}
+      />
+    </FenetreFormulaire>
   );
 }

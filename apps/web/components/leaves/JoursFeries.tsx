@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { CalendarPlus } from 'lucide-react';
 import {
   creerJourFerie,
   getJoursFeries,
@@ -9,10 +10,13 @@ import {
   supprimerJourFerie,
 } from '../../lib/api/leaves';
 import type { CalendrierFeries, JourFerie } from '../../lib/leaves/types';
-import { Button } from '../ui/Button';
+import { BTN_LIGNE, BTN_PRINCIPAL, BTN_SECONDAIRE, EtatVide, FiltreSelect, Filtres } from '../ui/Charte';
 import { Chargement, messageChargement } from '../ui/ErreurChargement';
+import { ChampDate, ChoixSegment, FenetreFormulaire, Saisie } from '../ui/Formulaire';
+import { Fenetre } from '../ui/Fenetre';
+import { messageErreur, useToast } from '../ui/Toast';
 
-const champ = 'rounded-md border border-line bg-surface px-3 py-2 text-[13px]';
+type Nature = 'FIXE' | 'RELIGIEUX';
 const dateLongue = (iso: string) =>
   new Date(iso).toLocaleDateString('fr-FR', {
     weekday: 'long',
@@ -20,19 +24,67 @@ const dateLongue = (iso: string) =>
     month: 'long',
     timeZone: 'UTC',
   });
-const NATURE = { FIXE: 'Fête fixe', RELIGIEUX: 'Fête religieuse' } as const;
+const NATURE: Record<Nature, string> = { FIXE: 'Fête fixe', RELIGIEUX: 'Fête religieuse' };
+
+/** Ajout ou modification d'un jour férié (date, libellé, nature). */
+function FenetreJourFerie({ jour, onClose, onFait }: { jour: JourFerie | null; onClose: () => void; onFait: (libelle: string) => void }) {
+  const [date, setDate] = useState(jour ? jour.date.slice(0, 10) : '');
+  const [libelle, setLibelle] = useState(jour?.libelle ?? '');
+  const [nature, setNature] = useState<Nature>(jour?.nature ?? 'RELIGIEUX');
+  const [enCours, setEnCours] = useState(false);
+  const [erreur, setErreur] = useState<string | null>(null);
+  async function enregistrer() {
+    setEnCours(true);
+    setErreur(null);
+    try {
+      const donnees = { date, libelle: libelle.trim(), nature };
+      if (jour) await modifierJourFerie(jour.id, donnees);
+      else await creerJourFerie(donnees);
+      onFait(donnees.libelle);
+    } catch (e) {
+      setErreur(messageErreur(e));
+    } finally {
+      setEnCours(false);
+    }
+  }
+  return (
+    <FenetreFormulaire
+      titre={jour ? 'Modifier le jour férié' : 'Ajouter un jour férié'}
+      largeur={560}
+      onClose={onClose}
+      onSubmit={enregistrer}
+      libelleValider={jour ? 'Enregistrer' : 'Ajouter le jour férié'}
+      enCours={enCours}
+      erreur={erreur}
+      testid="fenetre-jour-ferie"
+      pied="Exclu aussitôt du décompte des congés et des délais d’avis."
+    >
+      <ChampDate id="ferie-date" label="Date" value={date} onChange={setDate} required raccourcis={false} messageObligatoire="Indiquez la date du jour férié." />
+      <Saisie id="ferie-libelle" label="Libellé" value={libelle} onChange={setLibelle} required placeholder="Ex. Tabaski" maxLength={120} messageObligatoire="Indiquez le nom du jour férié." />
+      <ChoixSegment<Nature>
+        id="ferie-nature"
+        label="Nature"
+        value={nature}
+        onChange={setNature}
+        options={[
+          { value: 'RELIGIEUX', label: NATURE.RELIGIEUX },
+          { value: 'FIXE', label: NATURE.FIXE },
+        ]}
+      />
+    </FenetreFormulaire>
+  );
+}
 
 /** Calendrier des jours fériés (socle N3) : lu par tous, tenu par l'administrateur et le DRH. */
 export function JoursFeries({ anneeInitiale }: { anneeInitiale: number }) {
+  const toast = useToast();
   const [annee, setAnnee] = useState(anneeInitiale);
   const [c, setC] = useState<CalendrierFeries | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
-  const [nouveau, setNouveau] = useState({
-    date: '',
-    libelle: '',
-    nature: 'RELIGIEUX' as 'FIXE' | 'RELIGIEUX',
-  });
-  const [edition, setEdition] = useState<JourFerie | null>(null);
+  const [fenetre, setFenetre] = useState<{ jour: JourFerie | null } | null>(null);
+  const [aSupprimer, setASupprimer] = useState<JourFerie | null>(null);
+  const [suppression, setSuppression] = useState(false);
+  const [erreurSuppression, setErreurSuppression] = useState<string | null>(null);
 
   const charger = useCallback(() => {
     setErreur(null);
@@ -43,200 +95,143 @@ export function JoursFeries({ anneeInitiale }: { anneeInitiale: number }) {
   useEffect(() => {
     charger();
   }, [charger]);
-  const agir = (p: Promise<unknown>) =>
-    p.then(charger).catch((e) => setErreur(messageChargement(e)));
+
+  async function reprendre(a: number) {
+    try {
+      await reprendreFetesFixes(a);
+      charger();
+      toast.succes('Fêtes fixes ajoutées', { detail: `Calendrier ${a} complété.` });
+    } catch (e) {
+      toast.erreur('Action impossible', messageErreur(e));
+    }
+  }
+
+  async function supprimer() {
+    if (!aSupprimer) return;
+    setSuppression(true);
+    setErreurSuppression(null);
+    try {
+      await supprimerJourFerie(aSupprimer.id);
+      toast.succes('Jour férié supprimé', { detail: `${aSupprimer.libelle} est de nouveau décompté des congés.` });
+      setASupprimer(null);
+      charger();
+    } catch (e) {
+      setErreurSuppression(messageErreur(e));
+    } finally {
+      setSuppression(false);
+    }
+  }
+
+  const annees = [anneeInitiale - 1, anneeInitiale, anneeInitiale + 1, anneeInitiale + 2];
 
   return (
     <section data-testid="jours-feries">
-      <div className="mb-3.5 flex flex-wrap items-center justify-between gap-3">
-        <div>
+      <div className="mb-3.5 flex flex-wrap items-center gap-3">
+        <div className="min-w-0 flex-1">
           <h2 className="text-[16px] font-extrabold">Jours fériés {annee}</h2>
-          <p className="text-[12.5px] text-text-muted">
-            Exclus du délai d’avis (heures ouvrées) et du décompte des jours de congé.
-          </p>
+          <p className="text-[12.5px] text-text-muted">Exclus du délai d’avis (heures ouvrées) et du décompte des jours de congé.</p>
         </div>
-        <label className="text-[12.5px] font-semibold">
-          Année{' '}
-          <select
-            className={champ}
-            value={annee}
-            onChange={(e) => setAnnee(Number(e.target.value))}
-          >
-            {[anneeInitiale - 1, anneeInitiale, anneeInitiale + 1, anneeInitiale + 2].map((a) => (
-              <option key={a} value={a}>
-                {a}
-              </option>
-            ))}
-          </select>
-        </label>
+        <div className="flex flex-wrap items-center gap-2">
+          <Filtres actifs={annee !== anneeInitiale ? 1 : 0} onEffacer={() => setAnnee(anneeInitiale)}>
+            <FiltreSelect<string>
+              label="Année"
+              value={String(annee)}
+              defaut={String(anneeInitiale)}
+              onChange={(v) => setAnnee(Number(v))}
+              options={annees.map((a) => ({ value: String(a), label: `Année ${a}` }))}
+            />
+          </Filtres>
+          {c?.droits.gerer && (
+            <button type="button" className={BTN_PRINCIPAL} onClick={() => setFenetre({ jour: null })}>
+              <CalendarPlus aria-hidden size={16} />
+              Ajouter un jour férié
+            </button>
+          )}
+        </div>
       </div>
-      {erreur && (
-        <p className="mb-3 rounded-md bg-clay-soft px-3 py-2 text-[12.5px] text-clay">{erreur}</p>
-      )}
+      {erreur && <p className="mb-3 rounded-md bg-clay-soft px-3 py-2 text-[12.5px] text-clay">{erreur}</p>}
       {!c ? (
         <Chargement erreur={erreur} />
       ) : (
         <>
           {c.droits.gerer && !c.religieusesSaisies && (
             <p className="mb-3 rounded-md bg-gold-soft px-3.5 py-2.5 text-[12.5px]" role="status">
-              Aucune fête religieuse saisie pour {c.annee} (Tabaski, fin du Ramadan, Maouloud, lundi
-              de Pâques…) : ajoutez-les avec leur date de l’année.
+              Aucune fête religieuse saisie pour {c.annee} (Tabaski, fin du Ramadan, Maouloud, lundi de Pâques…) : ajoutez-les avec leur date de l’année.
             </p>
           )}
           {c.droits.gerer && c.fixesManquantes.length > 0 && (
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-md border border-dashed border-line px-3.5 py-2.5 text-[12.5px]">
-              <span>
-                Fêtes fixes absentes : {c.fixesManquantes.map((f) => f.libelle).join(', ')}.
-              </span>
-              <Button
-                className="!px-3 !py-1.5 !text-[12.5px]"
-                onClick={() => agir(reprendreFetesFixes(c.annee))}
-              >
+              <span>Fêtes fixes absentes : {c.fixesManquantes.map((f) => f.libelle).join(', ')}.</span>
+              <button type="button" className={`${BTN_SECONDAIRE} !h-8 !text-[12.5px]`} onClick={() => reprendre(c.annee)}>
                 Ajouter les fêtes fixes
-              </Button>
+              </button>
             </div>
           )}
           {c.jours.length === 0 ? (
-            <p className="rounded-lg border border-line bg-surface p-5 text-[13px] text-text-muted">
-              Aucun jour férié saisi pour {c.annee}.
-            </p>
+            <div className="rounded-lg border border-line bg-surface">
+              <EtatVide
+                texte={`Aucun jour férié saisi pour ${c.annee}.`}
+                action={
+                  c.droits.gerer ? (
+                    <button type="button" className={`${BTN_SECONDAIRE} !h-8 !text-[13px]`} onClick={() => setFenetre({ jour: null })}>
+                      Ajouter un jour férié
+                    </button>
+                  ) : undefined
+                }
+              />
+            </div>
           ) : (
             <ul className="divide-y divide-line rounded-lg border border-line bg-surface">
               {c.jours.map((j) => (
-                <li
-                  key={j.id}
-                  data-testid="jour-ferie"
-                  className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5"
-                >
-                  {edition?.id === j.id ? (
-                    <form
-                      className="flex flex-1 flex-wrap items-center gap-2"
-                      onSubmit={(e) => {
-                        e.preventDefault();
-                        agir(
-                          modifierJourFerie(j.id, {
-                            date: edition.date.slice(0, 10),
-                            libelle: edition.libelle,
-                            nature: edition.nature,
-                          }),
-                        ).then(() => setEdition(null));
-                      }}
-                    >
-                      <input
-                        aria-label="Date"
-                        type="date"
-                        className={champ}
-                        value={edition.date.slice(0, 10)}
-                        onChange={(e) => setEdition({ ...edition, date: e.target.value })}
-                        required
-                      />
-                      <input
-                        aria-label="Libellé"
-                        className={`${champ} min-w-[180px] flex-1`}
-                        value={edition.libelle}
-                        onChange={(e) => setEdition({ ...edition, libelle: e.target.value })}
-                        required
-                      />
-                      <Button
-                        variant="solid"
-                        type="submit"
-                        className="!px-3 !py-1.5 !text-[12.5px]"
-                      >
-                        Enregistrer
-                      </Button>
-                      <Button
-                        type="button"
-                        className="!px-3 !py-1.5 !text-[12.5px]"
-                        onClick={() => setEdition(null)}
-                      >
-                        Annuler
-                      </Button>
-                    </form>
-                  ) : (
-                    <>
-                      <div>
-                        <div className="text-[13.5px] font-semibold first-letter:uppercase">
-                          {dateLongue(j.date)}
-                        </div>
-                        <div className="text-[12px] text-text-muted">
-                          {j.libelle} · {NATURE[j.nature]}
-                        </div>
-                      </div>
-                      {c.droits.gerer && (
-                        <div className="flex gap-2">
-                          <Button
-                            className="!px-2.5 !py-1 !text-[12px]"
-                            onClick={() => setEdition(j)}
-                          >
-                            Modifier
-                          </Button>
-                          <Button
-                            className="!px-2.5 !py-1 !text-[12px]"
-                            onClick={() => {
-                              if (window.confirm(`Supprimer « ${j.libelle} » ?`))
-                                agir(supprimerJourFerie(j.id));
-                            }}
-                          >
-                            Supprimer
-                          </Button>
-                        </div>
-                      )}
-                    </>
+                <li key={j.id} data-testid="jour-ferie" className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5">
+                  <div className="min-w-0">
+                    <div className="text-[13.5px] font-semibold first-letter:uppercase">{dateLongue(j.date)}</div>
+                    <div className="text-[12px] text-text-muted">
+                      {j.libelle} · {NATURE[j.nature]}
+                    </div>
+                  </div>
+                  {c.droits.gerer && (
+                    <div className="flex gap-2">
+                      <button type="button" className={BTN_LIGNE} aria-label={`Modifier ${j.libelle}`} onClick={() => setFenetre({ jour: j })}>
+                        Modifier
+                      </button>
+                      <button type="button" className={BTN_LIGNE} aria-label={`Supprimer ${j.libelle}`} onClick={() => setASupprimer(j)}>
+                        Supprimer
+                      </button>
+                    </div>
                   )}
                 </li>
               ))}
             </ul>
           )}
-          {c.droits.gerer && (
-            <form
-              className="mt-4 flex flex-wrap items-end gap-2.5 rounded-lg border border-line bg-surface p-4"
-              onSubmit={(e) => {
-                e.preventDefault();
-                agir(creerJourFerie(nouveau)).then(() =>
-                  setNouveau({ date: '', libelle: '', nature: 'RELIGIEUX' }),
-                );
-              }}
-            >
-              <label className="text-[12.5px] font-semibold">
-                Date
-                <input
-                  type="date"
-                  className={`${champ} mt-1 block`}
-                  value={nouveau.date}
-                  onChange={(e) => setNouveau({ ...nouveau, date: e.target.value })}
-                  required
-                />
-              </label>
-              <label className="min-w-[200px] flex-1 text-[12.5px] font-semibold">
-                Libellé
-                <input
-                  className={`${champ} mt-1 block w-full`}
-                  value={nouveau.libelle}
-                  onChange={(e) => setNouveau({ ...nouveau, libelle: e.target.value })}
-                  placeholder="Ex. Tabaski"
-                  required
-                  minLength={2}
-                />
-              </label>
-              <label className="text-[12.5px] font-semibold">
-                Nature
-                <select
-                  className={`${champ} mt-1 block`}
-                  value={nouveau.nature}
-                  onChange={(e) =>
-                    setNouveau({ ...nouveau, nature: e.target.value as 'FIXE' | 'RELIGIEUX' })
-                  }
-                >
-                  <option value="RELIGIEUX">Fête religieuse</option>
-                  <option value="FIXE">Fête fixe</option>
-                </select>
-              </label>
-              <Button variant="solid" type="submit">
-                Ajouter le jour férié
-              </Button>
-            </form>
-          )}
         </>
+      )}
+      {fenetre && (
+        <FenetreJourFerie
+          jour={fenetre.jour}
+          onClose={() => setFenetre(null)}
+          onFait={(libelle) => {
+            toast.succes(fenetre.jour ? 'Jour férié modifié' : 'Jour férié ajouté', { detail: `${libelle} n’est pas décompté des congés.` });
+            setFenetre(null);
+            charger();
+          }}
+        />
+      )}
+      {aSupprimer && (
+        <Fenetre
+          titre="Supprimer le jour férié"
+          onClose={() => setASupprimer(null)}
+          onSubmit={supprimer}
+          libelleValider="Supprimer"
+          danger
+          enCours={suppression}
+          erreur={erreurSuppression}
+          pied="Cette date sera de nouveau décomptée des congés demandés ensuite."
+        >
+          <p className="text-[13.5px]">
+            Supprimer « {aSupprimer.libelle} » ({dateLongue(aSupprimer.date)}) du calendrier ?
+          </p>
+        </Fenetre>
       )}
     </section>
   );

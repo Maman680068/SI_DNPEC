@@ -6,10 +6,10 @@ import type { Attribution, ListeAttributions } from '../../lib/socle/types';
 import { Chargement, ErreurChargement, messageChargement } from '../ui/ErreurChargement';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
-import { BTN_PRINCIPAL } from '../ui/Charte';
+import { BTN_PRINCIPAL, Filtres } from '../ui/Charte';
 import { Plus } from 'lucide-react';
-import { Field } from '../ui/Input';
-import { Choix, Fenetre, Texte } from '../ui/Fenetre';
+import { ChampDate, FenetreFormulaire, Grille2, Liste, SelecteurPersonnes, ZoneTexte } from '../ui/Formulaire';
+import { messageErreur, useToast } from '../ui/Toast';
 
 const date = (d: string) => new Date(d).toLocaleDateString('fr-FR');
 
@@ -25,6 +25,7 @@ export function RolesFonctionnels() {
   const [actives, setActives] = useState(true);
   const [attribuer, setAttribuer] = useState(false);
   const [retrait, setRetrait] = useState<Attribution | null>(null);
+  const toast = useToast();
 
   const charger = useCallback(() => {
     listerAttributions(actives ? { actives: 'true' } : {})
@@ -36,7 +37,7 @@ export function RolesFonctionnels() {
   }, [actives]);
   useEffect(charger, [charger]);
 
-  if (!liste) return <Chargement erreur={erreur} />;
+  if (!liste) return <><ErreurChargement message={erreur} /><Chargement erreur={erreur} /></>;
   return (
     <div>
       <ErreurChargement message={erreur} />
@@ -45,10 +46,12 @@ export function RolesFonctionnels() {
           Un rôle fonctionnel donne une capacité (DRH, Chef SAF, Validateur…) sans jamais élargir ce que la personne voit. Agent du courrier et gestionnaire logistique s’attribuent depuis Courrier et Logistique.
         </p>
         <div className="flex items-center gap-3">
-          <label className="flex items-center gap-1.5 text-[12.5px] text-text-muted">
-            <input type="checkbox" checked={actives} onChange={(e) => setActives(e.target.checked)} />
-            Rôles en cours seulement
-          </label>
+          <Filtres actifs={actives ? 0 : 1} onEffacer={() => setActives(true)}>
+            <label className="flex items-center gap-1.5 text-[13px] text-text-muted md:text-[12.5px]">
+              <input type="checkbox" checked={actives} onChange={(e) => setActives(e.target.checked)} className="h-4 w-4 accent-ink" />
+              Rôles en cours seulement
+            </label>
+          </Filtres>
           {liste.droits.peutAttribuer && (
             <button type="button" className={BTN_PRINCIPAL} onClick={() => setAttribuer(true)}>
               <Plus aria-hidden size={16} /> Attribuer un rôle
@@ -95,13 +98,34 @@ export function RolesFonctionnels() {
           </tbody>
         </table>
       </div>
-      {attribuer && <FenetreAttribuer roles={liste.rolesAttribuables} onClose={() => setAttribuer(false)} onFait={() => { setAttribuer(false); charger(); }} />}
-      {retrait && <FenetreRetrait attribution={retrait} onClose={() => setRetrait(null)} onFait={() => { setRetrait(null); charger(); }} />}
+      {attribuer && (
+        <FenetreAttribuer
+          roles={liste.rolesAttribuables}
+          onClose={() => setAttribuer(false)}
+          onFait={(libelle, nom) => {
+            setAttribuer(false);
+            charger();
+            toast.succes('Rôle attribué', { detail: `${libelle} — ${nom}.` });
+          }}
+        />
+      )}
+      {retrait && (
+        <FenetreRetrait
+          attribution={retrait}
+          onClose={() => setRetrait(null)}
+          onFait={() => {
+            const a = retrait;
+            setRetrait(null);
+            charger();
+            toast.succes('Rôle retiré', { detail: `${a.libelle} — ${a.user.firstName} ${a.user.lastName}. L’attribution reste dans l’historique.` });
+          }}
+        />
+      )}
     </div>
   );
 }
 
-function FenetreAttribuer({ roles, onClose, onFait }: { roles: { role: string; libelle: string }[]; onClose: () => void; onFait: () => void }) {
+function FenetreAttribuer({ roles, onClose, onFait }: { roles: { role: string; libelle: string }[]; onClose: () => void; onFait: (libelle: string, nom: string) => void }) {
   const [candidats, setCandidats] = useState<{ id: string; firstName: string; lastName: string }[]>([]);
   const [userId, setUserId] = useState('');
   const [role, setRole] = useState(roles[0]?.role ?? '');
@@ -118,22 +142,41 @@ function FenetreAttribuer({ roles, onClose, onFait }: { roles: { role: string; l
     setErreur(null);
     try {
       await attribuerRole({ userId, role, ...(debut ? { dateDebut: debut } : {}), ...(fin ? { dateFin: fin } : {}), ...(motif.trim() ? { motif: motif.trim() } : {}) });
-      onFait();
+      const c = candidats.find((x) => x.id === userId);
+      onFait(roles.find((r) => r.role === role)?.libelle ?? role, c ? `${c.firstName} ${c.lastName}` : '');
     } catch (e) {
-      setErreur(e instanceof Error ? e.message : 'Une erreur est survenue');
+      setErreur(messageErreur(e));
       setEnCours(false);
     }
   };
   return (
-    <Fenetre titre="Attribuer un rôle fonctionnel" onClose={onClose} onSubmit={envoyer} enCours={enCours} erreur={erreur} libelleValider="Attribuer">
-      <Choix label="Personne" value={userId} onChange={setUserId} required vide="Choisir…" options={candidats.map((c) => ({ value: c.id, label: `${c.lastName} ${c.firstName}` }))} />
-      <Choix label="Rôle" value={role} onChange={setRole} required options={roles.map((r) => ({ value: r.role, label: r.libelle }))} />
-      <div className="grid grid-cols-1 gap-x-3 sm:grid-cols-2">
-        <Field label="Début (facultatif)" type="date" value={debut} onChange={(e) => setDebut(e.target.value)} />
-        <Field label="Fin (facultative)" type="date" value={fin} onChange={(e) => setFin(e.target.value)} />
-      </div>
-      <Texte label="Motif (facultatif)" value={motif} onChange={setMotif} placeholder="Ex. note de service n°…" />
-    </Fenetre>
+    <FenetreFormulaire
+      titre="Attribuer un rôle fonctionnel"
+      onClose={onClose}
+      onSubmit={envoyer}
+      enCours={enCours}
+      erreur={erreur}
+      libelleValider="Attribuer le rôle"
+      pied="Le rôle donne une capacité sans élargir ce que la personne voit ; l’attribution est datée et tracée."
+      valider={() => (debut && fin && fin < debut ? { 'rf-fin': 'La fin ne peut pas précéder le début.' } : {})}
+    >
+      <SelecteurPersonnes
+        id="rf-personne"
+        label="Personne"
+        multiple={false}
+        required
+        messageObligatoire="Choisissez la personne."
+        options={candidats.map((c) => ({ id: c.id, nom: `${c.firstName} ${c.lastName}` }))}
+        valeurs={userId ? [userId] : []}
+        onChange={(ids) => setUserId(ids[0] ?? '')}
+      />
+      <Liste id="rf-role" label="Rôle" value={role} onChange={setRole} required options={roles.map((r) => ({ value: r.role, label: r.libelle }))} />
+      <Grille2>
+        <ChampDate id="rf-debut" label="Début" facultatif value={debut} onChange={setDebut} aide="Sinon, à partir d’aujourd’hui." />
+        <ChampDate id="rf-fin" label="Fin" facultatif value={fin} onChange={setFin} />
+      </Grille2>
+      <ZoneTexte id="rf-motif" label="Motif" facultatif value={motif} onChange={setMotif} placeholder="Ex. note de service n°…" lignes={2} />
+    </FenetreFormulaire>
   );
 }
 
@@ -148,14 +191,24 @@ function FenetreRetrait({ attribution, onClose, onFait }: { attribution: Attribu
       await retirerRole(attribution.id, motif.trim());
       onFait();
     } catch (e) {
-      setErreur(e instanceof Error ? e.message : 'Une erreur est survenue');
+      setErreur(messageErreur(e));
       setEnCours(false);
     }
   };
   return (
-    <Fenetre titre={`Retirer « ${attribution.libelle} » à ${attribution.user.firstName} ${attribution.user.lastName}`} onClose={onClose} onSubmit={envoyer} enCours={enCours} erreur={erreur} libelleValider="Retirer le rôle" danger>
-      <p className="mb-4 text-[13px] text-text-muted">Le retrait prend effet immédiatement ; l’attribution reste dans l’historique.</p>
-      <Texte label="Motif du retrait" value={motif} onChange={setMotif} required />
-    </Fenetre>
+    <FenetreFormulaire
+      titre={`Retirer « ${attribution.libelle} »`}
+      sousTitre={`${attribution.user.firstName} ${attribution.user.lastName}`}
+      onClose={onClose}
+      onSubmit={envoyer}
+      largeur={560}
+      enCours={enCours}
+      erreur={erreur}
+      libelleValider="Retirer le rôle"
+      danger
+      pied="Le retrait prend effet immédiatement ; l’attribution reste dans l’historique."
+    >
+      <ZoneTexte id="rf-motif-retrait" label="Motif du retrait" value={motif} onChange={setMotif} required messageObligatoire="Indiquez le motif du retrait." />
+    </FenetreFormulaire>
   );
 }

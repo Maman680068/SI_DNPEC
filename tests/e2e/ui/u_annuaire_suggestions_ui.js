@@ -2,6 +2,9 @@
 // bouton Message (aucune adresse email exposée, comme avant), fiche en fenêtre deux colonnes) et Boîte à suggestions (dépôt, fenêtre de
 // décision de la Direction, lecture seule pour l'auteur, filtres), bureau 1440 et téléphone 390.
 // Mêmes droits qu'avant : l'agent ne voit pas la boîte de réception, n'assigne pas de tâche.
+// Finitions (étape 9) : filtres repliés derrière « Filtres (N) » sur téléphone, squelette de chargement,
+// nouvelle suggestion en fenêtre de formulaire (validation dans la fenêtre), statut en un clic,
+// messages de confirmation.
 const { browser, loginPage, check, bilan, WEB } = require('./helpers');
 const { call, ids } = require('../lib');
 const E = require('../config');
@@ -21,9 +24,13 @@ const attendre = (p, fn, arg) => p.waitForFunction(fn, arg, { timeout: 8000 }).t
 
   console.log('— Annuaire (agent, bureau)');
   let p = await loginPage(b, 'agent1', BUREAU);
+  // Squelette pendant le chargement (réponse de l'annuaire retardée).
+  await p.route('**/users/directory', async (r) => { await new Promise((x) => setTimeout(x, 800)); await r.continue(); });
   await p.goto(`${WEB}/annuaire`);
   await p.getByRole('heading', { name: 'Annuaire', exact: true }).waitFor();
+  check('chargement : squelette (pas de « Chargement… »)', (await p.locator('[data-testid=squelette]').count()) >= 1 && (await p.getByText('Chargement…').count()) === 0);
   await p.locator('[data-testid=personne-annuaire]').first().waitFor();
+  await p.unroute('**/users/directory');
   check('en-tête : « N personnes · N divisions · N cellules »', (await p.getByText(/^\d+ personnes · \d+ divisions? · \d+ cellules?$/).count()) === 1);
   check(`cartes : une par personne active (${annuaire.length})`, (await p.locator('[data-testid=personne-annuaire]').count()) === annuaire.length);
   const arbre = p.getByRole('navigation', { name: 'Unités' });
@@ -58,7 +65,16 @@ const attendre = (p, fn, arg) => p.waitForFunction(fn, arg, { timeout: 8000 }).t
   await p.goto(`${WEB}/annuaire?q=${encodeURIComponent(chefdpe.lastName)}`);
   await p.locator('[data-testid=personne-annuaire]').first().waitFor();
   check('?q= : recherche pré-remplie', (await p.getByLabel('Rechercher un nom, un poste ou une unité').inputValue()) === chefdpe.lastName);
-  check('téléphone : unité en liste déroulante (arbre masqué)', (await p.getByLabel('Unité', { exact: true }).isVisible()) && !(await p.getByRole('navigation', { name: 'Unités' }).isVisible()));
+  check('téléphone : filtres repliés derrière « Filtres » (unité masquée, arbre masqué)', (await p.getByRole('button', { name: 'Filtres', exact: true }).isVisible()) && !(await p.getByLabel('Unité', { exact: true }).isVisible()) && !(await p.getByRole('navigation', { name: 'Unités' }).isVisible()));
+  await p.getByRole('button', { name: 'Filtres', exact: true }).click();
+  const panneau = p.getByRole('dialog', { name: 'Filtres' });
+  await panneau.getByLabel('Unité', { exact: true }).selectOption(`division:${ids.DPE}`);
+  await panneau.getByRole('button', { name: 'Appliquer' }).click();
+  check('téléphone : unité choisie dans le panneau → bouton « Filtres (1) »', (await p.getByRole('button', { name: 'Filtres (1)' }).count()) === 1);
+  await p.getByRole('button', { name: 'Filtres (1)' }).click();
+  await panneau.getByRole('button', { name: 'Effacer les filtres' }).click();
+  await panneau.getByRole('button', { name: 'Appliquer' }).click();
+  check('téléphone : « Effacer les filtres » → « Filtres » sans compteur', (await p.getByRole('button', { name: 'Filtres', exact: true }).count()) === 1);
   check('téléphone : sans défilement horizontal (cartes)', await sansDefilementHorizontal(p));
   const boutonsVisibles = await p.locator('[data-testid=personne-annuaire]').first().getByRole('link').evaluateAll((els) => els.every((e) => e.getBoundingClientRect().right <= window.innerWidth));
   check('téléphone : boutons Message et Email dans l’écran', boutonsVisibles);
@@ -72,11 +88,16 @@ const attendre = (p, fn, arg) => p.waitForFunction(fn, arg, { timeout: 8000 }).t
   check('agent : pas d’onglet « Boîte de réception »', (await p.getByRole('tab', { name: /Boîte de réception/ }).count()) === 0);
   await p.getByRole('button', { name: 'Nouvelle suggestion' }).click();
   let d = p.getByRole('dialog', { name: 'Nouvelle suggestion' });
+  const nbMiennes = async () => (await call('agent1', 'GET', '/suggestions/mine')).body.length;
+  const avant = await nbMiennes();
+  await d.getByRole('button', { name: 'Envoyer la suggestion' }).click();
+  check('envoi vide : « Écrivez votre suggestion. » sous le champ, rien d’envoyé', (await d.locator('[data-testid=erreur-champ]').innerText()) === 'Écrivez votre suggestion.' && (await nbMiennes()) === avant);
   await d.getByLabel('Votre suggestion, à destination de la Direction').fill(`Salle de lecture ${S}`);
-  await d.getByRole('button', { name: 'Envoyer' }).click();
+  await d.getByRole('button', { name: 'Envoyer la suggestion' }).click();
   const mienne = p.locator('[data-testid=ma-suggestion]', { hasText: `Salle de lecture ${S}` });
   await mienne.waitFor();
   check('suggestion listée « Reçue »', /Reçue/.test(await mienne.innerText()));
+  check('message de confirmation « Suggestion envoyée »', /Suggestion envoyée/.test(await p.locator('[data-testid=toast]').innerText()));
   await p.context().close();
 
   p = await loginPage(b, 'dn', BUREAU);
@@ -91,10 +112,11 @@ const attendre = (p, fn, arg) => p.waitForFunction(fn, arg, { timeout: 8000 }).t
   const f = p.locator('[data-testid=fiche-suggestion]');
   await f.waitFor();
   check('fenêtre : circuit Reçue → En étude → Retenue en en-tête', (await f.getByRole('list', { name: 'Suivi de la suggestion' }).count()) === 1);
-  await f.locator('select').selectOption('RETENUE');
+  await f.getByRole('radio', { name: 'Retenue', exact: true }).click();
   await f.getByLabel(/^Réponse/).fill(`Retenue pour 2027 ${S}`);
   await f.getByRole('button', { name: 'Enregistrer' }).click();
   await f.waitFor({ state: 'detached' });
+  check('message de confirmation « Suggestion retenue » (auteur notifié)', /Suggestion retenue[\s\S]*auteur est notifié/.test(await p.locator('[data-testid=toast]').innerText()));
   check('après enregistrement : ligne « Retenue »', await attendre(p, (t) => [...document.querySelectorAll('[data-testid=suggestion]')].some((e) => e.textContent.includes(t) && e.textContent.includes('Retenue')), `Salle de lecture ${S}`));
   await p.context().close();
 
@@ -105,8 +127,10 @@ const attendre = (p, fn, arg) => p.waitForFunction(fn, arg, { timeout: 8000 }).t
   await lue.getByRole('button', { name: /^Voir ma suggestion/ }).click();
   const fl = p.locator('[data-testid=fiche-suggestion]');
   await fl.waitFor();
-  check('auteur : fenêtre en lecture seule avec la réponse, sans champ « Statut »', (await fl.innerText()).includes(`Retenue pour 2027 ${S}`) && (await fl.locator('select').count()) === 0);
+  check('auteur : fenêtre en lecture seule avec la réponse, sans champ « Statut »', (await fl.innerText()).includes(`Retenue pour 2027 ${S}`) && (await fl.getByRole('radiogroup').count()) === 0);
   check('téléphone : sans défilement horizontal (suggestions)', await sansDefilementHorizontal(p));
+  await fl.getByRole('button', { name: 'Fermer', exact: true }).first().click();
+  check('téléphone : filtre Statut replié derrière « Filtres »', (await p.getByRole('button', { name: 'Filtres', exact: true }).isVisible()) && !(await p.getByLabel('Statut', { exact: true }).isVisible()));
   await p.screenshot({ path: `${E.SHOTS}/u_suggestion_mobile.png` });
   await p.context().close();
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import { useState } from 'react';
 import { rejectUser } from '../../lib/api/users';
 import { useOrg } from '../../lib/org/OrgProvider';
 import { DECLARABLE_ROLE_LABEL, type DeclarableRole } from '../../lib/auth/types';
@@ -8,6 +8,9 @@ import type { AdminUser } from '../../lib/users/types';
 import { Card } from '../ui/Card';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
+import { EtatVide } from '../ui/Charte';
+import { FenetreFormulaire, ZoneTexte } from '../ui/Formulaire';
+import { messageErreur } from '../ui/Toast';
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
@@ -41,7 +44,7 @@ export function PendingRegistrationsList({
   const [aRejeter, setARejeter] = useState<AdminUser | null>(null);
 
   if (users.length === 0) {
-    return <p className="py-8 text-center text-[13px] text-text-faint">Aucune inscription en attente.</p>;
+    return <div className="rounded-xl border border-line bg-surface"><EtatVide texte="Aucune inscription en attente." /></div>;
   }
 
   return (
@@ -76,7 +79,7 @@ export function PendingRegistrationsList({
                 {declared && <Badge tone="gold">Souhaite : {declared}</Badge>}
               </div>
             </div>
-            <div className="flex flex-shrink-0 gap-2">
+            <div className="flex flex-shrink-0 flex-wrap gap-2">
               <Button
                 variant="outline"
                 className="border-clay text-clay hover:bg-clay-soft"
@@ -113,54 +116,35 @@ function RejetInscriptionModal({
   const [enCours, setEnCours] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
 
-  async function rejeter(e: FormEvent) {
-    e.preventDefault();
+  async function rejeter() {
     setEnCours(true);
     setErreur(null);
     try {
       await rejectUser(user.id, motif.trim() || undefined);
       onRejected(user.id);
     } catch (err) {
-      setErreur(err instanceof Error ? err.message : 'Impossible de rejeter cette inscription');
+      setErreur(messageErreur(err, 'Impossible de rejeter cette inscription'));
       setEnCours(false);
     }
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(20,26,38,0.42)] p-4" onClick={onClose}>
-      <form
-        onSubmit={rejeter}
-        onClick={(e) => e.stopPropagation()}
-        className="max-h-[90vh] w-full max-w-[480px] overflow-y-auto rounded-lg bg-surface p-6"
-      >
-        <h2 className="mb-1.5 text-[19px] font-semibold">Rejeter l’inscription</h2>
-        <p className="mb-4 text-[13px] text-text-muted">
-          {user.firstName} {user.lastName} · {user.email}
-        </p>
-        <p className="mb-4 rounded-md bg-gold-soft px-3.5 py-2.5 text-[12.5px] text-ink">
-          La demande est supprimée. La personne reçoit un email lui indiquant qu’elle n’a pas été retenue et qu’elle peut en
-          refaire une.
-        </p>
-        <label htmlFor="rejet-motif" className="mb-1.5 block text-[12.5px] font-semibold">
-          Motif (facultatif, repris dans l’email)
-        </label>
-        <textarea
-          id="rejet-motif"
-          className="mb-4 min-h-[70px] w-full rounded-md border border-line bg-surface px-3 py-2 text-[13.5px]"
-          value={motif}
-          onChange={(e) => setMotif(e.target.value)}
-          maxLength={500}
-        />
-        {erreur && <div className="mb-4 rounded-md bg-clay-soft px-3 py-2.5 text-[13px] text-clay">{erreur}</div>}
-        <div className="flex justify-end gap-2.5">
-          <Button type="button" variant="outline" onClick={onClose}>
-            Annuler
-          </Button>
-          <Button type="submit" variant="outline" className="border-clay text-clay hover:bg-clay-soft" disabled={enCours}>
-            {enCours ? 'Rejet…' : 'Rejeter la demande'}
-          </Button>
-        </div>
-      </form>
-    </div>
+    <FenetreFormulaire
+      titre="Rejeter l’inscription"
+      sousTitre={`${user.firstName} ${user.lastName} · ${user.email}`}
+      onClose={onClose}
+      onSubmit={rejeter}
+      largeur={560}
+      enCours={enCours}
+      erreur={erreur}
+      danger
+      libelleValider="Rejeter la demande"
+      pied="La personne peut refaire une demande."
+    >
+      <p className="mb-3.5 rounded-[10px] bg-gold-50 px-3.5 py-2.5 text-[12.5px] text-ink">
+        La demande est supprimée. La personne reçoit un email lui indiquant qu’elle n’a pas été retenue et qu’elle peut en refaire une.
+      </p>
+      <ZoneTexte id="rejet-motif" label="Motif repris dans l’email" facultatif value={motif} onChange={setMotif} maxLength={500} />
+    </FenetreFormulaire>
   );
 }

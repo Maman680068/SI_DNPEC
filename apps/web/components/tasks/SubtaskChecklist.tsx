@@ -5,6 +5,7 @@ import { useOrg } from '../../lib/org/OrgProvider';
 import { createSubtask, toggleSubtask } from '../../lib/api/tasks';
 import type { Task } from '../../lib/tasks/types';
 import { Check } from 'lucide-react';
+import { messageErreur, useToast } from '../ui/Toast';
 
 export function SubtaskChecklist({
   parentId,
@@ -18,18 +19,24 @@ export function SubtaskChecklist({
   const { getUserLabel } = useOrg();
   const [title, setTitle] = useState('');
   const [busyId, setBusyId] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [ajout, setAjout] = useState(false);
+  const toast = useToast();
 
   const done = subtasks.filter((s) => s.status === 'TERMINEE').length;
 
-  async function handleToggle(subtask: Task) {
+  async function handleToggle(subtask: Task, liste: Task[] = subtasks, annulable = true) {
     setBusyId(subtask.id);
-    setNotice(null);
     try {
       const updated = await toggleSubtask(subtask.id);
-      onChange(subtasks.map((s) => (s.id === updated.id ? updated : s)));
+      const suivante = liste.map((s) => (s.id === updated.id ? updated : s));
+      onChange(suivante);
+      // « Annuler » : la même route remet la sous-tâche dans l'état précédent.
+      toast.succes(updated.status === 'TERMINEE' ? 'Sous-tâche terminée' : 'Sous-tâche rouverte', {
+        detail: updated.title,
+        annuler: annulable ? () => handleToggle(updated, suivante, false) : undefined,
+      });
     } catch (err) {
-      setNotice(err instanceof Error ? err.message : 'Action impossible sur cette sous-tâche.');
+      toast.erreur('Action impossible', messageErreur(err, 'La sous-tâche n’a pas pu être modifiée.'));
     } finally {
       setBusyId(null);
     }
@@ -37,10 +44,22 @@ export function SubtaskChecklist({
 
   async function handleAdd(event: FormEvent) {
     event.preventDefault();
-    if (!title.trim()) return;
-    const created = await createSubtask(parentId, { title: title.trim() });
-    onChange([...subtasks, created]);
-    setTitle('');
+    const t = title.trim();
+    if (t.length < 2) {
+      toast.erreur('Titre trop court', 'Le titre d’une sous-tâche compte au moins 2 caractères.');
+      return;
+    }
+    setAjout(true);
+    try {
+      const created = await createSubtask(parentId, { title: t });
+      onChange([...subtasks, created]);
+      setTitle('');
+      toast.succes('Sous-tâche ajoutée', { detail: created.title });
+    } catch (err) {
+      toast.erreur('Action impossible', messageErreur(err, 'La sous-tâche n’a pas pu être ajoutée.'));
+    } finally {
+      setAjout(false);
+    }
   }
 
   return (
@@ -69,14 +88,13 @@ export function SubtaskChecklist({
         </div>
       ))}
 
-      {notice && <p className="mt-2 text-[12px] text-clay">{notice}</p>}
-
       <form onSubmit={handleAdd} className="mt-2.5 flex gap-2">
         <input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Ajouter une sous-tâche…"
           aria-label="Ajouter une sous-tâche"
+          disabled={ajout}
           className="flex-1 rounded-[9px] border border-line bg-surface px-3 py-1.5 text-[13px] focus:border-accent focus:outline focus:outline-2 focus:outline-accent"
         />
       </form>

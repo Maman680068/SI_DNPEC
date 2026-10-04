@@ -11,6 +11,7 @@ import { decouperCorps, heure, libelleJour, ligneDocument, memeJour } from '../.
 import { Chargement, messageChargement } from '../ui/ErreurChargement';
 import { IconeFichier, Initiales } from '../ui/Charte';
 import { ChoixDocument, type DocumentChoisi } from './ChoixDocument';
+import { messageErreur, useToast } from '../ui/Toast';
 
 /** Carte d'un document des Archives cité : cliquable si le lecteur peut l'ouvrir (l'API le dit), sinon muette. */
 function CarteDocument({ id, contexte, sortant }: { id: string; contexte: ContexteConversation | null; sortant: boolean }) {
@@ -67,6 +68,7 @@ export function MessageThread({
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fil = useRef<HTMLDivElement>(null);
+  const toast = useToast();
 
   useEffect(() => {
     setMessages(null);
@@ -104,8 +106,9 @@ export function MessageThread({
       if (piece) onContexteChange();
       setPiece(null);
       onSent();
+      toast.succes('Message envoyé', { detail: `Notification envoyée à ${i ? `${i.prenom} ${i.nom}` : getUserLabel(otherUserId)}.` });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Impossible d'envoyer le message");
+      setError(messageErreur(err, 'Impossible d’envoyer le message.'));
     } finally {
       setSending(false);
     }
@@ -214,7 +217,11 @@ export function MessageThread({
             Envoyer
           </button>
         </div>
-        {error && messages !== null && <p className="mt-2 text-[12.5px] text-clay">{error}</p>}
+        {error && messages !== null && (
+          <p role="alert" className="mt-2 text-[12.5px] font-semibold text-clay">
+            {error}
+          </p>
+        )}
       </form>
     </div>
   );

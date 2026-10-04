@@ -18,6 +18,8 @@ import type { Division, Section } from '../../lib/org/types';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { OrgEntityFormModal } from './OrgEntityFormModal';
+import { ChevronDown, ChevronRight, Plus } from 'lucide-react';
+import { messageErreur, useToast } from '../ui/Toast';
 
 export function DivisionsPanel() {
   const { divisions, sections, refreshOrg } = useOrg();
@@ -26,18 +28,18 @@ export function DivisionsPanel() {
   const [editingDivision, setEditingDivision] = useState<Division | null>(null);
   const [creatingSectionFor, setCreatingSectionFor] = useState<Division | null>(null);
   const [editingSection, setEditingSection] = useState<Section | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const toast = useToast();
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
   async function handleDeleteDivision(division: Division) {
     if (!window.confirm(`Supprimer la division "${division.name}" ?`)) return;
     setPendingDeleteId(division.id);
-    setError(null);
     try {
       await deleteDivision(division.id);
       await refreshOrg();
+      toast.succes('Division supprimée', { detail: division.name });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Impossible de supprimer cette division');
+      toast.erreur('Suppression impossible', messageErreur(err, 'Impossible de supprimer cette division'));
     } finally {
       setPendingDeleteId(null);
     }
@@ -46,40 +48,48 @@ export function DivisionsPanel() {
   async function handleDeleteSection(section: Section) {
     if (!window.confirm(`Supprimer la section "${section.name}" ?`)) return;
     setPendingDeleteId(section.id);
-    setError(null);
     try {
       await deleteSection(section.id);
       await refreshOrg();
+      toast.succes('Section supprimée', { detail: section.name });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Impossible de supprimer cette section');
+      toast.erreur('Suppression impossible', messageErreur(err, 'Impossible de supprimer cette section'));
     } finally {
       setPendingDeleteId(null);
     }
   }
 
-  async function handleToggleDivisionActive(division: Division) {
+  async function handleToggleDivisionActive(division: Division, annulation = false) {
     setPendingDeleteId(division.id);
-    setError(null);
     try {
       if (division.isActive) await suspendDivision(division.id);
       else await reactivateDivision(division.id);
       await refreshOrg();
+      if (!annulation)
+        toast.succes(division.isActive ? 'Division suspendue' : 'Division réactivée', {
+          detail: division.name,
+          annuler: () => handleToggleDivisionActive({ ...division, isActive: !division.isActive }, true),
+        });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Impossible de modifier le statut de cette division');
+      toast.erreur('Action impossible', messageErreur(err, 'Impossible de modifier le statut de cette division'));
     } finally {
       setPendingDeleteId(null);
     }
   }
 
-  async function handleToggleSectionActive(section: Section) {
+  async function handleToggleSectionActive(section: Section, annulation = false) {
     setPendingDeleteId(section.id);
-    setError(null);
     try {
       if (section.isActive) await suspendSection(section.id);
       else await reactivateSection(section.id);
       await refreshOrg();
+      if (!annulation)
+        toast.succes(section.isActive ? 'Section suspendue' : 'Section réactivée', {
+          detail: section.name,
+          annuler: () => handleToggleSectionActive({ ...section, isActive: !section.isActive }, true),
+        });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Impossible de modifier le statut de cette section');
+      toast.erreur('Action impossible', messageErreur(err, 'Impossible de modifier le statut de cette section'));
     } finally {
       setPendingDeleteId(null);
     }
@@ -90,11 +100,10 @@ export function DivisionsPanel() {
       <div className="mb-3.5 flex items-center justify-between">
         <h2 className="font-heading text-[16px] font-bold text-ink-900">Divisions</h2>
         <Button variant="gold" onClick={() => setCreatingDivision(true)}>
-          + Nouvelle division
+          <Plus aria-hidden size={16} /> Nouvelle division
         </Button>
       </div>
 
-      {error && <div className="mb-3 rounded-md bg-clay-soft px-3 py-2.5 text-[13px] text-clay">{error}</div>}
 
       {divisions.length === 0 ? (
         <p className="py-8 text-center text-[13px] text-text-faint">Aucune division.</p>
@@ -108,10 +117,11 @@ export function DivisionsPanel() {
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <button
                     type="button"
+                    aria-expanded={isExpanded}
                     onClick={() => setExpandedId(isExpanded ? null : division.id)}
                     className="flex flex-1 items-center gap-2.5 text-left"
                   >
-                    <span className="text-text-faint">{isExpanded ? '▾' : '▸'}</span>
+                    <span aria-hidden className="text-text-faint">{isExpanded ? <ChevronDown size={15} /> : <ChevronRight size={15} />}</span>
                     <div>
                       <div className="flex items-center gap-2">
                         <span className="text-[14px] font-bold">{division.name}</span>
@@ -126,7 +136,7 @@ export function DivisionsPanel() {
                       </div>
                     </div>
                   </button>
-                  <div className="flex flex-shrink-0 gap-2">
+                  <div className="flex flex-shrink-0 flex-wrap gap-2">
                     <Button variant="outline" onClick={() => setEditingDivision(division)}>
                       Modifier
                     </Button>
@@ -153,7 +163,7 @@ export function DivisionsPanel() {
                     <div className="mb-2.5 flex items-center justify-between">
                       <h3 className="text-[11px] font-bold uppercase tracking-wide text-text-faint">Sections</h3>
                       <Button variant="outline" onClick={() => setCreatingSectionFor(division)}>
-                        + Section
+                        <Plus aria-hidden size={15} /> Section
                       </Button>
                     </div>
                     {divisionSections.length === 0 ? (
@@ -176,7 +186,7 @@ export function DivisionsPanel() {
                               </div>
                               <div className="text-[11.5px] text-text-faint">{section.code}</div>
                             </div>
-                            <div className="flex gap-1.5">
+                            <div className="flex flex-wrap gap-1.5">
                               <Button variant="outline" onClick={() => setEditingSection(section)}>
                                 Modifier
                               </Button>
@@ -213,10 +223,12 @@ export function DivisionsPanel() {
           title="Nouvelle division"
           codeHint="2 à 10 lettres majuscules, ex. DPE"
           onClose={() => setCreatingDivision(false)}
+          libelleValider="Créer la division"
           onSubmit={async (code, name) => {
             await createDivision({ code, name });
             await refreshOrg();
             setCreatingDivision(false);
+            toast.succes('Division créée', { detail: `${code} — ${name}` });
           }}
         />
       )}
@@ -231,6 +243,7 @@ export function DivisionsPanel() {
             await updateDivision(editingDivision.id, { code, name });
             await refreshOrg();
             setEditingDivision(null);
+            toast.succes('Division modifiée', { detail: `${code} — ${name}` });
           }}
         />
       )}
@@ -239,11 +252,13 @@ export function DivisionsPanel() {
           title={`Nouvelle section — ${creatingSectionFor.name}`}
           codeHint="2 à 10 caractères, ex. SSR"
           onClose={() => setCreatingSectionFor(null)}
+          libelleValider="Créer la section"
           onSubmit={async (code, name) => {
             await createSection(creatingSectionFor.id, { code, name });
             await refreshOrg();
             setExpandedId(creatingSectionFor.id);
             setCreatingSectionFor(null);
+            toast.succes('Section créée', { detail: `${code} — ${name}` });
           }}
         />
       )}
@@ -258,6 +273,7 @@ export function DivisionsPanel() {
             await updateSection(editingSection.id, { code, name });
             await refreshOrg();
             setEditingSection(null);
+            toast.succes('Section modifiée', { detail: `${code} — ${name}` });
           }}
         />
       )}

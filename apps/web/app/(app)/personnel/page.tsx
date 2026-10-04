@@ -13,7 +13,9 @@ import type { UniteOrganigramme } from '../../../lib/socle/types';
 import { ROLE_LABEL, STATUS_LABEL } from '../../../lib/users/types';
 import { FenetreImport } from '../../../components/personnel/FenetreImport';
 import { FenetreNouvelAgent } from '../../../components/socle/Agents';
-import { Chargement, ErreurChargement, messageChargement } from '../../../components/ui/ErreurChargement';
+import { ErreurChargement, messageChargement } from '../../../components/ui/ErreurChargement';
+import { SquelettePage } from '../../../components/ui/Squelette';
+import { messageErreur, useToast } from '../../../components/ui/Toast';
 import {
   BTN_PRINCIPAL,
   BTN_SECONDAIRE,
@@ -21,6 +23,7 @@ import {
   BarreOutils,
   EnTetePage,
   EtatVide,
+  Filtres,
   FiltreSelect,
   Initiales,
   Pastille,
@@ -115,6 +118,7 @@ export default function PersonnelPage() {
   const [dossier, setDossier] = useState<FiltreDossier>('TOUS');
   const [importOuvert, setImportOuvert] = useState(false);
   const [nouvelAgent, setNouvelAgent] = useState<UniteOrganigramme[] | null>(null);
+  const toast = useToast();
 
   const charger = useCallback(() => {
     getListePersonnel()
@@ -155,7 +159,15 @@ export default function PersonnelPage() {
     );
   }, [synthese, q, unite, statut, dossier]);
 
-  if (!liste || (liste.syntheseDrh && !synthese)) return <Chargement erreur={erreur} />;
+  if (!liste || (liste.syntheseDrh && !synthese))
+    return (
+      <div>
+        <ErreurChargement message={erreur} />
+        {erreur ? <EnTetePage titre="Dossier du personnel" /> : <SquelettePage />}
+      </div>
+    );
+  const filtresActifs = (unite !== 'TOUTES' ? 1 : 0) + (statut !== 'TOUS' ? 1 : 0) + (dossier !== 'TOUS' ? 1 : 0);
+  const effacerFiltres = () => (setUnite('TOUTES'), setStatut('TOUS'), setDossier('TOUS'));
 
   const actions = (
     <>
@@ -178,7 +190,7 @@ export default function PersonnelPage() {
           onClick={() =>
             getOrganigramme()
               .then((o) => setNouvelAgent(o.unites.filter((u) => !u.fermee)))
-              .catch((e) => setErreur(messageChargement(e)))
+              .catch((e) => toast.erreur('Ouverture impossible', messageErreur(e)))
           }
         >
           <Plus aria-hidden size={17} />
@@ -222,6 +234,7 @@ export default function PersonnelPage() {
           />
           <BarreOutils>
             <Recherche value={recherche} onChange={setRecherche} placeholder="Nom, matricule, poste…" label="Rechercher une personne" />
+            <Filtres actifs={filtresActifs} onEffacer={effacerFiltres}>
             <FiltreSelect label="Unité" value={unite} defaut="TOUTES" onChange={setUnite} options={[{ value: 'TOUTES', label: 'Unité : toutes' }, ...unites.map((u) => ({ value: u, label: u }))]} />
             <FiltreSelect<FiltreStatut>
               label="Statut"
@@ -248,6 +261,7 @@ export default function PersonnelPage() {
                 { value: 'ALERTE', label: 'Dossier : avec alerte' },
               ]}
             />
+            </Filtres>
           </BarreOutils>
           <Tableau
             label="Dossiers du personnel"
@@ -316,9 +330,10 @@ export default function PersonnelPage() {
         <FenetreNouvelAgent
           unites={nouvelAgent}
           onClose={() => setNouvelAgent(null)}
-          onFait={() => {
+          onFait={(nom) => {
             setNouvelAgent(null);
             charger();
+            toast.succes('Agent créé', { detail: `${nom} — le compte de connexion se crée ensuite par l’administrateur.` });
           }}
         />
       )}

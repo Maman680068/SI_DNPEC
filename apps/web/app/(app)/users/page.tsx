@@ -14,6 +14,7 @@ import { BTN_PRINCIPAL, EnTetePage, Onglets } from '../../../components/ui/Chart
 import { RolesFonctionnels } from '../../../components/socle/RolesFonctionnels';
 import { NominationsRole } from '../../../components/users/NominationsRole';
 import { Chargement, ErreurChargement, messageChargement } from '../../../components/ui/ErreurChargement';
+import { useToast } from '../../../components/ui/Toast';
 
 type Tab = 'all' | 'pending' | 'roles' | 'nominations';
 
@@ -28,6 +29,7 @@ export default function UsersPage() {
   const [pendingUsers, setPendingUsers] = useState<AdminUser[] | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [approving, setApproving] = useState<AdminUser | null>(null);
+  const toast = useToast();
 
   const loadAll = useCallback(() => {
     listAllUsers().then(setAllUsers).catch((err) => setErreurChargement(messageChargement(err)));
@@ -61,16 +63,20 @@ export default function UsersPage() {
   function handleCreated(user: AdminUser) {
     setAllUsers((prev) => (prev ? [...prev, user] : [user]));
     setShowCreateModal(false);
+    toast.succes('Compte créé', { detail: `${user.firstName} ${user.lastName} reçoit un lien pour choisir son mot de passe.` });
   }
 
   function handleApproved(updated: AdminUser) {
     setPendingUsers((prev) => prev?.filter((u) => u.id !== updated.id) ?? prev);
     setAllUsers((prev) => (prev ? [...prev, updated] : [updated]));
     setApproving(null);
+    toast.succes('Inscription approuvée', { detail: `${updated.firstName} ${updated.lastName} est prévenu(e) par email.` });
   }
 
   function handleRejected(id: string) {
-    setPendingUsers((prev) => prev?.filter((u) => u.id !== id) ?? prev);
+    const u = pendingUsers?.find((x) => x.id === id);
+    setPendingUsers((prev) => prev?.filter((x) => x.id !== id) ?? prev);
+    toast.succes('Inscription rejetée', { detail: u ? `${u.firstName} ${u.lastName} est prévenu(e) par email.` : undefined });
   }
 
   return (

@@ -36,13 +36,16 @@ async function confirmerIdentite(p) {
   await saisir(p, EMAIL);
   await p.waitForURL('**/dashboard');
 
-  console.log('— Activation depuis la page Sécurité du compte');
-  // Refonte de l'interface : « Sécurité du compte » dans le menu de la carte utilisateur.
+  console.log('— Activation depuis « Mon profil », section Sécurité');
+  // Refonte (étape 9) : « Sécurité du compte » est une section de la page « Mon profil ».
   await p.getByRole('button', { name: 'Mon compte' }).click();
   await p.getByRole('link', { name: 'Sécurité du compte' }).click();
-  await p.getByRole('heading', { name: 'Sécurité du compte' }).waitFor();
+  await p.waitForURL('**/compte?section=securite');
+  await p.getByRole('heading', { name: 'Mon profil', level: 1 }).waitFor();
+  await p.getByRole('heading', { name: 'Sécurité' }).waitFor();
+  await p.getByTestId('double-auth').getByText('Désactivée', { exact: true }).waitFor();
   check('état affiché : désactivée', /Désactivée/.test(await p.getByTestId('double-auth').innerText()));
-  await p.getByRole('button', { name: 'Activer la double authentification' }).click();
+  await p.getByTestId('double-auth').getByRole('button', { name: 'Activer' }).click();
   await confirmerIdentite(p);
   const secret = (await p.getByTestId('cle-manuelle').innerText()).trim();
   check('QR code et clé manuelle affichés', secret.length >= 16 && (await p.getByAltText('QR code de la double authentification').count()) === 1);
@@ -72,21 +75,24 @@ async function confirmerIdentite(p) {
 
   console.log('— Désactivation par code');
   await p.goto(`${WEB}/compte/securite`);
-  await p.getByRole('button', { name: 'Désactiver' }).waitFor();
-  await p.getByLabel(/Code à 6 chiffres/).fill(await code(secret));
-  await p.getByRole('button', { name: 'Désactiver' }).click();
-  await p.getByText('Double authentification désactivée.').waitFor();
+  await p.waitForURL('**/compte?section=securite');
+  check('ancienne adresse /compte/securite : redirigée vers la section Sécurité de « Mon profil »', true);
+  await p.getByTestId('double-auth').getByRole('button', { name: 'Désactiver' }).click();
+  const fd = p.getByRole('dialog', { name: 'Désactiver la double authentification' });
+  await fd.getByLabel(/Code actuel/).fill(await code(secret));
+  await fd.getByRole('button', { name: 'Désactiver', exact: true }).click();
+  await p.getByTestId('toast').getByText('Double authentification désactivée').waitFor();
   await p.getByTestId('double-auth').getByText('Désactivée', { exact: true }).waitFor();
   check('désactivée', true);
 
   console.log('— Mobile');
   const m = await (await b.newContext({ viewport: { width: 390, height: 844 }, locale: 'fr-FR', storageState: await ctx.storageState() })).newPage();
   await m.goto(`${WEB}/compte/securite`);
-  await m.getByRole('heading', { name: 'Sécurité du compte' }).waitFor();
+  await m.getByRole('heading', { name: 'Mon profil', level: 1 }).waitFor();
   check('mobile : pas de défilement horizontal', (await m.evaluate(() => document.documentElement.scrollWidth)) <= 390);
 
   console.log('— Réinitialisation par l’administrateur');
-  await p.getByRole('button', { name: 'Activer la double authentification' }).click();
+  await p.getByTestId('double-auth').getByRole('button', { name: 'Activer' }).click();
   await confirmerIdentite(p);
   const secret2 = (await p.getByTestId('cle-manuelle').innerText()).trim();
   await p.getByLabel(/Code à 6 chiffres/).fill(await code(secret2));

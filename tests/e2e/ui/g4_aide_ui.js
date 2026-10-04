@@ -31,7 +31,11 @@ const guidesVus = async (p) => (await p.locator('article[data-testid^="guide-"]'
     await p.context().close();
   }
   const m = await loginPage(b, 'agent1', MOBILE);
+  // Étape 9 : squelette pendant le chargement des profils (réponse retardée), plus de « Chargement… ».
+  await m.route('**/aide/profils', async (r) => { await new Promise((x) => setTimeout(x, 800)); await r.continue(); });
   await m.goto(`${WEB}/aide`);
+  await m.getByRole('heading', { name: 'Guides d’utilisation' }).waitFor();
+  check('chargement : squelette, sans « Chargement… »', (await m.locator('[data-testid=squelette]').count()) === 1 && (await m.getByText('Chargement…').count()) === 0);
   await m.locator('article').first().waitFor();
   check('mobile : pas de défilement horizontal', (await m.evaluate(() => document.documentElement.scrollWidth)) <= 390);
   await b.close(); bilan();

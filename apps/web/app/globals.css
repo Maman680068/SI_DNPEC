@@ -28,6 +28,52 @@
   }
 }
 
+/* Barres de défilement de l'application (refonte, étape 9) : fines (6 px), sans flèches, visibles
+ * seulement au survol ou pendant le défilement (classe « en-defilement » posée par
+ * DefilementVisible) ; couleur du menu dans le menu latéral, discrète ailleurs. Limitées à
+ * l'application (.contraste-aa) : l'accueil et la connexion ne changent pas.
+ * Chromium/Safari : ::-webkit-scrollbar (6 px). Firefox : propriétés standard (« thin »). */
+.contraste-aa ::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.contraste-aa ::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
+}
+.contraste-aa ::-webkit-scrollbar-track,
+.contraste-aa ::-webkit-scrollbar-corner {
+  background: transparent;
+}
+.contraste-aa ::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 3px;
+}
+.contraste-aa :hover::-webkit-scrollbar-thumb,
+.contraste-aa .en-defilement::-webkit-scrollbar-thumb {
+  background: rgba(18, 28, 77, 0.28);
+}
+.contraste-aa .menu-defilant:hover::-webkit-scrollbar-thumb,
+.contraste-aa .menu-defilant.en-defilement::-webkit-scrollbar-thumb {
+  background: #3a4580;
+}
+@supports not selector(::-webkit-scrollbar) {
+  .contraste-aa,
+  .contraste-aa * {
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+  }
+  .contraste-aa :hover,
+  .contraste-aa .en-defilement {
+    scrollbar-color: rgba(18, 28, 77, 0.28) transparent;
+  }
+  .contraste-aa .menu-defilant:hover,
+  .contraste-aa .menu-defilant.en-defilement {
+    scrollbar-color: #3a4580 transparent;
+  }
+}
+
 @layer components {
   /* Bande tricolore (drapeau guinéen) — motif d'identité repris de la maquette. */
   .flag-stripe {

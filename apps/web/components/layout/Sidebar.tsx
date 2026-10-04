@@ -140,8 +140,7 @@ export function navigationPour(role: string | undefined, rolesFonctionnels: stri
 /** Titre de la page affiché dans la barre du haut : l'entrée du menu la plus précise. */
 const TITRES_HORS_MENU: Record<string, string> = {
   '/recherche': 'Recherche',
-  '/compte/notifications': 'Préférences de notification',
-  '/compte/securite': 'Sécurité du compte',
+  '/compte': 'Mon profil',
 };
 export function titrePage(pathname: string | null, role: string | undefined, rolesFonctionnels: string[] = []): string {
   if (!pathname) return '';
@@ -327,11 +326,14 @@ export function Sidebar({ open = false, onClose }: { open?: boolean; onClose?: (
             </button>
             {menuCompte && (
               <div className="absolute bottom-full left-0 right-0 mb-2 overflow-hidden rounded-[10px] border border-line bg-surface py-1 text-[13.5px] text-text shadow-lg">
-                <Link href="/compte/notifications" className="block px-3.5 py-2 hover:bg-bg" aria-label="Mes notifications (préférences)">
-                  Préférences de notification
+                <Link href="/compte" className="block px-3.5 py-2 font-semibold hover:bg-bg" onClick={() => setMenuCompte(false)}>
+                  Mon profil
                 </Link>
-                <Link href="/compte/securite" className="block px-3.5 py-2 hover:bg-bg">
+                <Link href="/compte?section=securite" className="block px-3.5 py-2 hover:bg-bg" onClick={() => setMenuCompte(false)}>
                   Sécurité du compte
+                </Link>
+                <Link href="/compte?section=notifications" className="block px-3.5 py-2 hover:bg-bg" aria-label="Mes notifications (préférences)" onClick={() => setMenuCompte(false)}>
+                  Préférences de notification
                 </Link>
               </div>
             )}

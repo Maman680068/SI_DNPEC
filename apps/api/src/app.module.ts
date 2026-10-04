@@ -32,6 +32,7 @@ import { CourrierModule } from './courrier/courrier.module';
 import { RoleChangeModule } from './role-change/role-change.module';
 import { LogistiqueModule } from './logistique/logistique.module';
 import { AideModule } from './aide/aide.module';
+import { ProfilModule } from './profil/profil.module';
 import { DemoModule } from './demo/demo.module';
 import { SocleModule } from './socle/socle.module';
 import { AppController } from './app.controller';
@@ -71,6 +72,7 @@ import { AppController } from './app.controller';
     RoleChangeModule,
     LogistiqueModule,
     AideModule,
+    ProfilModule,
     DemoModule,
   ],
   providers: [

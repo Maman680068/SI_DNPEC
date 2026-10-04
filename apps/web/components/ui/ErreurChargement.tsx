@@ -1,5 +1,7 @@
 'use client';
 
+import { SqueletteListe } from './Squelette';
+
 /** Message d'échec d'un chargement de page — auparavant l'erreur ne remontait
  * qu'en console et la page restait sur « Chargement… ». */
 export function ErreurChargement({ message }: { message: string | null }) {
@@ -14,10 +16,13 @@ export function ErreurChargement({ message }: { message: string | null }) {
   );
 }
 
-/** « Chargement… », masqué quand le chargement a échoué (l'erreur est affichée en tête). */
-export function Chargement({ erreur, className = 'text-sm text-text-muted' }: { erreur: string | null; className?: string }) {
+/**
+ * Chargement d'une liste ou d'un bloc : un squelette en lignes grises (refonte, étape 9), masqué
+ * quand le chargement a échoué (l'erreur est affichée en tête). `lignes` : hauteur du squelette.
+ */
+export function Chargement({ erreur, lignes = 4 }: { erreur: string | null; className?: string; lignes?: number }) {
   if (erreur) return null;
-  return <p className={className}>Chargement…</p>;
+  return <SqueletteListe lignes={lignes} colonnes={3} />;
 }
 
 export function messageChargement(err: unknown, defaut = 'Chargement impossible. Vérifiez la connexion puis réessayez.'): string {

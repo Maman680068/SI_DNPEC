@@ -3,10 +3,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import { getAgent, getOrganigramme, getPointsDeReprise, listerAgents } from '../../../lib/api/socle';
 import type { AgentDetail, PageAgents, PointsDeReprise, UniteOrganigramme } from '../../../lib/socle/types';
-import { Chargement, ErreurChargement, messageChargement } from '../../../components/ui/ErreurChargement';
+import { ErreurChargement, messageChargement } from '../../../components/ui/ErreurChargement';
+import { SquelettePage } from '../../../components/ui/Squelette';
+import { messageErreur, useToast } from '../../../components/ui/Toast';
 import { Plus } from 'lucide-react';
 import { AgentPanneau, FenetreNouvelAgent, TON_PASTILLE } from '../../../components/socle/Agents';
-import { BandeCompteurs, BarreOutils, BTN_LIGNE, BTN_PRINCIPAL, EnTetePage, EtatVide, FiltreSelect, Initiales, initialesDe, LigneTableau, Pastille, Recherche, Tableau } from '../../../components/ui/Charte';
+import { BandeCompteurs, BarreOutils, BTN_LIGNE, BTN_PRINCIPAL, EnTetePage, EtatVide, Filtres, FiltreSelect, Initiales, initialesDe, LigneTableau, Pastille, Recherche, Tableau } from '../../../components/ui/Charte';
 
 const GRILLE = 'lg:grid-cols-[minmax(0,1.4fr)_150px_110px_130px_170px_70px]';
 const date = (d: string) => new Date(d).toLocaleDateString('fr-FR', { timeZone: 'UTC' });
@@ -31,6 +33,7 @@ export default function AgentsPage() {
   const [numero, setNumero] = useState(1);
   const [ouvert, setOuvert] = useState<AgentDetail | null>(null);
   const [nouvel, setNouvel] = useState(false);
+  const toast = useToast();
 
   const charger = useCallback(() => {
     listerAgents({ ...filtres, page: numero, taille: 50 })
@@ -52,7 +55,7 @@ export default function AgentsPage() {
     if (id) getAgent(id).then(setOuvert).catch((e) => setErreur(messageChargement(e)));
   }, [chargerReprise]);
 
-  const ouvrir = (id: string) => getAgent(id).then(setOuvert).catch((e) => setErreur(messageChargement(e)));
+  const ouvrir = (id: string) => getAgent(id).then(setOuvert).catch((e) => toast.erreur('Ouverture impossible', messageErreur(e)));
   const apresAction = (a: AgentDetail) => {
     setOuvert(a);
     charger();
@@ -66,12 +69,17 @@ export default function AgentsPage() {
   if (!page)
     return (
       <div>
-        <EnTetePage titre="Agents" />
         <ErreurChargement message={erreur} />
-        <Chargement erreur={erreur} />
+        {erreur ? <EnTetePage titre="Agents" /> : <SquelettePage />}
       </div>
     );
   const nbPages = Math.max(1, Math.ceil(page.total / page.taille));
+  const filtresActifs =
+    ((filtres.statut ?? '') !== 'EN_ACTIVITE' ? 1 : 0) + (filtres.uniteId ? 1 : 0) + (filtres.finProche === 'true' ? 1 : 0) + (filtres.matriculeProvisoire === 'true' ? 1 : 0);
+  const effacerFiltres = () => {
+    setNumero(1);
+    setFiltres((f) => ({ statut: 'EN_ACTIVITE', ...(f.recherche ? { recherche: f.recherche } : {}) }));
+  };
   const points = reprise
     ? [
         reprise.matriculesProvisoires > 0 && { texte: `${reprise.matriculesProvisoires} matricule(s) provisoire(s) à remplacer`, action: () => filtre('matriculeProvisoire', 'true') },
@@ -139,6 +147,7 @@ export default function AgentsPage() {
 
       <BarreOutils>
         <Recherche value={filtres.recherche ?? ''} onChange={(v) => filtre('recherche', v)} placeholder="Nom, prénom ou matricule…" label="Rechercher un agent" />
+        <Filtres actifs={filtresActifs} onEffacer={effacerFiltres}>
         <FiltreSelect
           label="Statut"
           value={filtres.statut ?? ''}
@@ -160,6 +169,7 @@ export default function AgentsPage() {
         />
         {bascule('finProche', filtres.finProche === 'true', 'Fin dans 15 jours')}
         {bascule('matriculeProvisoire', filtres.matriculeProvisoire === 'true', 'Matricule provisoire')}
+        </Filtres>
       </BarreOutils>
 
       <Tableau
@@ -225,10 +235,11 @@ export default function AgentsPage() {
         <FenetreNouvelAgent
           unites={unites}
           onClose={() => setNouvel(false)}
-          onFait={() => {
+          onFait={(nom) => {
             setNouvel(false);
             charger();
             chargerReprise();
+            toast.succes('Agent créé', { detail: `${nom} — le compte de connexion se crée ensuite par l’administrateur.` });
           }}
         />
       )}

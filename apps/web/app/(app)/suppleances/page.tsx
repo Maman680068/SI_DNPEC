@@ -9,6 +9,9 @@ import { SuppleanceCard } from '../../../components/suppleances/SuppleanceCard';
 import { DesignateSuppleanceModal } from '../../../components/suppleances/DesignateSuppleanceModal';
 import { Plus } from 'lucide-react';
 import { BTN_PRINCIPAL, EnTetePage, EtatVide, Panneau } from '../../../components/ui/Charte';
+import { ErreurChargement } from '../../../components/ui/ErreurChargement';
+import { SqueletteCartes } from '../../../components/ui/Squelette';
+import { messageErreur, useToast } from '../../../components/ui/Toast';
 
 /** Une suppléance terminée ou révoquée n'a plus d'action possible. */
 function isOpen(s: Suppleance): boolean {
@@ -55,6 +58,7 @@ export default function SuppleancesPage() {
   const [showModal, setShowModal] = useState(false);
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const toast = useToast();
 
   const load = useCallback(() => {
     Promise.all([getMySuppleances(), getManageableTitulaires()])
@@ -73,13 +77,13 @@ export default function SuppleancesPage() {
     const who = `${s.suppleant.firstName} ${s.suppleant.lastName}`;
     if (!window.confirm(`Révoquer la suppléance de ${who} ? Elle cessera immédiatement.`)) return;
     setPendingId(s.id);
-    setError(null);
     try {
       await revokeSuppleance(s.id);
       load();
       await refreshInterim();
+      toast.succes('Suppléance révoquée', { detail: `${who} ne peut plus agir au nom de ${s.titulaire.firstName} ${s.titulaire.lastName}.` });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Impossible de révoquer cette suppléance');
+      toast.erreur('Révocation impossible', messageErreur(err, 'Impossible de révoquer cette suppléance'));
     } finally {
       setPendingId(null);
     }
@@ -121,10 +125,10 @@ export default function SuppleancesPage() {
         (« Agir en intérim »). Chaque action est journalisée « par intérim, au nom de ».
       </p>
 
-      {error && <div role="alert" className="mb-4 rounded-[10px] bg-clay-50 px-4 py-3 text-[13px] text-clay">{error}</div>}
+      <ErreurChargement message={error} />
 
       {suppleances === null ? (
-        <p className="text-sm text-text-muted">Chargement…</p>
+        !error && <SqueletteCartes cartes={3} />
       ) : (
         <>
           <Section
@@ -158,10 +162,11 @@ export default function SuppleancesPage() {
           selfId={user.id}
           titulaires={titulaires}
           onClose={() => setShowModal(false)}
-          onCreated={() => {
+          onCreated={(nom) => {
             setShowModal(false);
             load();
             void refreshInterim();
+            toast.succes('Suppléant désigné', { detail: nom ? `${nom} est prévenu(e).` : undefined });
           }}
         />
       )}

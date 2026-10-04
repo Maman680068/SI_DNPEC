@@ -195,7 +195,7 @@ fonctionnalité ajoute sa suite (`tests/e2e/api/`, `tests/e2e/ui/`) et sa ligne 
 - Double authentification (`auth/`) : `GET /auth/2fa/status`, `POST /auth/2fa/setup` (409 si
   active), `POST /auth/2fa/activate`, `POST /auth/2fa/disable` (code exigé) ; réinitialisation
   par l'administrateur `POST /users/:id/2fa/reset` (jamais sur soi-même). Écran
-  `/compte/securite`.
+  `/compte?section=securite` (page « Mon profil », `GET api/v1/profil`).
 - Aide (`aide/`) : `GET /aide/profils` = rôle propre (jamais celui de l'intérim) +
   habilitations (`SECRETARIAT_COURRIER`, `GESTIONNAIRE_LOGISTIQUE`) + guide DRH pour les rôles
   fonctionnels DRH et gestionnaire RH ; ouverte aux stagiaires.
@@ -244,6 +244,19 @@ fonctionnalité ajoute sa suite (`tests/e2e/api/`, `tests/e2e/ui/`) et sa ligne 
   `GET /documents`), `api/v1/messages/avec/:userId/contexte`, `api/v1/decisions/a-suivre`,
   `api/v1/rh/dossiers`, `api/v1/rh/effectifs/export.xlsx`, `api/v1/instructions/export.xlsx`. L'annuaire
   n'expose ni email ni téléphone.
+- Formulaires (refonte, étape 9) : `components/ui/Formulaire.tsx` — `FenetreFormulaire` (large, deux colonnes
+  avec `Grille2`, phrase `pied` à gauche, bouton principal à droite, validation dans la fenêtre avant l'envoi :
+  `required` + `messageObligatoire`, règles propres par `valider` → message sous le champ ; refus de l'API en bas),
+  `Saisie`, `ZoneTexte`, `Liste`, `ChampDate` (date en français, calendrier, raccourcis ; jamais
+  `input type=date`), `ZoneDepot` (jamais le bouton de fichier brut), `SelecteurPersonnes` (recherche + étiquettes),
+  `ChoixSegment` (2 à 5 valeurs en un clic), `Case`. Après chaque action : `useToast()` (`components/ui/Toast.tsx`),
+  `succes(titre, { detail, annuler })` — « Annuler » seulement si une route existante défait l'action sans
+  nouveau droit —, `erreur(titre, messageErreur(err))`. Chargement : squelettes (`components/ui/Squelette.tsx`),
+  jamais « Chargement… ». Filtres d'une barre d'outils dans `<Filtres actifs={n}>` (repliés derrière
+  « Filtres (N) » sur téléphone). Page « Mon profil » `/compte` (`GET api/v1/profil`, son propre profil
+  seulement ; sections `?section=securite|notifications`, anciennes pages redirigées). Calcul d'un congé
+  pendant la saisie : `GET api/v1/conges/simulation` (même règle que la création). « À traiter » de
+  l'administrateur : points non nominaux de la supervision (`SupervisionService.pointsATraiter`).
 - Liens vers le web (notifications, emails) : chaque lien de l'API doit viser une page
   existante qui lit ses paramètres (contrôlé par `tests/e2e/api/i_liens.js`). Renommer ou
   supprimer une page déjà visée par des liens envoyés : ajouter l'ancien format à

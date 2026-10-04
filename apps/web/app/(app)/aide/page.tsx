@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { apiFetch } from '../../../lib/api/client';
 import guidesData from '../../../lib/aide/guides.json';
-import { Chargement, ErreurChargement, messageChargement } from '../../../components/ui/ErreurChargement';
+import { ErreurChargement, messageChargement } from '../../../components/ui/ErreurChargement';
+import { Barre } from '../../../components/ui/Squelette';
 import { EnTetePage } from '../../../components/ui/Charte';
 
 type Section = { titre: string; etapes: string[]; capture?: string };
@@ -31,7 +32,26 @@ export default function AidePage() {
       <ErreurChargement message={erreur} />
       <p className="-mt-1.5 mb-4 text-[13px] text-text-muted">Les guides ci-dessous correspondent à votre profil. Chaque étape indique le bouton ou le menu à utiliser.</p>
       {!profils ? (
-        <Chargement erreur={erreur} />
+        !erreur && (
+          <div role="status" aria-label="Chargement en cours" data-testid="squelette">
+            <span className="sr-only">Chargement en cours</span>
+            <div aria-hidden className="mb-5 flex flex-wrap gap-2">
+              {['w-[120px]', 'w-[150px]', 'w-[110px]'].map((l) => (
+                <Barre key={l} className={`h-9 rounded-[9px] ${l}`} />
+              ))}
+            </div>
+            {[0, 1].map((n) => (
+              <div key={n} aria-hidden className="mb-4 space-y-3 rounded-xl border border-line bg-surface p-5">
+                <Barre className="h-4 w-[35%]" />
+                <Barre className="h-2.5 w-[55%]" />
+                <Barre className="mt-4 h-3 w-[30%]" />
+                <Barre className="h-2.5 w-[80%]" />
+                <Barre className="h-2.5 w-[72%]" />
+                <Barre className="h-2.5 w-[64%]" />
+              </div>
+            ))}
+          </div>
+        )
       ) : (
         <>
           <nav className="mb-5 flex flex-wrap gap-2" aria-label="Guides">

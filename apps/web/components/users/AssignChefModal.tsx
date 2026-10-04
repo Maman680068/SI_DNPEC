@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import { useState } from 'react';
 import { useOrg } from '../../lib/org/OrgProvider';
 import { assignCelluleChef } from '../../lib/api/org';
 import type { AdminUser } from '../../lib/users/types';
-import { Button } from '../ui/Button';
+import { FenetreFormulaire, Liste, ZoneTexte } from '../ui/Formulaire';
+import { messageErreur } from '../ui/Toast';
 
 /**
  * Nomme `user` chef d'une cellule (POST /org/cellules/:id/chef) — même mécanisme
@@ -19,7 +20,7 @@ export function AssignChefModal({
 }: {
   user: AdminUser;
   onClose: () => void;
-  onAssigned: () => void;
+  onAssigned: (cellule: string) => void;
 }) {
   const { cellules: allCellules, refreshOrg } = useOrg();
   // Une cellule suspendue (§2.3) ne peut pas recevoir de NOUVEAU chef tant
@@ -33,84 +34,40 @@ export function AssignChefModal({
   const targetCellule = cellules.find((c) => c.id === celluleId);
   const alreadyHasChef = !!targetCellule?.chefId && targetCellule.chefId !== user.id;
 
-  async function handleSubmit(event: FormEvent) {
-    event.preventDefault();
+  async function handleSubmit() {
     setSubmitting(true);
     setError(null);
     try {
       await assignCelluleChef(celluleId, user.id, motif.trim());
       await refreshOrg();
-      onAssigned();
+      onAssigned(targetCellule?.name ?? '');
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Impossible de nommer ce chef de cellule");
+      setError(messageErreur(err, 'Impossible de nommer ce chef de cellule'));
     } finally {
       setSubmitting(false);
     }
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(20,26,38,0.42)] p-4" onClick={onClose}>
-      <form
-        onSubmit={handleSubmit}
-        onClick={(e) => e.stopPropagation()}
-        role="dialog"
-        aria-label="Nommer chef de cellule"
-        className="w-full max-w-[440px] rounded-lg bg-surface p-6"
-      >
-        <h2 className="mb-1.5 text-[19px] font-semibold">Nommer chef de cellule</h2>
-        <p className="mb-5 text-[13px] text-text-muted">
-          {user.firstName} {user.lastName} · {user.email}
+    <FenetreFormulaire
+      titre="Nommer chef de cellule"
+      sousTitre={`${user.firstName} ${user.lastName} · ${user.email}`}
+      onClose={onClose}
+      onSubmit={handleSubmit}
+      largeur={600}
+      enCours={submitting}
+      erreur={error}
+      libelleValider="Nommer chef"
+      pied="Tracé dans l’historique ; la personne devra se reconnecter."
+      valider={() => (motif.trim() && motif.trim().length < 5 ? { 'motif-chef': 'Le motif doit compter au moins 5 caractères.' } : {})}
+    >
+      <Liste id="chef-cellule" label="Cellule" value={celluleId} onChange={setCelluleId} required messageObligatoire="Choisissez la cellule." vide={cellules.length ? undefined : 'Aucune cellule active'} options={cellules.map((c) => ({ value: c.id, label: c.name }))} />
+      {alreadyHasChef && (
+        <p className="mb-3.5 rounded-[10px] bg-clay-50 px-3.5 py-2.5 text-[12.5px] text-clay">
+          Cette cellule a déjà un chef : changez d’abord son rôle (il n’est jamais rétrogradé automatiquement).
         </p>
-
-        <div className="mb-4">
-          <label className="mb-1.5 block text-[12.5px] font-semibold text-text">Cellule</label>
-          <select
-            value={celluleId}
-            onChange={(e) => setCelluleId(e.target.value)}
-            required
-            className="w-full rounded-md border border-line bg-surface px-3 py-2.5 text-sm"
-          >
-            {cellules.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {alreadyHasChef && (
-          <p className="mb-4 rounded-md bg-clay-soft px-3.5 py-2.5 text-[12.5px] text-clay">
-            Cette cellule a déjà un chef : changez d’abord son rôle (il n’est jamais rétrogradé automatiquement).
-          </p>
-        )}
-
-        <div className="mb-4">
-          <label htmlFor="motif-chef" className="mb-1.5 block text-[12.5px] font-semibold text-text">
-            Motif (obligatoire)
-          </label>
-          <textarea
-            id="motif-chef"
-            value={motif}
-            onChange={(e) => setMotif(e.target.value)}
-            required
-            minLength={5}
-            maxLength={1000}
-            className="min-h-[70px] w-full rounded-md border border-line bg-surface px-3 py-2.5 text-sm"
-          />
-          <p className="mt-1 text-[11.5px] text-text-faint">Tracé dans l’historique ; la personne devra se reconnecter.</p>
-        </div>
-
-        {error && <div className="mb-4 rounded-md bg-clay-soft px-3 py-2.5 text-[13px] text-clay">{error}</div>}
-
-        <div className="flex justify-end gap-2.5">
-          <Button type="button" variant="outline" onClick={onClose}>
-            Annuler
-          </Button>
-          <Button type="submit" variant="gold" disabled={submitting || !celluleId}>
-            {submitting ? 'Nomination…' : 'Nommer chef'}
-          </Button>
-        </div>
-      </form>
-    </div>
+      )}
+      <ZoneTexte id="motif-chef" label="Motif" value={motif} onChange={setMotif} required messageObligatoire="Indiquez le motif de la nomination." maxLength={1000} />
+    </FenetreFormulaire>
   );
 }

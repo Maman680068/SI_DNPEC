@@ -5,6 +5,7 @@ import { SquareCheck } from 'lucide-react';
 import { useOrg } from '../../lib/org/OrgProvider';
 import type { ContexteConversation } from '../../lib/communication/types';
 import { IconeFichier, Initiales } from '../ui/Charte';
+import { Barre } from '../ui/Squelette';
 
 /**
  * Fiche de l'interlocuteur (maquette : colonne de droite de la messagerie) : fonction · unité,
@@ -21,7 +22,15 @@ export function FicheInterlocuteur({ userId, contexte, erreur }: { userId: strin
       <p className="text-center text-[15px] font-bold text-text">{i ? `${i.prenom} ${i.nom}` : getUserLabel(userId)}</p>
       {i && <p className="mb-3.5 text-center text-[12.5px] text-text-muted">{[i.fonction, i.unite].filter(Boolean).join(' · ')}</p>}
       {erreur && <p className="text-[12.5px] text-clay">{erreur}</p>}
-      {!contexte && !erreur && <p className="text-center text-[12.5px] text-text-muted">Chargement…</p>}
+      {!contexte && !erreur && (
+        <div role="status" aria-label="Chargement en cours" data-testid="squelette" className="mt-3 space-y-2.5">
+          <span className="sr-only">Chargement en cours</span>
+          <Barre className="mx-auto h-2.5 w-[60%]" />
+          <Barre className="mt-5 h-3 w-[45%]" />
+          <Barre className="h-2.5 w-[85%]" />
+          <Barre className="h-2.5 w-[70%]" />
+        </div>
+      )}
       {i && contexte && (
         <>
           <h3 className="mb-2 mt-3.5 text-[12.5px] font-bold text-ink-900">Documents échangés</h3>

@@ -8,6 +8,8 @@ const { PrismaClient } = require('@prisma/client'); const prisma = new PrismaCli
 const SHOTS = E.SHOTS;
 const S = Date.now().toString(36).slice(-5);
 const J = 864e5, iso = (ms) => new Date(Date.now() + ms).toISOString();
+// Étape 9 : message de confirmation (toast).
+const toast = (p, titre) => p.getByTestId('toast').filter({ hasText: titre }).waitFor({ timeout: 10000 }).then(() => true, () => false);
 async function attendre(f) { for (let i = 0; i < 40; i++) { if (await f()) return true; await new Promise((r) => setTimeout(r, 250)); } return false; }
 (async () => {
   const m = (await call('chefdpe', 'POST', '/meetings', { title: `Comité de direction DPE ${S}`, startAt: iso(-J), location: 'Salle de réunion', participantIds: [ids.agent1, ids.chefssr] })).body;
@@ -26,31 +28,46 @@ async function attendre(f) { for (let i = 0; i < 40; i++) { if (await f()) retur
     await sec(p).getByRole('button', { name: 'Ajouter la décision' }).click();
     await item(p, t).waitFor();
   }
+  check('message de confirmation « Décision ajoutée »', await toast(p, 'Décision ajoutée'));
   check('trois décisions ajoutées', (await sec(p).locator('[data-testid=decision]').count()) === 3);
   await item(p, 'Diffuser').getByRole('button', { name: 'Modifier' }).click();
-  await item(p, 'Diffuser').getByLabel('Texte de la décision').fill(`Diffuser le compte rendu à toutes les sections ${S}`);
-  await item(p, 'Diffuser').getByRole('button', { name: 'Enregistrer' }).click();
+  const fmd = p.getByRole('dialog', { name: 'Modifier la décision' });
+  await fmd.getByLabel('Texte de la décision').fill('');
+  await fmd.getByRole('button', { name: 'Enregistrer' }).click();
+  check('modification vide : message dans la fenêtre, rien d’envoyé', (await fmd.getByText('Rédigez le texte de la décision.').count()) === 1);
+  await fmd.getByLabel('Texte de la décision').fill(`Diffuser le compte rendu à toutes les sections ${S}`);
+  await fmd.getByRole('button', { name: 'Enregistrer' }).click();
   await item(p, 'toutes les sections').waitFor();
-  check('modification enregistrée', true);
+  check('modification enregistrée (« Décision modifiée »)', await toast(p, 'Décision modifiée'));
 
   const d1 = await prisma.decision.findFirst({ where: { content: { startsWith: 'Relancer le recensement' }, meetingId: m.id } });
   const api = (await call('chefdpe', 'GET', `/decisions/${d1.id}/responsables-possibles`)).body.map((u) => u.id).sort();
   await item(p, 'recensement').getByRole('button', { name: 'Convertir en action' }).click();
-  const sel = item(p, 'recensement').getByLabel('Responsable');
-  await attendre(async () => (await sel.locator('option').count()) > 1);
-  const ecran = (await sel.locator('option').evaluateAll((os) => os.map((o) => o.value))).filter(Boolean).sort();
-  check(`liste des responsables = réponse de l’API (${ecran.length})`, JSON.stringify(ecran) === JSON.stringify(api));
-  await sel.selectOption(ids.agent1);
-  await item(p, 'recensement').getByLabel('Échéance').fill(new Date(Date.now() + 14 * J).toISOString().slice(0, 10));
-  await item(p, 'recensement').getByLabel(/Intitulé/).fill(`Recensement des effectifs ${S}`);
-  await item(p, 'recensement').getByRole('button', { name: 'Créer la tâche' }).click();
+  const fc = p.getByRole('dialog', { name: 'Convertir en action' });
+  const apiNoms = (await call('chefdpe', 'GET', `/decisions/${d1.id}/responsables-possibles`)).body.map((u) => `${u.firstName} ${u.lastName}`).sort();
+  await fc.getByRole('button', { name: 'Créer la tâche' }).click();
+  check('conversion vide : « Choisissez le responsable. » et échéance demandée, rien d’envoyé', (await fc.getByText('Choisissez le responsable.').count()) === 1 && (await fc.getByText('Choisissez l’échéance de la tâche.').count()) === 1);
+  const combo = fc.getByRole('combobox', { name: 'Responsable' });
+  await combo.click();
+  await attendre(async () => (await fc.getByRole('option').count()) > 0);
+  const ecran = (await fc.getByRole('option').allInnerTexts()).map((t) => t.split('\n').filter(Boolean)[1] || t).map((t) => t.trim()).sort();
+  check(`liste des responsables = réponse de l’API (${api.length})`, ecran.length === Math.min(api.length, 30) && ecran.every((n) => apiNoms.includes(n)), JSON.stringify(ecran).slice(0, 200));
+  const agent1 = (await call('chefdpe', 'GET', '/users/directory')).body.find((u) => u.id === ids.agent1);
+  await combo.fill(agent1.lastName);
+  await fc.getByRole('option', { name: `${agent1.firstName} ${agent1.lastName}` }).first().click();
+  await fc.getByLabel('Échéance', { exact: true }).fill(new Date(Date.now() + 14 * J).toISOString().slice(0, 10));
+  await fc.getByLabel(/Intitulé/).fill(`Recensement des effectifs ${S}`);
+  await fc.getByRole('button', { name: 'Créer la tâche' }).click();
+  check('« Tâche créée » nommant le responsable prévenu', (await toast(p, 'Tâche créée')) && (await p.getByTestId('toast').innerText()).includes(`${agent1.firstName} ${agent1.lastName}`));
   await item(p, 'recensement').getByRole('link', { name: `Recensement des effectifs ${S}` }).waitFor();
   const txt = await item(p, 'recensement').innerText();
   check('action liée : « Tâche créée », statut « À faire » et échéance', /Tâche créée/.test(txt) && /À faire, échéance/.test(txt), txt.replace(/\n/g, ' | '));
   check('plus de bouton « Convertir » après conversion', (await item(p, 'recensement').getByRole('button', { name: 'Convertir en action' }).count()) === 0);
   await item(p, 'calendrier').getByRole('button', { name: 'Clôturer' }).click();
+  await p.getByRole('dialog', { name: 'Clôturer la décision' }).getByRole('button', { name: 'Clôturer' }).click();
   await item(p, 'calendrier').getByText('Clôturée').waitFor();
-  check('clôture : badge et aucun bouton', (await item(p, 'calendrier').getByRole('button').count()) === 0);
+  check('« Décision clôturée »', await toast(p, 'Décision clôturée'));
+  check('clôture : badge et aucun bouton', await attendre(async () => (await item(p, 'calendrier').getByRole('button').count()) === 0), (await item(p, 'calendrier').getByRole('button').allInnerTexts()).join(' / '));
   await p.screenshot({ path: `${SHOTS}/d2_decisions_organisateur_desktop.png`, fullPage: false });
   const lien = await item(p, 'recensement').getByRole('link').getAttribute('href');
   await item(p, 'recensement').getByRole('link').click();
@@ -67,7 +84,7 @@ async function attendre(f) { for (let i = 0; i < 40; i++) { if (await f()) retur
   check('DN : « Relancer » sur les 2 décisions ouvertes seulement', (await sec(q).getByRole('button', { name: 'Relancer l’organisateur' }).count()) === 2);
   const avant = await prisma.notification.count({ where: { userId: ids.chefdpe, type: 'DECISION_RELANCE', channel: 'IN_APP' } });
   await item(q, 'toutes les sections').getByRole('button', { name: 'Relancer l’organisateur' }).click();
-  await item(q, 'toutes les sections').getByText('Relance envoyée à l’organisateur.').waitFor();
+  check('« Relance envoyée à l’organisateur » (message de confirmation)', await toast(q, 'Relance envoyée à l’organisateur'));
   check('relance : l’organisateur est notifié', await attendre(async () => (await prisma.notification.count({ where: { userId: ids.chefdpe, type: 'DECISION_RELANCE', channel: 'IN_APP' } })) === avant + 1));
   await q.screenshot({ path: `${SHOTS}/d2_decisions_dn_mobile.png`, fullPage: true });
   const largeur = await q.evaluate(() => document.documentElement.scrollWidth);
@@ -82,6 +99,7 @@ async function attendre(f) { for (let i = 0; i < 40; i++) { if (await f()) retur
   console.log('— Fenêtre : réponse de l’invité dans la colonne de droite');
   const reponse = r.getByRole('group', { name: new RegExp(`Votre réponse à « Comité de direction DPE ${S} »`) });
   await reponse.getByRole('button', { name: 'Je participe' }).click();
+  check('« Présence confirmée » (message de confirmation)', await toast(r, 'Présence confirmée'));
   check('« Je participe » : enregistré (API) et marqué', await attendre(async () => (await prisma.meetingParticipant.findFirst({ where: { meetingId: m.id, userId: ids.agent1 } })).responseStatus === 'CONFIRME') && (await reponse.getByRole('button', { name: 'Je participe' }).getAttribute('aria-pressed')) === 'true');
   check('invité : ni « Annuler la réunion » ni « Modifier la réunion »', (await r.getByRole('button', { name: /Annuler la réunion|Modifier la réunion/ }).count()) === 0);
   await r.keyboard.press('Escape');
@@ -127,6 +145,7 @@ async function attendre(f) { for (let i = 0; i < 40; i++) { if (await f()) retur
   await fm.getByLabel('Compte rendu').fill(`Points abordés ${S}`);
   await fm.getByRole('button', { name: 'Enregistrer' }).click();
   await f.locator('[data-testid=compte-rendu]').getByText(`Points abordés ${S}`).waitFor();
+  check('« Réunion enregistrée »', await toast(o, 'Réunion enregistrée'));
   check('compte rendu enregistré (PATCH /meetings/:id) et affiché', (await call('chefdpe', 'GET', `/meetings/${m.id}`)).body.minutesText === `Points abordés ${S}`);
   await o.screenshot({ path: `${SHOTS}/d2_reunion_fenetre_organisateur.png` });
   check('invité : modification refusée par l’API (403)', (await call('agent1', 'PATCH', `/meetings/${m.id}`, { minutesText: 'x' })).status === 403);
@@ -143,6 +162,34 @@ async function attendre(f) { for (let i = 0; i < 40; i++) { if (await f()) retur
   const l = await t.evaluate(() => document.documentElement.scrollWidth);
   check('téléphone : pas de défilement horizontal (Réunions)', l <= 390, String(l));
   await t.screenshot({ path: `${SHOTS}/d2_reunions_mobile.png`, fullPage: true });
+  await t.getByTestId('bouton-filtres').click();
+  await t.getByRole('dialog', { name: 'Filtres' }).getByLabel('Période').selectOption('passees');
+  await t.getByRole('button', { name: 'Appliquer' }).click();
+  check('téléphone : filtres repliés, « Filtres (1) » après le choix de la période', /Filtres \(1\)/.test(await t.getByTestId('bouton-filtres').innerText()));
+
+  console.log('— Nouvelle réunion (bureau) : validation dans la fenêtre, message de confirmation');
+  const n = await loginPage(b, 'chefdpe', { width: 1440, height: 900 });
+  await n.goto(`${WEB}/reunions`);
+  await n.getByRole('button', { name: 'Nouvelle réunion' }).first().click();
+  const fn = n.getByRole('dialog', { name: 'Nouvelle réunion' });
+  const nbAvant = await prisma.meeting.count({ where: { createdById: ids.chefdpe } });
+  await fn.getByRole('button', { name: 'Créer la réunion' }).click();
+  check('envoi vide : titre, date et heure de début demandés, rien d’envoyé', (await fn.getByText('Donnez un titre à la réunion.').count()) === 1 && (await fn.getByText('Choisissez la date de la réunion.').count()) === 1 && (await fn.getByText('Indiquez l’heure de début.').count()) === 1 && (await prisma.meeting.count({ where: { createdById: ids.chefdpe } })) === nbAvant);
+  await fn.getByLabel('Titre').fill(`Point d’étape ${S}`);
+  await fn.getByLabel('Date', { exact: true }).fill(new Date(Date.now() + 5 * J).toISOString().slice(0, 10));
+  await fn.getByLabel('Début', { exact: true }).fill('09:30');
+  await fn.getByLabel(/^Fin/).fill('09:00');
+  await fn.getByRole('button', { name: 'Créer la réunion' }).click();
+  check('fin avant le début refusée dans la fenêtre', (await fn.getByText('L’heure de fin doit suivre l’heure de début.').count()) === 1);
+  await fn.getByLabel(/^Fin/).fill('10:30');
+  const a1 = (await call('chefdpe', 'GET', '/users/directory')).body.find((u) => u.id === ids.agent1);
+  await fn.getByRole('combobox', { name: /Participants/ }).fill(a1.lastName);
+  await fn.getByRole('option', { name: `${a1.firstName} ${a1.lastName}` }).first().click();
+  await fn.getByRole('button', { name: 'Créer la réunion' }).click();
+  check('« Réunion créée » (1 participant invité)', (await toast(n, 'Réunion créée')) && /1 participant a été invité/.test(await n.getByTestId('toast').innerText()));
+  const cree = await prisma.meeting.findFirst({ where: { title: `Point d’étape ${S}` }, include: { participants: true } });
+  check('réunion créée : 1 h, agent1 invité', cree && new Date(cree.endAt) - new Date(cree.startAt) === 3_600_000 && cree.participants.some((x) => x.userId === ids.agent1));
+  await n.context().close();
 
   await b.close(); await prisma.$disconnect(); bilan();
 })().catch((e) => { console.error(e); process.exit(2); });

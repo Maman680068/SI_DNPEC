@@ -8,38 +8,44 @@ import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { OrgEntityFormModal } from './OrgEntityFormModal';
 import { RetirerChefModal } from './RetirerChefModal';
+import { Plus } from 'lucide-react';
+import { messageErreur, useToast } from '../ui/Toast';
 
 export function CellulesPanel() {
   const { cellules, refreshOrg, getUserLabel } = useOrg();
   const [retrait, setRetrait] = useState<Cellule | null>(null);
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<Cellule | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const toast = useToast();
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
   async function handleDelete(cellule: Cellule) {
     if (!window.confirm(`Supprimer la cellule "${cellule.name}" ?`)) return;
     setPendingDeleteId(cellule.id);
-    setError(null);
     try {
       await deleteCellule(cellule.id);
       await refreshOrg();
+      toast.succes('Cellule supprimée', { detail: cellule.name });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Impossible de supprimer cette cellule');
+      toast.erreur('Suppression impossible', messageErreur(err, 'Impossible de supprimer cette cellule'));
     } finally {
       setPendingDeleteId(null);
     }
   }
 
-  async function handleToggleActive(cellule: Cellule) {
+  async function handleToggleActive(cellule: Cellule, annulation = false) {
     setPendingDeleteId(cellule.id);
-    setError(null);
     try {
       if (cellule.isActive) await suspendCellule(cellule.id);
       else await reactivateCellule(cellule.id);
       await refreshOrg();
+      if (!annulation)
+        toast.succes(cellule.isActive ? 'Cellule suspendue' : 'Cellule réactivée', {
+          detail: cellule.name,
+          annuler: () => handleToggleActive({ ...cellule, isActive: !cellule.isActive }, true),
+        });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Impossible de modifier le statut de cette cellule');
+      toast.erreur('Action impossible', messageErreur(err, 'Impossible de modifier le statut de cette cellule'));
     } finally {
       setPendingDeleteId(null);
     }
@@ -50,11 +56,10 @@ export function CellulesPanel() {
       <div className="mb-3.5 flex items-center justify-between">
         <h2 className="font-heading text-[16px] font-bold text-ink-900">Cellules transversales</h2>
         <Button variant="gold" onClick={() => setCreating(true)}>
-          + Nouvelle cellule
+          <Plus aria-hidden size={16} /> Nouvelle cellule
         </Button>
       </div>
 
-      {error && <div className="mb-3 rounded-md bg-clay-soft px-3 py-2.5 text-[13px] text-clay">{error}</div>}
 
       {cellules.length === 0 ? (
         <p className="py-8 text-center text-[13px] text-text-faint">Aucune cellule.</p>
@@ -111,8 +116,10 @@ export function CellulesPanel() {
           chef={getUserLabel(retrait.chefId)}
           onClose={() => setRetrait(null)}
           onDone={async () => {
+            const c = retrait;
             setRetrait(null);
             await refreshOrg();
+            toast.succes('Chef retiré', { detail: `${c.name} n’a plus de chef ; la personne a été prévenue.` });
           }}
         />
       )}
@@ -122,10 +129,12 @@ export function CellulesPanel() {
           title="Nouvelle cellule"
           codeHint="2 à 10 lettres majuscules, ex. CSID"
           onClose={() => setCreating(false)}
+          libelleValider="Créer la cellule"
           onSubmit={async (code, name) => {
             await createCellule({ code, name });
             await refreshOrg();
             setCreating(false);
+            toast.succes('Cellule créée', { detail: `${code} — ${name}` });
           }}
         />
       )}
@@ -140,6 +149,7 @@ export function CellulesPanel() {
             await updateCellule(editing.id, { code, name });
             await refreshOrg();
             setEditing(null);
+            toast.succes('Cellule modifiée', { detail: `${code} — ${name}` });
           }}
         />
       )}

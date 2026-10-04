@@ -18,8 +18,10 @@ import {
 import type { Activite, ActiviteDetail, Objectif, Plan } from '../../../lib/pilotage/types';
 import type { Task } from '../../../lib/tasks/types';
 import { useOrg } from '../../../lib/org/OrgProvider';
-import { Button } from '../../../components/ui/Button';
 import { Fenetre } from '../../../components/ui/Fenetre';
+import { ChampDate, FenetreFormulaire, Grille2, Liste, Saisie, SelecteurPersonnes, ZoneTexte } from '../../../components/ui/Formulaire';
+import { SquelettePage } from '../../../components/ui/Squelette';
+import { messageErreur, useToast } from '../../../components/ui/Toast';
 import { FenetreDetail } from '../../../components/ui/FenetreDetail';
 import {
   Anneau,
@@ -30,6 +32,8 @@ import {
   CleValeur,
   EnTetePage,
   EtatVide,
+  FiltreSelect,
+  Filtres,
   Pastille,
   SectionFenetre,
 } from '../../../components/ui/Charte';
@@ -43,8 +47,6 @@ import { KanbanBoard } from '../../../components/tasks/KanbanBoard';
 import { CalendarView } from '../../../components/tasks/CalendarView';
 import { CreateTaskModal } from '../../../components/tasks/CreateTaskModal';
 
-const champ = 'mt-1 w-full rounded-md border border-line bg-surface px-3 py-2 text-[13px]';
-const SELECT = 'h-9 max-w-full rounded-[9px] border border-line bg-surface px-2.5 text-[13px] font-semibold text-text';
 const PETIT = 'inline-flex h-[34px] items-center gap-1.5 rounded-[8px] border border-line bg-surface px-[11px] text-[13px] font-bold text-ink hover:bg-bg';
 const date = (iso: string) =>
   new Date(iso).toLocaleDateString('fr-FR', {
@@ -95,6 +97,7 @@ export default function PlanTravailPage() {
   const [nouvelObjectif, setNouvelObjectif] = useState(false);
   const [activitePour, setActivitePour] = useState<Objectif | null>(null);
   const [activiteOuverte, setActiviteOuverte] = useState<string | null>(null);
+  const [aSupprimer, setASupprimer] = useState<Objectif | null>(null);
 
   const charger = useCallback(() => {
     getPlan(annee, uniteId || undefined)
@@ -113,7 +116,7 @@ export default function PlanTravailPage() {
     return (
       <div>
         <ErreurChargement message={erreur} />
-        <Chargement erreur={erreur} />
+        {erreur ? <Chargement erreur={erreur} /> : <SquelettePage />}
       </div>
     );
   }
@@ -135,22 +138,29 @@ export default function PlanTravailPage() {
       <EnTetePage
         titre={`Plan de travail ${annee}`}
         avantActions={
-          <div className="flex w-full min-w-0 items-center gap-2 sm:w-auto">
-            <select aria-label="Unité" className={`${SELECT} min-w-0 flex-1 sm:max-w-[320px] sm:flex-none`} value={uniteId} onChange={(e) => setUniteId(e.target.value)}>
-              <option value="">Toutes les unités visibles</option>
-              {plan.unites.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.libelle}
-                </option>
-              ))}
-            </select>
-            <select aria-label="Année" className={SELECT} value={annee} onChange={(e) => setAnnee(Number(e.target.value))}>
-              {[annee0 - 1, annee0, annee0 + 1].map((a) => (
-                <option key={a} value={a}>
-                  {a}
-                </option>
-              ))}
-            </select>
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <Filtres
+              actifs={(uniteId ? 1 : 0) + (annee !== annee0 ? 1 : 0)}
+              onEffacer={() => {
+                setUniteId('');
+                setAnnee(annee0);
+              }}
+            >
+              <FiltreSelect<string>
+                label="Unité"
+                value={uniteId}
+                defaut=""
+                onChange={setUniteId}
+                options={[{ value: '', label: 'Toutes les unités visibles' }, ...plan.unites.map((u) => ({ value: u.id, label: u.libelle }))]}
+              />
+              <FiltreSelect<string>
+                label="Année"
+                value={String(annee)}
+                defaut={String(annee0)}
+                onChange={(v) => setAnnee(Number(v))}
+                options={[annee0 - 1, annee0, annee0 + 1].map((a) => ({ value: String(a), label: String(a) }))}
+              />
+            </Filtres>
           </div>
         }
         actions={boutonObjectif || undefined}
@@ -194,12 +204,7 @@ export default function PlanTravailPage() {
                     <button
                       type="button"
                       className={`${PETIT} !text-clay`}
-                      onClick={() => {
-                        if (window.confirm('Supprimer cet objectif ?'))
-                          supprimerObjectif(o.id)
-                            .then(charger)
-                            .catch((e) => setErreur(messageChargement(e)));
-                      }}
+                      onClick={() => setASupprimer(o)}
                     >
                       Supprimer
                     </button>
@@ -264,6 +269,16 @@ export default function PlanTravailPage() {
           onFait={() => (setActivitePour(null), charger())}
         />
       )}
+      {aSupprimer && (
+        <FenetreSupprimer
+          titre="Supprimer l’objectif"
+          texte={`Supprimer l’objectif « ${aSupprimer.libelle} » ?`}
+          action={() => supprimerObjectif(aSupprimer.id)}
+          succes="Objectif supprimé"
+          onClose={() => setASupprimer(null)}
+          onFait={() => (setASupprimer(null), charger())}
+        />
+      )}
       {activiteOuverte && (
         <FicheActivite
           id={activiteOuverte}
@@ -312,6 +327,37 @@ function LigneActivite({ a, annee, onOuvrir }: { a: Activite; annee: number; onO
   );
 }
 
+/** Confirmation d'une suppression (objectif, activité) : l'API refuse ce qui n'est pas permis. */
+function FenetreSupprimer({ titre, texte, action, succes, onClose, onFait }: { titre: string; texte: string; action: () => Promise<unknown>; succes: string; onClose: () => void; onFait: () => void }) {
+  const [enCours, setEnCours] = useState(false);
+  const [erreur, setErreur] = useState<string | null>(null);
+  const toast = useToast();
+  return (
+    <Fenetre
+      titre={titre}
+      onClose={onClose}
+      danger
+      libelleValider="Supprimer"
+      enCours={enCours}
+      erreur={erreur}
+      pied="La suppression est définitive."
+      onSubmit={() => {
+        setEnCours(true);
+        setErreur(null);
+        return action()
+          .then(() => {
+            toast.succes(succes);
+            onFait();
+          })
+          .catch((e) => setErreur(messageErreur(e)))
+          .finally(() => setEnCours(false));
+      }}
+    >
+      <p className="text-[13.5px]">{texte}</p>
+    </Fenetre>
+  );
+}
+
 function FenetreObjectif({
   plan,
   annee,
@@ -329,56 +375,44 @@ function FenetreObjectif({
   const [description, setDescription] = useState('');
   const [erreur, setErreur] = useState<string | null>(null);
   const [enCours, setEnCours] = useState(false);
+  const toast = useToast();
   return (
-    <Fenetre
+    <FenetreFormulaire
       titre={`Nouvel objectif ${annee}`}
+      largeur={640}
       onClose={onClose}
       enCours={enCours}
       erreur={erreur}
+      libelleValider="Créer l’objectif"
+      testid="fenetre-objectif"
+      pied="Visible de l’unité et de sa hiérarchie ; ajoutez-y ensuite ses activités."
+      valider={() => (libelle.trim().length < 3 ? { 'objectif-libelle': libelle.trim() ? 'Le libellé compte au moins 3 caractères.' : 'Indiquez le libellé de l’objectif.' } : {})}
       onSubmit={() => {
         setEnCours(true);
-        return creerObjectif({ annee, uniteId, libelle, description: description || undefined })
-          .then(onFait)
-          .catch((e) => setErreur(messageChargement(e)))
+        setErreur(null);
+        return creerObjectif({ annee, uniteId, libelle: libelle.trim(), description: description.trim() || undefined })
+          .then(() => {
+            toast.succes('Objectif créé', { detail: libelle.trim() });
+            onFait();
+          })
+          .catch((e) => setErreur(messageErreur(e)))
           .finally(() => setEnCours(false));
       }}
     >
-      <label className="mb-3 block text-[12.5px] font-semibold">
-        Unité
-        <select
-          className={champ}
-          value={uniteId}
-          onChange={(e) => setUniteId(e.target.value)}
-          required
-        >
-          {gerees.map((u) => (
-            <option key={u.id} value={u.id}>
-              {u.libelle}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label className="mb-3 block text-[12.5px] font-semibold">
-        Libellé de l’objectif
-        <input
-          className={champ}
-          value={libelle}
-          onChange={(e) => setLibelle(e.target.value)}
-          required
-          minLength={3}
-        />
-      </label>
-      <label className="block text-[12.5px] font-semibold">
-        Description <span className="font-normal text-text-faint">(facultatif)</span>
-        <textarea
-          className={champ}
-          rows={3}
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-        />
-      </label>
-    </Fenetre>
+      <Liste id="objectif-unite" label="Unité" value={uniteId} onChange={setUniteId} required messageObligatoire="Choisissez l’unité." options={gerees.map((u) => ({ value: u.id, label: u.libelle }))} />
+      <Saisie id="objectif-libelle" label="Libellé de l’objectif" value={libelle} onChange={setLibelle} required maxLength={300} messageObligatoire="Indiquez le libellé de l’objectif." />
+      <ZoneTexte id="objectif-description" label="Description" facultatif value={description} onChange={setDescription} lignes={3} maxLength={2000} />
+    </FenetreFormulaire>
   );
+}
+
+/** Règles propres d'une activité (longueurs de l'API, fin ≥ début). */
+function validerActivite(v: ActiviteSaisie): Record<string, string> {
+  const e: Record<string, string> = {};
+  if (v.libelle.trim().length < 3) e['activite-libelle'] = v.libelle.trim() ? 'Le libellé compte au moins 3 caractères.' : 'Indiquez le libellé de l’activité.';
+  if (v.indicateur.trim().length < 3) e['activite-indicateur'] = v.indicateur.trim() ? 'L’indicateur compte au moins 3 caractères.' : 'Indiquez l’indicateur.';
+  if (v.dateDebut && v.dateFin && v.dateFin < v.dateDebut) e['activite-fin'] = 'La fin doit être postérieure ou égale au début.';
+  return e;
 }
 
 function ChampsActivite({
@@ -392,74 +426,26 @@ function ChampsActivite({
 }) {
   return (
     <>
-      <label className="mb-3 block text-[12.5px] font-semibold">
-        Libellé de l’activité
-        <input
-          className={champ}
-          value={v.libelle}
-          onChange={(e) => set({ ...v, libelle: e.target.value })}
-          required
-          minLength={3}
-        />
-      </label>
-      <label className="mb-3 block text-[12.5px] font-semibold">
-        Responsable
-        <select
-          className={champ}
-          value={v.responsableId}
-          onChange={(e) => set({ ...v, responsableId: e.target.value })}
-          required
-        >
-          <option value="">Choisir…</option>
-          {responsables.map((r) => (
-            <option key={r.id} value={r.id}>
-              {r.firstName} {r.lastName}
-            </option>
-          ))}
-        </select>
-      </label>
-      <div className="mb-3 grid grid-cols-2 gap-3">
-        <label className="text-[12.5px] font-semibold">
-          Début
-          <input
-            type="date"
-            className={champ}
-            value={v.dateDebut}
-            onChange={(e) => set({ ...v, dateDebut: e.target.value })}
-            required
-          />
-        </label>
-        <label className="text-[12.5px] font-semibold">
-          Fin
-          <input
-            type="date"
-            className={champ}
-            value={v.dateFin}
-            onChange={(e) => set({ ...v, dateFin: e.target.value })}
-            required
-          />
-        </label>
-      </div>
-      <label className="mb-3 block text-[12.5px] font-semibold">
-        Indicateur
-        <input
-          className={champ}
-          value={v.indicateur}
-          onChange={(e) => set({ ...v, indicateur: e.target.value })}
-          required
-          minLength={2}
-          placeholder="Ex. notes publiées"
-        />
-      </label>
-      <label className="block text-[12.5px] font-semibold">
-        Cible <span className="font-normal text-text-faint">(facultatif)</span>
-        <input
-          className={champ}
-          value={v.cible ?? ''}
-          onChange={(e) => set({ ...v, cible: e.target.value })}
-          placeholder="Ex. 1 par mois"
-        />
-      </label>
+      <Saisie id="activite-libelle" label="Libellé de l’activité" value={v.libelle} onChange={(libelle) => set({ ...v, libelle })} required maxLength={300} messageObligatoire="Indiquez le libellé de l’activité." />
+      <SelecteurPersonnes
+        id="activite-responsable"
+        label="Responsable"
+        multiple={false}
+        required
+        messageObligatoire="Choisissez le responsable."
+        options={responsables.map((r) => ({ id: r.id, nom: `${r.firstName} ${r.lastName}` }))}
+        valeurs={v.responsableId ? [v.responsableId] : []}
+        onChange={(ids) => set({ ...v, responsableId: ids[0] ?? '' })}
+        placeholder="Rechercher le responsable…"
+      />
+      <Grille2>
+        <ChampDate id="activite-debut" label="Début" value={v.dateDebut} onChange={(dateDebut) => set({ ...v, dateDebut })} required messageObligatoire="Indiquez la date de début." />
+        <ChampDate id="activite-fin" label="Fin" value={v.dateFin} onChange={(dateFin) => set({ ...v, dateFin })} min={v.dateDebut || undefined} required messageObligatoire="Indiquez la date de fin." />
+      </Grille2>
+      <Grille2>
+        <Saisie id="activite-indicateur" label="Indicateur" value={v.indicateur} onChange={(indicateur) => set({ ...v, indicateur })} required maxLength={300} placeholder="Ex. notes publiées" messageObligatoire="Indiquez l’indicateur." />
+        <Saisie id="activite-cible" label="Cible" facultatif value={v.cible ?? ''} onChange={(cible) => set({ ...v, cible })} maxLength={200} placeholder="Ex. 1 par mois" />
+      </Grille2>
     </>
   );
 }
@@ -486,28 +472,39 @@ function FenetreActivite({
   >([]);
   const [erreur, setErreur] = useState<string | null>(null);
   const [enCours, setEnCours] = useState(false);
+  const toast = useToast();
   useEffect(() => {
     getResponsablesPossibles(objectif.uniteId)
       .then(setResponsables)
       .catch((e) => setErreur(messageChargement(e)));
   }, [objectif.uniteId]);
+  const nom = responsables.find((r) => r.id === v.responsableId);
   return (
-    <Fenetre
-      titre={`Nouvelle activité — ${objectif.libelle}`}
+    <FenetreFormulaire
+      titre="Nouvelle activité"
+      sousTitre={objectif.libelle}
       onClose={onClose}
       enCours={enCours}
       erreur={erreur}
-      largeur={520}
+      largeur={720}
+      libelleValider="Créer l’activité"
+      testid="fenetre-activite"
+      pied="L’avancement se calcule sur les tâches rattachées à l’activité, jamais saisi."
+      valider={() => validerActivite(v)}
       onSubmit={() => {
         setEnCours(true);
-        return creerActivite(objectif.id, { ...v, cible: v.cible || undefined })
-          .then(onFait)
-          .catch((e) => setErreur(messageChargement(e)))
+        setErreur(null);
+        return creerActivite(objectif.id, { ...v, libelle: v.libelle.trim(), indicateur: v.indicateur.trim(), cible: v.cible?.trim() || undefined })
+          .then(() => {
+            toast.succes('Activité créée', { detail: nom ? `Responsable : ${nom.firstName} ${nom.lastName}.` : v.libelle.trim() });
+            onFait();
+          })
+          .catch((e) => setErreur(messageErreur(e)))
           .finally(() => setEnCours(false));
       }}
     >
       <ChampsActivite v={v} set={setV} responsables={responsables} />
-    </Fenetre>
+    </FenetreFormulaire>
   );
 }
 
@@ -526,7 +523,11 @@ function FicheActivite({
   const [vue, setVue] = useState<TaskView>('kanban');
   const [edition, setEdition] = useState<ActiviteSaisie | null>(null);
   const [nouvelleTache, setNouvelleTache] = useState(false);
+  const [suppression, setSuppression] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
+  const [erreurEdition, setErreurEdition] = useState<string | null>(null);
+  const [enregistrement, setEnregistrement] = useState(false);
+  const toast = useToast();
 
   const charger = useCallback(() => {
     getActivite(id)
@@ -571,12 +572,7 @@ function FicheActivite({
             <button
               type="button"
               className={BTN_DANGER_CONTOUR}
-              onClick={() => {
-                if (window.confirm('Supprimer cette activité ?'))
-                  supprimerActivite(id)
-                    .then(() => (onChange(), onClose()))
-                    .catch((e) => setErreur(messageChargement(e)));
-              }}
+              onClick={() => setSuppression(true)}
             >
               Supprimer
             </button>
@@ -623,25 +619,6 @@ function FicheActivite({
         {erreur && <p role="alert" className="mb-3 rounded-md bg-clay-soft px-3 py-2.5 text-[13px] text-clay">{erreur}</p>}
         {!a ? (
           <Chargement erreur={erreur} />
-        ) : edition ? (
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              modifierActivite(id, { ...edition, cible: edition.cible ?? '' })
-                .then(() => (setEdition(null), charger(), onChange()))
-                .catch((err) => setErreur(messageChargement(err)));
-            }}
-          >
-            <ChampsActivite v={edition} set={setEdition} responsables={a.responsablesPossibles} />
-            <div className="mt-4 flex justify-end gap-2">
-              <Button type="button" onClick={() => setEdition(null)}>
-                Annuler
-              </Button>
-              <Button variant="solid" type="submit">
-                Enregistrer l’activité
-              </Button>
-            </div>
-          </form>
         ) : (
           <section aria-label="Tâches de l’activité">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
@@ -669,6 +646,45 @@ function FicheActivite({
           </section>
         )}
       </FenetreDetail>
+      {edition && a && (
+        <FenetreFormulaire
+          titre="Modifier l’activité"
+          sousTitre={a.objectif.libelle}
+          largeur={720}
+          onClose={() => setEdition(null)}
+          enCours={enregistrement}
+          erreur={erreurEdition}
+          libelleValider="Enregistrer l’activité"
+          testid="fenetre-activite"
+          pied="L’avancement reste calculé sur les tâches rattachées."
+          valider={() => validerActivite(edition)}
+          onSubmit={() => {
+            setEnregistrement(true);
+            setErreurEdition(null);
+            return modifierActivite(id, { ...edition, libelle: edition.libelle.trim(), indicateur: edition.indicateur.trim(), cible: edition.cible?.trim() ?? '' })
+              .then(() => {
+                toast.succes('Activité modifiée', { detail: edition.libelle.trim() });
+                setEdition(null);
+                charger();
+                onChange();
+              })
+              .catch((err) => setErreurEdition(messageErreur(err)))
+              .finally(() => setEnregistrement(false));
+          }}
+        >
+          <ChampsActivite v={edition} set={setEdition} responsables={a.responsablesPossibles} />
+        </FenetreFormulaire>
+      )}
+      {suppression && a && (
+        <FenetreSupprimer
+          titre="Supprimer l’activité"
+          texte={`Supprimer l’activité « ${a.libelle} » ?`}
+          action={() => supprimerActivite(id)}
+          succes="Activité supprimée"
+          onClose={() => setSuppression(false)}
+          onFait={() => (setSuppression(false), onChange(), onClose())}
+        />
+      )}
       {nouvelleTache && (
         <CreateTaskModal
           presetActiviteId={id}

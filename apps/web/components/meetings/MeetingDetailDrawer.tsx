@@ -11,6 +11,8 @@ import { DecisionsSection } from './DecisionsSection';
 import { DocumentsIssus } from '../documents/DocumentsIssus';
 import { FenetreDetail } from '../ui/FenetreDetail';
 import { Fenetre } from '../ui/Fenetre';
+import { Case, ZoneTexte } from '../ui/Formulaire';
+import { messageErreur, useToast } from '../ui/Toast';
 import { BTN_DANGER_CONTOUR, BTN_SECONDAIRE, Pastille, SectionFenetre, type TonPastille } from '../ui/Charte';
 import { ReponseReunion } from './MeetingCard';
 
@@ -38,6 +40,7 @@ function FenetreModifier({ meeting, onClose, onUpdated }: { meeting: Meeting; on
   const [ouverte, setOuverte] = useState(!!meeting.isOpen);
   const [enCours, setEnCours] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
+  const toast = useToast();
   return (
     <Fenetre
       titre="Modifier la réunion"
@@ -45,27 +48,66 @@ function FenetreModifier({ meeting, onClose, onUpdated }: { meeting: Meeting; on
       largeur={600}
       enCours={enCours}
       erreur={erreur}
+      pied="Le titre, la date et les participants ne se modifient pas après la création : annulez puis recréez la réunion si besoin."
       onSubmit={() => {
         setEnCours(true);
         setErreur(null);
         return updateMeeting(meeting.id, { minutesText: texte, isOpen: ouverte })
-          .then((m) => (onUpdated(m), onClose()))
-          .catch((e) => setErreur(e instanceof Error ? e.message : 'Enregistrement impossible'))
+          .then((m) => {
+            onUpdated(m);
+            toast.succes('Réunion enregistrée', { detail: ouverte ? 'Réunion ouverte : visible de tous les agents.' : 'Compte rendu mis à jour.' });
+            onClose();
+          })
+          .catch((e) => setErreur(messageErreur(e, 'Enregistrement impossible')))
           .finally(() => setEnCours(false));
       }}
     >
-      <label className="mb-3 block text-[12.5px] font-semibold">
-        Compte rendu
-        <textarea className="mt-1 w-full rounded-md border border-line bg-surface px-3 py-2 text-[13px]" rows={8} value={texte} onChange={(e) => setTexte(e.target.value)} placeholder="Points abordés, échanges, suites à donner…" />
-      </label>
-      <label className="flex items-start gap-2 text-[13px]">
-        <input type="checkbox" className="mt-0.5" checked={ouverte} onChange={(e) => setOuverte(e.target.checked)} />
-        <span>
-          Réunion ouverte
-          <span className="block text-[12px] text-text-muted">Visible de tous les agents, avec son relevé de décisions.</span>
-        </span>
-      </label>
-      <p className="mt-3 text-[12px] text-text-muted">Le titre, la date et les participants ne se modifient pas après la création : annulez puis recréez la réunion si besoin.</p>
+      <ZoneTexte id="reunion-compte-rendu" label="Compte rendu" value={texte} onChange={setTexte} lignes={8} placeholder="Points abordés, échanges, suites à donner…" />
+      <Case
+        id="reunion-ouverte"
+        checked={ouverte}
+        onChange={setOuverte}
+        label={
+          <>
+            Réunion ouverte
+            <span className="block text-[12px] text-text-muted">Visible de tous les agents, avec son relevé de décisions.</span>
+          </>
+        }
+      />
+    </Fenetre>
+  );
+}
+
+/** Annulation d'une réunion par son organisateur, avec un motif facultatif. */
+function FenetreAnnuler({ meeting, onClose, onUpdated }: { meeting: Meeting; onClose: () => void; onUpdated: (m: Meeting) => void }) {
+  const [motif, setMotif] = useState('');
+  const [enCours, setEnCours] = useState(false);
+  const [erreur, setErreur] = useState<string | null>(null);
+  const toast = useToast();
+  return (
+    <Fenetre
+      titre="Annuler la réunion"
+      onClose={onClose}
+      danger
+      libelleValider="Confirmer l’annulation"
+      enCours={enCours}
+      erreur={erreur}
+      pied="Les participants sont prévenus immédiatement."
+      onSubmit={() => {
+        setEnCours(true);
+        setErreur(null);
+        return cancelMeeting(meeting.id, motif.trim() || undefined)
+          .then((m) => {
+            onUpdated(m);
+            toast.succes('Réunion annulée', { detail: 'Les participants ont été prévenus.' });
+            onClose();
+          })
+          .catch((e) => setErreur(messageErreur(e, 'Impossible d’annuler cette réunion')))
+          .finally(() => setEnCours(false));
+      }}
+    >
+      <p className="mb-3 text-[13.5px]">Annuler « {meeting.title} » ? Cette action est définitive.</p>
+      <ZoneTexte id="reunion-motif-annulation" label="Motif" facultatif value={motif} onChange={setMotif} placeholder="Communiqué aux participants…" />
     </Fenetre>
   );
 }
@@ -87,8 +129,7 @@ export function MeetingDetailDrawer({
 }) {
   const { user: currentUser } = useAuth();
   const { getUserLabel, getUserInitials } = useOrg();
-  const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [annuler, setAnnuler] = useState(false);
   const [modifier, setModifier] = useState(false);
   const [tous, setTous] = useState(false);
 
@@ -96,20 +137,6 @@ export function MeetingDetailDrawer({
   const myParticipation = meeting.participants.find((p) => p.userId === currentUser?.id);
   const canRespond = !isOrganizer && !!myParticipation && meeting.status === 'PLANIFIEE';
   const canCancel = isOrganizer && meeting.status === 'PLANIFIEE';
-
-  async function handleCancel() {
-    if (!window.confirm('Annuler cette réunion ? Les participants seront notifiés.')) return;
-    setPending(true);
-    setError(null);
-    try {
-      const updated = await cancelMeeting(meeting.id);
-      onUpdated(updated);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Impossible d’annuler cette réunion');
-    } finally {
-      setPending(false);
-    }
-  }
 
   const sallePerdue =
     meeting.status === 'PLANIFIEE' && (meeting.reservation?.statut === 'ANNULEE_PRIORITE' || meeting.reservation?.statut === 'REFUSEE' || meeting.reservation?.statut === 'ANNULEE');
@@ -122,7 +149,6 @@ export function MeetingDetailDrawer({
 
   const cote = (
     <>
-      {error && <div role="alert" className="mb-3 rounded-md bg-clay-soft px-3 py-2.5 text-[13px] text-clay">{error}</div>}
       <div className="flex flex-col gap-2">
         {canRespond && <ReponseReunion meeting={meeting} onUpdated={onUpdated} grand />}
         {isOrganizer && meeting.status === 'PLANIFIEE' && (
@@ -131,7 +157,7 @@ export function MeetingDetailDrawer({
           </button>
         )}
         {canCancel && (
-          <button type="button" className={BTN_DANGER_CONTOUR} disabled={pending} onClick={handleCancel}>
+          <button type="button" className={BTN_DANGER_CONTOUR} onClick={() => setAnnuler(true)}>
             Annuler la réunion
           </button>
         )}
@@ -163,7 +189,7 @@ export function MeetingDetailDrawer({
         </ul>
         {participants.length > PARTICIPANTS_VISIBLES && (
           <button type="button" onClick={() => setTous((t) => !t)} aria-expanded={tous} className="mt-1.5 text-[12.5px] font-semibold text-text-muted hover:text-ink hover:underline">
-            {tous ? 'Réduire la liste' : `+ ${participants.length - PARTICIPANTS_VISIBLES} autre${participants.length - PARTICIPANTS_VISIBLES > 1 ? 's' : ''}`}
+            {tous ? 'Réduire la liste' : `Voir ${participants.length - PARTICIPANTS_VISIBLES > 1 ? `les ${participants.length - PARTICIPANTS_VISIBLES} autres` : 'l’autre participant'}`}
           </button>
         )}
       </SectionFenetre>
@@ -248,6 +274,7 @@ export function MeetingDetailDrawer({
         <DocumentsIssus source={{ reunionId: meeting.id, libelle: `réunion « ${meeting.title} »`, type: 'PROCES_VERBAL', periodeDebut: meeting.startAt.slice(0, 10), periodeFin: meeting.startAt.slice(0, 10) }} />
       </FenetreDetail>
       {modifier && <FenetreModifier meeting={meeting} onClose={() => setModifier(false)} onUpdated={onUpdated} />}
+      {annuler && <FenetreAnnuler meeting={meeting} onClose={() => setAnnuler(false)} onUpdated={onUpdated} />}
     </>
   );
 }

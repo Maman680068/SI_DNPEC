@@ -10,8 +10,8 @@ import type { EtatService, Supervision } from '../../../lib/securite/types';
 import { LIBELLE_ETAPE, LIBELLE_ETAT } from '../../../lib/securite/types';
 import { Chargement, ErreurChargement, messageChargement } from '../../../components/ui/ErreurChargement';
 import { BTN_LIGNE, BTN_SECONDAIRE, EnTetePage, EtatVide, FiltreSelect, Onglets, Panneau, Pastille } from '../../../components/ui/Charte';
-import { Fenetre, Choix, Texte } from '../../../components/ui/Fenetre';
-import { Field } from '../../../components/ui/Input';
+import { ChampDate, ChoixSegment, FenetreFormulaire, Grille2, ZoneTexte } from '../../../components/ui/Formulaire';
+import { messageErreur, useToast } from '../../../components/ui/Toast';
 import { Parametres } from '../../../components/parametrage/Parametres';
 
 type Onglet = 'parametres' | 'supervision' | 'journal';
@@ -91,6 +91,7 @@ function SauvegardeFichiers() {
   const [inv, setInv] = useState<{ fichiers: number; octets: number } | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
   const [enCours, setEnCours] = useState(false);
+  const toast = useToast();
   useEffect(() => {
     getInventaireFichiers().then(setInv).catch((e) => setErreur(messageChargement(e)));
   }, []);
@@ -111,9 +112,9 @@ function SauvegardeFichiers() {
           disabled={enCours}
           onClick={() => {
             setEnCours(true);
-            setErreur(null);
             telechargerFichier('/api/v1/supervision/sauvegarde-fichiers/archive', null)
-              .catch((e) => setErreur(messageChargement(e)))
+              .then(() => toast.succes('Archive téléchargée', { detail: 'Rangez-la avec l’export de la base.' }))
+              .catch((e) => toast.erreur('Téléchargement impossible', messageErreur(e)))
               .finally(() => setEnCours(false));
           }}
         >
@@ -129,6 +130,7 @@ function SupervisionVue() {
   const [erreur, setErreur] = useState<string | null>(null);
   const [test, setTest] = useState(false);
   const [periode, setPeriode] = useState<'24h' | '7j' | '30j'>('7j');
+  const toast = useToast();
   const charger = useCallback(() => {
     getSupervision()
       .then((r) => {
@@ -138,7 +140,7 @@ function SupervisionVue() {
       .catch((e) => setErreur(messageChargement(e)));
   }, []);
   useEffect(charger, [charger]);
-  if (!s) return <Chargement erreur={erreur} />;
+  if (!s) return <><ErreurChargement message={erreur} /><Chargement erreur={erreur} lignes={8} /></>;
   const refus = s.accesRefuses.parPeriode[periode];
   const aTraiter = s.services.filter((x) => x.etat !== 'NOMINAL').sort((a, b) => (a.etat === b.etat ? 0 : a.etat === 'INDISPONIBLE' ? -1 : 1));
   const normaux = s.services.filter((x) => x.etat === 'NOMINAL');
@@ -306,9 +308,10 @@ function SupervisionVue() {
       {test && (
         <FenetreTest
           onClose={() => setTest(false)}
-          onFait={() => {
+          onFait={(r) => {
             setTest(false);
             charger();
+            toast.succes('Test de restauration déclaré', { detail: r === 'REUSSI' ? 'Résultat : réussi.' : 'Résultat : échec — à reprendre.' });
           }}
         />
       )}
@@ -316,7 +319,7 @@ function SupervisionVue() {
   );
 }
 
-function FenetreTest({ onClose, onFait }: { onClose: () => void; onFait: () => void }) {
+function FenetreTest({ onClose, onFait }: { onClose: () => void; onFait: (resultat: 'REUSSI' | 'ECHEC') => void }) {
   const [jour, setJour] = useState(new Date().toISOString().slice(0, 10));
   const [resultat, setResultat] = useState<'REUSSI' | 'ECHEC'>('REUSSI');
   const [commentaire, setCommentaire] = useState('');
@@ -327,17 +330,38 @@ function FenetreTest({ onClose, onFait }: { onClose: () => void; onFait: () => v
     setErreur(null);
     try {
       await declarerTestRestauration({ date: jour, resultat, ...(commentaire.trim() ? { commentaire: commentaire.trim() } : {}) });
-      onFait();
+      onFait(resultat);
     } catch (e) {
-      setErreur(e instanceof Error ? e.message : 'Déclaration impossible');
+      setErreur(messageErreur(e, 'Déclaration impossible'));
       setEnCours(false);
     }
   };
   return (
-    <Fenetre titre="Test de restauration" onClose={onClose} onSubmit={envoyer} enCours={enCours} erreur={erreur} libelleValider="Déclarer">
-      <Field label="Date du test" type="date" value={jour} onChange={(e) => setJour(e.target.value)} required />
-      <Choix label="Résultat" value={resultat} onChange={(v) => setResultat(v as 'REUSSI' | 'ECHEC')} options={[{ value: 'REUSSI', label: 'Réussi' }, { value: 'ECHEC', label: 'Échec' }]} />
-      <Texte label="Commentaire (facultatif)" value={commentaire} onChange={setCommentaire} />
-    </Fenetre>
+    <FenetreFormulaire
+      titre="Test de restauration"
+      sousTitre="Restauration d’une sauvegarde sur une base de test."
+      onClose={onClose}
+      onSubmit={envoyer}
+      largeur={600}
+      enCours={enCours}
+      erreur={erreur}
+      libelleValider="Déclarer"
+      pied="Un test tous les 6 mois est recommandé ; la déclaration est tracée."
+    >
+      <Grille2>
+        <ChampDate id="tr-date" label="Date du test" value={jour} onChange={setJour} required max={new Date().toISOString().slice(0, 10)} />
+        <ChoixSegment<'REUSSI' | 'ECHEC'>
+          id="tr-resultat"
+          label="Résultat"
+          options={[
+            { value: 'REUSSI', label: 'Réussi' },
+            { value: 'ECHEC', label: 'Échec' },
+          ]}
+          value={resultat}
+          onChange={setResultat}
+        />
+      </Grille2>
+      <ZoneTexte id="tr-commentaire" label="Commentaire" facultatif value={commentaire} onChange={setCommentaire} />
+    </FenetreFormulaire>
   );
 }
