@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import {
   annulerMouvement,
   choisirRegistreFamille,
@@ -15,18 +15,35 @@ import { LIBELLE_STATUT_MOUVEMENT, LIBELLE_TYPE_MOUVEMENT } from '../../lib/rh/t
 import { useOrg } from '../../lib/org/OrgProvider';
 import { ROLE_LABEL } from '../../lib/users/types';
 import type { SystemRole } from '../../lib/auth/types';
-import { Button } from '../ui/Button';
-import { Badge } from '../ui/Badge';
+import { Plus } from 'lucide-react';
 import { Fenetre } from '../ui/Fenetre';
+import { FenetreDetail } from '../ui/FenetreDetail';
+import {
+  BandeCompteurs,
+  BTN_DANGER_CONTOUR,
+  BTN_LIGNE,
+  BTN_LIGNE_PRINCIPAL,
+  BTN_PRINCIPAL,
+  BTN_SECONDAIRE,
+  CleValeur,
+  Etapes,
+  EtatVide,
+  LigneTableau,
+  Panneau,
+  Pastille,
+  SectionFenetre,
+  type TonPastille,
+} from '../ui/Charte';
 import { Chargement, ErreurChargement, messageChargement } from '../ui/ErreurChargement';
 
-const champ = 'mt-1 w-full rounded-md border border-line bg-surface px-3 py-2 text-[13px]';
-const DROITS: Record<'EN_ATTENTE' | 'APPLIQUE' | 'REFUSE', { libelle: string; ton: 'gold' | 'sage' | 'clay' }> = {
-  APPLIQUE: { libelle: 'Droits appliqués', ton: 'sage' },
-  EN_ATTENTE: { libelle: 'Droits en attente (administrateur)', ton: 'gold' },
-  REFUSE: { libelle: 'Droits refusés', ton: 'clay' },
+const champ = 'mt-1 w-full rounded-[9px] border border-line bg-surface px-3 py-2 text-[13.5px] font-normal';
+const DROITS: Record<'EN_ATTENTE' | 'APPLIQUE' | 'REFUSE', { libelle: string; ton: TonPastille }> = {
+  APPLIQUE: { libelle: 'Droits appliqués', ton: 'vert' },
+  EN_ATTENTE: { libelle: 'Droits en attente (administrateur)', ton: 'ambre' },
+  REFUSE: { libelle: 'Droits refusés', ton: 'rouge' },
 };
-const TON: Record<StatutMouvement, 'accent' | 'gold' | 'sage' | 'clay' | 'muted'> = { PREPARE: 'gold', EN_ACTE: 'accent', APPLIQUE: 'sage', ANNULE: 'muted' };
+const TON: Record<StatutMouvement, TonPastille> = { PREPARE: 'ambre', EN_ACTE: 'bleu', APPLIQUE: 'vert', ANNULE: 'gris' };
+const GRILLE = 'lg:grid-cols-[minmax(0,1fr)_130px_170px_190px]';
 const LIBELLE_CHAMP: Record<string, string> = {
   fonction: 'Fonction', role: 'Poste (droits)', echelon: 'Échelon', grade: 'Grade', categorie: 'Catégorie', divisionId: 'Division', sectionId: 'Section', celluleId: 'Cellule', dateFinPrevue: 'Fin de contrat',
 };
@@ -36,6 +53,7 @@ export function OngletCarriere({ userId, voirFamilles }: { userId?: string; voir
   const [l, setL] = useState<ListeMouvements | null>(null);
   const [f, setF] = useState<Familles | null>(null);
   const [nouveau, setNouveau] = useState(false);
+  const [ouvert, setOuvert] = useState<string | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
   const { getDivisionName, getSectionName, getCelluleName } = useOrg();
   const charger = useCallback(() => {
@@ -51,64 +69,115 @@ export function OngletCarriere({ userId, voirFamilles }: { userId?: string; voir
     setErreur(null);
     p.then(charger).catch((x) => setErreur(messageChargement(x)));
   };
+  const detail = ouvert ? l?.mouvements.find((m) => m.id === ouvert) ?? null : null;
   if (!l) return <><ErreurChargement message={erreur} /><Chargement erreur={erreur} /></>;
+  const changements = (m: Mouvement) =>
+    Object.keys({ ...m.avant, ...m.apres }).map((c) => (
+      <span key={c} className="mr-3 inline-block">
+        {LIBELLE_CHAMP[c] ?? c} : {valeur(c, m.avant[c] ?? null)} → <strong>{valeur(c, m.apres[c] ?? null)}</strong>
+      </span>
+    ));
+  const actionsLigne = (m: Mouvement) => (
+    <>
+      {m.acte && (
+        <Link href={`/courrier?acte=${m.acte.id}`} onClick={(e) => e.stopPropagation()} className={BTN_LIGNE}>
+          Voir l’acte
+        </Link>
+      )}
+      {m.droits.preparerActe && (
+        <button type="button" className={BTN_LIGNE_PRINCIPAL} onClick={(e) => (e.stopPropagation(), agir(preparerActeMouvement(m.id)))}>
+          Préparer l’acte
+        </button>
+      )}
+      {m.droits.annuler && (
+        <button type="button" className={BTN_LIGNE} onClick={(e) => (e.stopPropagation(), agir(annulerMouvement(m.id)))}>
+          Annuler
+        </button>
+      )}
+    </>
+  );
+  const enCours = l.mouvements.filter((m) => m.statut === 'PREPARE' || m.statut === 'EN_ACTE');
   return (
     <div>
       <ErreurChargement message={erreur} />
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-[15px] font-bold">Mouvements de carrière</h2>
-        {l.droits.preparer && <Button variant="solid" onClick={() => setNouveau(true)}>+ Nouveau mouvement</Button>}
-      </div>
-      {l.mouvements.length === 0 ? (
-        <p className="mb-6 rounded-lg border border-line bg-surface p-5 text-[13px] text-text-muted">Aucun mouvement de carrière.</p>
-      ) : (
-        <ul className="mb-6 divide-y divide-line rounded-lg border border-line bg-surface" data-testid="mouvements">
-          {l.mouvements.map((m: Mouvement) => (
-            <li key={m.id} data-testid="mouvement" className="px-4 py-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="min-w-0">
-                  <div className="text-[13.5px] font-semibold">{LIBELLE_TYPE_MOUVEMENT[m.type]} — {m.agent}</div>
-                  <div className="text-[12px] text-text-muted">
-                    Effet le {new Date(m.dateEffet).toLocaleDateString('fr-FR', { timeZone: 'UTC' })}
-                    {m.acte?.numero ? ` · acte n° ${m.acte.numero}` : m.acte ? ' · acte en cours dans le Courrier' : ''}
-                  </div>
-                  <div className="mt-1 text-[12.5px]">
-                    {Object.keys({ ...m.avant, ...m.apres }).map((c) => (
-                      <span key={c} className="mr-3 inline-block">
-                        {LIBELLE_CHAMP[c] ?? c} : {valeur(c, m.avant[c] ?? null)} → <strong>{valeur(c, m.apres[c] ?? null)}</strong>
-                      </span>
-                    ))}
-                  </div>
-                </div>
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <Badge tone={TON[m.statut]}>{LIBELLE_STATUT_MOUVEMENT[m.statut]}</Badge>
-                  {m.droitsPoste && <Badge tone={DROITS[m.droitsPoste.statut].ton} data-testid="droits-poste">{DROITS[m.droitsPoste.statut].libelle}</Badge>}
-                  {m.acte && <Link href={`/courrier?acte=${m.acte.id}`} className="text-[12.5px] font-semibold text-accent">Voir l’acte</Link>}
-                  {m.droits.preparerActe && <Button variant="outline" className="!px-3 !py-1 !text-[12px]" onClick={() => agir(preparerActeMouvement(m.id))}>Préparer l’acte</Button>}
-                  {m.droits.annuler && <Button variant="outline" className="!px-3 !py-1 !text-[12px]" onClick={() => agir(annulerMouvement(m.id))}>Annuler</Button>}
-                </div>
-              </div>
-              {m.droitsPoste?.statut === 'REFUSE' && m.droitsPoste.motifRefus && (
-                <p className="mt-1 text-[12px] text-clay">Motif du refus de l’administrateur : {m.droitsPoste.motifRefus}</p>
-              )}
-            </li>
-          ))}
-        </ul>
+      {l.droits.preparer && (
+        <BandeCompteurs
+          label="Mouvements de carrière"
+          items={[
+            { valeur: l.mouvements.filter((m) => m.statut === 'PREPARE').length, label: 'Préparés', sous: 'acte à préparer', ton: 'ambre' },
+            { valeur: l.mouvements.filter((m) => m.statut === 'EN_ACTE').length, label: 'Actes en cours', sous: 'dans le circuit du Courrier' },
+            { valeur: l.mouvements.filter((m) => m.statut === 'APPLIQUE').length, label: 'Appliqués', sous: 'au dossier, à la signature', ton: 'vert' },
+            { valeur: l.mouvements.filter((m) => m.droitsPoste?.statut === 'EN_ATTENTE').length, label: 'Droits en attente', sous: 'confirmation de l’administrateur', ton: 'gris' },
+          ]}
+        />
       )}
+      <Panneau
+        titre="Mouvements de carrière"
+        compteur={<span className="text-[12.5px] font-semibold text-text-faint">{enCours.length ? `${enCours.length} en cours` : l.mouvements.length}</span>}
+        action={
+          l.droits.preparer && (
+            <button type="button" className={BTN_PRINCIPAL} onClick={() => setNouveau(true)}>
+              <Plus aria-hidden size={16} /> Nouveau mouvement
+            </button>
+          )
+        }
+        className="mb-4 overflow-hidden"
+      >
+        {l.mouvements.length === 0 ? (
+          <EtatVide
+            texte="Aucun mouvement de carrière."
+            action={l.droits.preparer ? <button type="button" className={BTN_LIGNE} onClick={() => setNouveau(true)}>Préparer un mouvement</button> : undefined}
+          />
+        ) : (
+          <div role="table" aria-label="Mouvements de carrière" data-testid="mouvements">
+            <div role="rowgroup">
+              <div role="row" className={`hidden h-[38px] items-center gap-3 border-b border-line bg-[#F7F8FB] px-4 text-[12px] font-semibold text-text-muted lg:grid ${GRILLE}`}>
+                <span role="columnheader">Mouvement</span>
+                <span role="columnheader">Effet</span>
+                <span role="columnheader">Statut</span>
+                <span role="columnheader"><span className="sr-only">Actions</span></span>
+              </div>
+            </div>
+            <div role="rowgroup">
+              {l.mouvements.map((m: Mouvement) => (
+                <LigneTableau key={m.id} grille={GRILLE} testid="mouvement" label={`${LIBELLE_TYPE_MOUVEMENT[m.type]} — ${m.agent ?? ''}`} onClick={() => setOuvert(m.id)} actif={ouvert === m.id}>
+                  <span className="block">
+                    <b className="block font-semibold text-ink-900">
+                      {LIBELLE_TYPE_MOUVEMENT[m.type]} — {m.agent}
+                    </b>
+                    <span className="block text-[12.5px] text-text">{changements(m)}</span>
+                    {m.droitsPoste?.statut === 'REFUSE' && m.droitsPoste.motifRefus && (
+                      <span className="block text-[12px] text-clay">Motif du refus de l’administrateur : {m.droitsPoste.motifRefus}</span>
+                    )}
+                  </span>
+                  <span className="block text-[12.5px] text-text-muted">
+                    {new Date(m.dateEffet).toLocaleDateString('fr-FR', { timeZone: 'UTC' })}
+                    {m.acte?.numero ? <span className="block">acte n° {m.acte.numero}</span> : m.acte ? <span className="block">acte en cours dans le Courrier</span> : null}
+                  </span>
+                  <span className="flex flex-wrap gap-1">
+                    <Pastille ton={TON[m.statut]}>{LIBELLE_STATUT_MOUVEMENT[m.statut]}</Pastille>
+                    {m.droitsPoste && <Pastille ton={DROITS[m.droitsPoste.statut].ton} testid="droits-poste">{DROITS[m.droitsPoste.statut].libelle}</Pastille>}
+                  </span>
+                  <span className="flex flex-wrap gap-1.5 lg:justify-end">{actionsLigne(m)}</span>
+                </LigneTableau>
+              ))}
+            </div>
+          </div>
+        )}
+      </Panneau>
       {f && (
-        <section aria-label="Familles d’actes" data-testid="familles-actes">
-          <h2 className="mb-1 text-[15px] font-bold">Familles d’actes</h2>
-          <p className="mb-2.5 text-[12.5px] text-text-muted">Chaque famille a sa séquence (celle de son registre du Courrier, continue et jamais réutilisée) et son signataire.</p>
-          <ul className="divide-y divide-line rounded-lg border border-line bg-surface">
+        <Panneau titre="Familles d’actes" testid="familles-actes" className="overflow-hidden">
+          <p className="border-b border-line px-[18px] py-2.5 text-[12.5px] text-text-muted">Chaque famille a sa séquence (celle de son registre du Courrier, continue et jamais réutilisée) et son signataire.</p>
+          <ul>
             {f.familles.map((x) => (
-              <li key={x.code} className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 text-[13px]">
-                <span><strong>{x.libelle}</strong> <span className="text-text-muted">· signataire : {x.signataire}</span></span>
+              <li key={x.code} className="flex flex-wrap items-center justify-between gap-2 border-b border-[#F0F1F6] px-[18px] py-2.5 text-[13.5px] last:border-b-0">
+                <span><strong className="text-ink-900">{x.libelle}</strong> <span className="text-text-muted">· signataire : {x.signataire}</span></span>
                 {f.droits.gerer ? (
                   <select
                     aria-label={`Registre de la famille ${x.libelle}`}
                     value={x.registre?.id ?? ''}
                     onChange={(e) => agir(choisirRegistreFamille(x.code, e.target.value || null))}
-                    className="rounded-md border border-line bg-surface px-2 py-1.5 text-[12.5px]"
+                    className="h-9 max-w-full rounded-[9px] border border-line bg-surface px-2.5 text-[13px]"
                   >
                     <option value="">— Registre à choisir —</option>
                     {f.registresPossibles.map((r) => <option key={r.id} value={r.id}>{r.code} — {r.libelle}</option>)}
@@ -119,9 +188,89 @@ export function OngletCarriere({ userId, voirFamilles }: { userId?: string; voir
               </li>
             ))}
           </ul>
-        </section>
+        </Panneau>
       )}
       {nouveau && <FenetreMouvement liste={l} onClose={() => setNouveau(false)} onFait={() => (setNouveau(false), charger())} />}
+      {detail && (
+        <FenetreDetail
+          titre={`${LIBELLE_TYPE_MOUVEMENT[detail.type]} — ${detail.agent ?? ''}`}
+          filAriane={['Ressources humaines', 'Carrière et actes']}
+          entete={
+            <Etapes
+              label="Circuit du mouvement"
+              etapes={['Préparé', 'Acte en cours', 'Appliqué'].map((label, n) => {
+                const rang = { PREPARE: 0, EN_ACTE: 1, APPLIQUE: 2, ANNULE: -1 }[detail.statut];
+                return { label, etat: n < rang || (rang === 2 && n === 2) ? ('fait' as const) : n === rang ? ('courant' as const) : ('avenir' as const) };
+              })}
+            />
+          }
+          onClose={() => setOuvert(null)}
+          largeur={880}
+          testid="fiche-mouvement"
+          cote={
+            <div>
+              <div className="grid gap-2">
+                {detail.droits.preparerActe && (
+                  <button type="button" className={BTN_PRINCIPAL} onClick={() => agir(preparerActeMouvement(detail.id))}>
+                    Préparer l’acte
+                  </button>
+                )}
+                {detail.acte && (
+                  <Link href={`/courrier?acte=${detail.acte.id}`} className={BTN_SECONDAIRE}>
+                    Voir l’acte
+                  </Link>
+                )}
+                {detail.droits.annuler && (
+                  <button type="button" className={BTN_DANGER_CONTOUR} onClick={() => agir(annulerMouvement(detail.id))}>
+                    Annuler le mouvement
+                  </button>
+                )}
+                {!detail.droits.preparerActe && !detail.acte && !detail.droits.annuler && (
+                  <p className="text-[12.5px] text-text-muted">Aucune action possible sur ce mouvement.</p>
+                )}
+              </div>
+              <div className="mt-4 border-t border-line pt-4">
+                <CleValeur
+                  largeur={96}
+                  lignes={[
+                    ['Statut', <Pastille key="s" ton={TON[detail.statut]}>{LIBELLE_STATUT_MOUVEMENT[detail.statut]}</Pastille>],
+                    ['Agent', detail.agent ?? '—'],
+                    ['Effet le', new Date(detail.dateEffet).toLocaleDateString('fr-FR', { timeZone: 'UTC' })],
+                    ['Acte', detail.acte?.numero ? `n° ${detail.acte.numero}` : detail.acte ? 'en cours' : '—'],
+                    ...(detail.appliqueLe ? ([['Appliqué le', new Date(detail.appliqueLe).toLocaleDateString('fr-FR')]] as [string, string][]) : []),
+                    ...(detail.droitsPoste ? ([['Droits', <Pastille key="d" ton={DROITS[detail.droitsPoste.statut].ton}>{DROITS[detail.droitsPoste.statut].libelle}</Pastille>]] as [string, ReactNode][]) : []),
+                  ]}
+                />
+              </div>
+            </div>
+          }
+        >
+          <SectionFenetre titre="Changements au dossier">
+            <ul className="divide-y divide-[#F0F1F6] rounded-[10px] border border-line text-[13.5px]">
+              {Object.keys({ ...detail.avant, ...detail.apres }).map((c) => (
+                <li key={c} className="grid grid-cols-1 gap-1 px-3.5 py-2.5 sm:grid-cols-[140px_minmax(0,1fr)]">
+                  <span className="text-text-muted">{LIBELLE_CHAMP[c] ?? c}</span>
+                  <span>
+                    {valeur(c, detail.avant[c] ?? null)} → <strong className="text-ink-900">{valeur(c, detail.apres[c] ?? null)}</strong>
+                  </span>
+                </li>
+              ))}
+              {Object.keys({ ...detail.avant, ...detail.apres }).length === 0 && <li className="px-3.5 py-2.5 text-text-muted">Aucun champ modifié (fin de contrat).</li>}
+            </ul>
+          </SectionFenetre>
+          {detail.motif && (
+            <SectionFenetre titre="Motif">
+              <p className="whitespace-pre-wrap text-[13.5px]">{detail.motif}</p>
+            </SectionFenetre>
+          )}
+          {detail.droitsPoste?.statut === 'REFUSE' && detail.droitsPoste.motifRefus && (
+            <SectionFenetre titre="Refus de l’administrateur">
+              <p className="text-[13.5px] text-clay">{detail.droitsPoste.motifRefus}</p>
+            </SectionFenetre>
+          )}
+          <p className="text-[12.5px] text-text-muted">Le dossier n’est modifié qu’à la signature de l’acte par le DN ou la DNA.</p>
+        </FenetreDetail>
+      )}
     </div>
   );
 }

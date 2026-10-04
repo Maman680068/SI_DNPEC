@@ -40,6 +40,33 @@ export class VehiculesService {
     return { vehicules, missions, droits: { gerer } };
   }
 
+  /**
+   * Disponibilité du parc aujourd'hui (refonte de l'interface, étape 7) : véhicules actifs en service,
+   * dont ceux affectés à une mission en cours. Comptes seulement (le parc est lu par tous) ; la date de
+   * retour la plus proche n'est donnée qu'au gestionnaire, seul à voir les missions.
+   */
+  async disponibilite(actor: AuthenticatedUser, maintenant = new Date()) {
+    const gerer = await this.gestionnaires.estGestionnaire(actor);
+    const aujourdhui = jour(maintenant.toISOString());
+    const [enService, missions] = await Promise.all([
+      this.prisma.vehicule.findMany({ where: { actif: true, etat: EtatBien.EN_SERVICE }, select: { id: true } }),
+      this.prisma.ordreMission.findMany({
+        where: { vehiculeId: { not: null }, dateDepart: { lte: aujourdhui }, dateRetour: { gte: aujourdhui }, OR: [{ acteId: null }, { acte: { statut: { not: ActeStatut.ANNULE } } }] },
+        select: { vehiculeId: true, dateRetour: true },
+        orderBy: { dateRetour: 'asc' },
+      }),
+    ]);
+    const ids = new Set(enService.map((v) => v.id));
+    const enMission = missions.filter((m) => m.vehiculeId && ids.has(m.vehiculeId));
+    const occupes = new Set(enMission.map((m) => m.vehiculeId));
+    return {
+      total: ids.size,
+      disponibles: ids.size - occupes.size,
+      enMission: occupes.size,
+      retourLe: gerer && enMission.length ? enMission[0]!.dateRetour.toISOString().slice(0, 10) : null,
+    };
+  }
+
   async detail(actor: AuthenticatedUser, id: string) {
     const v = await this.prisma.vehicule.findUnique({
       where: { id },

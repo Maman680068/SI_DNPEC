@@ -1,5 +1,6 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
+import ExcelJS from 'exceljs';
 import { ActeStatut, AuditAction, NotificationType, Prisma, StatutInstruction, SystemRole, UserStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../common/audit/audit.service';
@@ -36,6 +37,7 @@ type InstructionChargee = Prisma.InstructionGetPayload<{ select: typeof SELECT }
 const OUVERTS: StatutInstruction[] = [StatutInstruction.EMISE, StatutInstruction.RECUE, StatutInstruction.PRISE_EN_COMPTE];
 const LIEN = (id: string) => `/instructions?id=${id}`;
 const nom = (p: { firstName: string; lastName: string } | null) => (p ? `${p.firstName} ${p.lastName}` : null);
+const LIBELLE_STATUT: Record<StatutInstruction, string> = { EMISE: 'Émise', RECUE: 'Reçue', PRISE_EN_COMPTE: 'Prise en compte', EXECUTEE: 'Exécutée', REJETEE: 'Rejetée' };
 const signe = (s: ActeStatut) => s === ActeStatut.SIGNE || s === ActeStatut.EXPEDIE;
 
 /**
@@ -140,6 +142,49 @@ export class InstructionsService {
       recues: recues.map((i) => this.vue(actor, i)),
       meConcernant: meConcernant.map((i) => this.vue(actor, i)),
     };
+  }
+
+  /**
+   * Export Excel de l'écran (refonte de l'interface) : exactement les instructions de la liste
+   * (`liste(actor)` : émises, reçues, me concernant après exécution), sans le texte, le compte rendu
+   * ni le motif de rejet — de simples métadonnées de suivi.
+   */
+  async exporter(actor: AuthenticatedUser): Promise<Buffer> {
+    const l = await this.liste(actor);
+    const toutes = [...new Map([...l.emises, ...l.recues, ...l.meConcernant].map((i) => [i.id, i])).values()].sort((a, b) => b.emiseLe.getTime() - a.emiseLe.getTime());
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = 'SI DNPEC';
+    workbook.created = new Date();
+    const sheet = workbook.addWorksheet('Instructions');
+    sheet.columns = [
+      { header: 'Émise le', key: 'emise', width: 12 },
+      { header: 'Objet', key: 'objet', width: 48 },
+      { header: 'Émetteur', key: 'emetteur', width: 24 },
+      { header: 'Destinataire', key: 'destinataire', width: 24 },
+      { header: 'Agent concerné', key: 'agent', width: 24 },
+      { header: 'Échéance', key: 'echeance', width: 12 },
+      { header: 'Statut', key: 'statut', width: 16 },
+      { header: 'En retard', key: 'retard', width: 10 },
+      { header: 'Close le', key: 'close', width: 12 },
+    ];
+    sheet.getRow(1).font = { bold: true };
+    sheet.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: 9 } };
+    const jour = (d: Date | null) => (d ? d.toLocaleDateString('fr-FR', { timeZone: 'UTC' }) : '');
+    for (const i of toutes) {
+      sheet.addRow({
+        emise: jour(i.emiseLe),
+        objet: i.objet,
+        emetteur: i.emetteur.nom,
+        destinataire: i.destinataire.nom,
+        agent: i.agentConcerne?.nom ?? '',
+        echeance: jour(i.echeance),
+        statut: LIBELLE_STATUT[i.statut],
+        retard: i.enRetard ? 'Oui' : '',
+        close: jour(i.executeeLe ?? i.rejeteeLe),
+      });
+    }
+    await this.audit.log({ actorId: actor.id, action: AuditAction.PUBLICATION, entityType: 'Instruction', entityId: 'instructions', metadata: { event: 'export_excel', lignes: toutes.length } });
+    return Buffer.from(await workbook.xlsx.writeBuffer());
   }
 
   /** Ouverture par le destinataire : Émise → Reçue (horodatée). */

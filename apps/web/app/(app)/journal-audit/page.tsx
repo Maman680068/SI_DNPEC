@@ -1,19 +1,24 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { lireJournalAudit, verifierJournalAudit } from '../../../lib/api/securite';
-import type { PageAudit, VerificationAudit } from '../../../lib/securite/types';
+import type { EntreeAudit, PageAudit, VerificationAudit } from '../../../lib/securite/types';
 import { ACTIONS_AUDIT } from '../../../lib/securite/types';
 import { Chargement, ErreurChargement, messageChargement } from '../../../components/ui/ErreurChargement';
-import { Badge } from '../../../components/ui/Badge';
-import { Button } from '../../../components/ui/Button';
+import { ShieldCheck, X } from 'lucide-react';
+import { Bandeau, BarreOutils, BTN_LIGNE, BTN_SECONDAIRE, CleValeur, EnTetePage, EtatVide, FiltreSelect, LigneTableau, Pastille, SectionFenetre, Tableau } from '../../../components/ui/Charte';
+import { FenetreDetail } from '../../../components/ui/FenetreDetail';
 
+const GRILLE = 'lg:grid-cols-[72px_120px_minmax(0,1fr)_minmax(0,1.2fr)_minmax(0,1fr)_104px_64px]';
 const dateHeure = (d: string) => new Date(d).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' });
+const dateComplete = (d: string) => new Date(d).toLocaleString('fr-FR', { dateStyle: 'long', timeStyle: 'medium' });
 
 /**
  * Journal d'audit (socle N2) : lecture seule, portée fixée par l'API selon l'annexe 1 (toute la
  * Direction pour le DN, la DNA et l'administrateur ; son périmètre pour un responsable ; ses propres
- * actions pour les autres). Jamais le contenu des éléments : action, objet, auteur, date.
+ * actions pour les autres). Jamais le contenu des éléments : action, objet, auteur, date. Refonte
+ * (étape 8) : barre de filtres compacte (dates, objet, action, auteur), tableau, fenêtre de détail
+ * d'une entrée (« Voir » ou clic sur la ligne).
  */
 export default function JournalAuditPage() {
   const [page, setPage] = useState<PageAudit | null>(null);
@@ -21,6 +26,9 @@ export default function JournalAuditPage() {
   const [filtres, setFiltres] = useState<Record<string, string>>({});
   const [numero, setNumero] = useState(1);
   const [verif, setVerif] = useState<VerificationAudit | null>(null);
+  const [detail, setDetail] = useState<EntreeAudit | null>(null);
+  /** Nom de l'auteur filtré (affiché dans la barre de filtres ; l'API filtre sur `acteurId`). */
+  const [auteurFiltre, setAuteurFiltre] = useState<string | null>(null);
 
   const charger = useCallback(() => {
     lireJournalAudit({ ...filtres, page: numero, taille: 50 })
@@ -36,114 +44,241 @@ export default function JournalAuditPage() {
     setNumero(1);
     setFiltres((f) => ({ ...f, [k]: v }));
   };
+  const effacer = () => {
+    setNumero(1);
+    setFiltres({});
+    setAuteurFiltre(null);
+  };
   const verifier = () => verifierJournalAudit().then(setVerif).catch((e) => setErreur(messageChargement(e)));
 
-  if (!page) return <Chargement erreur={erreur} />;
+  if (!page)
+    return (
+      <div>
+        <EnTetePage titre="Journal d’audit" />
+        <ErreurChargement message={erreur} />
+        <Chargement erreur={erreur} />
+      </div>
+    );
   const nbPages = Math.max(1, Math.ceil(page.total / page.taille));
+  const champDate = 'h-9 rounded-[9px] border border-line bg-surface px-2.5 text-[13px]';
 
   return (
     <div>
+      <EnTetePage
+        titre="Journal d’audit"
+        sousTitre={
+          <>
+            Portée : <strong className="text-text">{page.portee}</strong>
+          </>
+        }
+        actions={
+          page.droits.peutVerifier && (
+            <button type="button" className={BTN_SECONDAIRE} onClick={verifier}>
+              <ShieldCheck aria-hidden size={16} /> Vérifier l’intégrité
+            </button>
+          )
+        }
+      />
+      <p className="-mt-1.5 mb-4 text-[12.5px] text-text-muted">
+        Le journal est en écriture seule : personne, administrateur compris, ne peut le modifier ni l’effacer.
+      </p>
       <ErreurChargement message={erreur} />
-      <div className="mb-[22px] flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <div className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-sage">Traçabilité</div>
-          <h1 className="text-[22px] font-extrabold">Journal d’audit</h1>
-          <p className="mt-1 text-[12.5px] text-text-muted">
-            Portée : <strong>{page.portee}</strong>. Le journal est en écriture seule : personne, administrateur compris, ne peut le modifier ni l’effacer.
-          </p>
-        </div>
-        {page.droits.peutVerifier && (
-          <Button onClick={verifier}>Vérifier l’intégrité</Button>
-        )}
-      </div>
 
       {verif && (
-        <div role="status" data-testid="verification-audit" className={`mb-4 rounded-md px-4 py-3 text-[13px] ${verif.intacte ? 'bg-sage-soft text-sage' : 'bg-clay-soft text-clay'}`}>
+        <Bandeau ton={verif.intacte ? 'vert' : 'rouge'} testid="verification-audit">
           {verif.intacte
             ? `Chaîne intacte : ${verif.lignesVerifiees} entrées scellées vérifiées${verif.nonScellees ? `, ${verif.nonScellees} en attente de scellement (moins d’une minute)` : ''}.`
             : `Chaîne rompue à l’entrée n° ${verif.rangRompu} : le journal a été altéré en dehors de l’application.`}
-        </div>
+        </Bandeau>
       )}
 
-      <div className="mb-4 flex flex-wrap gap-2.5">
+      <BarreOutils>
         <label className="flex items-center gap-1.5 text-[12.5px] text-text-muted">
           Du
-          <input type="date" aria-label="Du" value={filtres.du ?? ''} onChange={(e) => filtre('du', e.target.value)} className="rounded-md border border-line bg-surface px-2.5 py-1.5 text-[13px]" />
+          <input type="date" aria-label="Du" value={filtres.du ?? ''} onChange={(e) => filtre('du', e.target.value)} className={champDate} />
         </label>
         <label className="flex items-center gap-1.5 text-[12.5px] text-text-muted">
           au
-          <input type="date" aria-label="Au" value={filtres.au ?? ''} onChange={(e) => filtre('au', e.target.value)} className="rounded-md border border-line bg-surface px-2.5 py-1.5 text-[13px]" />
+          <input type="date" aria-label="Au" value={filtres.au ?? ''} onChange={(e) => filtre('au', e.target.value)} className={champDate} />
         </label>
-        <select aria-label="Type d’objet" value={filtres.entityType ?? ''} onChange={(e) => filtre('entityType', e.target.value)} className="max-w-full rounded-md border border-line bg-surface px-3 py-2 text-[13px]">
-          <option value="">Tous les objets</option>
-          {page.typesObjets.map((t) => (
-            <option key={t} value={t}>
-              {t}
-            </option>
-          ))}
-        </select>
-        <select aria-label="Action" value={filtres.action ?? ''} onChange={(e) => filtre('action', e.target.value)} className="rounded-md border border-line bg-surface px-3 py-2 text-[13px]">
-          <option value="">Toutes les actions</option>
-          {Object.entries(ACTIONS_AUDIT).map(([k, v]) => (
-            <option key={k} value={k}>
-              {v}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div className="relative overflow-x-auto rounded-md border border-line bg-surface">
-        <table className="w-full min-w-[720px] text-left text-[13px]">
-          <thead className="border-b border-line bg-bg text-[11.5px] uppercase tracking-wide text-text-faint">
-            <tr>
-              <th scope="col" className="px-3 py-2">N°</th>
-              <th scope="col" className="px-3 py-2">Date</th>
-              <th scope="col" className="px-3 py-2">Auteur</th>
-              <th scope="col" className="px-3 py-2">Action</th>
-              <th scope="col" className="px-3 py-2">Objet</th>
-              <th scope="col" className="px-3 py-2"><span className="sr-only">Scellement</span></th>
-            </tr>
-          </thead>
-          <tbody>
-            {page.entrees.map((e) => (
-              <tr key={e.id} data-testid="entree-audit" className="border-b border-line last:border-0">
-                <td className="px-3 py-2 font-mono text-[12px] text-text-muted">{e.numero}</td>
-                <td className="whitespace-nowrap px-3 py-2">{dateHeure(e.date)}</td>
-                <td className="px-3 py-2">
-                  {e.acteur ? e.acteur.nom : <span className="text-text-muted">Système</span>}
-                  {e.auNomDe && <div className="text-[11.5px] text-text-muted">par intérim, au nom de {e.auNomDe.nom}</div>}
-                </td>
-                <td className="px-3 py-2">{e.libelle}</td>
-                <td className="px-3 py-2 text-text-muted">
-                  {e.objetType} <span className="font-mono text-[11px]">{e.objetId.length > 14 ? `${e.objetId.slice(0, 12)}…` : e.objetId}</span>
-                </td>
-                <td className="px-3 py-2 text-right">{e.scellee ? <Badge tone="sage">SCELLÉE</Badge> : <Badge tone="muted">EN ATTENTE</Badge>}</td>
-              </tr>
-            ))}
-            {page.entrees.length === 0 && (
-              <tr>
-                <td colSpan={6} className="px-3 py-6 text-center text-text-muted">
-                  Aucune entrée pour ces critères.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-      <div className="mt-3 flex items-center justify-between text-[12.5px] text-text-muted">
-        <span>{page.total} entrée(s)</span>
-        {nbPages > 1 && (
-          <span className="flex items-center gap-2">
-            <Button className="!px-2.5 !py-1" disabled={numero <= 1} onClick={() => setNumero((n) => n - 1)}>
-              Précédent
-            </Button>
-            Page {numero} / {nbPages}
-            <Button className="!px-2.5 !py-1" disabled={numero >= nbPages} onClick={() => setNumero((n) => n + 1)}>
-              Suivant
-            </Button>
-          </span>
+        <FiltreSelect
+          label="Type d’objet"
+          value={filtres.entityType ?? ''}
+          defaut=""
+          onChange={(v) => filtre('entityType', v)}
+          options={[{ value: '', label: 'Tous les objets' }, ...page.typesObjets.map((t) => ({ value: t, label: t }))]}
+        />
+        <FiltreSelect
+          label="Action"
+          value={filtres.action ?? ''}
+          defaut=""
+          onChange={(v) => filtre('action', v)}
+          options={[{ value: '', label: 'Toutes les actions' }, ...Object.entries(ACTIONS_AUDIT).map(([k, v]) => ({ value: k, label: v }))]}
+        />
+        {filtres.acteurId && (
+          <button
+            type="button"
+            className="inline-flex h-9 items-center gap-1.5 rounded-[9px] border border-ink bg-ink-50 px-2.5 text-[13px] font-semibold text-ink"
+            onClick={() => (filtre('acteurId', ''), setAuteurFiltre(null))}
+            aria-label={`Retirer le filtre sur l’auteur ${auteurFiltre ?? ''}`.trim()}
+            data-testid="filtre-auteur"
+          >
+            Auteur : {auteurFiltre ?? '…'}
+            <X aria-hidden size={14} />
+          </button>
         )}
-      </div>
+      </BarreOutils>
+
+      <Tableau
+        label="Journal d’audit"
+        grille={GRILLE}
+        colonnes={['N°', 'Date', 'Auteur', 'Action', 'Objet', 'Scellement', <span key="a" className="sr-only">Détail</span>]}
+        vide={<EtatVide texte="Aucune entrée pour ces critères." action={Object.values(filtres).some(Boolean) ? <button type="button" className={BTN_LIGNE} onClick={effacer}>Effacer les filtres</button> : undefined} />}
+        pied={
+          <>
+            <span>{page.total} entrée(s)</span>
+            {nbPages > 1 && (
+              <span className="flex items-center gap-2">
+                <button type="button" className={`${BTN_LIGNE} disabled:opacity-50`} disabled={numero <= 1} onClick={() => setNumero((n) => n - 1)}>
+                  Précédent
+                </button>
+                Page {numero} / {nbPages}
+                <button type="button" className={`${BTN_LIGNE} disabled:opacity-50`} disabled={numero >= nbPages} onClick={() => setNumero((n) => n + 1)}>
+                  Suivant
+                </button>
+              </span>
+            )}
+          </>
+        }
+      >
+        {page.entrees.map((e) => (
+          <LigneTableau key={e.id} grille={GRILLE} testid="entree-audit" onClick={() => setDetail(e)} actif={detail?.id === e.id}>
+            <span className="font-mono text-[12px] text-text-muted">{e.numero}</span>
+            <span className="whitespace-nowrap text-text-muted">{dateHeure(e.date)}</span>
+            <span className="block">
+              {e.acteur ? <b className="font-semibold text-ink-900">{e.acteur.nom}</b> : <span className="text-text-muted">Système</span>}
+              {e.auNomDe && <small className="block text-[12px] text-text-muted">par intérim, au nom de {e.auNomDe.nom}</small>}
+            </span>
+            <span>{e.libelle}</span>
+            <span className="block truncate text-text-muted">
+              {e.objetType} <span className="font-mono text-[11.5px]">{e.objetId.length > 14 ? `${e.objetId.slice(0, 12)}…` : e.objetId}</span>
+            </span>
+            {e.scellee ? <Pastille ton="vert">Scellée</Pastille> : <Pastille ton="gris">En attente</Pastille>}
+            <button
+              type="button"
+              className={BTN_LIGNE}
+              onClick={(ev) => {
+                ev.stopPropagation();
+                setDetail(e);
+              }}
+              aria-label={`Voir l’entrée n° ${e.numero}`}
+            >
+              Voir
+            </button>
+          </LigneTableau>
+        ))}
+      </Tableau>
+
+      {detail && (
+        <FenetreEntree
+          e={detail}
+          onClose={() => setDetail(null)}
+          filtrerAuteur={
+            detail.acteur
+              ? () => {
+                  setNumero(1);
+                  setFiltres((f) => ({ ...f, acteurId: detail.acteur!.id }));
+                  setAuteurFiltre(detail.acteur!.nom);
+                  setDetail(null);
+                }
+              : undefined
+          }
+          filtrerObjet={() => {
+            filtre('entityType', detail.objetType);
+            setDetail(null);
+          }}
+        />
+      )}
     </div>
+  );
+}
+
+/**
+ * Détail d'une entrée du journal (fenêtre centrée deux colonnes) : uniquement ce que la liste
+ * renvoie déjà — jamais les métadonnées brutes ni le contenu de l'objet (§2.2). À droite, filtres
+ * rapides sur l'auteur ou le type d'objet, état du scellement.
+ */
+function FenetreEntree({ e, onClose, filtrerAuteur, filtrerObjet }: { e: EntreeAudit; onClose: () => void; filtrerAuteur?: () => void; filtrerObjet: () => void }) {
+  return (
+    <FenetreDetail
+      titre={`${e.libelle} — ${e.objetType}`}
+      filAriane={['Journal d’audit', `Entrée n° ${e.numero}`]}
+      entete={
+        <div className="mt-3">
+          {e.scellee ? <Pastille ton="vert">Scellée</Pastille> : <Pastille ton="gris">En attente de scellement</Pastille>}
+        </div>
+      }
+      largeur={820}
+      onClose={onClose}
+      testid="fenetre-entree-audit"
+      cote={
+        <>
+          <div className="mb-4 flex flex-col gap-2">
+            {filtrerAuteur && (
+              <button type="button" className={`${BTN_SECONDAIRE} w-full`} onClick={filtrerAuteur}>
+                Voir les actions de cet auteur
+              </button>
+            )}
+            <button type="button" className={`${BTN_SECONDAIRE} w-full`} onClick={filtrerObjet}>
+              Voir ce type d’objet
+            </button>
+            <p className="text-[12px] leading-[1.45] text-text-muted">
+              {e.scellee
+                ? 'Entrée scellée et chaînée à la précédente : toute altération en dehors de l’application est détectée par « Vérifier l’intégrité ».'
+                : 'Entrée en attente de scellement : elle est chaînée au journal dans la minute.'}
+            </p>
+          </div>
+          <div className="mb-4 h-px bg-line" />
+          <CleValeur
+            largeur={90}
+            lignes={[
+              ['N°', <span key="n" className="font-mono">{e.numero}</span>],
+              ['Date', dateHeure(e.date)],
+              ['Action', ACTIONS_AUDIT[e.action] ?? e.action],
+            ]}
+          />
+        </>
+      }
+    >
+      <SectionFenetre titre="Événement">
+        <CleValeur
+          largeur={130}
+          lignes={[
+            ['Libellé', e.libelle],
+            ...(e.evenement ? ([['Code', <span key="c" className="font-mono text-[12.5px]">{e.evenement}</span>]] as [string, ReactNode][]) : []),
+            ['Horodatage', dateComplete(e.date)],
+          ]}
+        />
+      </SectionFenetre>
+      <SectionFenetre titre="Objet concerné">
+        <CleValeur
+          largeur={130}
+          lignes={[
+            ['Type', e.objetType],
+            ['Identifiant', <span key="i" className="break-all font-mono text-[12.5px]">{e.objetId}</span>],
+          ]}
+        />
+      </SectionFenetre>
+      <SectionFenetre titre="Auteur" className="mb-3">
+        <CleValeur
+          largeur={130}
+          lignes={[
+            ['Compte', e.acteur ? e.acteur.nom : 'Système'],
+            ...(e.auNomDe ? ([['Par intérim', `au nom de ${e.auNomDe.nom}`]] as [string, string][]) : []),
+          ]}
+        />
+      </SectionFenetre>
+      <p className="text-[12.5px] text-text-muted">Le journal ne montre jamais le contenu des éléments : seulement l’action, l’objet, l’auteur et la date.</p>
+    </FenetreDetail>
   );
 }

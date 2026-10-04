@@ -312,6 +312,27 @@ export class DecisionsService {
     return { total, sansAction, enRetard };
   }
 
+  /**
+   * « Décisions à suivre » de la page Réunions (refonte de l'interface, étape 6) : décisions des
+   * réunions que l'acteur voit (même périmètre que `dashboard` et que le relevé de chaque réunion,
+   * `getMeetingVisibilityWhere`), ouvertes d'abord — en retard en tête —, puis clôturées depuis moins de
+   * 30 jours. Lecture seule ; mêmes champs que le relevé (le titre et le statut de la tâche issue y
+   * sont déjà visibles), plus la réunion d'origine.
+   */
+  async aSuivre(actor: AuthenticatedUser) {
+    const meeting = this.meetings.getMeetingVisibilityWhere(actor);
+    const select = { ...DECISION_SELECT, meeting: { select: { id: true, title: true, startAt: true } } } satisfies Prisma.DecisionSelect;
+    const [ouvertes, closes] = await Promise.all([
+      this.prisma.decision.findMany({ where: { status: DecisionStatus.EN_ATTENTE, meeting }, select, orderBy: { createdAt: 'desc' }, take: 100 }),
+      this.prisma.decision.findMany({ where: { status: DecisionStatus.CLOTUREE, closedAt: { gte: new Date(Date.now() - 30 * 86_400_000) }, meeting }, select, orderBy: { closedAt: 'desc' }, take: 10 }),
+    ]);
+    const maintenant = new Date();
+    const enRetard = (d: (typeof ouvertes)[number]) => d.status === DecisionStatus.EN_ATTENTE && !!d.action?.dueDate && d.action.dueDate < maintenant;
+    const triees = [...ouvertes].sort((a, b) => Number(enRetard(b)) - Number(enRetard(a)) || (a.action?.dueDate?.getTime() ?? Infinity) - (b.action?.dueDate?.getTime() ?? Infinity));
+    const decisions = [...triees, ...closes].map((d) => ({ ...d, enRetard: enRetard(d) }));
+    return { enRetard: decisions.filter((d) => d.enRetard).length, decisions };
+  }
+
   // --------------------------------------------------------------------
 
   private async getMeetingOrThrow(meetingId: string) {

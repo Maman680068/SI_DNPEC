@@ -8,6 +8,8 @@ const J = 864e5, iso = (ms) => new Date(Date.now() + ms).toISOString();
 // Lignes « À traiter » du courrier, dans l'ordre de l'écran : « <n> <libellé> » (compteur API du courrier).
 const LIB = { aImputer: 'Courrier à imputer', aTraiter: 'Courrier à traiter', aViser: 'Actes à viser', aSigner: 'Actes à signer', aExpedier: 'Actes à expédier', priseDeConnaissance: 'Actes à prendre en connaissance', brouillons: 'Brouillons à reprendre' };
 const attendu = (tb) => Object.keys(LIB).filter((k) => tb[k] > 0).map((k) => `${tb[k]} ${LIB[k]}`);
+// Rien « à faire » : les compteurs de rubriques (la vue du registre — arriveesEnAttente… — n'alimente pas le bloc).
+const rienAFaire = (tb) => [...Object.keys(LIB), 'enRetard'].every((k) => tb[k] === 0);
 const LIGNES = '[data-testid=a-traiter] a[data-testid^=a-traiter-courrier-]';
 const pastilles = async (p) => (await p.locator(LIGNES).allInnerTexts()).map((t) => t.replace(/\s+/g, ' ').trim());
 const ligne = (p, texte) => p.locator(LIGNES, { hasText: texte });
@@ -37,7 +39,7 @@ async function suppleance(titulaire, suppleant) {
   const admin = await loginPage(b, 'admin');
   await admin.getByTestId('a-traiter').waitFor();
   await admin.waitForTimeout(1500);
-  const rien = Object.values(tbAdmin).every((n) => n === 0);
+  const rien = rienAFaire(tbAdmin);
   check('administrateur sans élément personnel en attente : aucune ligne courrier', rien && (await admin.locator(LIGNES).count()) === 0, JSON.stringify(tbAdmin));
   const brA = (await call('admin', 'POST', '/courrier/actes', { registreId: require(E.etat('registres.json')).DEP, confidentialite: 'ORDINAIRE', objet: 'Brouillon personnel' })).body;
   await admin.reload();
@@ -60,7 +62,7 @@ async function suppleance(titulaire, suppleant) {
     const pv = await loginPage(b, 'vide');
     await pv.getByTestId('bande-compteurs').waitFor();
     await pv.waitForTimeout(1500);
-    check('compte sans rien à faire (tous compteurs à zéro) : ni ligne courrier, ni bloc « À traiter »', Object.values(tbVide).every((n) => n === 0) && (await pv.locator(LIGNES).count()) === 0 && (await pv.getByTestId('a-traiter').count()) === 0, JSON.stringify(tbVide));
+    check('compte sans rien à faire (tous compteurs à zéro) : ni ligne courrier, ni bloc « À traiter »', rienAFaire(tbVide) && (await pv.locator(LIGNES).count()) === 0 && (await pv.getByTestId('a-traiter').count()) === 0, JSON.stringify(tbVide));
     await pv.context().close();
   } finally {
     await prisma.refreshToken?.deleteMany?.({ where: { userId: vide.id } }).catch(() => {});

@@ -14,7 +14,7 @@ import {
 } from '../../lib/api/meetings';
 import type { Decision, DecisionsReleve, ResponsablePossible } from '../../lib/meetings/types';
 import { STATUS_STEPS } from '../../lib/tasks/types';
-import { Badge } from '../ui/Badge';
+import { Pastille } from '../ui/Charte';
 import { Button } from '../ui/Button';
 
 const INPUT_CLASS = 'w-full rounded-md border border-line bg-surface px-3 py-2 text-[13.5px]';
@@ -138,20 +138,23 @@ function DecisionItem({ decision, onChanged }: { decision: Decision; onChanged: 
     }
   }
 
+  const petit = 'inline-flex h-[28px] items-center rounded-[7px] border border-line px-2.5 text-[12px] font-bold text-ink hover:bg-bg disabled:opacity-50';
   return (
-    <li className="rounded-md border border-line p-3" data-testid="decision">
-      <div className="mb-1.5 flex flex-wrap items-center gap-2">
-        <Badge tone={close ? 'sage' : action ? 'accent' : 'gold'}>{close ? 'Clôturée' : action ? 'Action en cours' : 'En attente'}</Badge>
-        {close && decision.closedAt && (
-          <span className="text-[11.5px] text-text-faint">
-            le {formatDate(decision.closedAt)}
-            {decision.closedById ? ` par ${getUserLabel(decision.closedById)}` : ''}
-          </span>
-        )}
+    <li className="border-b border-[#F0F1F6] py-2" data-testid="decision">
+      <div className="flex flex-wrap items-start gap-x-2.5 gap-y-1.5">
+        <Pastille ton={close ? 'vert' : action ? 'encre' : 'gris'}>{close ? 'Clôturée' : action ? 'Tâche créée' : 'À convertir'}</Pastille>
+        {mode !== 'modifier' && <p className="min-w-0 flex-1 whitespace-pre-wrap pt-0.5 text-[13.5px] leading-snug">{decision.content}</p>}
       </div>
+      {close && decision.closedAt && (
+        <p className="mt-1 text-[12px] text-text-muted">
+          Le {formatDate(decision.closedAt)}
+          {decision.closedById ? ` par ${getUserLabel(decision.closedById)}` : ''}
+        </p>
+      )}
 
-      {mode === 'modifier' ? (
+      {mode === 'modifier' && (
         <form
+          className="mt-2"
           onSubmit={(e) => {
             e.preventDefault();
             run(() => updateDecision(decision.id, content.trim()), 'Modification impossible');
@@ -166,75 +169,71 @@ function DecisionItem({ decision, onChanged }: { decision: Decision; onChanged: 
             minLength={2}
           />
           <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => setMode('lecture')}>
+            <button type="button" className={petit} onClick={() => setMode('lecture')}>
               Annuler
-            </Button>
-            <Button type="submit" variant="gold" disabled={pending}>
+            </button>
+            <button type="submit" className={`${petit} border-ink bg-ink text-white hover:bg-ink-800`} disabled={pending}>
               Enregistrer
-            </Button>
+            </button>
           </div>
         </form>
-      ) : (
-        <p className="whitespace-pre-wrap text-[13.5px] leading-relaxed">{decision.content}</p>
       )}
 
       {action && (
-        <div className="mt-2 rounded-md bg-bg px-3 py-2 text-[12.5px]">
-          Action :{' '}
-          <Link href={`/tasks/${action.id}`} className="font-semibold text-accent underline">
+        <p className="mt-1 text-[12.5px] text-text-muted">
+          Tâche :{' '}
+          <Link href={`/tasks/${action.id}`} className="font-semibold text-ink underline">
             {action.title}
-          </Link>
-          <span className="text-text-muted">
-            {' '}
-            — {STATUS_STEPS.find((s) => s.status === action.status)?.label ?? action.status}
-            {action.dueDate ? `, échéance ${formatDate(action.dueDate)}` : ''}
-          </span>
-        </div>
+          </Link>{' '}
+          — {STATUS_STEPS.find((s) => s.status === action.status)?.label ?? action.status}
+          {action.dueDate ? `, échéance ${formatDate(action.dueDate)}` : ''}
+        </p>
       )}
 
-      {mode === 'convertir' && <ConvertForm decision={decision} onDone={() => {
+      {mode === 'convertir' && (
+        <ConvertForm
+          decision={decision}
+          onDone={() => {
             setMode('lecture');
             onChanged();
-          }} onCancel={() => setMode('lecture')} />}
+          }}
+          onCancel={() => setMode('lecture')}
+        />
+      )}
 
       {error && (
         <div role="alert" className="mt-2 rounded-md bg-clay-soft px-3 py-2 text-[12.5px] text-clay">
           {error}
         </div>
       )}
-      {info && <div className="mt-2 rounded-md bg-sage-soft px-3 py-2 text-[12.5px] text-sage">{info}</div>}
+      {info && <div className="mt-2 rounded-md bg-sage-50 px-3 py-2 text-[12.5px] text-sage">{info}</div>}
 
       {mode === 'lecture' && (droits.modifier || droits.convertir || droits.cloturer || droits.relancer) && (
-        <div className="mt-2.5 flex flex-wrap gap-2">
+        <div className="mt-1.5 flex flex-wrap gap-1.5">
           {droits.modifier && (
-            <Button variant="outline" className="px-3 py-1.5 text-[12.5px]" disabled={pending} onClick={() => setMode('modifier')}>
+            <button type="button" className={petit} disabled={pending} onClick={() => setMode('modifier')}>
               Modifier
-            </Button>
+            </button>
           )}
           {droits.convertir && (
-            <Button variant="outline" className="px-3 py-1.5 text-[12.5px]" disabled={pending} onClick={() => setMode('convertir')}>
+            <button type="button" className={petit} disabled={pending} onClick={() => setMode('convertir')}>
               Convertir en action
-            </Button>
+            </button>
           )}
           {droits.cloturer && (
-            <Button
-              variant="outline"
-              className="px-3 py-1.5 text-[12.5px]"
+            <button
+              type="button"
+              className={petit}
               disabled={pending}
               onClick={() => window.confirm('Clôturer cette décision ? Elle ne pourra plus être modifiée.') && run(() => closeDecision(decision.id), 'Clôture impossible')}
             >
               Clôturer
-            </Button>
+            </button>
           )}
           {droits.relancer && (
-            <Button
-              variant="outline"
-              className="px-3 py-1.5 text-[12.5px]"
-              disabled={pending}
-              onClick={() => run(() => remindDecision(decision.id), 'Relance impossible', 'Relance envoyée à l’organisateur.')}
-            >
+            <button type="button" className={petit} disabled={pending} onClick={() => run(() => remindDecision(decision.id), 'Relance impossible', 'Relance envoyée à l’organisateur.')}>
               Relancer l’organisateur
-            </Button>
+            </button>
           )}
         </div>
       )}
@@ -284,10 +283,10 @@ export function DecisionsSection({ meetingId }: { meetingId: string }) {
   }
 
   return (
-    <section className="mb-6" aria-label="Relevé de décisions">
-      <div className="mb-2.5 text-xs font-bold uppercase tracking-wide text-text-muted">
-        Relevé de décisions{releve ? ` (${releve.decisions.length})` : ''}
-      </div>
+    <section className="mb-[18px]" aria-label="Relevé de décisions">
+      <h3 className="mb-1 flex items-center gap-2 text-[13px] font-bold text-ink-900">
+        Décisions {releve && <span className="font-semibold text-text-muted">{releve.decisions.length}</span>}
+      </h3>
       {error && (
         <div role="alert" className="mb-2.5 rounded-md bg-clay-soft px-3 py-2.5 text-[13px] text-clay">
           {error}
@@ -298,30 +297,28 @@ export function DecisionsSection({ meetingId }: { meetingId: string }) {
       ) : (
         <>
           {releve.decisions.length === 0 ? (
-            <p className="mb-2.5 text-[13px] text-text-faint">Aucune décision consignée.</p>
+            <p className="py-1.5 text-[13px] text-text-muted">Aucune décision consignée.</p>
           ) : (
-            <ul className="mb-3 space-y-2.5">
+            <ul>
               {releve.decisions.map((d) => (
                 <DecisionItem key={`${d.id}-${d.updatedAt}`} decision={d} onChanged={charger} />
               ))}
             </ul>
           )}
           {releve.peutAjouter && (
-            <form onSubmit={ajouter}>
-              <textarea
+            <form onSubmit={ajouter} className="mt-2 flex flex-wrap gap-2">
+              <input
                 aria-label="Nouvelle décision"
-                className={`${INPUT_CLASS} mb-2 min-h-[60px]`}
-                placeholder="Consigner une décision…"
+                className="h-10 min-w-0 flex-1 rounded-[10px] border border-line bg-surface px-3 text-[13.5px] placeholder:text-text-faint focus:border-ink focus:outline focus:outline-2 focus:outline-ink"
+                placeholder="Ajouter une décision…"
                 value={nouvelle}
                 onChange={(e) => setNouvelle(e.target.value)}
                 required
                 minLength={2}
               />
-              <div className="flex justify-end">
-                <Button type="submit" variant="solid" disabled={pending || nouvelle.trim().length < 2}>
-                  Ajouter la décision
-                </Button>
-              </div>
+              <button type="submit" className="h-10 flex-none rounded-[10px] border border-line bg-surface px-3.5 text-[13px] font-bold text-ink hover:bg-bg disabled:opacity-50" disabled={pending || nouvelle.trim().length < 2}>
+                Ajouter la décision
+              </button>
             </form>
           )}
         </>

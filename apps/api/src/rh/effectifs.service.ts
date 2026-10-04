@@ -1,4 +1,5 @@
 import { ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import ExcelJS from 'exceljs';
 import { AuditAction, EmploymentStatus, Prisma, StatutAgent, StatutMouvementCarriere, SystemRole, TypeMouvementCarriere, UserStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../common/audit/audit.service';
@@ -26,7 +27,7 @@ export interface AlerteRh {
 }
 const ORDRE_PRIORITE: Record<PrioriteAlerte, number> = { HAUTE: 0, MOYENNE: 1, BASSE: 2 };
 /** Champs du dossier (niveau 1) qu'un dossier complet renseigne. */
-const CHAMPS_DOSSIER: [string, string][] = [
+export const CHAMPS_DOSSIER: [string, string][] = [
   ['employmentStatus', 'statut d’emploi'],
   ['grade', 'grade'],
   ['echelon', 'échelon'],
@@ -73,39 +74,92 @@ export class EffectifsService {
 
   // ------------------------------------------------------------------ effectifs
 
-  async effectifs(actor: AuthenticatedUser) {
+  async effectifs(actor: AuthenticatedUser, maintenant = new Date()) {
     const direction = actor.role === SystemRole.DN || actor.role === SystemRole.DNA;
     if (!estDrh(actor) && !direction) throw new ForbiddenException('Les effectifs sont consultés par le DRH, le DN et la DNA.');
     const agents = await this.prisma.agent.findMany({
       where: { statut: { not: StatutAgent.PARTI } },
       select: {
         genre: true,
+        matriculeProvisoire: true,
+        dateFinPrevue: true,
         unite: { select: { libelle: true, code: true } },
         compte: { select: { role: true, personnelFileBasic: { select: { employmentStatus: true, categorie: true, serviceStartDate: true } } } },
       },
     });
-    const maintenant = Date.now();
+    const instant = maintenant.getTime();
     const compter = (cles: string[]) => {
       const m = new Map<string, number>();
       for (const c of cles) m.set(c, (m.get(c) ?? 0) + 1);
       return [...m.entries()].map(([libelle, nombre]) => ({ libelle, nombre })).sort((a, b) => b.nombre - a.nombre || a.libelle.localeCompare(b.libelle));
     };
     const fichiers = agents.map((a) => a.compte?.personnelFileBasic ?? null);
-    const anciennetes = fichiers.filter((f) => f?.serviceStartDate).map((f) => (maintenant - f!.serviceStartDate!.getTime()) / (365.25 * J));
+    const anciennetes = fichiers.filter((f) => f?.serviceStartDate).map((f) => (instant - f!.serviceStartDate!.getTime()) / (365.25 * J));
     const genres = agents.filter((a) => a.genre === 'F' || a.genre === 'M');
     const femmes = genres.filter((a) => a.genre === 'F').length;
+    // Départs prévus (fins de contrat ou de stage) dans les 12 mois : la date de naissance n'étant pas
+    // tenue au dossier, les départs à la retraite ne sont pas calculables ; seules les fins prévues le sont.
+    const aujourdhui = new Date(jour(maintenant));
+    const horizon = new Date(aujourdhui);
+    horizon.setUTCFullYear(horizon.getUTCFullYear() + 1);
+    const departsPrevus = agents.filter((a) => a.dateFinPrevue && a.dateFinPrevue >= aujourdhui && a.dateFinPrevue < horizon).length;
     return {
       total: agents.length,
       parUnite: compter(agents.map((a) => a.unite?.libelle ?? 'Sans unité')),
       parStatut: compter(fichiers.map((f) => (f?.employmentStatus ? LIBELLE_STATUT[f.employmentStatus] : NON_RENSEIGNE))),
       parCategorie: compter(fichiers.map((f) => (f?.categorie ? `Catégorie ${f.categorie}` : NON_RENSEIGNE))),
+      parStatutCategorie: compter(fichiers.map((f) => libelleStatutCategorie(f?.employmentStatus ?? null, f?.categorie ?? null))),
       ancienneteMoyenneAnnees: anciennetes.length ? Math.round((anciennetes.reduce((s, x) => s + x, 0) / anciennetes.length) * 10) / 10 : null,
       ancienneteRenseignee: anciennetes.length,
       femmes,
       genreRenseigne: genres.length,
       partFemmes: genres.length ? Math.round((femmes / genres.length) * 1000) / 10 : null,
-      calculeLe: new Date().toISOString(),
+      departsPrevus,
+      departsHorizonMois: 12,
+      matriculesProvisoires: agents.filter((a) => a.matriculeProvisoire).length,
+      calculeLe: maintenant.toISOString(),
     };
+  }
+
+  /** Export Excel des effectifs : les mêmes agrégats que l'écran (aucune donnée nominative), même périmètre. */
+  async exporterEffectifs(actor: AuthenticatedUser): Promise<Buffer> {
+    const e = await this.effectifs(actor);
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = 'SI DNPEC';
+    workbook.created = new Date();
+    const indicateurs = workbook.addWorksheet('Indicateurs');
+    indicateurs.columns = [
+      { header: 'Indicateur', key: 'libelle', width: 46 },
+      { header: 'Valeur', key: 'valeur', width: 16 },
+      { header: 'Base de calcul', key: 'base', width: 40 },
+    ];
+    indicateurs.getRow(1).font = { bold: true };
+    indicateurs.addRows([
+      { libelle: 'Agents en fonction', valeur: e.total, base: 'hors départs confirmés' },
+      { libelle: 'Ancienneté moyenne (années)', valeur: e.ancienneteMoyenneAnnees ?? '', base: `${e.ancienneteRenseignee} date(s) de prise de service renseignée(s)` },
+      { libelle: 'Part des femmes (%)', valeur: e.partFemmes ?? '', base: `${e.genreRenseigne} genre(s) renseigné(s)` },
+      { libelle: `Départs prévus dans les ${e.departsHorizonMois} mois`, valeur: e.departsPrevus, base: 'fins de contrat ou de stage' },
+      { libelle: 'Calculé le', valeur: e.calculeLe.slice(0, 10), base: 'à partir des dossiers' },
+    ]);
+    const feuille = (nom: string, lignes: { libelle: string; nombre: number }[]) => {
+      const f = workbook.addWorksheet(nom);
+      f.columns = [
+        { header: nom, key: 'libelle', width: 46 },
+        { header: 'Agents', key: 'nombre', width: 12 },
+      ];
+      f.getRow(1).font = { bold: true };
+      f.addRows(lignes);
+    };
+    feuille('Par unité', e.parUnite);
+    feuille('Par statut et catégorie', e.parStatutCategorie);
+    await this.audit.log({
+      actorId: actor.id,
+      action: AuditAction.PUBLICATION,
+      entityType: 'Effectifs',
+      entityId: 'effectifs',
+      metadata: { event: 'export_excel', total: e.total },
+    });
+    return Buffer.from(await workbook.xlsx.writeBuffer());
   }
 
   // ------------------------------------------------------------------ alertes
@@ -245,5 +299,18 @@ const LIBELLE_STATUT: Record<EmploymentStatus, string> = {
   FONCTIONNAIRE: 'Fonctionnaire',
   CONTRACTUEL: 'Contractuel',
   STAGIAIRE: 'Stagiaire',
+  MISE_A_DISPOSITION: 'Mis à disposition',
+};
+
+/** Libellé « statut et catégorie » (panneau de l'écran Effectifs) : catégorie précisée pour les fonctionnaires. */
+function libelleStatutCategorie(statut: EmploymentStatus | null, categorie: string | null): string {
+  if (!statut) return NON_RENSEIGNE;
+  if (statut === EmploymentStatus.FONCTIONNAIRE) return categorie ? `Fonctionnaires — ${categorie}` : 'Fonctionnaires — catégorie non renseignée';
+  return LIBELLE_STATUT_PLURIEL[statut];
+}
+const LIBELLE_STATUT_PLURIEL: Record<EmploymentStatus, string> = {
+  FONCTIONNAIRE: 'Fonctionnaires',
+  CONTRACTUEL: 'Contractuels',
+  STAGIAIRE: 'Stagiaires',
   MISE_A_DISPOSITION: 'Mis à disposition',
 };

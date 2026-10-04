@@ -52,9 +52,9 @@ export function NominationsRole() {
 
       <h2 className="mb-2 text-[15px] font-bold">Nominations à appliquer</h2>
       {enAttente.length === 0 ? (
-        <p className="mb-6 rounded-lg border border-line bg-surface p-5 text-[13px] text-text-muted">Aucune nomination en attente.</p>
+        <p className="mb-6 rounded-xl border border-line bg-surface p-5 text-[13px] text-text-muted">Aucune nomination en attente.</p>
       ) : (
-        <ul className="mb-6 divide-y divide-line rounded-lg border border-line bg-surface" data-testid="nominations-attente">
+        <ul className="mb-6 divide-y divide-line rounded-xl border border-line bg-surface" data-testid="nominations-attente">
           {enAttente.map((c) => (
             <li key={c.id} data-testid="nomination" className="px-4 py-3">
               <div className="flex flex-wrap items-start justify-between gap-2">
@@ -84,7 +84,7 @@ export function NominationsRole() {
                 </div>
                 <div className="flex flex-wrap gap-1.5">
                   {c.droits.confirmer && <Button variant="solid" className="!px-3 !py-1 !text-[12px]" onClick={() => setConfirmer(c)}>Confirmer…</Button>}
-                  {c.droits.refuser && <Button variant="outline" className="!px-3 !py-1 !text-[12px]" onClick={() => setRefuser(c)}>Refuser…</Button>}
+                  {c.droits.refuser && <Button variant="outline" className="!px-3 !py-1 !text-[12px]" onClick={() => setRefuser(c)}>Rejeter avec un motif</Button>}
                 </div>
               </div>
             </li>
@@ -95,9 +95,9 @@ export function NominationsRole() {
       <h2 className="mb-1 text-[15px] font-bold">Écarts entre fonction du dossier et rôle du compte</h2>
       <p className="mb-2 text-[12.5px] text-text-muted">Relevés à chaque ouverture, signalés chaque matin aux administrateurs et dans la supervision.</p>
       {l.ecarts.length === 0 ? (
-        <p className="mb-6 rounded-lg border border-line bg-surface p-5 text-[13px] text-text-muted">Aucun écart : fonctions et rôles concordent.</p>
+        <p className="mb-6 rounded-xl border border-line bg-surface p-5 text-[13px] text-text-muted">Aucun écart : fonctions et rôles concordent.</p>
       ) : (
-        <ul className="mb-6 divide-y divide-line rounded-lg border border-line bg-surface" data-testid="ecarts">
+        <ul className="mb-6 divide-y divide-line rounded-xl border border-line bg-surface" data-testid="ecarts">
           {l.ecarts.map((e) => (
             <li key={e.userId} data-testid="ecart" className="px-4 py-2.5 text-[13px]">
               <strong>{e.nom}</strong> <span className="text-text-muted">· rôle : {l.choix.roles.find((r) => r.role === e.role)?.libelle ?? e.role} · fonction : {e.fonction ?? '—'}</span>
@@ -110,7 +110,7 @@ export function NominationsRole() {
       {traites.length > 0 && (
         <>
           <h2 className="mb-2 text-[15px] font-bold">Nominations traitées</h2>
-          <ul className="divide-y divide-line rounded-lg border border-line bg-surface" data-testid="nominations-traitees">
+          <ul className="divide-y divide-line rounded-xl border border-line bg-surface" data-testid="nominations-traitees">
             {traites.map((c) => (
               <li key={c.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 text-[13px]">
                 <span>
@@ -210,12 +210,12 @@ function FenetreRefuser({ c, onClose, onFait }: { c: ChangementRoleNomination; o
   const [enCours, setEnCours] = useState(false);
   return (
     <Fenetre
-      titre="Refuser la nomination"
+      titre="Rejeter la nomination"
       onClose={onClose}
       enCours={enCours}
       erreur={erreur}
       danger
-      libelleValider="Refuser"
+      libelleValider="Rejeter"
       onSubmit={async () => {
         setEnCours(true);
         setErreur(null);

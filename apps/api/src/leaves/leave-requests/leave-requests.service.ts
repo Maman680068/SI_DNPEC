@@ -20,6 +20,8 @@ import { ajouterHeuresOuvrees, heuresOuvreesEntre } from '../../socle/heures-ouv
 import { JoursFeriesService } from '../../socle/jours-feries.service';
 import { StorageService } from '../../common/storage/storage.service';
 import { chefsLesPlusProches, chefsLesPlusProchesMemo, MemoChefs } from '../../socle/chefs-proches';
+import { TasksService } from '../../tasks/tasks.service';
+import { TaskFiltersDto } from '../../tasks/dto/task-filters.dto';
 
 /** Durée de vie du cache des chefs avisants d'une requête (voir avisantsPour). */
 const MEMO_AVISANTS_MS = 5_000;
@@ -67,6 +69,24 @@ type LeaveRequestView = Omit<LeaveRequestWithUser, 'leaveTypeId' | 'leaveType' |
   droits: { peutDonnerAvis: boolean; peutDecider: boolean; peutAnnuler: boolean; deposerCertificat: boolean; lireCertificat: boolean };
 };
 
+/** Code du congé annuel : seul solde montré au chef et au DRH dans la fenêtre d'avis ou de décision. */
+export const CODE_CONGE_ANNUEL = 'CONGE_ANNUEL';
+
+/**
+ * Contexte d'une demande pour la fenêtre d'avis ou de décision (refonte de l'interface) : chef(s) qui
+ * doivent donner l'avis, jours fériés de la période, solde de CONGÉ ANNUEL seul (jamais le total des
+ * absences maladie), absents du périmètre du lecteur sur la période et tâches de l'agent à échéance
+ * pendant l'absence (celles que le lecteur voit). Pour le demandeur : ni absents ni tâches.
+ */
+export interface ContexteConge {
+  demandeId: string;
+  avisants: { id: string; nom: string }[];
+  feriesDansPeriode: number;
+  soldeAnnuel: { annee: number; libelle: string; totalDays: number; usedDays: number; remainingDays: number } | null;
+  absents: { demandeId: string; userId: string; nom: string; type: string; debut: Date; fin: Date }[] | null;
+  taches: { id: string; titre: string; echeance: Date | null; statut: string }[] | null;
+}
+
 /** Alerte au chef avant l'échéance de l'avis (heures ouvrées). */
 export const ALERTE_AVIS_HEURES = 12;
 
@@ -93,6 +113,7 @@ export class LeaveRequestsService {
     private readonly preuves: PreuveIdentiteService,
     private readonly feries: JoursFeriesService,
     private readonly storage: StorageService,
+    private readonly tasks: TasksService,
   ) {}
 
   // ------------------------------------------------------------------ acteurs du circuit
@@ -290,6 +311,54 @@ export class LeaveRequestsService {
     const v = await this.vue(actor, leaveRequest);
     await this.tracerMotif(actor, leaveRequest, v);
     return v;
+  }
+
+  // ------------------------------------------------------------------ contexte (fenêtre d'avis ou de décision)
+
+  /**
+   * Contexte d'une demande : réservé à qui peut donner l'avis ou décider sur cette demande, et au
+   * demandeur pour ses propres informations (chef attendu, jours fériés, son solde annuel) ; 403 sinon.
+   * Absents : demandes APPROUVÉES qui chevauchent la période, dans le périmètre du lecteur (même règle
+   * que la liste des congés) restreint à l'unité du demandeur ; le type suit `vue` (jamais la nature
+   * médicale pour qui ne la voit pas), jamais le motif. Tâches : celles de l'agent (assigné), non
+   * closes, à échéance dans la période, parmi celles que le lecteur voit (`TasksService`).
+   */
+  async contexte(actor: AuthenticatedUser, id: string): Promise<ContexteConge> {
+    const r = await this.getLeaveRequestOrThrow(id);
+    const soi = r.userId === actor.id;
+    const enAttente = r.status === LeaveRequestStatus.EN_ATTENTE;
+    const avis = enAttente && !r.avisEtat && (await this.peutDonnerAvis(actor, r));
+    const decide = enAttente && !!r.avisEtat && (await this.peutDecider(actor, r));
+    if (!soi && !avis && !decide) throw new ForbiddenException('Le contexte de cette demande est réservé au chef qui donne l’avis et au décideur.');
+
+    const idsAvisants = enAttente && !r.avisEtat ? await this.avisants(r.user) : [];
+    const avisants = (await this.prisma.user.findMany({ where: { id: { in: idsAvisants } }, select: { id: true, firstName: true, lastName: true } })).map((u) => ({ id: u.id, nom: `${u.firstName} ${u.lastName}` }));
+    const { feries } = await this.feries.joursDecomptes(r.startDate, r.endDate);
+    const annee = r.startDate.getFullYear();
+    const solde = await this.prisma.leaveBalance.findFirst({ where: { userId: r.userId, year: annee, leaveType: { code: CODE_CONGE_ANNUEL } }, select: { totalDays: true, usedDays: true, leaveType: { select: { name: true } } } });
+    const soldeAnnuel = solde ? { annee, libelle: solde.leaveType.name, totalDays: solde.totalDays, usedDays: solde.usedDays, remainingDays: solde.totalDays - solde.usedDays } : null;
+    if (soi && !avis && !decide) return { demandeId: r.id, avisants, feriesDansPeriode: feries, soldeAnnuel, absents: null, taches: null };
+
+    const perimetre: Prisma.UserWhereInput = estDrh(actor) ? {} : this.cascade.getVisibleUserWhereForLeadershipScope(actor);
+    const unite: Prisma.UserWhereInput = r.user.celluleId ? { celluleId: r.user.celluleId } : r.user.divisionId ? { divisionId: r.user.divisionId } : {};
+    const chevauchent = await this.prisma.leaveRequest.findMany({
+      where: { status: LeaveRequestStatus.APPROUVEE, userId: { not: r.userId }, startDate: { lte: r.endDate }, endDate: { gte: r.startDate }, user: { AND: [perimetre, unite] } },
+      select: LEAVE_REQUEST_SELECT,
+      orderBy: { startDate: 'asc' },
+      take: 50,
+    });
+    const absents = [];
+    for (const a of chevauchent) {
+      const v = await this.vue(actor, a);
+      absents.push({ demandeId: a.id, userId: a.userId, nom: `${a.user.firstName} ${a.user.lastName}`, type: v.leaveType.name, debut: a.startDate, fin: a.endDate });
+    }
+
+    const finJournee = new Date(Date.UTC(r.endDate.getUTCFullYear(), r.endDate.getUTCMonth(), r.endDate.getUTCDate(), 23, 59, 59, 999));
+    const filtres = Object.assign(new TaskFiltersDto(), { assigneeId: r.userId, dueAfter: r.startDate.toISOString(), dueBefore: finJournee.toISOString(), limite: 50 });
+    const taches = (await this.tasks.findAllVisibleTo(actor, filtres))
+      .filter((t) => t.status !== 'TERMINEE' && t.status !== 'VALIDEE')
+      .map((t) => ({ id: t.id, titre: t.title, echeance: t.dueDate, statut: t.status }));
+    return { demandeId: r.id, avisants, feriesDansPeriode: feries, soldeAnnuel, absents, taches };
   }
 
   // ------------------------------------------------------------------ certificat médical

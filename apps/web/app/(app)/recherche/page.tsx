@@ -10,6 +10,7 @@ import {
   ErreurChargement,
   messageChargement,
 } from '../../../components/ui/ErreurChargement';
+import { BTN_LIGNE, EnTetePage, Panneau } from '../../../components/ui/Charte';
 
 /** Lien « voir tout » : l'écran du module, avec son propre filtre de recherche. */
 const ECRAN: Record<string, (q: string) => string> = {
@@ -45,12 +46,9 @@ function Resultats() {
   }, [q]);
 
   return (
-    <div className="max-w-[900px]">
-      <div className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-sage">
-        Recherche
-      </div>
-      <h1 className="mb-1 text-[22px] font-extrabold">Résultats pour « {q} »</h1>
-      <p className="mb-5 text-[13px] text-text-muted">
+    <div>
+      <EnTetePage titre={`Résultats pour « ${q} »`} sousTitre={r ? `${r.categories.reduce((t, c) => t + c.resultats.length, 0)} résultat(s)` : undefined} />
+      <p className="-mt-1.5 mb-4 text-[13px] text-text-muted">
         Seuls les éléments que vous pouvez consulter apparaissent. Les filtres détaillés restent
         disponibles dans chaque module.
       </p>
@@ -58,28 +56,34 @@ function Resultats() {
       {!r ? (
         <Chargement erreur={erreur} />
       ) : (
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-3.5 md:grid-cols-2">
           {r.categories.map((c) => (
-            <section
+            <Panneau
               key={c.cle}
-              data-testid={`categorie-${c.cle}`}
-              className="rounded-lg border border-line bg-surface p-4"
-            >
-              <h2 className="mb-2 text-[14px] font-bold">
-                {c.libelle}{' '}
-                <span className="font-normal text-text-faint">
-                  ({c.resultats.length}
-                  {c.autres ? '+' : ''})
+              testid={`categorie-${c.cle}`}
+              titre={c.libelle}
+              compteur={
+                <span className="text-[12.5px] font-semibold text-text-faint">
+                  {c.resultats.length}
+                  {c.autres ? '+' : ''}
                 </span>
-              </h2>
+              }
+              action={
+                c.autres && (
+                  <Link href={ECRAN[c.cle]?.(q) ?? '/dashboard'} className={BTN_LIGNE}>
+                    Voir tout dans le module
+                  </Link>
+                )
+              }
+            >
               {c.resultats.length === 0 ? (
-                <p className="text-[12.5px] text-text-faint">Aucun résultat.</p>
+                <p className="px-[18px] py-3.5 text-[13px] text-text-muted">Aucun résultat.</p>
               ) : (
-                <ul className="space-y-1.5">
+                <ul>
                   {c.resultats.map((x) => (
-                    <li key={x.id}>
-                      <Link href={x.lien} className="block rounded px-1.5 py-1 hover:bg-bg">
-                        <span className="text-[13px] font-semibold text-ink">{x.libelle}</span>
+                    <li key={x.id} className="border-b border-[#F0F1F6] last:border-b-0">
+                      <Link href={x.lien} className="block px-[18px] py-2.5 hover:bg-[#F6F7FC]">
+                        <span className="text-[13.5px] font-semibold text-ink-900">{x.libelle}</span>
                         {x.detail && (
                           <span className="block text-[12px] text-text-muted">{x.detail}</span>
                         )}
@@ -88,15 +92,7 @@ function Resultats() {
                   ))}
                 </ul>
               )}
-              {c.autres && (
-                <Link
-                  href={ECRAN[c.cle]?.(q) ?? '/dashboard'}
-                  className="mt-2 inline-block text-[12.5px] text-ink underline"
-                >
-                  Voir tout dans le module
-                </Link>
-              )}
-            </section>
+            </Panneau>
           ))}
         </div>
       )}

@@ -45,7 +45,7 @@ async function signerActe(acteId) {
     console.log('— DRH : nomination avec poste de responsabilité');
     let p = await loginPage(b0, 'drh');
     await p.goto(`${WEB}/rh?onglet=carriere`);
-    await p.getByRole('button', { name: '+ Nouveau mouvement' }).click();
+    await p.getByRole('button', { name: 'Nouveau mouvement', exact: true }).click();
     const d = p.getByRole('dialog');
     await d.getByLabel('Agent').selectOption(a);
     await d.getByLabel('Mouvement').selectOption('NOMINATION');
@@ -72,7 +72,7 @@ async function signerActe(acteId) {
     await p.goto(`${WEB}/users?onglet=nominations`);
     const ligne = p.locator('[data-testid=nomination]', { hasText: `NUA Écran ${S}` });
     await ligne.waitFor({ timeout: 20000 });
-    check('onglet « Nominations » ouvert par le lien', (await p.getByRole('button', { name: 'Nominations' }).getAttribute('class')).includes('bg-surface'));
+    check('onglet « Nominations » ouvert par le lien', (await p.getByRole('tab', { name: 'Nominations' }).getAttribute('aria-selected')) === 'true');
     const texte = await ligne.innerText();
     check('ligne : poste, acte, actuel titulaire et rôle proposé', /Chef de Section/.test(texte) && texte.includes(`fonction « ${FONCTION} »`) && /Acte n°/.test(texte) && /Actuel titulaire : NUCHEF/.test(texte) && /Chargé d’Études/.test(texte), texte);
     check('écart affiché pour la nomination en attente', (await p.locator('[data-testid=ecart]', { hasText: `NUA Écran ${S}` }).count()) === 1);
@@ -99,10 +99,10 @@ async function signerActe(acteId) {
     check('poste vacant indiqué', /Poste vacant/.test(await ligne2.innerText()));
     check('téléphone : sans défilement horizontal', await sansDefilementHorizontal(p));
     await p.screenshot({ path: `${E.SHOTS}/nr_nominations_mobile.png`, fullPage: true });
-    await ligne2.getByRole('button', { name: 'Refuser…' }).click();
+    await ligne2.getByRole('button', { name: 'Rejeter avec un motif' }).click();
     const dr = p.getByRole('dialog');
     await dr.getByLabel(/Motif/).fill('Acte à reprendre : division erronée');
-    await dr.getByRole('button', { name: 'Refuser' }).click();
+    await dr.getByRole('button', { name: 'Rejeter', exact: true }).click();
     await p.locator('[data-testid=nominations-traitees]', { hasText: `NUB Écran ${S}` }).waitFor();
     check('refus listé avec son motif', /Acte à reprendre : division erronée/.test(await p.locator('[data-testid=nominations-traitees]').innerText()));
     check('écart désormais : fonction de chef sur un Chargé d’Études', /poste de responsabilité que le rôle du compte ne porte pas/.test(await p.locator('[data-testid=ecart]', { hasText: `NUB Écran ${S}` }).innerText()));

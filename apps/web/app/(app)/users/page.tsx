@@ -9,7 +9,8 @@ import { UsersTable } from '../../../components/users/UsersTable';
 import { PendingRegistrationsList } from '../../../components/users/PendingRegistrationsList';
 import { CreateUserModal } from '../../../components/users/CreateUserModal';
 import { ApproveRegistrationModal } from '../../../components/users/ApproveRegistrationModal';
-import { Button } from '../../../components/ui/Button';
+import { Plus } from 'lucide-react';
+import { BTN_PRINCIPAL, EnTetePage, Onglets } from '../../../components/ui/Charte';
 import { RolesFonctionnels } from '../../../components/socle/RolesFonctionnels';
 import { NominationsRole } from '../../../components/users/NominationsRole';
 import { Chargement, ErreurChargement, messageChargement } from '../../../components/ui/ErreurChargement';
@@ -47,7 +48,7 @@ export default function UsersPage() {
   if (!hasAccess) {
     return (
       <div className="py-16 text-center">
-        <h1 className="mb-2 text-[19px] font-bold">Accès non autorisé</h1>
+        <h1 className="mb-2 font-heading text-[19px] font-bold text-ink-900">Accès non autorisé</h1>
         <p className="text-[13.5px] text-text-muted">Cette page est réservée à l’Administrateur Système et à la Direction.</p>
       </div>
     );
@@ -74,45 +75,32 @@ export default function UsersPage() {
 
   return (
     <div>
+      <EnTetePage
+        titre="Utilisateurs"
+        sousTitre={allUsers ? `${activeAndSuspended.length} compte(s) actif(s) ou suspendu(s)` : undefined}
+        actions={
+          isAdmin &&
+          tab === 'all' && (
+            <button type="button" className={BTN_PRINCIPAL} onClick={() => setShowCreateModal(true)}>
+              <Plus aria-hidden size={17} /> Nouveau compte
+            </button>
+          )
+        }
+      />
       <ErreurChargement message={erreurChargement} />
-      <div className="mb-[22px] flex flex-wrap items-end justify-between gap-3.5">
-        <div>
-          <div className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-sage">Administration</div>
-          <h1 className="text-[22px] font-extrabold">Utilisateurs</h1>
-        </div>
-        {isAdmin && tab === 'all' && (
-          <Button variant="gold" onClick={() => setShowCreateModal(true)}>
-            + Nouveau compte
-          </Button>
-        )}
-      </div>
 
       {isAdmin && (
-        <div className="mb-4 flex max-w-full flex-wrap gap-0.5 rounded-md border border-line bg-bg p-0.5" style={{ width: 'fit-content' }}>
-          {(
-            [
-              { key: 'all', label: 'Tous les comptes' },
-              { key: 'pending', label: 'Inscriptions en attente' },
-              { key: 'roles', label: 'Rôles fonctionnels' },
-              { key: 'nominations', label: 'Nominations' },
-            ] as const
-          ).map((option) => (
-            <button
-              key={option.key}
-              onClick={() => setTab(option.key)}
-              className={`rounded-[6px] px-4 py-1.5 text-[12.5px] font-semibold ${
-                tab === option.key ? 'bg-surface text-ink shadow-sm' : 'text-text-muted'
-              }`}
-            >
-              {option.label}
-              {option.key === 'pending' && (pendingUsers?.length ?? 0) > 0 && (
-                <span className="ml-1.5 rounded-full bg-clay px-1.5 py-0.5 text-[10px] font-bold text-white">
-                  {pendingUsers?.length}
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
+        <Onglets
+          label="Utilisateurs"
+          actif={tab}
+          onChange={setTab}
+          onglets={[
+            { cle: 'all', label: 'Tous les comptes' },
+            { cle: 'pending', label: 'Inscriptions en attente', n: pendingUsers?.length ?? null, chaud: true },
+            { cle: 'roles', label: 'Rôles fonctionnels' },
+            { cle: 'nominations', label: 'Nominations' },
+          ]}
+        />
       )}
 
       {tab === 'nominations' && isAdmin ? (

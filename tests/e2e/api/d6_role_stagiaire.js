@@ -20,6 +20,8 @@ const OUVERTES = new Set([
   'GET /org/divisions/:divisionId/sections', 'GET /org/sections/:id', 'GET /suppleances/mine',
   // Refonte de l'interface : compteurs du menu (ses tâches et ses messages seulement).
   'GET /api/v1/navigation',
+  // Refonte de l'interface (étape 6) : fiche de l'interlocuteur d'une conversation (filtrée par ses droits).
+  'GET /api/v1/messages/avec/:userId/contexte',
 ]);
 // Socle N5 : fils de discussion et préférences de notification ouverts aux stagiaires.
 const CLASSES_OUVERTES = ['/auth', '/messages', '/notifications', '/personnel-files', '/stages', '/aide', '/api/v1/fils', '/api/v1/notifications/preferences'];

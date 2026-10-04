@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useAuth } from '../../../../lib/auth/AuthProvider';
 import { PanneauCompteurs, PanneauHabilitations, PanneauRegistres } from '../../../../components/courrier/Administration';
+import { EnTetePage, Onglets } from '../../../../components/ui/Charte';
 
 type Onglet = 'registres' | 'habilitations' | 'compteurs';
 const ONGLETS: { cle: Onglet; libelle: string }[] = [
@@ -28,26 +29,8 @@ export default function AdministrationCourrierPage() {
 
   return (
     <div>
-      <div className="mb-[22px]">
-        <div className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-sage">Administration</div>
-        <h1 className="text-[22px] font-extrabold">Courrier — paramétrage</h1>
-        <p className="mt-1 max-w-[680px] text-[13px] text-text-muted">Registres et gabarits de numérotation, habilitations du secrétariat, compteurs.</p>
-      </div>
-      <div role="tablist" className="-mx-4 mb-5 flex gap-2 overflow-x-auto px-4 pb-1 md:mx-0 md:px-0">
-        {ONGLETS.map((o) => (
-          <button
-            key={o.cle}
-            role="tab"
-            aria-selected={onglet === o.cle}
-            onClick={() => setOnglet(o.cle)}
-            className={`flex-shrink-0 whitespace-nowrap rounded-full border px-4 py-2 text-[13px] font-semibold ${
-              onglet === o.cle ? 'border-ink bg-ink text-white' : 'border-line bg-surface text-text-muted hover:text-ink'
-            }`}
-          >
-            {o.libelle}
-          </button>
-        ))}
-      </div>
+      <EnTetePage titre="Courrier — paramétrage" sousTitre="Registres et gabarits de numérotation, habilitations du secrétariat, compteurs" />
+      <Onglets label="Paramétrage du courrier" onglets={ONGLETS.map((o) => ({ cle: o.cle, label: o.libelle }))} actif={onglet} onChange={setOnglet} />
       {onglet === 'registres' && <PanneauRegistres />}
       {onglet === 'habilitations' && <PanneauHabilitations />}
       {onglet === 'compteurs' && <PanneauCompteurs />}

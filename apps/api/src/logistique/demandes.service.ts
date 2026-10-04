@@ -162,12 +162,13 @@ export class DemandesLogistiqueService {
       where: { demandeurId: actor.id, statut: { in: [S.A_VALIDER, S.A_TRAITER, S.EN_TRAITEMENT] } },
     });
     const aTraiter = gestionnaire ? await this.prisma.demandeLogistique.count({ where: { statut: S.A_TRAITER } }) : 0;
-    const stockBas = gestionnaire
-      ? (await this.prisma.articleFourniture.findMany({ where: { suiviStock: true, actif: true, seuilAlerte: { not: null } }, select: { stock: true, seuilAlerte: true } })).filter(
+    const sousSeuil = gestionnaire
+      ? (await this.prisma.articleFourniture.findMany({ where: { suiviStock: true, actif: true, seuilAlerte: { not: null } }, select: { libelle: true, stock: true, seuilAlerte: true }, orderBy: { libelle: 'asc' } })).filter(
           (a) => a.stock < (a.seuilAlerte ?? 0),
-        ).length
-      : 0;
-    return { gestionnaire, aValider, aTraiter, stockBas, mesDemandesEnCours: enCours };
+        )
+      : [];
+    // Refonte de l'interface (étape 7) : libellés des premiers articles sous le seuil (bande de compteurs du gestionnaire).
+    return { gestionnaire, aValider, aTraiter, stockBas: sousSeuil.length, stockBasLibelles: sousSeuil.slice(0, 3).map((a) => a.libelle), mesDemandesEnCours: enCours };
   }
 
   // ------------------------------------------------------------ Circuit

@@ -1,7 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { getOngletsRh } from '../../../lib/api/rh';
+import { exporterEffectifs, getAlertesRh, getOngletsRh } from '../../../lib/api/rh';
+import type { AlerteRh, TypeAlerteRh } from '../../../lib/rh/types';
+import { FileSpreadsheet } from 'lucide-react';
 import { Chargement, ErreurChargement, messageChargement } from '../../../components/ui/ErreurChargement';
 import { OngletEffectifs } from '../../../components/rh/OngletEffectifs';
 import { OngletAlertes } from '../../../components/rh/OngletAlertes';
@@ -9,6 +11,7 @@ import { OngletCarriere } from '../../../components/rh/OngletCarriere';
 import { OngletFiches } from '../../../components/rh/OngletFiches';
 import { OngletFormation } from '../../../components/rh/OngletFormation';
 import { OngletPieces } from '../../../components/rh/OngletPieces';
+import { BTN_SECONDAIRE, EnTetePage, Onglets } from '../../../components/ui/Charte';
 
 type Cle = 'effectifs' | 'alertes' | 'carriere' | 'fiches' | 'formation' | 'pieces';
 const LIBELLES: Record<Cle, string> = {
@@ -26,6 +29,9 @@ export default function RhPage() {
   const [onglet, setOnglet] = useState<Cle>('carriere');
   const [userId, setUserId] = useState<string | undefined>(undefined);
   const [erreur, setErreur] = useState<string | null>(null);
+  // Alertes (DRH seul, selon l'onglet renvoyé par l'API) : compteur de l'onglet et panneau des effectifs.
+  const [alertes, setAlertes] = useState<AlerteRh[] | null>(null);
+  const [typeAlerte, setTypeAlerte] = useState<TypeAlerteRh | ''>('');
 
   useEffect(() => {
     const p = new URLSearchParams(window.location.search);
@@ -34,6 +40,7 @@ export default function RhPage() {
     getOngletsRh()
       .then((o) => {
         setOnglets(o);
+        if (o.alertes) getAlertesRh().then(setAlertes).catch((e) => setErreur(messageChargement(e)));
         const ouverts = (Object.keys(LIBELLES) as Cle[]).filter((c) => o[c]);
         setOnglet(demande && o[demande] ? demande : ouverts[0] ?? 'carriere');
       })
@@ -43,39 +50,50 @@ export default function RhPage() {
   if (!onglets) {
     return (
       <div>
+        <EnTetePage titre="Ressources humaines" />
         <ErreurChargement message={erreur} />
         <Chargement erreur={erreur} />
       </div>
     );
   }
   const visibles = (Object.keys(LIBELLES) as Cle[]).filter((c) => onglets[c]);
+  const ouvrir = (c: Cle) => {
+    setOnglet(c);
+    window.history.replaceState(null, '', `/rh?onglet=${c}`);
+  };
   return (
-    <div className="max-w-[1080px]">
-      <div className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-sage">Personnel</div>
-      <h1 className="mb-1 text-[22px] font-extrabold">Ressources humaines</h1>
-      <p className="mb-5 text-[13px] text-text-muted">
-        Effectifs et alertes calculés à partir des dossiers, jamais saisis ; mouvements de carrière portés par un acte numéroté du
-        Courrier et appliqués au dossier à sa signature.
-      </p>
+    <div>
+      <EnTetePage
+        titre="Ressources humaines"
+        actions={
+          onglet === 'effectifs' && (
+            <button type="button" className={BTN_SECONDAIRE} onClick={() => void exporterEffectifs().catch((e) => setErreur(messageChargement(e)))}>
+              <FileSpreadsheet aria-hidden size={16} />
+              Exporter
+            </button>
+          )
+        }
+      />
       <ErreurChargement message={erreur} />
-      <div role="tablist" aria-label="Rubriques des ressources humaines" className="mb-4 flex w-fit max-w-full flex-wrap gap-0.5 rounded-md border border-line bg-bg p-0.5">
-        {visibles.map((c) => (
-          <button
-            key={c}
-            role="tab"
-            aria-selected={onglet === c}
-            onClick={() => {
-              setOnglet(c);
-              window.history.replaceState(null, '', `/rh?onglet=${c}`);
-            }}
-            className={`rounded-[6px] px-4 py-1.5 text-[12.5px] font-semibold ${onglet === c ? 'bg-surface text-ink shadow-sm' : 'text-text-muted'}`}
-          >
-            {LIBELLES[c]}
-          </button>
-        ))}
-      </div>
-      {onglet === 'effectifs' && <OngletEffectifs />}
-      {onglet === 'alertes' && <OngletAlertes />}
+      <Onglets
+        label="Rubriques des ressources humaines"
+        actif={onglet}
+        onChange={(c) => {
+          setTypeAlerte('');
+          ouvrir(c);
+        }}
+        onglets={visibles.map((c) => ({ cle: c, label: LIBELLES[c], ...(c === 'alertes' ? { n: alertes?.length ?? null, chaud: true } : {}) }))}
+      />
+      {onglet === 'effectifs' && (
+        <OngletEffectifs
+          alertes={onglets.alertes ? alertes ?? [] : null}
+          onVoirAlertes={(t) => {
+            setTypeAlerte(t);
+            ouvrir('alertes');
+          }}
+        />
+      )}
+      {onglet === 'alertes' && <OngletAlertes typeInitial={typeAlerte} />}
       {onglet === 'carriere' && <OngletCarriere userId={userId} voirFamilles={onglets.familles} />}
       {onglet === 'fiches' && <OngletFiches />}
       {onglet === 'formation' && <OngletFormation />}

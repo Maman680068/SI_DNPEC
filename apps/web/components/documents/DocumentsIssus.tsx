@@ -5,9 +5,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../../lib/auth/AuthProvider';
 import { getDocuments } from '../../lib/api/documents';
 import type { DnpecDocument, TypeDocument } from '../../lib/documents/types';
-import { STATUT_LABEL, STATUT_TON, TYPE_DOCUMENT_LABEL } from '../../lib/documents/types';
-import { Badge } from '../ui/Badge';
-import { Button } from '../ui/Button';
+import { STATUT_LABEL, STATUT_PASTILLE, TYPE_DOCUMENT_LABEL } from '../../lib/documents/types';
+import { BTN_LIGNE, IconeFichier, Pastille } from '../ui/Charte';
 import { messageChargement } from '../ui/ErreurChargement';
 import { UploadDocumentModal } from './UploadDocumentModal';
 
@@ -29,26 +28,31 @@ export function DocumentsIssus({ source }: { source: { tacheId?: string; reunion
   }, [charger]);
 
   return (
-    <div className="mb-[22px]" data-testid="documents-issus">
-      <div className="mb-2.5 flex items-center justify-between gap-2">
-        <div className="text-xs font-bold uppercase tracking-wide text-text-muted">Documents issus{docs ? ` (${docs.length})` : ''}</div>
+    <section className="mb-[18px]" data-testid="documents-issus">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <h3 className="flex items-center gap-2 text-[13px] font-bold text-ink-900">
+          Documents issus {docs && <span className="font-semibold text-text-faint">{docs.length}</span>}
+        </h3>
         {(user?.divisionId || user?.celluleId) && (
-          <Button variant="outline" className="!px-3 !py-1 !text-[12px]" onClick={() => setDepot(true)}>
+          <button type="button" className={BTN_LIGNE} onClick={() => setDepot(true)}>
             Déposer un document
-          </Button>
+          </button>
         )}
       </div>
       {erreur && <p className="text-[12.5px] text-clay">{erreur}</p>}
       {docs && docs.length === 0 && <p className="text-[12.5px] text-text-faint">Aucun document déposé depuis cet écran.</p>}
       <ul className="space-y-1.5">
         {docs?.map((d) => (
-          <li key={d.id} className="flex items-center justify-between gap-2 rounded-md border border-line px-3 py-2 text-[13px]">
-            <Link href={`/documents?id=${d.id}`} className="min-w-0 truncate font-semibold text-accent">
-              {d.title}
-            </Link>
-            <span className="flex flex-shrink-0 gap-1">
-              <Badge>{TYPE_DOCUMENT_LABEL[d.typeDocument]}</Badge>
-              <Badge tone={STATUT_TON[d.statutDiffusion]}>{STATUT_LABEL[d.statutDiffusion]}</Badge>
+          <li key={d.id} className="flex flex-wrap items-center justify-between gap-2 rounded-[9px] border border-line px-3 py-2 text-[13px]">
+            <span className="flex min-w-0 items-center gap-2.5">
+              <IconeFichier nom={d.currentVersion?.fileName ?? d.title} />
+              <Link href={`/documents?id=${d.id}`} className="min-w-0 truncate font-semibold text-ink-900 hover:underline">
+                {d.title}
+              </Link>
+            </span>
+            <span className="flex flex-shrink-0 items-center gap-1.5">
+              <span className="text-[12px] text-text-muted">{TYPE_DOCUMENT_LABEL[d.typeDocument]}</span>
+              <Pastille ton={STATUT_PASTILLE[d.statutDiffusion]}>{STATUT_LABEL[d.statutDiffusion]}</Pastille>
             </span>
           </li>
         ))}
@@ -66,6 +70,6 @@ export function DocumentsIssus({ source }: { source: { tacheId?: string; reunion
           }}
         />
       )}
-    </div>
+    </section>
   );
 }

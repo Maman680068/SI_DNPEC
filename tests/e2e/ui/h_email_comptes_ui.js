@@ -30,7 +30,7 @@ async function inscrire(adresse, prenom) {
   console.log('— Rejet avec motif');
   const a = await loginPage(b, 'admin');
   await a.goto(`${WEB}/users`);
-  await a.getByRole('button', { name: 'Inscriptions en attente' }).click();
+  await a.getByRole('tab', { name: /^Inscriptions en attente/ }).click();
   const carte = (adresse) => a.locator('div').filter({ hasText: adresse }).filter({ has: a.getByRole('button', { name: 'Rejeter' }) }).last();
   await carte(eRejet).getByRole('button', { name: 'Rejeter' }).click();
   await a.getByRole('heading', { name: 'Rejeter l’inscription' }).waitFor();
@@ -60,14 +60,14 @@ async function inscrire(adresse, prenom) {
 
   console.log('— Création d’un compte');
   await a.goto(`${WEB}/users`);
-  await a.getByRole('button', { name: '+ Nouveau compte' }).click();
+  await a.getByRole('button', { name: 'Nouveau compte', exact: true }).click();
   check('fenêtre de création : mention du lien de choix du mot de passe', (await a.getByText('un lien pour choisir son propre mot de passe (valable 7 jours)').count()) === 1);
   await a.context().close();
 
   console.log('— Mobile');
   const m = await loginPage(b, 'admin', { width: 390, height: 844 });
   await m.goto(`${WEB}/users`);
-  await m.getByRole('button', { name: 'Inscriptions en attente' }).click();
+  await m.getByRole('tab', { name: /^Inscriptions en attente/ }).click();
   await m.locator('div').filter({ hasText: eMobile }).filter({ has: m.getByRole('button', { name: 'Rejeter' }) }).last().getByRole('button', { name: 'Rejeter' }).click();
   await m.getByRole('heading', { name: 'Rejeter l’inscription' }).waitFor();
   check('mobile : fenêtre de rejet sans défilement horizontal', (await m.evaluate(() => document.documentElement.scrollWidth)) <= 390);

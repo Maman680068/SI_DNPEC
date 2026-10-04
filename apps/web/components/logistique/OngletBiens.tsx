@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { FileSpreadsheet, Plus } from 'lucide-react';
 import { searchUsers } from '../../lib/api/org';
 import { affecterBien, changerEtatBien, creerBien, exporterInventaire, getBien, getBiens, getCategories, modifierBien, retourBien } from '../../lib/api/logistique';
 import type { BasicUserInfo } from '../../lib/org/types';
@@ -9,11 +10,11 @@ import { ETAT_LABEL } from '../../lib/logistique/types';
 import { Erreur, Fenetre, SELECT_CLASS, TEXTAREA_CLASS } from '../courrier/ui';
 import { ChoixUnite } from '../stages/FenetresStage';
 import { ErreurChargement, messageChargement } from '../ui/ErreurChargement';
-import { Badge } from '../ui/Badge';
-import { Button } from '../ui/Button';
-import { Champ, Info, Panneau, Vide, dateCourte, dateHeure, nom, useAction } from './commun';
+import { BTN_PRINCIPAL, BTN_SECONDAIRE, BarreOutils, CleValeur, EtatVide, SectionFenetre, FiltreSelect, LigneTableau, Pastille, Recherche, Tableau, type TonPastille } from '../ui/Charte';
+import { Champ, Info, Panneau, dateCourte, dateHeure, nom, useAction } from './commun';
 
-const TON: Record<EtatBien, 'sage' | 'clay' | 'gold' | 'muted'> = { EN_SERVICE: 'sage', EN_PANNE: 'clay', EN_REPARATION: 'gold', REFORME: 'muted' };
+const TON: Record<EtatBien, TonPastille> = { EN_SERVICE: 'vert', EN_PANNE: 'rouge', EN_REPARATION: 'ambre', REFORME: 'gris' };
+const GRILLE = 'lg:grid-cols-[150px_minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_120px]';
 const MOUVEMENT: Record<TypeMouvementBien, string> = {
   ACQUISITION: 'Entrée à l’inventaire',
   AFFECTATION: 'Affectation',
@@ -73,57 +74,47 @@ export function OngletBiens({ gestionnaire, ouvrirId, onSignaler }: { gestionnai
     <div data-testid="onglet-biens">
       <ErreurChargement message={erreur} />
       <Info message={info} />
-      <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
-        <div className="flex flex-wrap gap-2">
-          <input aria-label="Rechercher un bien" placeholder="N°, désignation, série…" className={`${SELECT_CLASS} !w-56`} value={f.q} onChange={(e) => setF({ ...f, q: e.target.value })} />
-          <select aria-label="Catégorie" className={`${SELECT_CLASS} !w-auto`} value={f.categorieId} onChange={(e) => setF({ ...f, categorieId: e.target.value })}>
-            <option value="">Toutes catégories</option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.libelle}
-              </option>
-            ))}
-          </select>
-          <select aria-label="État" className={`${SELECT_CLASS} !w-auto`} value={f.etat} onChange={(e) => setF({ ...f, etat: e.target.value })}>
-            <option value="">Tous états</option>
-            {(Object.keys(ETAT_LABEL) as EtatBien[]).map((e) => (
-              <option key={e} value={e}>
-                {ETAT_LABEL[e]}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="flex gap-2">
-          <Button onClick={() => void exporterInventaire({ q: f.q.trim() || undefined, categorieId: f.categorieId || undefined, etat: f.etat || undefined })}>Exporter</Button>
-          {gestionnaire && (
-            <Button variant="gold" onClick={() => setCreation(true)}>
-              + Nouveau bien
-            </Button>
-          )}
-        </div>
-      </div>
-      {!liste ? null : liste.length === 0 ? (
-        <Vide>{gestionnaire ? 'Aucun bien.' : 'Aucun bien affecté à vous ou à votre unité.'}</Vide>
-      ) : (
-        <ul className="divide-y divide-line overflow-hidden rounded-lg border border-line bg-surface">
-          {liste.map((b) => (
-            <li key={b.id}>
-              <button type="button" onClick={() => ouvrir(b.id)} className="flex w-full flex-wrap items-center justify-between gap-2 px-4 py-3 text-left hover:bg-bg" data-testid="ligne-bien">
-                <div className="min-w-0">
-                  <div className="text-[14px] font-semibold">
-                    <span className="font-mono text-[12.5px]">{b.numeroInventaire}</span> — {b.designation}
-                  </div>
-                  <div className="text-[12.5px] text-text-muted">
-                    {b.categorie.libelle}
-                    {b.affectation ? ` · ${b.affectation.libelle}` : ' · non affecté'}
-                    {b.emplacement ? ` · ${b.emplacement}` : ''}
-                  </div>
-                </div>
-                <Badge tone={TON[b.etat]}>{ETAT_LABEL[b.etat]}</Badge>
+      <BarreOutils
+        droite={
+          <>
+            <button type="button" className={BTN_SECONDAIRE} onClick={() => void exporterInventaire({ q: f.q.trim() || undefined, categorieId: f.categorieId || undefined, etat: f.etat || undefined })}>
+              <FileSpreadsheet aria-hidden size={16} />
+              Exporter
+            </button>
+            {gestionnaire && (
+              <button type="button" className={BTN_PRINCIPAL} onClick={() => setCreation(true)}>
+                <Plus aria-hidden size={17} />
+                Nouveau bien
               </button>
-            </li>
+            )}
+          </>
+        }
+      >
+        <Recherche value={f.q} onChange={(q) => setF({ ...f, q })} placeholder="N°, désignation, série…" label="Rechercher un bien" />
+        <FiltreSelect label="Catégorie" value={f.categorieId} defaut="" onChange={(categorieId) => setF({ ...f, categorieId })} options={[{ value: '', label: 'Catégorie : toutes' }, ...categories.map((c) => ({ value: c.id, label: c.libelle }))]} />
+        <FiltreSelect label="État" value={f.etat} defaut="" onChange={(etat) => setF({ ...f, etat })} options={[{ value: '', label: 'État : tous' }, ...(Object.keys(ETAT_LABEL) as EtatBien[]).map((e) => ({ value: e, label: ETAT_LABEL[e] }))]} />
+      </BarreOutils>
+      {!liste ? null : (
+        <Tableau
+          label={gestionnaire ? 'Inventaire des biens' : 'Mes biens'}
+          grille={GRILLE}
+          colonnes={['N° d’inventaire', 'Désignation', 'Catégorie', 'Affecté à', 'État']}
+          vide={<EtatVide texte={gestionnaire ? 'Aucun bien.' : 'Aucun bien affecté à vous ou à votre unité.'} />}
+          pied={`${liste.length} bien${liste.length > 1 ? 's' : ''}`}
+        >
+          {liste.map((b) => (
+            <LigneTableau key={b.id} grille={GRILLE} onClick={() => ouvrir(b.id)} testid="ligne-bien" label={`${b.numeroInventaire} — ${b.designation}`}>
+              <span className="font-mono text-[12.5px] text-ink">{b.numeroInventaire}</span>
+              <span className="block font-semibold">
+                {b.designation}
+                {b.emplacement && <span className="block text-[12px] font-normal text-text-muted">{b.emplacement}</span>}
+              </span>
+              <span className="block truncate text-[12.5px] text-text-muted">{b.categorie.libelle}</span>
+              <span className="block truncate">{b.affectation ? b.affectation.libelle : <span className="text-text-muted">Non affecté</span>}</span>
+              <Pastille ton={TON[b.etat]}>{ETAT_LABEL[b.etat]}</Pastille>
+            </LigneTableau>
           ))}
-        </ul>
+        </Tableau>
       )}
       {ouvert && (
         <FicheBienPanneau
@@ -220,55 +211,69 @@ function FicheBienPanneau({ bien: b, onClose, onChange, onSignaler }: { bien: Fi
   if (action === 'etat') return <FenetreEtat bien={b} onClose={() => setAction(null)} onDone={fini} />;
   if (action === 'modifier') return <FenetreModifierBien bien={b} onClose={() => setAction(null)} onDone={fini} />;
   return (
-    <Panneau titre={`${b.numeroInventaire} — ${b.designation}`} sousTitre={`${b.categorie.libelle} · ${ETAT_LABEL[b.etat]}`} onClose={onClose} testid="fiche-bien">
-      <dl className="mb-3 grid grid-cols-[120px_1fr] gap-y-1 text-[13px]">
-        <dt className="text-text-muted">Affecté à</dt>
-        <dd>{b.affectation ? `${b.affectation.libelle} (depuis le ${dateCourte(b.affectation.debut)})` : 'Personne'}</dd>
-        {b.marque && (
-          <>
-            <dt className="text-text-muted">Marque</dt>
-            <dd>{b.marque}</dd>
-          </>
-        )}
-        {b.numeroSerie && (
-          <>
-            <dt className="text-text-muted">N° de série</dt>
-            <dd>{b.numeroSerie}</dd>
-          </>
-        )}
-        {b.emplacement && (
-          <>
-            <dt className="text-text-muted">Emplacement</dt>
-            <dd>{b.emplacement}</dd>
-          </>
-        )}
-        {b.dateAcquisition && (
-          <>
-            <dt className="text-text-muted">Acquis le</dt>
-            <dd>{dateCourte(b.dateAcquisition)}</dd>
-          </>
-        )}
-      </dl>
-      <div className="mb-4 flex flex-wrap justify-end gap-2">
-        {b.droits.signalerPanne && <Button onClick={onSignaler}>Signaler une panne</Button>}
-        {b.droits.modifier && <Button onClick={() => setAction('modifier')}>Modifier</Button>}
-        {b.droits.changerEtat && <Button onClick={() => setAction('etat')}>Changer l’état</Button>}
-        {b.droits.retour && <Button onClick={() => setAction('retour')}>Retour</Button>}
-        {b.droits.affecter && (
-          <Button variant="gold" onClick={() => setAction('affecter')}>
-            {b.affectation ? 'Réaffecter' : 'Affecter'}
-          </Button>
-        )}
-      </div>
-      <h3 className="mb-1.5 text-[13px] font-bold">Historique</h3>
-      <ol className="border-l-2 border-line pl-3 text-[12.5px]" data-testid="historique-bien">
-        {b.historique.map((m) => (
-          <li key={m.id} className="mb-1">
-            <span className="text-text-muted">{dateHeure(m.createdAt)}</span> — <strong>{MOUVEMENT[m.type]}</strong> {detail(m.type, m.detail)}{' '}
-            <span className="text-text-faint">({nom(m.par)})</span>
-          </li>
-        ))}
-      </ol>
+    <Panneau
+      titre={`${b.numeroInventaire} — ${b.designation}`}
+      filAriane={['Logistique', 'Inventaire', b.categorie.libelle]}
+      sousTitre={<Pastille ton={TON[b.etat]}>{ETAT_LABEL[b.etat]}</Pastille>}
+      onClose={onClose}
+      testid="fiche-bien"
+      cote={
+        <>
+          <div className="mb-[18px] grid gap-2">
+            {b.droits.affecter && (
+              <button type="button" className={`${BTN_PRINCIPAL} w-full`} onClick={() => setAction('affecter')}>
+                {b.affectation ? 'Réaffecter' : 'Affecter'}
+              </button>
+            )}
+            {b.droits.retour && (
+              <button type="button" className={`${BTN_SECONDAIRE} w-full`} onClick={() => setAction('retour')}>
+                Retour
+              </button>
+            )}
+            {b.droits.changerEtat && (
+              <button type="button" className={`${BTN_SECONDAIRE} w-full`} onClick={() => setAction('etat')}>
+                Changer l’état
+              </button>
+            )}
+            {b.droits.modifier && (
+              <button type="button" className={`${BTN_SECONDAIRE} w-full`} onClick={() => setAction('modifier')}>
+                Modifier
+              </button>
+            )}
+            {b.droits.signalerPanne && (
+              <button type="button" className={`${BTN_SECONDAIRE} w-full`} onClick={onSignaler}>
+                Signaler une panne
+              </button>
+            )}
+          </div>
+          <SectionFenetre titre="Informations" className="">
+            <CleValeur
+              largeur={96}
+              lignes={
+                [
+                  ['Affecté à', b.affectation ? `${b.affectation.libelle} (depuis le ${dateCourte(b.affectation.debut)})` : 'Personne'],
+                  ['Catégorie', b.categorie.libelle],
+                  b.marque ? ['Marque', b.marque] : null,
+                  b.numeroSerie ? ['N° de série', b.numeroSerie] : null,
+                  b.emplacement ? ['Emplacement', b.emplacement] : null,
+                  b.dateAcquisition ? ['Acquis le', dateCourte(b.dateAcquisition)] : null,
+                ].filter(Boolean) as [string, string][]
+              }
+            />
+          </SectionFenetre>
+        </>
+      }
+    >
+      <SectionFenetre titre="Historique" n={b.historique.length} className="">
+        <ol className="space-y-1.5 border-l-2 border-line pl-3 text-[13px]" data-testid="historique-bien">
+          {b.historique.map((m) => (
+            <li key={m.id}>
+              <span className="text-text-muted">{dateHeure(m.createdAt)}</span> — <strong className="font-semibold">{MOUVEMENT[m.type]}</strong> {detail(m.type, m.detail)}{' '}
+              <span className="text-text-muted">({nom(m.par)})</span>
+            </li>
+          ))}
+        </ol>
+      </SectionFenetre>
     </Panneau>
   );
 }

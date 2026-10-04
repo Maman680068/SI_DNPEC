@@ -249,7 +249,13 @@ export class DocumentsService {
         visibility: filters.visibility,
         folderId: filters.folderId,
         createdAt,
-        title: filters.q ? { contains: filters.q, mode: 'insensitive' } : undefined,
+        // Recherche « titre ou mot-clé » : le titre ou la description (refonte de l'interface).
+        AND: [
+          ...(filters.q ? [{ OR: [{ title: { contains: filters.q, mode: 'insensitive' as const } }, { description: { contains: filters.q, mode: 'insensitive' as const } }] }] : []),
+          // Période couverte qui chevauche les bornes demandées (documents sans période exclus dès qu'une borne est posée).
+          ...(filters.couvreDu ? [{ periodeFin: { gte: jour(filters.couvreDu) } }] : []),
+          ...(filters.couvreAu ? [{ periodeDebut: { lte: jour(filters.couvreAu) } }] : []),
+        ],
         typeDocument: filters.typeDocument,
         statutDiffusion: filters.statutDiffusion,
         sourceTaskId: filters.sourceTaskId,
@@ -258,6 +264,40 @@ export class DocumentsService {
       select: DOCUMENT_SELECT,
       orderBy: { createdAt: 'desc' },
     });
+  }
+
+  /**
+   * Synthèse de l'écran « Archives & documents » (refonte de l'interface, api/v1) : documents qui
+   * attendent la validation de l'acteur — même règle que `droits.valider`, limitée à ceux que la
+   * validation accepterait (marqués Final, métadonnées complètes), parmi ceux qu'il voit (besoin
+   * d'en connaître) — avec la personne qui les a marqués Final (journal d'audit), et nombre de
+   * documents publiés pour toute la DNPEC.
+   */
+  async synthese(actor: AuthenticatedUser) {
+    const candidats = await this.prisma.document.findMany({
+      where: { OR: this.visibilityClauses(actor), statutDiffusion: StatutDiffusion.BROUILLON, isFinal: true, periodeDebut: { not: null }, periodeFin: { not: null } },
+      select: { id: true, title: true, divisionId: true, celluleId: true, createdById: true, updatedAt: true },
+      orderBy: { updatedAt: 'desc' },
+    });
+    const aValider = candidats.filter((d) => this.estValidateur(actor, d));
+    const marquages = aValider.length
+      ? await this.prisma.auditLog.findMany({
+          where: { entityType: 'Document', entityId: { in: aValider.map((d) => d.id) }, metadata: { path: ['event'], equals: 'marked_final' } },
+          select: { entityId: true, actorId: true },
+          orderBy: { createdAt: 'asc' },
+        })
+      : [];
+    const parDocument = new Map(marquages.map((m) => [m.entityId, m.actorId]));
+    const ids = [...new Set([...parDocument.values()].filter((x): x is string => !!x))];
+    const noms = new Map((await this.prisma.user.findMany({ where: { id: { in: ids } }, select: { id: true, firstName: true, lastName: true } })).map((u) => [u.id, `${u.firstName} ${u.lastName}`]));
+    const publies = await this.prisma.document.count({ where: { visibility: DocumentVisibility.PUBLIE_DNPEC } });
+    return {
+      aValider: aValider.map((d) => {
+        const par = parDocument.get(d.id);
+        return { id: d.id, titre: d.title, divisionId: d.divisionId, celluleId: d.celluleId, marqueFinalPar: par ? noms.get(par) ?? null : null };
+      }),
+      publies,
+    };
   }
 
   async findOneVisibleTo(actor: AuthenticatedUser, id: string): Promise<DocumentWithVersion> {

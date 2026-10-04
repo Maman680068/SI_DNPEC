@@ -88,7 +88,7 @@ export function DivisionsPanel() {
   return (
     <div>
       <div className="mb-3.5 flex items-center justify-between">
-        <h2 className="text-[16px] font-extrabold">Divisions</h2>
+        <h2 className="font-heading text-[16px] font-bold text-ink-900">Divisions</h2>
         <Button variant="gold" onClick={() => setCreatingDivision(true)}>
           + Nouvelle division
         </Button>

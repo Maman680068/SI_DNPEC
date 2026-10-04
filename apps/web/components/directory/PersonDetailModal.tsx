@@ -7,7 +7,9 @@ import { useOrg } from '../../lib/org/OrgProvider';
 import type { DirectoryUser } from '../../lib/org/types';
 import type { SystemRole } from '../../lib/auth/types';
 import { ROLE_LABEL } from '../../lib/users/types';
-import { Button } from '../ui/Button';
+import { MessageSquare, Plus } from 'lucide-react';
+import { FenetreDetail } from '../ui/FenetreDetail';
+import { BTN_PRINCIPAL, BTN_SECONDAIRE, CleValeur, Initiales, SectionFenetre } from '../ui/Charte';
 import { CreateTaskModal } from '../tasks/CreateTaskModal';
 
 /** Rôles ayant potentiellement autorité hiérarchique sur autrui (voir
@@ -24,6 +26,8 @@ function initials(firstName: string, lastName: string): string {
   return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
 }
 
+/** Fiche d'une personne de l'annuaire (fenêtre deux colonnes) : informations à gauche, Message,
+ * et assignation de tâche à droite. L'annuaire n'expose ni email ni téléphone (champs non sensibles seulement). */
 export function PersonDetailModal({ person, onClose }: { person: DirectoryUser; onClose: () => void }) {
   const router = useRouter();
   const { user: currentUser } = useAuth();
@@ -49,62 +53,60 @@ export function PersonDetailModal({ person, onClose }: { person: DirectoryUser; 
     );
   }
 
+  const nom = `${person.firstName} ${person.lastName}`;
+  const fonction = person.jobTitle ?? ROLE_LABEL[person.role as keyof typeof ROLE_LABEL] ?? person.role;
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(20,26,38,0.42)] p-4" onClick={onClose}>
-      <div
-        onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-[400px] rounded-lg bg-surface p-6"
-      >
-        <div className="mb-5 flex items-center gap-3.5">
-          <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-full bg-gold text-[18px] font-bold text-ink">
-            {initials(person.firstName, person.lastName)}
-          </div>
-          <div className="min-w-0">
-            <div className="truncate text-[17px] font-bold">
-              {person.firstName} {person.lastName}
+    <FenetreDetail
+      titre={nom}
+      filAriane={['Annuaire', orgUnit || null]}
+      onClose={onClose}
+      largeur={720}
+      testid="fiche-personne"
+      cote={
+        <div>
+          {isSelf ? (
+            <p className="text-[12.5px] text-text-muted">C&apos;est votre propre fiche.</p>
+          ) : (
+            <div className="grid gap-2">
+              <button type="button" className={BTN_PRINCIPAL} onClick={() => router.push(`/communication?with=${person.id}`)}>
+                <MessageSquare aria-hidden size={16} /> Envoyer un message
+              </button>
+              {canPossiblyAssign && (
+                <button type="button" className={BTN_SECONDAIRE} onClick={() => setShowCreateTask(true)}>
+                  <Plus aria-hidden size={16} /> Assigner une tâche
+                </button>
+              )}
+              <p className="mt-1 text-[12px] text-text-muted">L’annuaire élargit la visibilité, pas les droits : l’assignation reste soumise aux règles d’autorité habituelles.</p>
             </div>
-            <div className="truncate text-[13px] text-text-muted">
-              {person.jobTitle ?? ROLE_LABEL[person.role as keyof typeof ROLE_LABEL] ?? person.role}
-            </div>
+          )}
+          <div className="mt-4 border-t border-line pt-4">
+            <CleValeur
+              largeur={96}
+              lignes={[
+                ['Rôle', ROLE_LABEL[person.role as keyof typeof ROLE_LABEL] ?? person.role],
+                ['Rattachement', orgUnit || 'Direction'],
+              ]}
+            />
           </div>
         </div>
-
-        <dl className="mb-5 space-y-2 text-[13px]">
-          {person.jobTitle && (
-            <div className="flex justify-between gap-3">
-              <dt className="text-text-faint">Rôle</dt>
-              <dd className="text-right font-medium">{ROLE_LABEL[person.role as keyof typeof ROLE_LABEL] ?? person.role}</dd>
-            </div>
-          )}
-          {orgUnit && (
-            <div className="flex justify-between gap-3">
-              <dt className="text-text-faint">Rattachement</dt>
-              <dd className="text-right font-medium">{orgUnit}</dd>
-            </div>
-          )}
-        </dl>
-
-        {isSelf ? (
-          <p className="mb-1 text-center text-[12.5px] text-text-faint">C&apos;est votre propre fiche.</p>
-        ) : (
-          <div className="flex flex-col gap-2">
-            <Button variant="solid" onClick={() => router.push(`/communication?with=${person.id}`)}>
-              Envoyer un message
-            </Button>
-            {canPossiblyAssign && (
-              <Button variant="outline" onClick={() => setShowCreateTask(true)}>
-                Assigner une tâche
-              </Button>
-            )}
-          </div>
-        )}
-
-        <div className="mt-4 flex justify-end">
-          <Button variant="outline" onClick={onClose}>
-            Fermer
-          </Button>
+      }
+    >
+      <div className="mb-[18px] flex items-center gap-3.5">
+        <Initiales texte={initials(person.firstName, person.lastName)} taille={52} />
+        <div className="min-w-0">
+          <div className="truncate text-[16px] font-bold text-ink-900">{nom}</div>
+          <div className="truncate text-[13px] text-text-muted">{fonction}</div>
         </div>
       </div>
-    </div>
+      <SectionFenetre titre="Coordonnées">
+        <CleValeur
+          lignes={[
+            ['Fonction', fonction],
+            ['Unité', orgUnit || 'Direction'],
+          ]}
+        />
+      </SectionFenetre>
+    </FenetreDetail>
   );
 }

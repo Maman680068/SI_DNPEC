@@ -1,5 +1,5 @@
 import { apiFetch, telechargerFichier } from './client';
-import type { CalendrierFeries, CreateLeaveRequestInput, JourFerie, LeaveBalanceView, LeaveRequest, LeaveType } from '../leaves/types';
+import type { CalendrierFeries, ContexteConge, CreateLeaveRequestInput, JourFerie, LeaveBalanceView, LeaveRequest, LeaveType } from '../leaves/types';
 
 export function getLeaveTypes(): Promise<LeaveType[]> {
   return apiFetch<LeaveType[]>('/leave-types');
@@ -31,6 +31,11 @@ export function rejectLeaveRequest(id: string, comment: string): Promise<LeaveRe
 
 export function cancelLeaveRequest(id: string): Promise<LeaveRequest> {
   return apiFetch<LeaveRequest>(`/leaves/${id}/cancel`, { method: 'POST' });
+}
+
+/** Contexte d'une demande (absents de l'équipe, tâches pendant l'absence, solde annuel, chef attendu). */
+export function getContexteConge(id: string): Promise<ContexteConge> {
+  return apiFetch<ContexteConge>(`/api/v1/conges/${id}/contexte`);
 }
 
 export function getMyBalances(): Promise<LeaveBalanceView[]> {

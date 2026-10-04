@@ -18,6 +18,8 @@ export function UploadDocumentModal({
   onClose,
   onCreated,
   source,
+  fichierInitial,
+  dossierLibelle,
 }: {
   /** Unité productrice : une division OU une cellule. */
   divisionId?: string | null;
@@ -26,15 +28,19 @@ export function UploadDocumentModal({
   onClose: () => void;
   onCreated: (doc: DnpecDocument) => void;
   source?: { tacheId?: string; reunionId?: string; libelle: string; type?: TypeDocument; periodeDebut?: string; periodeFin?: string };
+  /** Fichier déposé par glisser-déposer sur la liste : le formulaire s'ouvre avec lui (titre proposé). */
+  fichierInitial?: File | null;
+  /** Dossier de destination, rappelé sous le titre du formulaire. */
+  dossierLibelle?: string | null;
 }) {
-  const [title, setTitle] = useState('');
+  const [title, setTitle] = useState(fichierInitial ? fichierInitial.name.replace(/\.[^.]+$/, '') : '');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState<DocumentCategory>('AUTRE');
   const [typeDocument, setTypeDocument] = useState<TypeDocument | ''>(source?.type ?? '');
   const [dateDocument, setDateDocument] = useState(aujourdhui());
   const [periodeDebut, setPeriodeDebut] = useState(source?.periodeDebut ?? '');
   const [periodeFin, setPeriodeFin] = useState(source?.periodeFin ?? '');
-  const [file, setFile] = useState<File | null>(null);
+  const [file, setFile] = useState<File | null>(fichierInitial ?? null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -79,6 +85,8 @@ export function UploadDocumentModal({
           <p className="mb-4 text-[12.5px] text-text-muted" data-testid="source-depot">
             Issu de : {source.libelle}
           </p>
+        ) : dossierLibelle ? (
+          <p className="mb-4 text-[12.5px] text-text-muted">Dans « {dossierLibelle} »</p>
         ) : (
           <div className="mb-4" />
         )}
@@ -152,11 +160,16 @@ export function UploadDocumentModal({
 
         <div className="mb-4">
           <label htmlFor="doc-fichier" className="mb-1.5 block text-[12.5px] font-semibold text-text">Fichier</label>
+          {fichierInitial && file === fichierInitial && (
+            <p className="mb-1.5 text-[13px]" data-testid="fichier-depose">
+              <span className="font-semibold">{file.name}</span> <span className="text-text-muted">— ou choisissez un autre fichier :</span>
+            </p>
+          )}
           <input
             id="doc-fichier"
             type="file"
-            required
-            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+            required={!file}
+            onChange={(e) => setFile(e.target.files?.[0] ?? fichierInitial ?? null)}
             className="w-full text-[13px]"
           />
         </div>

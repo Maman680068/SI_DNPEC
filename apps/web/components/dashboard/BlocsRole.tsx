@@ -26,8 +26,8 @@ export function BlocsRole({ blocs }: { blocs: BlocTableau[] }) {
             {[b.sousTitre, ...(b.elements ?? []).slice(0, 3).map((e) => (e.detail ? `${e.libelle} (${e.detail})` : e.libelle))].filter(Boolean).join(' · ')}
           </p>
           {b.lien && (
-            <Link href={b.lien} aria-label={`Ouvrir : ${b.titre}`} className="hidden text-[12.5px] font-semibold text-ink hover:underline md:inline">
-              Ouvrir
+            <Link href={b.lien} aria-label={`Voir : ${b.titre}`} className="hidden text-[12.5px] font-semibold text-ink hover:underline md:inline">
+              Voir
             </Link>
           )}
         </article>

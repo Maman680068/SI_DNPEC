@@ -69,6 +69,7 @@ export function Fenetre({
         onSubmit={submit}
         onClick={(e) => e.stopPropagation()}
         role="dialog"
+        aria-modal="true"
         aria-label={titre}
         className={`max-h-[92vh] w-full overflow-y-auto rounded-t-lg bg-surface p-5 sm:rounded-lg sm:p-6 ${large ? 'sm:max-w-[620px]' : 'sm:max-w-[480px]'}`}
       >

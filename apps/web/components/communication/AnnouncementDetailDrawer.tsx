@@ -6,7 +6,8 @@ import { useOrg } from '../../lib/org/OrgProvider';
 import { getAnnouncementReads, markAnnouncementRead } from '../../lib/api/communication';
 import type { Announcement, AnnouncementReadReceipt } from '../../lib/communication/types';
 import { SCOPE_LABEL } from '../../lib/communication/types';
-import { Badge } from '../ui/Badge';
+import { CleValeur, Pastille, SectionFenetre } from '../ui/Charte';
+import { TON_PORTEE } from './AnnouncementList';
 import { Chargement, ErreurChargement, messageChargement } from '../ui/ErreurChargement';
 import { FenetreDetail } from '../ui/FenetreDetail';
 
@@ -43,47 +44,57 @@ export function AnnouncementDetailDrawer({
     }
   }, [announcement.id]);
 
+  const auteur = announcement.authorId === currentUser?.id ? 'Vous' : getUserLabel(announcement.authorId);
+
   return (
-    <FenetreDetail titre={announcement.title} onClose={onClose} sansEntete largeur={720}>
-        <div className="mb-4 flex items-start justify-between">
-          <Badge tone="accent">{SCOPE_LABEL[announcement.scope]}</Badge>
-          <button onClick={onClose} aria-label="Fermer" className="flex h-[30px] w-[30px] items-center justify-center rounded-md bg-bg text-text-muted">
-            ✕
-          </button>
-        </div>
-
-        <h2 className="mb-1.5 text-[19px] font-semibold leading-snug">{announcement.title}</h2>
-        <p className="mb-5 text-[12px] text-text-faint">
-          Par {announcement.authorId === currentUser?.id ? 'vous' : getUserLabel(announcement.authorId)} ·{' '}
-          {formatDateTime(announcement.createdAt)}
-        </p>
-
-        <div className="mb-6 whitespace-pre-wrap rounded-md bg-bg p-3.5 text-[13.5px] leading-relaxed">
-          {announcement.body}
-        </div>
-
-        {canSeeReads && (
-          <div>
-            <div className="mb-2.5 text-xs font-bold uppercase tracking-wide text-text-muted">
-              Lue par {reads?.length ?? '…'} personne{reads && reads.length > 1 ? 's' : ''}
-            </div>
-            <ErreurChargement message={erreurChargement} />
-            {reads === null ? (
-              <Chargement erreur={erreurChargement} className="text-[13px] text-text-muted" />
-            ) : reads.length === 0 ? (
-              <p className="text-[13px] text-text-faint">Personne n&apos;a encore lu cette annonce.</p>
-            ) : (
-              <ul className="space-y-1.5">
-                {reads.map((read) => (
-                  <li key={read.id} className="flex items-center justify-between text-[13px]">
-                    <span>{getUserLabel(read.userId)}</span>
-                    <span className="text-[11px] text-text-faint">{formatDateTime(read.readAt)}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        )}
+    <FenetreDetail
+      titre={announcement.title}
+      onClose={onClose}
+      largeur={860}
+      filAriane={['Communication', 'Annonces']}
+      testid="fenetre-annonce"
+      cote={
+        <>
+          <SectionFenetre titre="Actions">
+            <p className="text-[12.5px] leading-snug text-text-muted">
+              {announcement.authorId === currentUser?.id
+                ? 'Votre annonce est diffusée à sa portée ; le suivi de lecture se met à jour à chaque ouverture.'
+                : 'Aucune action attendue : l’annonce est marquée lue à son ouverture.'}
+            </p>
+          </SectionFenetre>
+          <SectionFenetre titre="Informations">
+            <CleValeur
+              largeur={90}
+              lignes={[
+                ['Portée', <Pastille key="p" ton={TON_PORTEE[announcement.scope]}>{SCOPE_LABEL[announcement.scope]}</Pastille>],
+                ['Auteur', auteur],
+                ['Publiée le', formatDateTime(announcement.createdAt)],
+              ]}
+            />
+          </SectionFenetre>
+          {canSeeReads && (
+            <SectionFenetre titre={`Lue par ${reads?.length ?? '…'} personne${reads && reads.length > 1 ? 's' : ''}`} className="mb-0">
+              <ErreurChargement message={erreurChargement} />
+              {reads === null ? (
+                <Chargement erreur={erreurChargement} className="text-[13px] text-text-muted" />
+              ) : reads.length === 0 ? (
+                <p className="text-[13px] text-text-muted">Personne n’a encore lu cette annonce.</p>
+              ) : (
+                <ul className="space-y-1.5" data-testid="lectures-annonce">
+                  {reads.map((read) => (
+                    <li key={read.id} className="flex items-center justify-between gap-2 text-[13px]">
+                      <span className="min-w-0 truncate">{getUserLabel(read.userId)}</span>
+                      <span className="flex-none text-[11.5px] text-text-muted">{formatDateTime(read.readAt)}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </SectionFenetre>
+          )}
+        </>
+      }
+    >
+      <div className="whitespace-pre-wrap text-[14px] leading-relaxed text-text">{announcement.body}</div>
     </FenetreDetail>
   );
 }

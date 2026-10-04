@@ -1,4 +1,5 @@
-// C2 — tableau de bord courrier = décompte des listes par les droits affichés (ce que montre « À faire »).
+// C2 — tableau de bord courrier = décompte des listes par les droits affichés (ce que montre « À faire »)
+// et, pour la bande de compteurs de la page, par statut des mêmes listes visibles (jamais plus).
 const E = require('../config');
 const { call, upload, ids, check, bilan } = require('../lib');
 const reg = require(E.etat('registres.json'));
@@ -37,8 +38,13 @@ async function suppleance(titulaire, suppleant) {
       aExpedier: act.filter((x) => x.droits.expedier).length,
       priseDeConnaissance: act.filter((x) => x.droits.prendreConnaissance).length,
       brouillons: act.filter((x) => x.droits.modifier).length,
+      // Bande de compteurs de la page (vue du registre) : statuts des mêmes listes visibles.
+      arriveesEnAttente: arr.filter((x) => x.statut === 'ENREGISTRE').length,
+      visasEnCours: act.filter((x) => x.statut === 'EN_VISA').length,
+      actesASigner: act.filter((x) => x.statut === 'A_SIGNER').length,
+      actesAExpedier: act.filter((x) => x.statut === 'SIGNE').length,
     };
-    check(`${a.label} : tableau de bord = listes filtrées par les droits`, JSON.stringify(tb) === JSON.stringify(calc), JSON.stringify(tb));
+    check(`${a.label} : tableau de bord = listes filtrées par les droits (et statuts des listes visibles)`, JSON.stringify(tb) === JSON.stringify(calc), JSON.stringify(tb));
   }
   process.exit(bilan() ? 1 : 0);
 })().catch((e) => { console.error(e); process.exit(2); });

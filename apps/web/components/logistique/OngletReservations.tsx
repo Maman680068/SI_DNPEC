@@ -1,6 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { Plus } from 'lucide-react';
 import {
   annulerReservation,
   creerRessource,
@@ -17,17 +18,32 @@ import type { Disponibilite, ModeReservation, Reservation, Ressource, StatutRese
 import { MODE_LABEL, STATUT_RESERVATION_LABEL, TYPE_RESSOURCE_LABEL } from '../../lib/logistique/types';
 import { Erreur, Fenetre, SELECT_CLASS, TEXTAREA_CLASS } from '../courrier/ui';
 import { ErreurChargement, messageChargement } from '../ui/ErreurChargement';
-import { Badge } from '../ui/Badge';
-import { Button } from '../ui/Button';
-import { Champ, Info, Panneau, SousOnglets, Vide, dateHeure, nom, useAction } from './commun';
+import {
+  BTN_DANGER_CONTOUR,
+  BTN_LIGNE,
+  BTN_LIGNE_PRINCIPAL,
+  BTN_PRINCIPAL,
+  BTN_SECONDAIRE,
+  BarreOutils,
+  CleValeur,
+  EtatVide,
+  LigneTableau,
+  Pastille,
+  SectionFenetre,
+  Tableau,
+  type TonPastille,
+} from '../ui/Charte';
+import { Champ, Info, Panneau, SousOnglets, dateHeure, nom, useAction } from './commun';
 
-const TON: Record<StatutReservation, 'gold' | 'sage' | 'clay' | 'muted'> = {
-  EN_ATTENTE: 'gold',
-  CONFIRMEE: 'sage',
-  REFUSEE: 'clay',
-  ANNULEE: 'muted',
-  ANNULEE_PRIORITE: 'clay',
+const TON: Record<StatutReservation, TonPastille> = {
+  EN_ATTENTE: 'ambre',
+  CONFIRMEE: 'vert',
+  REFUSEE: 'rouge',
+  ANNULEE: 'gris',
+  ANNULEE_PRIORITE: 'rouge',
 };
+const GRILLE_RES = 'lg:grid-cols-[minmax(0,1fr)_170px_minmax(0,1.2fr)_minmax(0,1fr)_150px]';
+const GRILLE_RESSOURCES = 'lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_100px_minmax(0,1fr)_96px]';
 const heure = (iso: string) => new Date(iso).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 const demain = () => {
   const d = new Date(Date.now() + 864e5);
@@ -63,7 +79,9 @@ export function OngletReservations({ gestionnaire, ouvrirId, onChange }: { gesti
     <div data-testid="onglet-reservations">
       <ErreurChargement message={erreur} />
       <Info message={info} />
-      <SousOnglets valeur={vue} options={options} onChange={(k) => { setVue(k); setInfo(null); }} />
+      <div className="mb-3.5">
+        <SousOnglets valeur={vue} options={options} onChange={(k) => { setVue(k); setInfo(null); }} label="Réservations affichées" />
+      </div>
       {vue === 'reserver' && <Reserver onReserve={(r) => { fait(r.statut === 'EN_ATTENTE' ? 'Réservation enregistrée : en attente de validation par un gestionnaire.' : 'Réservation confirmée.'); setVue('miennes'); }} />}
       {(vue === 'miennes' || vue === 'a_valider') && <ListeReservations key={`${vue}-${info}`} vue={vue} onOuvrir={setOuverte} />}
       {vue === 'ressources' && <Ressources />}
@@ -89,7 +107,7 @@ function Reserver({ onReserve }: { onReserve: (r: Reservation) => void }) {
   return (
     <div>
       <form
-        className="mb-4 flex flex-wrap items-end gap-2.5 rounded-lg border border-line bg-surface p-3.5"
+        className="mb-4 flex flex-wrap items-end gap-2.5 rounded-xl border border-line bg-surface p-3.5"
         onSubmit={(e) => {
           e.preventDefault();
           void chercher();
@@ -118,16 +136,16 @@ function Reserver({ onReserve }: { onReserve: (r: Reservation) => void }) {
             ))}
           </select>
         </div>
-        <Button type="submit" variant="gold" disabled={enCours}>
+        <button type="submit" className={BTN_PRINCIPAL} disabled={enCours}>
           Voir les disponibilités
-        </Button>
+        </button>
       </form>
       <Erreur message={erreur} />
-      {dispo && dispo.length === 0 && <Vide>Aucune ressource réservable.</Vide>}
+      {dispo && dispo.length === 0 && <EtatVide texte="Aucune ressource réservable." />}
       {dispo && dispo.length > 0 && (
         <ul className="grid gap-2.5 sm:grid-cols-2" data-testid="disponibilites">
           {dispo.map((r) => (
-            <li key={r.id} className="rounded-lg border border-line bg-surface p-3.5" data-testid="ressource">
+            <li key={r.id} className="rounded-xl border border-line bg-surface p-3.5" data-testid="ressource">
               <div className="mb-1 flex items-start justify-between gap-2">
                 <div>
                   <div className="text-[14px] font-semibold">{r.nom}</div>
@@ -136,7 +154,7 @@ function Reserver({ onReserve }: { onReserve: (r: Reservation) => void }) {
                     {r.capacite ? ` · ${r.capacite} places` : ''} · {MODE_LABEL[r.mode]}
                   </div>
                 </div>
-                <Badge tone={r.libre ? 'sage' : 'clay'}>{r.libre ? 'Libre' : 'Occupée'}</Badge>
+                <Pastille ton={r.libre ? 'vert' : 'rouge'}>{r.libre ? 'Libre' : 'Occupée'}</Pastille>
               </div>
               {r.conflits.map((c) => (
                 <p key={c.id} className="text-[12.5px] text-text-muted">
@@ -146,13 +164,13 @@ function Reserver({ onReserve }: { onReserve: (r: Reservation) => void }) {
               ))}
               <div className="mt-2 flex justify-end">
                 {r.libre ? (
-                  <Button className="px-3 py-1.5 text-[12.5px]" onClick={() => setChoix({ ressource: r, prioritaire: false })}>
+                  <button type="button" className={BTN_LIGNE_PRINCIPAL} onClick={() => setChoix({ ressource: r, prioritaire: false })}>
                     Réserver
-                  </Button>
+                  </button>
                 ) : r.prioritePossible ? (
-                  <Button className="px-3 py-1.5 text-[12.5px]" onClick={() => setChoix({ ressource: r, prioritaire: true })}>
+                  <button type="button" className={BTN_LIGNE} onClick={() => setChoix({ ressource: r, prioritaire: true })}>
                     Faire valoir la priorité
-                  </Button>
+                  </button>
                 ) : null}
               </div>
             </li>
@@ -223,26 +241,28 @@ function ListeReservations({ vue, onOuvrir }: { vue: 'miennes' | 'a_valider'; on
   }, [vue]);
   if (erreur) return <ErreurChargement message={erreur} />;
   if (!liste) return null;
-  if (liste.length === 0) return <Vide>{vue === 'miennes' ? 'Aucune réservation.' : 'Aucune réservation en attente.'}</Vide>;
   return (
-    <ul className="divide-y divide-line overflow-hidden rounded-lg border border-line bg-surface">
+    <Tableau
+      label={vue === 'miennes' ? 'Mes réservations' : 'Réservations à valider'}
+      grille={GRILLE_RES}
+      colonnes={['Ressource', 'Créneau', 'Objet', 'Titulaire', 'Statut']}
+      vide={<EtatVide texte={vue === 'miennes' ? 'Aucune réservation.' : 'Aucune réservation en attente.'} />}
+    >
       {liste.map((r) => (
-        <li key={r.id}>
-          <button type="button" onClick={() => onOuvrir(r)} className="flex w-full flex-wrap items-center justify-between gap-2 px-4 py-3 text-left hover:bg-bg" data-testid="ligne-reservation">
-            <div className="min-w-0">
-              <div className="text-[14px] font-semibold">
-                {r.ressource.nom} — {dateHeure(r.debut)} → {heure(r.fin)}
-              </div>
-              <div className="text-[12.5px] text-text-muted">
-                {r.objet ?? 'Réservé'} · {nom(r.titulaire)}
-                {r.statut === 'ANNULEE_PRIORITE' && r.evinceePar ? ` · priorité de ${nom(r.evinceePar)}` : ''}
-              </div>
-            </div>
-            <Badge tone={TON[r.statut]}>{STATUT_RESERVATION_LABEL[r.statut]}</Badge>
-          </button>
-        </li>
+        <LigneTableau key={r.id} grille={GRILLE_RES} onClick={() => onOuvrir(r)} testid="ligne-reservation" label={`${r.ressource.nom}, ${dateHeure(r.debut)}`}>
+          <span className="block font-semibold">{r.ressource.nom}</span>
+          <span className="text-[12.5px]">
+            {dateHeure(r.debut)} → {heure(r.fin)}
+          </span>
+          <span className="block truncate text-[12.5px] text-text-muted">{r.objet ?? 'Réservé'}</span>
+          <span className="block text-[12.5px]">
+            {nom(r.titulaire)}
+            {r.statut === 'ANNULEE_PRIORITE' && r.evinceePar ? <span className="block text-text-muted">priorité de {nom(r.evinceePar)}</span> : null}
+          </span>
+          <Pastille ton={TON[r.statut]}>{STATUT_RESERVATION_LABEL[r.statut]}</Pastille>
+        </LigneTableau>
       ))}
-    </ul>
+    </Tableau>
   );
 }
 
@@ -256,9 +276,9 @@ function FicheReservation({ r, onClose, onChange }: { r: Reservation; onClose: (
   if (refus) {
     return (
       <Fenetre
-        titre={refus === 'refuser' ? 'Refuser la réservation' : 'Annuler la réservation'}
+        titre={refus === 'refuser' ? 'Rejeter la réservation' : 'Annuler la réservation'}
         onClose={() => setRefus(null)}
-        valider={refus === 'refuser' ? 'Refuser' : 'Annuler la réservation'}
+        valider={refus === 'refuser' ? 'Rejeter' : 'Annuler la réservation'}
         danger
         enCours={enCours}
         onSubmit={() => agir(() => (refus === 'refuser' ? refuserReservation(r.id, motif.trim()) : annulerReservation(r.id, motif.trim())), refus === 'refuser' ? 'Réservation refusée.' : 'Réservation annulée.')}
@@ -271,57 +291,59 @@ function FicheReservation({ r, onClose, onChange }: { r: Reservation; onClose: (
     );
   }
   return (
-    <Panneau titre={r.ressource.nom} sousTitre={`Du ${dateHeure(r.debut)} au ${dateHeure(r.fin)} — ${STATUT_RESERVATION_LABEL[r.statut]}`} onClose={onClose} testid="fiche-reservation">
+    <Panneau
+      titre={r.ressource.nom}
+      filAriane={['Logistique', 'Réservations']}
+      sousTitre={
+        <span className="flex flex-wrap items-center gap-2">
+          <Pastille ton={TON[r.statut]}>{STATUT_RESERVATION_LABEL[r.statut]}</Pastille>
+          Du {dateHeure(r.debut)} au {dateHeure(r.fin)}
+        </span>
+      }
+      onClose={onClose}
+      testid="fiche-reservation"
+      cote={
+        <>
+          {(r.droits.valider || r.droits.refuser || r.droits.annuler) && (
+            <div className="mb-[18px] grid gap-2">
+              {r.droits.valider && (
+                <button type="button" className={`${BTN_PRINCIPAL} w-full`} disabled={enCours} onClick={() => agir(() => validerReservation(r.id), 'Réservation confirmée.')}>
+                  Valider
+                </button>
+              )}
+              {r.droits.refuser && (
+                <button type="button" className={`${BTN_DANGER_CONTOUR} w-full`} disabled={enCours} onClick={() => setRefus('refuser')}>
+                  Rejeter avec un motif
+                </button>
+              )}
+              {r.droits.annuler && (
+                <button type="button" className={`${BTN_SECONDAIRE} w-full`} disabled={enCours} onClick={() => (r.estTitulaire ? void agir(() => annulerReservation(r.id), 'Réservation annulée.') : setRefus('annuler'))}>
+                  Annuler la réservation
+                </button>
+              )}
+            </div>
+          )}
+          <SectionFenetre titre="Informations" className="">
+            <CleValeur largeur={84} lignes={[['Type', TYPE_RESSOURCE_LABEL[r.ressource.type]], ['Mode', MODE_LABEL[r.ressource.mode]], ['Titulaire', nom(r.titulaire)]]} />
+          </SectionFenetre>
+        </>
+      }
+    >
       <Erreur message={erreur} />
-      <dl className="mb-4 grid grid-cols-[120px_1fr] gap-y-1 text-[13px]">
-        <dt className="text-text-muted">Titulaire</dt>
-        <dd>{nom(r.titulaire)}</dd>
-        <dt className="text-text-muted">Objet</dt>
-        <dd>{r.objet ?? '—'}</dd>
-        {r.meeting && (
-          <>
-            <dt className="text-text-muted">Réunion</dt>
-            <dd>{r.meeting.title}</dd>
-          </>
-        )}
-        {r.statut === 'ANNULEE_PRIORITE' && (
-          <>
-            <dt className="text-text-muted">Priorité</dt>
-            <dd className="text-clay">Annulée : {nom(r.evinceePar)} a fait valoir la priorité hiérarchique.</dd>
-          </>
-        )}
-        {r.motifRefus && (
-          <>
-            <dt className="text-text-muted">Refus</dt>
-            <dd className="text-clay">{r.motifRefus}</dd>
-          </>
-        )}
-        {r.motifAnnulation && r.statut === 'ANNULEE' && (
-          <>
-            <dt className="text-text-muted">Annulation</dt>
-            <dd>
-              {r.motifAnnulation} ({nom(r.annuleePar)})
-            </dd>
-          </>
-        )}
-      </dl>
-      <div className="flex flex-wrap justify-end gap-2">
-        {r.droits.annuler && (
-          <Button disabled={enCours} onClick={() => (r.estTitulaire ? void agir(() => annulerReservation(r.id), 'Réservation annulée.') : setRefus('annuler'))}>
-            Annuler la réservation
-          </Button>
-        )}
-        {r.droits.refuser && (
-          <Button disabled={enCours} onClick={() => setRefus('refuser')}>
-            Refuser
-          </Button>
-        )}
-        {r.droits.valider && (
-          <Button variant="gold" disabled={enCours} onClick={() => agir(() => validerReservation(r.id), 'Réservation confirmée.')}>
-            Valider
-          </Button>
-        )}
-      </div>
+      <SectionFenetre titre="Réservation" className="">
+        <CleValeur
+          largeur={110}
+          lignes={
+            [
+              ['Objet', r.objet ?? '—'],
+              r.meeting ? ['Réunion', r.meeting.title] : null,
+              r.statut === 'ANNULEE_PRIORITE' ? ['Priorité', <span key="p" className="text-clay">Annulée : {nom(r.evinceePar)} a fait valoir la priorité hiérarchique.</span>] : null,
+              r.motifRefus ? ['Refus', <span key="r" className="text-clay">{r.motifRefus}</span>] : null,
+              r.motifAnnulation && r.statut === 'ANNULEE' ? ['Annulation', `${r.motifAnnulation} (${nom(r.annuleePar)})`] : null,
+            ].filter(Boolean) as [ReactNode, ReactNode][]
+          }
+        />
+      </SectionFenetre>
     </Panneau>
   );
 }
@@ -341,30 +363,33 @@ function Ressources() {
   return (
     <div>
       <ErreurChargement message={erreur} />
-      <div className="mb-3 flex justify-end">
-        <Button variant="gold" onClick={() => setEdition('nouvelle')}>
-          + Nouvelle ressource
-        </Button>
-      </div>
-      {liste && liste.length === 0 && <Vide>Aucune ressource : créez les salles et le matériel de présentation.</Vide>}
-      <ul className="divide-y divide-line overflow-hidden rounded-lg border border-line bg-surface">
-        {liste?.map((r) => (
-          <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
-            <div>
-              <div className="text-[14px] font-semibold">
-                {r.nom} {!r.actif && <Badge tone="muted">Inactive</Badge>}
-              </div>
-              <div className="text-[12.5px] text-text-muted">
-                {TYPE_RESSOURCE_LABEL[r.type]}
-                {r.capacite ? ` · ${r.capacite} places` : ''} · {MODE_LABEL[r.mode]}
-              </div>
-            </div>
-            <Button className="px-3 py-1.5 text-[12.5px]" onClick={() => setEdition(r)}>
-              Modifier
-            </Button>
-          </li>
-        ))}
-      </ul>
+      <BarreOutils
+        droite={
+          <button type="button" className={BTN_PRINCIPAL} onClick={() => setEdition('nouvelle')}>
+            <Plus aria-hidden size={17} />
+            Nouvelle ressource
+          </button>
+        }
+      >
+        <span className="text-[13px] text-text-muted">Salles et matériel de présentation proposés à la réservation.</span>
+      </BarreOutils>
+      {liste && (
+        <Tableau label="Ressources réservables" grille={GRILLE_RESSOURCES} colonnes={['Ressource', 'Type', 'Capacité', 'Mode', <span key="a" className="sr-only">Action</span>]} vide={<EtatVide texte="Aucune ressource : créez les salles et le matériel de présentation." />}>
+          {liste.map((r) => (
+            <LigneTableau key={r.id} grille={GRILLE_RESSOURCES}>
+              <span className="block font-semibold">
+                {r.nom} {!r.actif && <Pastille ton="gris">Inactive</Pastille>}
+              </span>
+              <span className="text-[12.5px] text-text-muted">{TYPE_RESSOURCE_LABEL[r.type]}</span>
+              <span className="text-[12.5px] text-text-muted">{r.capacite ? `${r.capacite} places` : '—'}</span>
+              <span className="text-[12.5px] text-text-muted">{MODE_LABEL[r.mode]}</span>
+              <button type="button" className={BTN_LIGNE} onClick={() => setEdition(r)} aria-label={`Modifier ${r.nom}`}>
+                Modifier
+              </button>
+            </LigneTableau>
+          ))}
+        </Tableau>
+      )}
       {edition && (
         <FenetreRessource
           ressource={edition === 'nouvelle' ? null : edition}

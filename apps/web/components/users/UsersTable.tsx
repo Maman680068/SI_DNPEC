@@ -4,8 +4,7 @@ import { useState } from 'react';
 import { useOrg } from '../../lib/org/OrgProvider';
 import type { AdminUser, UserStatus } from '../../lib/users/types';
 import { ROLE_LABEL } from '../../lib/users/types';
-import { Badge } from '../ui/Badge';
-import { Button } from '../ui/Button';
+import { BTN_LIGNE, EtatVide, Pastille, type TonPastille } from '../ui/Charte';
 import { AssignChefModal } from './AssignChefModal';
 import { ManageAccountModal } from './ManageAccountModal';
 import { ChangeRoleModal } from './ChangeRoleModal';
@@ -16,6 +15,8 @@ const STATUS_BADGE_TONE: Record<UserStatus, 'sage' | 'clay' | 'muted'> = {
   SUSPENDU: 'clay',
   SUPPRIME: 'muted',
 };
+
+const PASTILLE: Record<'sage' | 'clay' | 'muted', TonPastille> = { sage: 'vert', clay: 'rouge', muted: 'gris' };
 
 const STATUS_BADGE_LABEL: Record<UserStatus, string> = {
   EN_ATTENTE: 'En attente',
@@ -67,7 +68,7 @@ export function UsersTable({
   const [changingRoleFor, setChangingRoleFor] = useState<AdminUser | null>(null);
 
   if (users.length === 0) {
-    return <p className="py-8 text-center text-[13px] text-text-faint">Aucun compte.</p>;
+    return <div className="rounded-xl border border-line bg-surface"><EtatVide texte="Aucun compte." /></div>;
   }
 
   return (
@@ -77,7 +78,7 @@ export function UsersTable({
        * champ) — on bascule sur des cartes empilées, une par utilisateur. */}
       <div className="space-y-2.5 md:hidden">
         {users.map((user) => (
-          <div key={user.id} className="rounded-lg border border-line p-3.5">
+          <div key={user.id} className="rounded-xl border border-line bg-surface p-3.5">
             <div className="mb-2 flex items-start justify-between gap-2">
               <div>
                 <div className="text-[13.5px] font-semibold">
@@ -85,7 +86,7 @@ export function UsersTable({
                 </div>
                 <div className="text-[12px] text-text-muted">{user.email}</div>
               </div>
-              <Badge tone={STATUS_BADGE_TONE[user.status]}>{STATUS_BADGE_LABEL[user.status]}</Badge>
+              <Pastille ton={PASTILLE[STATUS_BADGE_TONE[user.status]]}>{STATUS_BADGE_LABEL[user.status]}</Pastille>
             </div>
             <div className="mb-3 text-[12.5px] text-text-muted">
               {ROLE_LABEL[user.role]} · {attachmentLabel(user, getDivisionName, getSectionName, getCelluleName, getUserLabel)}
@@ -93,66 +94,66 @@ export function UsersTable({
             {canManage && (
               <div className="flex flex-wrap gap-2">
                 {CAN_BECOME_CHEF_ROLES.includes(user.role) && (
-                  <Button variant="outline" onClick={() => setAssigningChefFor(user)}>
+                  <button type="button" className={BTN_LIGNE} onClick={() => setAssigningChefFor(user)}>
                     Nommer chef de cellule
-                  </Button>
+                  </button>
                 )}
                 {user.status === 'ACTIF' && (
-                  <Button variant="outline" onClick={() => setChangingRoleFor(user)}>
+                  <button type="button" className={BTN_LIGNE} onClick={() => setChangingRoleFor(user)}>
                     Changer de rôle
-                  </Button>
+                  </button>
                 )}
-                <Button variant="outline" onClick={() => setManagingAccountFor(user)}>
+                <button type="button" className={BTN_LIGNE} onClick={() => setManagingAccountFor(user)}>
                   Gérer
-                </Button>
+                </button>
               </div>
             )}
           </div>
         ))}
       </div>
 
-      <div className="hidden overflow-x-auto rounded-lg border border-line md:block">
+      <div className="hidden overflow-x-auto rounded-xl border border-line bg-surface md:block">
         <table className="w-full text-left text-[13px]">
           <thead>
-            <tr className="border-b border-line bg-bg text-[11px] font-bold uppercase tracking-wide text-text-faint">
-              <th className="px-4 py-3">Nom</th>
-              <th className="px-4 py-3">Email</th>
-              <th className="px-4 py-3">Rôle</th>
-              <th className="px-4 py-3">Rattachement</th>
-              <th className="px-4 py-3">Statut</th>
-              {canManage && <th className="px-4 py-3" />}
+            <tr className="h-[38px] border-b border-line bg-[#F7F8FB] text-[12px] font-semibold text-text-muted">
+              <th scope="col" className="px-4 py-2">Nom</th>
+              <th scope="col" className="px-4 py-2">Email</th>
+              <th scope="col" className="px-4 py-2">Rôle</th>
+              <th scope="col" className="px-4 py-2">Rattachement</th>
+              <th scope="col" className="px-4 py-2">Statut</th>
+              {canManage && <th scope="col" className="px-4 py-2"><span className="sr-only">Actions</span></th>}
             </tr>
           </thead>
           <tbody>
             {users.map((user) => (
-              <tr key={user.id} className="border-b border-line last:border-0">
-                <td className="px-4 py-3 font-semibold">
+              <tr key={user.id} className="border-b border-[#F0F1F6] last:border-0 hover:bg-[#F6F7FC]">
+                <td className="px-4 py-2.5 font-semibold text-ink-900">
                   {user.firstName} {user.lastName}
                 </td>
-                <td className="px-4 py-3 text-text-muted">{user.email}</td>
-                <td className="px-4 py-3">{ROLE_LABEL[user.role]}</td>
-                <td className="px-4 py-3 text-text-muted">
+                <td className="px-4 py-2.5 text-text-muted">{user.email}</td>
+                <td className="px-4 py-2.5">{ROLE_LABEL[user.role]}</td>
+                <td className="px-4 py-2.5 text-text-muted">
                   {attachmentLabel(user, getDivisionName, getSectionName, getCelluleName, getUserLabel)}
                 </td>
-                <td className="px-4 py-3">
-                  <Badge tone={STATUS_BADGE_TONE[user.status]}>{STATUS_BADGE_LABEL[user.status]}</Badge>
+                <td className="px-4 py-2.5">
+                  <Pastille ton={PASTILLE[STATUS_BADGE_TONE[user.status]]}>{STATUS_BADGE_LABEL[user.status]}</Pastille>
                 </td>
                 {canManage && (
-                  <td className="px-4 py-3">
-                    <div className="flex justify-end gap-2">
+                  <td className="px-4 py-2.5">
+                    <div className="flex justify-end gap-1.5">
                       {CAN_BECOME_CHEF_ROLES.includes(user.role) && (
-                        <Button variant="outline" onClick={() => setAssigningChefFor(user)}>
+                        <button type="button" className={BTN_LIGNE} onClick={() => setAssigningChefFor(user)}>
                           Nommer chef de cellule
-                        </Button>
+                        </button>
                       )}
                       {user.status === 'ACTIF' && (
-                        <Button variant="outline" onClick={() => setChangingRoleFor(user)}>
+                        <button type="button" className={BTN_LIGNE} onClick={() => setChangingRoleFor(user)}>
                           Changer de rôle
-                        </Button>
+                        </button>
                       )}
-                      <Button variant="outline" onClick={() => setManagingAccountFor(user)}>
+                      <button type="button" className={BTN_LIGNE} onClick={() => setManagingAccountFor(user)}>
                         Gérer
-                      </Button>
+                      </button>
                     </div>
                   </td>
                 )}

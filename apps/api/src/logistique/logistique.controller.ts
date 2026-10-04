@@ -10,6 +10,7 @@ import { ReferentielLogistiqueService } from './referentiel.service';
 import { InventaireService } from './inventaire.service';
 import { DemandesLogistiqueService } from './demandes.service';
 import { ReservationsService } from './reservations.service';
+import { VehiculesService } from './vehicules.service';
 import {
   AffecterBienDto,
   ArticleDto,
@@ -43,11 +44,18 @@ export class LogistiqueController {
     private readonly inventaire: InventaireService,
     private readonly demandes: DemandesLogistiqueService,
     private readonly reservations: ReservationsService,
+    private readonly vehicules: VehiculesService,
   ) {}
 
   @Get('tableau-de-bord')
   async tableau(@CurrentUser() actor: AuthenticatedUser) {
-    return { ...(await this.demandes.tableauDeBord(actor)), reservationsAValider: await this.reservations.aValiderCount(actor) };
+    const [demandes, reservationsAValider, reservationsDuJour, vehicules] = await Promise.all([
+      this.demandes.tableauDeBord(actor),
+      this.reservations.aValiderCount(actor),
+      this.reservations.duJourCount(actor),
+      this.vehicules.disponibilite(actor),
+    ]);
+    return { ...demandes, reservationsAValider, reservationsDuJour, vehicules };
   }
 
   // ---------------------------------------------------------- Paramétrage

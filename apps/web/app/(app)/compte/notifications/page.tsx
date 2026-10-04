@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { getPreferences, modifierPreferences } from '../../../../lib/api/pilotage';
 import type { PreferencesNotification } from '../../../../lib/pilotage/types';
-import { Button } from '../../../../components/ui/Button';
+import { BTN_PRINCIPAL, EnTetePage } from '../../../../components/ui/Charte';
 import {
   Chargement,
   ErreurChargement,
@@ -40,17 +40,14 @@ export default function PreferencesNotificationPage() {
   }
   return (
     <div className="max-w-[640px]">
-      <div className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-sage">
-        Mon compte
-      </div>
-      <h1 className="mb-1 text-[22px] font-extrabold">Préférences de notification</h1>
-      <p className="mb-5 text-[13px] text-text-muted">
+      <EnTetePage titre="Préférences de notification" />
+      <p className="-mt-1.5 mb-4 text-[13px] text-text-muted">
         Les notifications s’affichent toujours immédiatement dans l’application (cloche). Vous
         choisissez ici comment recevoir les emails.
       </p>
       <ErreurChargement message={erreur} />
       <form
-        className="rounded-lg border border-line bg-surface p-5"
+        className="rounded-xl border border-line bg-surface p-5"
         onSubmit={(e) => {
           e.preventDefault();
           setEnCours(true);
@@ -62,7 +59,7 @@ export default function PreferencesNotificationPage() {
         }}
       >
         <fieldset className="mb-4">
-          <legend className="mb-2 text-[13px] font-semibold">Emails</legend>
+          <legend className="mb-2 text-[13px] font-bold text-ink-900">Emails</legend>
           <label className="mb-2 flex items-start gap-2 text-[13px]">
             <input
               type="radio"
@@ -93,7 +90,7 @@ export default function PreferencesNotificationPage() {
           <label className="mb-4 block text-[13px] font-semibold">
             Heure du résumé (heure de Conakry)
             <select
-              className="mt-1 block rounded-md border border-line bg-surface px-3 py-2 text-[13px]"
+              className="mt-1 block h-9 rounded-[9px] border border-line bg-surface px-2.5 text-[13px] font-normal"
               value={heure}
               onChange={(e) => setHeure(Number(e.target.value))}
             >
@@ -105,7 +102,7 @@ export default function PreferencesNotificationPage() {
             </select>
           </label>
         )}
-        <div className="mb-4 rounded-md bg-gold-soft px-3.5 py-2.5 text-[12.5px]">
+        <div className="mb-4 rounded-[10px] border border-[#F2D58A] bg-gold-50 px-3.5 py-2.5 text-[12.5px]">
           Toujours envoyés immédiatement, quel que soit votre choix : sécurité du compte, décision
           sur une de vos demandes, acte à signer, instruction de la Direction, tâche en retard,
           rappel ou annulation de réunion, alerte de supervision.
@@ -120,9 +117,9 @@ export default function PreferencesNotificationPage() {
             {info}
           </p>
         )}
-        <Button variant="solid" type="submit" disabled={enCours}>
+        <button type="submit" className={BTN_PRINCIPAL} disabled={enCours}>
           Enregistrer mes préférences
-        </Button>
+        </button>
       </form>
     </div>
   );

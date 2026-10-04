@@ -7,7 +7,8 @@ import { getManageableTitulaires, getMySuppleances, revokeSuppleance } from '../
 import { suppleanceStatus, type Suppleance, type SuppleanceParty } from '../../../lib/suppleances/types';
 import { SuppleanceCard } from '../../../components/suppleances/SuppleanceCard';
 import { DesignateSuppleanceModal } from '../../../components/suppleances/DesignateSuppleanceModal';
-import { Button } from '../../../components/ui/Button';
+import { Plus } from 'lucide-react';
+import { BTN_PRINCIPAL, EnTetePage, EtatVide, Panneau } from '../../../components/ui/Charte';
 
 /** Une suppléance terminée ou révoquée n'a plus d'action possible. */
 function isOpen(s: Suppleance): boolean {
@@ -33,21 +34,16 @@ function Section({
   const open = items.filter(isOpen);
   const history = items.filter((s) => !isOpen(s));
   return (
-    <section className="mb-8">
-      <h2 className="text-[16px] font-extrabold">{title}</h2>
-      <p className="mb-3 text-[12.5px] text-text-muted">{hint}</p>
-      {open.length === 0 ? (
-        <p className="rounded-lg border border-dashed border-line py-6 text-center text-[13px] text-text-faint">{empty}</p>
-      ) : (
-        <div className="space-y-2.5">{open.map(render)}</div>
-      )}
+    <Panneau titre={title} compteur={<span className="text-[12.5px] font-semibold text-text-faint">{open.length}</span>} className="mb-4 overflow-hidden">
+      <p className="border-b border-line px-[18px] py-2 text-[12.5px] text-text-muted">{hint}</p>
+      {open.length === 0 ? <EtatVide texte={empty} /> : <div>{open.map(render)}</div>}
       {history.length > 0 && (
-        <details className="mt-3">
-          <summary className="cursor-pointer text-[12.5px] font-semibold text-text-muted">Historique ({history.length})</summary>
-          <div className="mt-2.5 space-y-2.5">{history.map(render)}</div>
+        <details className="border-t border-line">
+          <summary className="cursor-pointer px-[18px] py-2.5 text-[12.5px] font-semibold text-text-muted">Historique ({history.length})</summary>
+          <div className="border-t border-line">{history.map(render)}</div>
         </details>
       )}
-    </section>
+    </Panneau>
   );
 }
 
@@ -110,23 +106,22 @@ export default function SuppleancesPage() {
 
   return (
     <div>
-      <div className="mb-[22px] flex flex-wrap items-end justify-between gap-3.5">
-        <div>
-          <div className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-sage">Personnel</div>
-          <h1 className="text-[22px] font-extrabold">Suppléances</h1>
-          <p className="mt-1 max-w-[640px] text-[13px] text-text-muted">
-            Pendant une absence, un responsable de rang comparable peut agir au nom du titulaire, sur choix explicite
-            (« Agir en intérim »). Chaque action est journalisée « par intérim, au nom de ».
-          </p>
-        </div>
-        {titulaires.length > 0 && (
-          <Button variant="gold" onClick={() => setShowModal(true)}>
-            + Désigner un suppléant
-          </Button>
-        )}
-      </div>
+      <EnTetePage
+        titre="Suppléances"
+        actions={
+          titulaires.length > 0 && (
+            <button type="button" className={BTN_PRINCIPAL} onClick={() => setShowModal(true)}>
+              <Plus aria-hidden size={17} /> Désigner un suppléant
+            </button>
+          )
+        }
+      />
+      <p className="-mt-1.5 mb-4 max-w-[760px] text-[13px] text-text-muted">
+        Pendant une absence, un responsable de rang comparable peut agir au nom du titulaire, sur choix explicite
+        (« Agir en intérim »). Chaque action est journalisée « par intérim, au nom de ».
+      </p>
 
-      {error && <div className="mb-5 rounded-md bg-clay-soft px-4 py-3 text-sm text-clay">{error}</div>}
+      {error && <div role="alert" className="mb-4 rounded-[10px] bg-clay-50 px-4 py-3 text-[13px] text-clay">{error}</div>}
 
       {suppleances === null ? (
         <p className="text-sm text-text-muted">Chargement…</p>

@@ -1,8 +1,13 @@
 import { apiFetch, telechargerFichier } from './client';
-import type { Diplome, DossierPersonnel, ListePersonnel, NiveauDeux, NiveauUn, PieceAdministrative, RapportImport } from '../personnel/types';
+import type { Diplome, DossierPersonnel, ListePersonnel, NiveauDeux, NiveauUn, PieceAdministrative, RapportImport, SyntheseDossiers } from '../personnel/types';
 
 export function getListePersonnel(): Promise<ListePersonnel> {
   return apiFetch<ListePersonnel>('/personnel-files');
+}
+
+/** Vue du DRH : synthèse des dossiers (403 pour tout autre profil). */
+export function getSyntheseDossiers(): Promise<SyntheseDossiers> {
+  return apiFetch<SyntheseDossiers>('/api/v1/rh/dossiers');
 }
 
 export function getDossier(userId: string): Promise<DossierPersonnel> {

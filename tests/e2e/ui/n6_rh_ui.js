@@ -48,17 +48,37 @@ async function signerActe(acteId) {
   await p.locator('[data-testid=effectifs]').waitFor();
   const ongletsDrh = await onglets(p);
   check('DRH : 6 onglets (effectifs, alertes, carrière, fiches, formation, pièces)', ongletsDrh.length === 6 && ongletsDrh.includes('Pièces requises'), ongletsDrh.join(', '));
-  check('effectifs : répartitions par unité, statut et catégorie', (await p.getByRole('region', { name: 'Par unité' }).count()) === 1 && (await p.getByRole('region', { name: 'Par catégorie' }).count()) === 1);
+  check('effectifs : répartitions par unité, par statut et catégorie', (await p.getByRole('region', { name: 'Par unité' }).count()) === 1 && (await p.getByRole('region', { name: 'Par statut et catégorie' }).count()) === 1);
+  // Refonte (étape 8, maquette « Effectifs ») : 4 indicateurs, Exporter, panneau Alertes RH (DRH), onglet Alertes à compteur.
+  const effApi = (await call('drh', 'GET', '/api/v1/rh/effectifs')).body;
+  const alertesApi = (await call('drh', 'GET', '/api/v1/rh/alertes')).body;
+  const chiffre = async (t) => (await p.getByTestId(t).locator('span').first().innerText()).replace(/\D/g, '');
+  check('bande : 4 indicateurs, total et départs prévus = API', (await p.locator('[data-testid^=indicateur-]').count()) === 4 && (await chiffre('indicateur-total')) === String(effApi.total) && (await chiffre('indicateur-departs')) === String(effApi.departsPrevus));
+  check('en-tête : bouton « Exporter »', (await p.getByRole('button', { name: 'Exporter' }).count()) === 1);
+  check('onglet Alertes : compteur = nombre d’alertes de l’API', alertesApi.length === 0 || (await p.getByRole('tab', { name: 'Alertes' }).innerText()).includes(String(alertesApi.length)));
+  check('panneau « Alertes RH » (DRH)', (await p.getByTestId('effectifs-alertes').count()) === 1);
+  check('phrase « Calculé le … à partir des dossiers ; rien n’est saisi ici »', (await p.getByText(/Calculé le .* à partir des dossiers ; rien n’est saisi ici/).count()) === 1);
+  const [telechargement] = await Promise.all([p.waitForEvent('download'), p.getByRole('button', { name: 'Exporter' }).click()]);
+  check('Exporter : fichier Excel des effectifs', /^effectifs_\d{4}-\d{2}-\d{2}\.xlsx$/.test(telechargement.suggestedFilename()), telechargement.suggestedFilename());
   await p.screenshot({ path: `${E.SHOTS}/n6_effectifs_bureau.png`, fullPage: true });
+  const voir = p.getByTestId('effectifs-alertes').getByRole('button', { name: /^Voir/ }).first();
+  if (await voir.count()) {
+    await voir.click();
+    await p.locator('[data-testid=alertes-rh]').waitFor();
+    check('« Voir » d’un groupe d’alertes : onglet Alertes filtré sur cette nature', /onglet=alertes/.test(p.url()) && (await p.getByLabel('Nature de l’alerte').inputValue()) !== '');
+    await p.getByRole('tab', { name: 'Effectifs' }).click();
+    await p.locator('[data-testid=effectifs]').waitFor();
+  }
   await p.getByRole('tab', { name: 'Alertes' }).click();
   await p.locator('[data-testid=alertes-rh]').or(p.getByText(/Aucune alerte/)).first().waitFor();
   check('alertes : onglet ouvert, adresse mise à jour', /onglet=alertes/.test(p.url()));
+  check('alertes : action « Voir » sur la ligne', (await p.locator('[data-testid=alerte-rh]').count()) === 0 || (await p.locator('[data-testid=alerte-rh]').first().getByRole('link', { name: /^Voir/ }).count()) === 1);
   await p.screenshot({ path: `${E.SHOTS}/n6_alertes_bureau.png` });
 
   console.log('— Mouvement de carrière : préparé, acte, signature, appliqué');
   await p.getByRole('tab', { name: 'Carrière et actes' }).click();
   check('familles d’actes affichées avec leur signataire', /signataire/.test(await p.locator('[data-testid=familles-actes]').innerText()));
-  await p.getByRole('button', { name: '+ Nouveau mouvement' }).click();
+  await p.getByRole('button', { name: 'Nouveau mouvement', exact: true }).click();
   let d = p.getByRole('dialog');
   await d.getByLabel('Agent').selectOption(ids.agent1);
   await d.getByLabel('Mouvement').selectOption('NOMINATION');
@@ -81,7 +101,7 @@ async function signerActe(acteId) {
 
   console.log('— Fiche de poste (DRH)');
   await p.getByRole('tab', { name: 'Fiches de poste' }).click();
-  await p.getByRole('button', { name: '+ Nouvelle fiche de poste' }).click();
+  await p.getByRole('button', { name: 'Nouvelle fiche de poste', exact: true }).click();
   d = p.getByRole('dialog');
   await d.getByLabel('Fonction').fill(`Statisticien ${S}`);
   await d.getByLabel('Missions').fill('Produire les indicateurs de conjoncture.');
@@ -90,13 +110,22 @@ async function signerActe(acteId) {
   check('fiche de poste listée', true);
   await p.context().close();
 
+  console.log('— DN (téléphone) : effectifs sans alertes nominatives');
+  p = await loginPage(b, 'dn', TELEPHONE);
+  await p.goto(`${WEB}/rh?onglet=effectifs`);
+  await p.locator('[data-testid=effectifs]').waitFor();
+  check('DN : effectifs et Exporter, sans panneau ni onglet Alertes', (await p.getByRole('button', { name: 'Exporter' }).count()) === 1 && (await p.getByTestId('effectifs-alertes').count()) === 0 && !(await onglets(p)).some((t) => t.startsWith('Alertes')));
+  check('téléphone : sans défilement horizontal (effectifs)', await sansDefilementHorizontal(p));
+  await p.screenshot({ path: `${E.SHOTS}/n6_effectifs_mobile.png`, fullPage: true });
+  await p.context().close();
+
   console.log('— Chef de division (bureau) : besoin de formation ; le DRH le retient');
   p = await loginPage(b, 'chefdpe');
   await p.goto(`${WEB}/rh?onglet=formation`);
-  await p.getByRole('button', { name: '+ Exprimer un besoin' }).waitFor();
+  await p.getByRole('button', { name: 'Exprimer un besoin', exact: true }).waitFor();
   const ongletsChef = await onglets(p);
   check('chef : carrière, fiches et formation seulement', ongletsChef.join('|') === 'Carrière et actes|Fiches de poste|Formation', ongletsChef.join(', '));
-  await p.getByRole('button', { name: '+ Exprimer un besoin' }).click();
+  await p.getByRole('button', { name: 'Exprimer un besoin', exact: true }).click();
   d = p.getByRole('dialog');
   await d.getByLabel('Intitulé de la formation').fill(`Prévision macroéconomique ${S}`);
   await d.getByRole('button', { name: 'Exprimer le besoin' }).click();
@@ -130,7 +159,7 @@ async function signerActe(acteId) {
   await p.locator('[data-testid=mouvement]', { hasText: `Chargé d’études principal ${S}` }).waitFor();
   const ongletsAgent = await onglets(p);
   check('agent : carrière et fiches de poste seulement', ongletsAgent.join('|') === 'Carrière et actes|Fiches de poste', ongletsAgent.join(', '));
-  check('agent : sa nomination appliquée, sans bouton d’instruction', (await p.getByRole('button', { name: '+ Nouveau mouvement' }).count()) === 0);
+  check('agent : sa nomination appliquée, sans bouton d’instruction', (await p.getByRole('button', { name: 'Nouveau mouvement', exact: true }).count()) === 0);
   check('téléphone : sans défilement horizontal (RH)', await sansDefilementHorizontal(p));
   await p.screenshot({ path: `${E.SHOTS}/n6_carriere_mobile.png`, fullPage: true });
   await p.goto(`${WEB}/dashboard`);
@@ -147,7 +176,7 @@ async function signerActe(acteId) {
   check('ordre de mission créé (API)', om.status === 201, om.status);
   p = await loginPage(b, 'agentsaf');
   await p.goto(`${WEB}/logistique?onglet=vehicules`);
-  await p.getByRole('button', { name: '+ Nouveau véhicule' }).click();
+  await p.getByRole('button', { name: 'Nouveau véhicule' }).click();
   d = p.getByRole('dialog');
   const immat = `UI ${L.slice(0, 4)} B`;
   await d.getByLabel('Immatriculation').fill(immat);
@@ -186,7 +215,7 @@ async function signerActe(acteId) {
   p = await loginPage(b, 'agent1', TELEPHONE);
   await p.goto(`${WEB}/logistique?onglet=vehicules`);
   await p.locator('[data-testid=vehicule]', { hasText: immat }).waitFor();
-  check('agent : parc lisible, sans « + Nouveau véhicule » ni missions à équiper', (await p.getByRole('button', { name: '+ Nouveau véhicule' }).count()) === 0 && (await p.locator('[data-testid=missions-vehicules]').count()) === 0);
+  check('agent : parc lisible, sans « Nouveau véhicule » ni missions à équiper', (await p.getByRole('button', { name: 'Nouveau véhicule' }).count()) === 0 && (await p.locator('[data-testid=missions-vehicules]').count()) === 0);
   check('téléphone : sans défilement horizontal (véhicules)', await sansDefilementHorizontal(p));
   await p.screenshot({ path: `${E.SHOTS}/n6_vehicules_mobile.png`, fullPage: true });
   await p.context().close();

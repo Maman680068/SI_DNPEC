@@ -1,52 +1,40 @@
 'use client';
 
+import type { ReactNode } from 'react';
 import { useAuth } from '../../lib/auth/AuthProvider';
 import { useOrg } from '../../lib/org/OrgProvider';
 import type { Poll } from '../../lib/polls/types';
 import { SCOPE_LABEL } from '../../lib/communication/types';
-import { Badge } from '../ui/Badge';
-import { Card } from '../ui/Card';
+import { EtatVide, LigneTableau, Pastille, Tableau } from '../ui/Charte';
+import { TON_PORTEE } from './AnnouncementList';
 
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
-}
+const formatDate = (iso: string) => new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
+const GRILLE = 'lg:grid-cols-[minmax(0,1fr)_170px_150px_80px_130px]';
 
-const SCOPE_TONE: Record<Poll['scope'], 'accent' | 'gold' | 'sage' | 'clay' | 'muted'> = {
-  DNPEC: 'clay',
-  DIVISION: 'accent',
-  SECTION: 'accent',
-  CELLULE: 'gold',
-  GROUPE_PERSONNALISE: 'muted',
-};
-
-export function PollList({ polls, onSelect }: { polls: Poll[]; onSelect: (id: string) => void }) {
+/** Sondages en tableau compact : question et auteur, portée, état (à répondre, voté, clôturé), votes, date. */
+export function PollList({ polls, onSelect, vide }: { polls: Poll[]; onSelect: (id: string) => void; vide?: ReactNode }) {
   const { user: currentUser } = useAuth();
   const { getUserLabel } = useOrg();
-
-  if (polls.length === 0) {
-    return <p className="py-8 text-center text-[13px] text-text-faint">Aucun sondage pour l&apos;instant.</p>;
-  }
-
   return (
-    <div className="space-y-3">
+    <Tableau label="Sondages" grille={GRILLE} colonnes={['Sondage', 'Portée', 'État', 'Votes', 'Date']} testid="sondages" vide={<EtatVide texte="Aucun sondage pour l’instant." action={vide} />}>
       {polls.map((poll) => {
-        const hasVoted = poll.myOptionIds.length > 0;
+        const vote = poll.myOptionIds.length > 0;
         return (
-          <Card key={poll.id} onClick={() => onSelect(poll.id)} className="cursor-pointer p-[18px] hover:border-accent/40">
-            <div className="mb-2 flex flex-wrap items-center gap-2">
-              <Badge tone={SCOPE_TONE[poll.scope]}>{SCOPE_LABEL[poll.scope]}</Badge>
-              {poll.isClosed && <Badge tone="clay">Clôturé</Badge>}
-              {!poll.isClosed && hasVoted && <Badge tone="sage">Vous avez voté</Badge>}
-              <span className="ml-auto text-[11px] text-text-faint">{formatDate(poll.createdAt)}</span>
-            </div>
-            <div className="mb-1 text-[14.5px] font-bold">{poll.question}</div>
-            <div className="text-[11px] text-text-faint">
-              Par {poll.authorId === currentUser?.id ? 'vous' : getUserLabel(poll.authorId)} · {poll.totalVoters}{' '}
-              vote{poll.totalVoters > 1 ? 's' : ''}
-            </div>
-          </Card>
+          <LigneTableau key={poll.id} grille={GRILLE} onClick={() => onSelect(poll.id)} label={poll.question} testid="sondage">
+            <span className="block min-w-0">
+              <b className="block truncate font-semibold text-text">{poll.question}</b>
+              <span className="block truncate text-[12.5px] text-text-muted">Par {poll.authorId === currentUser?.id ? 'vous' : getUserLabel(poll.authorId)}</span>
+            </span>
+            <Pastille ton={TON_PORTEE[poll.scope]}>{SCOPE_LABEL[poll.scope]}</Pastille>
+            {poll.isClosed ? <Pastille ton="gris">Clôturé</Pastille> : vote ? <Pastille ton="vert">Vous avez voté</Pastille> : <Pastille ton="ambre">À répondre</Pastille>}
+            <span className="text-[13px] font-semibold">
+              {poll.totalVoters}
+              <span className="font-normal text-text-muted lg:sr-only"> vote{poll.totalVoters > 1 ? 's' : ''}</span>
+            </span>
+            <span className="text-[12.5px] text-text-muted">{formatDate(poll.createdAt)}</span>
+          </LigneTableau>
         );
       })}
-    </div>
+    </Tableau>
   );
 }

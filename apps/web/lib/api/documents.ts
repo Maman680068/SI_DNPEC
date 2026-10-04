@@ -1,5 +1,5 @@
 import { apiFetch, telechargerFichier } from './client';
-import type { ChangementStatut, DnpecDocument, DocumentFilters, DocumentVersionSummary, Folder, StatutDiffusion, TypeDocument } from '../documents/types';
+import type { ChangementStatut, DnpecDocument, DocumentFilters, DocumentVersionSummary, Folder, StatutDiffusion, SyntheseArchives, TypeDocument } from '../documents/types';
 
 export function getFolders(divisionId: string): Promise<Folder[]> {
   return apiFetch<Folder[]>(`/folders?divisionId=${encodeURIComponent(divisionId)}`);
@@ -96,4 +96,9 @@ export function getHistoriqueStatut(documentId: string): Promise<ChangementStatu
 /** Copie marquée du statut de diffusion : le nom du fichier est celui annoncé par le serveur. */
 export function downloadVersion(documentId: string, versionId: string): Promise<void> {
   return telechargerFichier(`/documents/${documentId}/versions/${versionId}/download`, null);
+}
+
+/** Bandeau « à valider » et compteur des documents publiés (écran Archives & documents). */
+export function getSyntheseArchives(): Promise<SyntheseArchives> {
+  return apiFetch<SyntheseArchives>('/api/v1/documents/synthese');
 }

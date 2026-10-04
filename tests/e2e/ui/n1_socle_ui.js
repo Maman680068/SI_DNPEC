@@ -25,7 +25,18 @@ const sansDefilementHorizontal = (p) => p.evaluate(() => document.documentElemen
   await p.goto(`${WEB}/organisation`);
   await p.locator('[data-testid=unite][data-code=DPE]').first().waitFor();
   check('agent : organigramme complet lisible (Direction, divisions, sections)', (await p.locator('[data-testid=unite][data-code=DNPEC]').count()) === 1 && (await p.locator('[data-testid=unite][data-code=SSR]').count()) === 1);
-  check('agent : aucune action de gestion', (await p.getByRole('button', { name: '+ Sous-unité' }).count()) === 0 && (await p.getByRole('button', { name: 'Fermer', exact: true }).count()) === 0);
+  check('agent : aucune action de gestion', (await p.getByRole('button', { name: 'Sous-unité', exact: true }).count()) === 0 && (await p.getByRole('button', { name: 'Modifier', exact: true }).count()) === 0 && (await p.getByRole('button', { name: 'Fermer', exact: true }).count()) === 0);
+  // Refonte (étape 8) : bande de synthèse, recherche, fenêtre d'une unité (historique, lecture seule pour l'agent).
+  check('bande de synthèse : unités actives, cellules, agents rattachés, sans responsable', (await p.getByRole('region', { name: 'Synthèse de l’organigramme' }).locator('[data-testid^=compteur-]').count()) === 4);
+  await p.getByLabel('Rechercher une unité').fill('SSR');
+  await p.waitForFunction(() => !document.querySelector('[data-testid=unite][data-code=CSID]'));
+  check('recherche « SSR » : la section et ses unités parentes seulement', (await p.locator('[data-testid=unite][data-code=SSR]').count()) === 1 && (await p.locator('[data-testid=unite][data-code=DPE]').count()) === 1 && (await p.locator('[data-testid=unite][data-code=DEE]').count()) === 0);
+  await p.getByLabel('Rechercher une unité').fill('');
+  await p.locator('[data-testid=unite][data-code=DPE]').first().locator(':scope > div').getByRole('button', { name: /^Voir DPE/ }).click();
+  const ficheUnite = p.locator('[data-testid=fiche-unite]');
+  await ficheUnite.locator('[data-testid=historique-unite]').waitFor();
+  check('fenêtre de l’unité : historique, responsable, lecture seule pour l’agent', /Responsable/.test(await ficheUnite.innerText()) && /Lecture seule/.test(await ficheUnite.innerText()) && (await ficheUnite.getByRole('button', { name: 'Fermer l’unité' }).count()) === 0);
+  await ficheUnite.getByRole('button', { name: 'Fermer', exact: true }).click();
   await p.locator('a[href="/organisation"]').first().waitFor();
   check('agent : pas de menu « Agents »', (await p.locator('a[href="/agents"]').count()) === 0);
   await p.context().close();
@@ -37,7 +48,7 @@ const sansDefilementHorizontal = (p) => p.evaluate(() => document.documentElemen
   await p.goto(`${WEB}/organisation`);
   const dpe = p.locator('[data-testid=unite][data-code=DPE]').first();
   await dpe.waitFor();
-  await dpe.locator(':scope > div').getByRole('button', { name: '+ Sous-unité' }).click();
+  await dpe.locator(':scope > div').getByRole('button', { name: 'Sous-unité', exact: true }).click();
   const fen = p.getByRole('dialog', { name: 'Nouvelle unité sous DPE' });
   await fen.waitFor();
   await fen.getByLabel('Code').fill(`UI${S}`);
@@ -55,19 +66,25 @@ const sansDefilementHorizontal = (p) => p.evaluate(() => document.documentElemen
   await fFerme.getByRole('button', { name: 'Fermer l’unité' }).click();
   await fFerme.waitFor({ state: 'detached' });
   await p.waitForTimeout(400);
-  check('section fermée : retirée de l’organigramme affiché', (await p.locator(`[data-testid=unite][data-code=UI${S}]`).count()) === 0 || (await p.locator(`[data-testid=unite][data-code=UI${S}]`).innerText()).includes('FERMÉE'));
+  check('section fermée : retirée de l’organigramme affiché', (await p.locator(`[data-testid=unite][data-code=UI${S}]`).count()) === 0 || (await p.locator(`[data-testid=unite][data-code=UI${S}]`).innerText()).includes('Fermée le'));
 
   console.log('— Bureau : agents');
   await p.goto(`${WEB}/agents`);
   await p.getByRole('heading', { name: 'Agents', exact: true }).waitFor();
-  await p.locator('tbody tr').first().waitFor();
-  check('liste des agents : matricule, unité, statut', (await p.locator('tbody tr').count()) > 5 && (await p.locator('thead').innerText()).includes('MATRICULE'));
+  await p.locator('[data-testid=ligne-agent]').first().waitFor();
+  check('liste des agents : matricule, unité, statut', (await p.locator('[data-testid=ligne-agent]').count()) > 5 && (await p.getByRole('columnheader', { name: 'Matricule' }).count()) === 1);
   check('points de reprise affichés (matricules provisoires à remplacer)', (await p.getByRole('region', { name: 'Reprise : points à traiter' }).innerText()).includes('matricule(s) provisoire(s)'));
+  check('ligne : action « Voir » (fiche de l’agent)', (await p.locator('[data-testid=ligne-agent]').first().getByRole('button', { name: /^Voir la fiche de / }).count()) === 1);
+  // Lien « Voir » du panneau Alertes RH des effectifs : liste filtrée sur les matricules provisoires.
+  await p.goto(`${WEB}/agents?matriculeProvisoire=true`);
+  await p.locator('[data-testid=ligne-agent]').first().waitFor();
+  check('?matriculeProvisoire=true : filtre actif, seules les lignes à matricule provisoire', (await p.getByRole('button', { name: 'Matricule provisoire', exact: true }).getAttribute('aria-pressed')) === 'true' && (await p.locator('[data-testid=ligne-agent]').count()) === (await p.locator('[data-testid=ligne-agent]', { hasText: '(provisoire)' }).count()));
   await p.goto(`${WEB}/agents?id=${cdd.body.id}`);
   const fiche = p.getByRole('dialog', { name: `Mariama Contrat${S}` });
   await fiche.waitFor();
   const fin = fiche.locator('[data-testid=fin-prevue]');
   check('fiche ouverte par ?id= : fin de contrat dans 10 jours, avertissement de désactivation', (await fin.innerText()).includes('Fin de contrat le') && (await fin.innerText()).includes('dans 10 jours') && (await fin.innerText()).includes('automatiquement « Parti »'));
+  check('colonne de droite : actions du cycle de vie, phrase d’explication, informations', (await fiche.getByRole('button', { name: 'Prolonger le contrat' }).count()) === 1 && (await fiche.getByTestId('explication-cycle').innerText()).includes('Prolongez ou confirmez') && (await fiche.getByText('Matricule', { exact: true }).count()) === 1);
   await p.screenshot({ path: `${E.SHOTS}/n1_agent_fin_bureau.png` });
   await fiche.getByRole('button', { name: 'Prolonger le contrat' }).click();
   const fProl = p.getByRole('dialog', { name: /^Prolonger le contrat/ });
@@ -84,11 +101,11 @@ const sansDefilementHorizontal = (p) => p.evaluate(() => document.documentElemen
   console.log('— Bureau : rôles fonctionnels (administrateur)');
   p = await loginPage(b, 'admin');
   await p.goto(`${WEB}/users`);
-  await p.getByRole('button', { name: 'Rôles fonctionnels' }).click();
+  await p.getByRole('tab', { name: 'Rôles fonctionnels' }).click();
   await p.locator('[data-testid=attribution]').first().waitFor();
   const avant = await p.locator('[data-testid=attribution]').count();
   check('rôles repris visibles (Validateur, DRH, Assistant…)', /Validateur/.test(await p.locator('tbody').innerText()));
-  await p.getByRole('button', { name: '+ Attribuer un rôle' }).click();
+  await p.getByRole('button', { name: 'Attribuer un rôle', exact: true }).click();
   const fAttr = p.getByRole('dialog', { name: /Attribuer un rôle/ });
   await fAttr.getByLabel('Personne').selectOption(ids.agent2);
   await fAttr.getByLabel('Rôle').selectOption('GESTIONNAIRE_RH');
@@ -116,8 +133,8 @@ const sansDefilementHorizontal = (p) => p.evaluate(() => document.documentElemen
   check('organigramme sur téléphone : aucun défilement horizontal', await sansDefilementHorizontal(p));
   await p.screenshot({ path: `${E.SHOTS}/n1_organigramme_mobile.png`, fullPage: true });
   await p.goto(`${WEB}/agents`);
-  await p.locator('tbody tr').first().waitFor();
-  check('agents sur téléphone : page sans défilement horizontal (tableau défilant dans son cadre)', await sansDefilementHorizontal(p));
+  await p.locator('[data-testid=ligne-agent]').first().waitFor();
+  check('agents sur téléphone : page sans défilement horizontal (lignes en pile)', await sansDefilementHorizontal(p));
   await p.screenshot({ path: `${E.SHOTS}/n1_agents_mobile.png`, fullPage: true });
   await p.goto(`${WEB}/agents?id=${cdd.body.id}`);
   await p.getByRole('dialog', { name: `Mariama Contrat${S}` }).waitFor();

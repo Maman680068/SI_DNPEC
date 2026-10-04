@@ -1,10 +1,10 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { Plus } from 'lucide-react';
 import {
   annulerDemande,
   creerDemande,
-  exporterDemandes,
   getArticles,
   getBiens,
   getCategories,
@@ -19,28 +19,76 @@ import type { Article, Bien, Categorie, Demande, StatutDemande, TypeDemande } fr
 import { TYPE_DEMANDE_LABEL } from '../../lib/logistique/types';
 import { Erreur, Fenetre, SELECT_CLASS, TEXTAREA_CLASS } from '../courrier/ui';
 import { ErreurChargement, messageChargement } from '../ui/ErreurChargement';
-import { Badge } from '../ui/Badge';
-import { Button } from '../ui/Button';
-import { Champ, Info, Panneau, SousOnglets, Vide, dateCourte, dateHeure, nom, useAction } from './commun';
+import {
+  BTN_DANGER_CONTOUR,
+  BTN_LIGNE,
+  BTN_LIGNE_PRINCIPAL,
+  BTN_PRINCIPAL,
+  BTN_SECONDAIRE,
+  BarreOutils,
+  CleValeur,
+  EtatVide,
+  Etapes,
+  FiltreSelect,
+  LigneTableau,
+  Pastille,
+  Recherche,
+  SectionFenetre,
+  Tableau,
+  type TonPastille,
+} from '../ui/Charte';
+import { Champ, Info, Panneau, SousOnglets, dateCourte, dateHeure, nom, useAction } from './commun';
 
-type Vue = 'miennes' | 'a_valider' | 'a_traiter';
-const TON: Record<StatutDemande, 'gold' | 'sage' | 'clay' | 'muted' | 'accent'> = {
-  A_VALIDER: 'gold',
-  A_TRAITER: 'gold',
-  EN_TRAITEMENT: 'accent',
-  TRAITEE: 'sage',
-  REFUSEE: 'clay',
-  ANNULEE: 'muted',
+export type VueDemandes = 'miennes' | 'a_valider' | 'a_traiter';
+type Vue = VueDemandes;
+const TON: Record<StatutDemande, TonPastille> = {
+  A_VALIDER: 'ambre',
+  A_TRAITER: 'ambre',
+  EN_TRAITEMENT: 'encre',
+  TRAITEE: 'vert',
+  REFUSEE: 'rouge',
+  ANNULEE: 'gris',
 };
+const GRILLE = 'lg:grid-cols-[100px_minmax(0,1.6fr)_minmax(0,0.9fr)_minmax(0,1fr)_80px_150px_96px]';
+const jourMois = (iso: string) => new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+const sansAccents = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 
-/** Demandes : les miennes, celles à valider (chef), la file des gestionnaires. */
-export function OngletDemandes({ gestionnaire, ouvrirId, nouvelleIntervention, onChange }: { gestionnaire: boolean; ouvrirId: string | null; nouvelleIntervention: Bien | null; onChange: () => void }) {
-  const [vue, setVue] = useState<Vue>('miennes');
+/** Action principale de la ligne : celle que l'API autorise (valider, traiter), sinon « Voir ». */
+function actionLigne(d: Demande): string | null {
+  if (d.droits.valider) return 'Valider';
+  if (d.droits.prendreEnCharge || d.droits.traiter) return 'Traiter';
+  if (d.droits.refuser) return 'Traiter';
+  return null;
+}
+
+/**
+ * Demandes : les miennes, celles à valider (chef), la file des gestionnaires — tableau compact
+ * (type, objet, catégorie, demandeur, date, statut) avec « Traiter » sur la ligne quand l'API
+ * l'autorise, sinon « Voir ». La vue et la création sont tenues par la page (bouton d'en-tête).
+ */
+export function OngletDemandes({
+  gestionnaire,
+  ouvrirId,
+  vue,
+  onVue,
+  creation,
+  onCreation,
+  onChange,
+}: {
+  gestionnaire: boolean;
+  ouvrirId: string | null;
+  vue: Vue;
+  onVue: (v: Vue) => void;
+  creation: Bien | true | null;
+  onCreation: (c: Bien | true | null) => void;
+  onChange: () => void;
+}) {
   const [liste, setListe] = useState<Demande[] | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
   const [ouverte, setOuverte] = useState<Demande | null>(null);
-  const [creation, setCreation] = useState<Bien | true | null>(nouvelleIntervention);
   const [info, setInfo] = useState<string | null>(null);
+  const [recherche, setRecherche] = useState('');
+  const [categorie, setCategorie] = useState('');
 
   const charger = useCallback(() => {
     getDemandes(vue)
@@ -53,48 +101,70 @@ export function OngletDemandes({ gestionnaire, ouvrirId, nouvelleIntervention, o
   useEffect(() => {
     if (ouvrirId) getDemande(ouvrirId).then(setOuverte).catch((e) => setErreur(messageChargement(e)));
   }, [ouvrirId]);
-  useEffect(() => {
-    if (nouvelleIntervention) setCreation(nouvelleIntervention);
-  }, [nouvelleIntervention]);
 
   const options: { cle: Vue; libelle: string }[] = [
     { cle: 'miennes', libelle: 'Mes demandes' },
     { cle: 'a_valider', libelle: 'À valider' },
     ...(gestionnaire ? [{ cle: 'a_traiter' as Vue, libelle: 'À traiter' }] : []),
   ];
+  const categories = [...new Map((liste ?? []).map((d) => [d.categorie.id, d.categorie.libelle])).entries()].sort((x, y) => x[1].localeCompare(y[1], 'fr'));
+  const q = sansAccents(recherche.trim());
+  const affichees = (liste ?? []).filter((d) => (!categorie || d.categorie.id === categorie) && (!q || sansAccents(`${d.objet} ${nom(d.demandeur)} ${d.categorie.libelle}`).includes(q)));
 
   return (
     <div data-testid="onglet-demandes">
       <ErreurChargement message={erreur} />
       <Info message={info} />
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <SousOnglets valeur={vue} options={options} onChange={setVue} />
-        <div className="flex gap-2">
-          <Button onClick={() => void exporterDemandes(vue)}>Exporter</Button>
-          <Button variant="gold" onClick={() => setCreation(true)}>
-            + Nouvelle demande
-          </Button>
-        </div>
-      </div>
-      {!liste ? null : liste.length === 0 ? (
-        <Vide>Aucune demande dans cette rubrique.</Vide>
-      ) : (
-        <ul className="divide-y divide-line overflow-hidden rounded-lg border border-line bg-surface">
-          {liste.map((d) => (
-            <li key={d.id}>
-              <button type="button" onClick={() => setOuverte(d)} className="flex w-full flex-wrap items-center justify-between gap-2 px-4 py-3 text-left hover:bg-bg" data-testid="ligne-demande">
-                <div className="min-w-0">
-                  <div className="text-[14px] font-semibold">{d.objet}</div>
-                  <div className="text-[12.5px] text-text-muted">
-                    {TYPE_DEMANDE_LABEL[d.type]} · {d.categorie.libelle}
-                    {d.quantite ? ` · ${d.quantite}${d.article ? ` ${d.article.unite}` : ''}` : ''} · {nom(d.demandeur)} · {dateCourte(d.createdAt)}
-                  </div>
-                </div>
-                <Badge tone={TON[d.statut]}>{d.statutLibelle}</Badge>
-              </button>
-            </li>
-          ))}
-        </ul>
+      <BarreOutils>
+        <Recherche value={recherche} onChange={setRecherche} placeholder="Rechercher une demande…" label="Rechercher une demande" />
+        <SousOnglets valeur={vue} options={options} onChange={onVue} label="Demandes affichées" />
+        <FiltreSelect label="Catégorie" value={categorie} defaut="" onChange={setCategorie} options={[{ value: '', label: 'Catégorie : toutes' }, ...categories.map(([id, l]) => ({ value: id, label: l }))]} />
+      </BarreOutils>
+      {!liste ? null : (
+        <Tableau
+          label="Demandes logistiques"
+          grille={GRILLE}
+          colonnes={['Type', 'Objet', 'Catégorie', 'Demandeur', 'Date', 'Statut', <span key="a" className="sr-only">Action</span>]}
+          vide={
+            <EtatVide
+              texte={liste.length ? 'Aucune demande ne correspond à cette recherche.' : 'Aucune demande dans cette rubrique.'}
+              action={
+                <button type="button" className={BTN_SECONDAIRE} onClick={() => onCreation(true)}>
+                  <Plus aria-hidden size={16} />
+                  Nouvelle demande
+                </button>
+              }
+            />
+          }
+        >
+          {affichees.map((d) => {
+            const action = actionLigne(d);
+            return (
+              <LigneTableau key={d.id} grille={GRILLE} onClick={() => setOuverte(d)} testid="ligne-demande" label={d.objet}>
+                <span className="font-heading text-[12.5px] font-bold text-ink">{TYPE_DEMANDE_LABEL[d.type]}</span>
+                <span className="block font-semibold">
+                  {d.objet}
+                  {d.quantite ? <span className="font-normal text-text-muted"> · {d.quantite}{d.article ? ` ${d.article.unite}` : ''}</span> : null}
+                </span>
+                <span className="block truncate text-[12.5px] text-text-muted">{d.categorie.libelle}</span>
+                <span className="block truncate">{nom(d.demandeur)}</span>
+                <span className="text-[12.5px] text-text-muted">{jourMois(d.createdAt)}</span>
+                <Pastille ton={TON[d.statut]}>{d.statutLibelle}</Pastille>
+                <button
+                  type="button"
+                  tabIndex={-1}
+                  className={`${action ? BTN_LIGNE_PRINCIPAL : BTN_LIGNE} w-full`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setOuverte(d);
+                  }}
+                >
+                  {action ?? 'Voir'}
+                </button>
+              </LigneTableau>
+            );
+          })}
+        </Tableau>
       )}
       {ouverte && (
         <FenetreDemande
@@ -112,12 +182,12 @@ export function OngletDemandes({ gestionnaire, ouvrirId, nouvelleIntervention, o
       {creation && (
         <FenetreNouvelleDemande
           bien={creation === true ? null : creation}
-          onClose={() => setCreation(null)}
+          onClose={() => onCreation(null)}
           onCreated={(d) => {
-            setCreation(null);
+            onCreation(null);
             setInfo(d.statut === 'A_VALIDER' ? 'Demande envoyée à votre chef pour validation.' : 'Demande transmise aux gestionnaires logistiques.');
-            setVue('miennes');
-            charger();
+            if (vue !== 'miennes') onVue('miennes');
+            else charger();
             onChange();
           }}
         />
@@ -254,7 +324,7 @@ function FenetreDemande({ demande: d, onClose, onChange }: { demande: Demande; o
   ];
   if (mode === 'refus') {
     return (
-      <Fenetre titre="Refuser la demande" onClose={() => setMode('vue')} valider="Refuser" danger enCours={enCours} onSubmit={() => agir(() => refuserDemande(d.id, motif.trim()), 'Demande refusée.')}>
+      <Fenetre titre="Rejeter la demande" onClose={() => setMode('vue')} valider="Rejeter" danger enCours={enCours} onSubmit={() => agir(() => refuserDemande(d.id, motif.trim()), 'Demande refusée.')}>
         <Erreur message={erreur} />
         <Champ id="dem-motif" label="Motif (communiqué au demandeur)">
           <textarea id="dem-motif" className={TEXTAREA_CLASS} value={motif} onChange={(e) => setMotif(e.target.value)} minLength={3} required />
@@ -290,93 +360,90 @@ function FenetreDemande({ demande: d, onClose, onChange }: { demande: Demande; o
     );
   }
   const actions = d.droits;
+  const premiereAFaire = etapes.findIndex(([, at]) => !at);
+  const arret = d.statut === 'REFUSEE' || d.statut === 'ANNULEE';
+  const boutons = [
+    actions.valider && (
+      <button key="v" type="button" className={`${BTN_PRINCIPAL} w-full`} disabled={enCours} onClick={() => agir(() => validerDemande(d.id), 'Demande validée : transmise aux gestionnaires.')}>
+        Valider
+      </button>
+    ),
+    actions.prendreEnCharge && (
+      <button key="p" type="button" className={`${BTN_PRINCIPAL} w-full`} disabled={enCours} onClick={() => agir(() => prendreEnCharge(d.id), 'Demande prise en charge.')}>
+        Prendre en charge
+      </button>
+    ),
+    actions.traiter && (
+      <button key="t" type="button" className={`${BTN_PRINCIPAL} w-full`} disabled={enCours} onClick={() => setMode('traitement')}>
+        Traiter
+      </button>
+    ),
+    actions.refuser && (
+      <button key="r" type="button" className={`${BTN_DANGER_CONTOUR} w-full`} disabled={enCours} onClick={() => setMode('refus')}>
+        Rejeter avec un motif
+      </button>
+    ),
+    actions.annuler && (
+      <button key="a" type="button" className={`${BTN_SECONDAIRE} w-full`} disabled={enCours} onClick={() => agir(() => annulerDemande(d.id), 'Demande annulée.')}>
+        Annuler ma demande
+      </button>
+    ),
+  ].filter(Boolean);
   return (
-    <Panneau titre={d.objet} sousTitre={`${TYPE_DEMANDE_LABEL[d.type]} · ${d.categorie.libelle} — ${d.statutLibelle}`} onClose={onClose} testid="fiche-demande">
+    <Panneau
+      titre={d.objet}
+      filAriane={['Logistique', 'Demandes', TYPE_DEMANDE_LABEL[d.type]]}
+      sousTitre={
+        <Etapes
+          label="Circuit de la demande"
+          etapes={etapes.map(([l, at], i) => ({ label: l, etat: at ? 'fait' : !arret && i === premiereAFaire ? 'courant' : 'avenir' }))}
+        />
+      }
+      onClose={onClose}
+      testid="fiche-demande"
+      cote={
+        <>
+          {boutons.length > 0 && <div className="mb-[18px] grid gap-2">{boutons}</div>}
+          <SectionFenetre titre="Informations" className="">
+            <CleValeur
+              largeur={96}
+              lignes={[
+                ['Statut', <Pastille key="s" ton={TON[d.statut]}>{d.statutLibelle}</Pastille>],
+                ['Demandeur', nom(d.demandeur)],
+                ['Catégorie', d.categorie.libelle],
+                ['Déposée le', dateCourte(d.createdAt)],
+              ]}
+            />
+          </SectionFenetre>
+        </>
+      }
+    >
       <Erreur message={erreur} />
-      <dl className="mb-3 grid grid-cols-[120px_1fr] gap-y-1 text-[13px]">
-        <dt className="text-text-muted">Demandeur</dt>
-        <dd>{nom(d.demandeur)}</dd>
-        {d.article && (
-          <>
-            <dt className="text-text-muted">Article</dt>
-            <dd>
-              {d.article.libelle} — {d.quantite} {d.article.unite}
-              {d.quantiteLivree !== null ? ` (remis : ${d.quantiteLivree})` : ''}
-            </dd>
-          </>
-        )}
-        {d.type === 'MATERIEL' && (
-          <>
-            <dt className="text-text-muted">Quantité</dt>
-            <dd>{d.quantite}</dd>
-          </>
-        )}
-        {d.bien && (
-          <>
-            <dt className="text-text-muted">Bien</dt>
-            <dd>
-              {d.bien.numeroInventaire} — {d.bien.designation}
-            </dd>
-          </>
-        )}
-        {d.justification && (
-          <>
-            <dt className="text-text-muted">Justification</dt>
-            <dd className="whitespace-pre-wrap">{d.justification}</dd>
-          </>
-        )}
-        {d.compteRendu && (
-          <>
-            <dt className="text-text-muted">Compte rendu</dt>
-            <dd className="whitespace-pre-wrap">{d.compteRendu}</dd>
-          </>
-        )}
-        {d.motifRefus && (
-          <>
-            <dt className="text-text-muted">Refus</dt>
-            <dd className="text-clay">
-              {d.motifRefus} ({nom(d.refuseePar)})
-            </dd>
-          </>
-        )}
-      </dl>
-      <ol className="mb-4 border-l-2 border-line pl-3 text-[12.5px]" data-testid="etapes-demande">
-        {etapes.map(([l, at, qui]) => (
-          <li key={l} className={at ? 'text-text' : 'text-text-faint'}>
-            {at ? '✓' : '○'} {l}
-            {at ? ` — ${dateHeure(at)}${qui ? `, ${qui}` : ''}` : ''}
-          </li>
-        ))}
-      </ol>
-      {(actions.valider || actions.refuser || actions.prendreEnCharge || actions.traiter || actions.annuler) && (
-        <div className="mb-2 flex flex-wrap justify-end gap-2 border-t border-line pt-3">
-          {actions.annuler && (
-            <Button type="button" disabled={enCours} onClick={() => agir(() => annulerDemande(d.id), 'Demande annulée.')}>
-              Annuler ma demande
-            </Button>
-          )}
-          {actions.refuser && (
-            <Button type="button" disabled={enCours} onClick={() => setMode('refus')}>
-              Refuser
-            </Button>
-          )}
-          {actions.valider && (
-            <Button type="button" variant="gold" disabled={enCours} onClick={() => agir(() => validerDemande(d.id), 'Demande validée : transmise aux gestionnaires.')}>
-              Valider
-            </Button>
-          )}
-          {actions.prendreEnCharge && (
-            <Button type="button" variant="gold" disabled={enCours} onClick={() => agir(() => prendreEnCharge(d.id), 'Demande prise en charge.')}>
-              Prendre en charge
-            </Button>
-          )}
-          {actions.traiter && (
-            <Button type="button" variant="gold" disabled={enCours} onClick={() => setMode('traitement')}>
-              Traiter
-            </Button>
-          )}
-        </div>
-      )}
+      <SectionFenetre titre="Demande">
+        <CleValeur
+          largeur={120}
+          lignes={
+            [
+              d.article ? ['Article', `${d.article.libelle} — ${d.quantite} ${d.article.unite}${d.quantiteLivree !== null ? ` (remis : ${d.quantiteLivree})` : ''}`] : null,
+              d.type === 'MATERIEL' ? ['Quantité', String(d.quantite ?? '')] : null,
+              d.bien ? ['Bien', `${d.bien.numeroInventaire} — ${d.bien.designation}`] : null,
+              ['Justification', d.justification ? <span key="j" className="whitespace-pre-wrap font-normal">{d.justification}</span> : <span key="j" className="font-normal text-text-muted">Aucune</span>],
+              d.compteRendu ? ['Compte rendu', <span key="c" className="whitespace-pre-wrap font-normal">{d.compteRendu}</span>] : null,
+              d.motifRefus ? ['Refus', <span key="m" className="text-clay">{d.motifRefus} ({nom(d.refuseePar)})</span>] : null,
+            ].filter(Boolean) as [ReactNode, ReactNode][]
+          }
+        />
+      </SectionFenetre>
+      <SectionFenetre titre="Historique" className="">
+        <ol className="space-y-1.5 border-l-2 border-line pl-3 text-[13px]" data-testid="etapes-demande">
+          {etapes.map(([l, at, qui]) => (
+            <li key={l} className={at ? 'text-text' : 'text-text-muted'}>
+              <b className="font-semibold">{l}</b>
+              {at ? ` — ${dateHeure(at)}${qui ? `, ${qui}` : ''}` : ' — à venir'}
+            </li>
+          ))}
+        </ol>
+      </SectionFenetre>
     </Panneau>
   );
 }

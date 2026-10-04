@@ -2,9 +2,11 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
+import { Check, FileText, Plus, X } from 'lucide-react';
 import {
   emettreInstruction,
   executerInstruction,
+  exporterInstructions,
   getInstruction,
   getInstructions,
   prendreEnCompte,
@@ -16,46 +18,92 @@ import type {
   StatutInstruction,
 } from '../../../lib/pilotage/types';
 import { LIBELLE_STATUT_INSTRUCTION } from '../../../lib/pilotage/types';
-import { Button } from '../../../components/ui/Button';
-import { Badge } from '../../../components/ui/Badge';
 import { Fenetre } from '../../../components/ui/Fenetre';
+import { FenetreDetail } from '../../../components/ui/FenetreDetail';
+import {
+  BandeCompteurs,
+  BarreOutils,
+  BTN_DANGER_CONTOUR,
+  BTN_LIGNE,
+  BTN_LIGNE_PRINCIPAL,
+  BTN_PRINCIPAL,
+  BTN_SECONDAIRE,
+  BTN_SUCCES,
+  CleValeur,
+  EnTetePage,
+  Etapes,
+  EtatVide,
+  FiltreSelect,
+  LigneTableau,
+  Onglets,
+  Pastille,
+  Recherche,
+  SectionFenetre,
+  Tableau,
+  type EtatEtape,
+  type TonPastille,
+} from '../../../components/ui/Charte';
 import {
   Chargement,
   ErreurChargement,
   messageChargement,
 } from '../../../components/ui/ErreurChargement';
 
-type Onglet = 'recues' | 'emises' | 'meConcernant';
-const champ = 'mt-1 w-full rounded-md border border-line bg-surface px-3 py-2 text-[13px]';
+type Onglet = 'emises' | 'recues' | 'meConcernant' | 'archivees';
+const champ = 'mt-1 w-full rounded-[9px] border border-line bg-surface px-3 py-2 text-[13.5px] font-normal';
 const date = (iso: string | null) =>
   iso
     ? new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })
     : '—';
-const TON: Record<StatutInstruction, 'accent' | 'gold' | 'sage' | 'clay' | 'muted'> = {
-  EMISE: 'gold',
-  RECUE: 'accent',
-  PRISE_EN_COMPTE: 'accent',
-  EXECUTEE: 'sage',
-  REJETEE: 'clay',
+/** Date courte du tableau : « 30 sept. », l'année seulement si ce n'est pas l'année en cours. */
+const dateCourte = (iso: string | null) => {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', ...(d.getFullYear() !== new Date().getFullYear() ? { year: 'numeric' } : {}) });
 };
+// Émise : gris ; reçue : encre ; prise en compte (en cours d'action) : ambre ; exécutée : vert ; rejetée : rouge.
+const TON: Record<StatutInstruction, TonPastille> = {
+  EMISE: 'gris',
+  RECUE: 'encre',
+  PRISE_EN_COMPTE: 'ambre',
+  EXECUTEE: 'vert',
+  REJETEE: 'rouge',
+};
+const OUVERTE = (i: Instruction) => i.statut !== 'EXECUTEE' && i.statut !== 'REJETEE';
+const GRILLE = 'lg:grid-cols-[96px_minmax(0,1fr)_minmax(0,210px)_96px_150px_92px]';
+const CIRCUIT = 'Émise → Reçue → Prise en compte → Exécutée';
+type FiltreEcheance = 'toutes' | 'retard' | 'semaine' | 'mois' | 'sans';
+const ECHEANCES: { value: FiltreEcheance; label: string }[] = [
+  { value: 'toutes', label: 'Échéance : toutes' },
+  { value: 'retard', label: 'En retard' },
+  { value: 'semaine', label: 'Dans les 7 jours' },
+  { value: 'mois', label: 'Dans les 30 jours' },
+  { value: 'sans', label: 'Sans échéance' },
+];
+function correspondEcheance(i: Instruction, f: FiltreEcheance): boolean {
+  if (f === 'toutes') return true;
+  if (f === 'sans') return !i.echeance;
+  if (f === 'retard') return i.enRetard && OUVERTE(i);
+  if (!i.echeance) return false;
+  const jours = (new Date(i.echeance).getTime() - new Date(new Date().toISOString().slice(0, 10)).getTime()) / 864e5;
+  return jours >= 0 && jours <= (f === 'semaine' ? 7 : 30);
+}
 
 /** Instructions de la Direction (socle N5) : émises par le DN ou la DNA, suivies jusqu'à l'exécution. */
 export default function InstructionsPage() {
   const [liste, setListe] = useState<ListeInstructions | null>(null);
-  const [onglet, setOnglet] = useState<Onglet>('recues');
+  const [onglet, setOnglet] = useState<Onglet | null>(null);
   const [ouverte, setOuverte] = useState<string | null>(null);
   const [emission, setEmission] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
+  const [recherche, setRecherche] = useState('');
+  const [personne, setPersonne] = useState('');
+  const [statut, setStatut] = useState<StatutInstruction | ''>('');
+  const [echeance, setEcheance] = useState<FiltreEcheance>('toutes');
 
   const charger = useCallback(() => {
     getInstructions()
-      .then((l) => {
-        setListe(l);
-        if (l.peutEmettre && l.recues.length === 0)
-          setOnglet((o) => (o === 'recues' ? 'emises' : o));
-        else if (!l.peutEmettre && l.recues.length === 0 && l.meConcernant.length > 0)
-          setOnglet((o) => (o === 'recues' ? 'meConcernant' : o));
-      })
+      .then(setListe)
       .catch((e) => setErreur(messageChargement(e)));
   }, []);
   useEffect(() => {
@@ -67,97 +115,187 @@ export default function InstructionsPage() {
   if (!liste) {
     return (
       <div>
+        <EnTetePage titre="Instructions de la Direction" />
         <ErreurChargement message={erreur} />
         <Chargement erreur={erreur} />
       </div>
     );
   }
-  const onglets: { cle: Onglet; libelle: string; items: Instruction[]; visible: boolean }[] = [
-    { cle: 'recues', libelle: 'Reçues', items: liste.recues, visible: true },
-    {
-      cle: 'emises',
-      libelle: liste.peutEmettre ? 'Émises (Direction)' : 'Émises',
-      items: liste.emises,
-      visible: liste.peutEmettre || liste.emises.length > 0,
-    },
-    {
-      cle: 'meConcernant',
-      libelle: 'Me concernant',
-      items: liste.meConcernant,
-      visible: liste.meConcernant.length > 0,
-    },
+  // Onglets selon ce que l'API renvoie : émises (Direction), reçues, me concernant (après exécution),
+  // archivées (instructions closes, émises ou reçues). Aucun droit calculé : simples répartitions.
+  const toutes = [...new Map([...liste.emises, ...liste.recues, ...liste.meConcernant].map((i) => [i.id, i])).values()];
+  const archivees = [...new Map([...liste.emises, ...liste.recues].filter((i) => !OUVERTE(i)).map((i) => [i.id, i])).values()];
+  const onglets: { cle: Onglet; libelle: string; items: Instruction[]; visible: boolean; chaud?: boolean }[] = [
+    { cle: 'emises', libelle: 'Émises par la Direction', items: liste.emises.filter(OUVERTE), visible: liste.peutEmettre || liste.emises.length > 0 },
+    { cle: 'recues', libelle: 'Reçues', items: liste.recues.filter(OUVERTE), visible: true, chaud: true },
+    { cle: 'meConcernant', libelle: 'Me concernant', items: liste.meConcernant, visible: liste.meConcernant.length > 0 },
+    { cle: 'archivees', libelle: 'Archivées', items: archivees, visible: true },
   ];
-  const courant = onglets.find((o) => o.cle === onglet) ?? onglets[0]!;
+  const visibles = onglets.filter((o) => o.visible);
+  const parDefaut: Onglet = liste.peutEmettre
+    ? 'emises'
+    : liste.recues.some(OUVERTE) || liste.meConcernant.length === 0
+      ? 'recues'
+      : 'meConcernant';
+  const courant = visibles.find((o) => o.cle === (onglet ?? parDefaut)) ?? visibles[0]!;
+  const emisesVue = courant.cle === 'emises' || courant.cle === 'archivees';
+  const personneDe = (i: Instruction) => (emisesVue ? i.destinataire : i.emetteur);
+  const personnes = [...new Map(courant.items.map((i) => [personneDe(i).id, personneDe(i).nom])).entries()].sort((a, b) => a[1].localeCompare(b[1], 'fr'));
+  const statuts = [...new Set(courant.items.map((i) => i.statut))];
+  const q = recherche.trim().toLowerCase();
+  const affichees = courant.items.filter(
+    (i) =>
+      (!q || `${i.objet} ${i.emetteur.nom} ${i.destinataire.nom} ${i.agentConcerne?.nom ?? ''}`.toLowerCase().includes(q)) &&
+      (!personne || personneDe(i).id === personne) &&
+      (!statut || i.statut === statut) &&
+      correspondEcheance(i, echeance),
+  );
+  const filtre = !!q || !!personne || !!statut || echeance !== 'toutes';
+  const effacer = () => (setRecherche(''), setPersonne(''), setStatut(''), setEcheance('toutes'));
+  const changerOnglet = (o: Onglet) => (setOnglet(o), setPersonne(''), setStatut(''));
+
+  const annee = new Date().getFullYear();
+  const enCours = toutes.filter(OUVERTE).length;
+  const enRetard = toutes.filter((i) => i.enRetard && OUVERTE(i)).length;
+  const executees = toutes.filter((i) => i.statut === 'EXECUTEE' && !!i.executeeLe && new Date(i.executeeLe).getFullYear() === annee).length;
+  const rejetees = toutes.filter((i) => i.statut === 'REJETEE').length;
 
   return (
-    <div className="max-w-[980px]">
-      <div className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-sage">Général</div>
-      <div className="mb-1 flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-[22px] font-extrabold">Instructions de la Direction</h1>
-        {liste.peutEmettre && (
-          <Button variant="solid" onClick={() => setEmission(true)}>
-            + Nouvelle instruction
-          </Button>
-        )}
-      </div>
-      <p className="mb-5 text-[13px] text-text-muted">
-        Émise → Reçue → Prise en compte → Exécutée ou Rejetée. Relance automatique tous les 7 jours
-        tant qu’elle reste ouverte. Une instruction qui concerne un agent s’exécute par un acte
-        signé du Courrier ; l’agent ne la voit qu’une fois exécutée.
-      </p>
-      <ErreurChargement message={erreur} />
-      <div
-        role="tablist"
-        className="mb-4 flex w-fit flex-wrap gap-0.5 rounded-md border border-line bg-bg p-0.5"
-      >
-        {onglets
-          .filter((o) => o.visible)
-          .map((o) => (
-            <button
-              key={o.cle}
-              role="tab"
-              aria-selected={onglet === o.cle}
-              onClick={() => setOnglet(o.cle)}
-              className={`rounded-[6px] px-4 py-1.5 text-[12.5px] font-semibold ${onglet === o.cle ? 'bg-surface text-ink shadow-sm' : 'text-text-muted'}`}
-            >
-              {o.libelle} <span className="text-text-faint">{o.items.length}</span>
+    <div>
+      <EnTetePage
+        titre="Instructions de la Direction"
+        actions={
+          <>
+            <button type="button" className={BTN_SECONDAIRE} onClick={() => void exporterInstructions().catch((e) => setErreur(messageChargement(e)))}>
+              <FileText aria-hidden size={16} /> Exporter
             </button>
-          ))}
-      </div>
-      {courant.items.length === 0 ? (
-        <p className="rounded-lg border border-line bg-surface p-5 text-[13px] text-text-muted">
-          Aucune instruction.
-        </p>
-      ) : (
-        <ul className="divide-y divide-line rounded-lg border border-line bg-surface">
-          {courant.items.map((i) => (
-            <li key={i.id}>
-              <button
-                data-testid="instruction"
-                onClick={() => setOuverte(i.id)}
-                className="flex w-full flex-wrap items-center justify-between gap-2 px-4 py-3 text-left hover:bg-bg"
-              >
-                <div className="min-w-0">
-                  <div className="text-[13.5px] font-semibold">{i.objet}</div>
-                  <div className="text-[12px] text-text-muted">
-                    {i.emetteur.nom} → {i.destinataire.nom} · émise le {date(i.emiseLe)}
-                    {i.echeance ? ` · échéance ${date(i.echeance)}` : ''}
-                  </div>
-                </div>
-                <div className="flex gap-1.5">
-                  {i.enRetard && <Badge tone="clay">En retard</Badge>}
-                  <Badge tone={TON[i.statut]}>{LIBELLE_STATUT_INSTRUCTION[i.statut]}</Badge>
-                </div>
+            {liste.peutEmettre && (
+              <button type="button" className={BTN_PRINCIPAL} onClick={() => setEmission(true)}>
+                <Plus aria-hidden size={17} /> Nouvelle instruction
               </button>
-            </li>
-          ))}
-        </ul>
-      )}
+            )}
+          </>
+        }
+      />
+      <ErreurChargement message={erreur} />
+      <BandeCompteurs
+        label="Synthèse des instructions"
+        items={[
+          { valeur: enCours, label: 'En cours', sous: 'émises, reçues ou prises en compte', testid: 'compteur-en-cours' },
+          { valeur: enRetard, label: 'En retard', sous: 'échéance dépassée', ton: enRetard ? 'rouge' : 'encre', testid: 'compteur-retard' },
+          { valeur: executees, label: `Exécutées en ${annee}`, sous: 'avec acte signé si requis', ton: 'vert', testid: 'compteur-executees' },
+          { valeur: rejetees, label: rejetees > 1 ? 'Rejetées' : 'Rejetée', sous: 'avec motif', testid: 'compteur-rejetees' },
+        ]}
+      />
+      <div className="relative">
+        <Onglets
+          label="Instructions"
+          actif={courant.cle}
+          onChange={changerOnglet}
+          onglets={visibles.map((o) => ({ cle: o.cle, label: o.libelle, n: o.items.length, chaud: o.chaud }))}
+        />
+        <p className="pointer-events-none absolute right-0 top-[11px] hidden text-[12.5px] text-text-muted xl:block" data-testid="circuit-instructions">
+          {CIRCUIT}
+        </p>
+      </div>
+      <BarreOutils>
+        <Recherche value={recherche} onChange={setRecherche} placeholder="Rechercher une instruction…" label="Rechercher une instruction" />
+        <FiltreSelect
+          label={emisesVue ? 'Destinataire' : 'Émetteur'}
+          value={personne}
+          defaut=""
+          onChange={setPersonne}
+          options={[{ value: '', label: emisesVue ? 'Destinataire : tous' : 'Émetteur : tous' }, ...personnes.map(([id, nom]) => ({ value: id, label: nom }))]}
+        />
+        <FiltreSelect<StatutInstruction | ''>
+          label="Statut"
+          value={statut}
+          defaut=""
+          onChange={setStatut}
+          options={[{ value: '', label: 'Statut : tous' }, ...statuts.map((s) => ({ value: s, label: LIBELLE_STATUT_INSTRUCTION[s] }))]}
+        />
+        <FiltreSelect<FiltreEcheance> label="Échéance" value={echeance} defaut="toutes" onChange={setEcheance} options={ECHEANCES} />
+      </BarreOutils>
+      <Tableau
+        label={courant.libelle}
+        testid="tableau-instructions"
+        grille={GRILLE}
+        colonnes={['Émise le', 'Objet', emisesVue ? 'Destinataire' : 'Émetteur', 'Échéance', 'Statut', <span key="a" className="sr-only">Action</span>]}
+        vide={
+          filtre ? (
+            <EtatVide
+              texte="Aucune instruction ne correspond aux filtres."
+              action={<button type="button" className={BTN_SECONDAIRE} onClick={effacer}>Effacer les filtres</button>}
+            />
+          ) : (
+            <EtatVide
+              texte={courant.cle === 'archivees' ? 'Aucune instruction close pour l’instant.' : courant.cle === 'recues' ? 'Aucune instruction en attente ne vous est adressée.' : 'Aucune instruction en cours.'}
+              action={
+                liste.peutEmettre ? (
+                  <button type="button" className={BTN_SECONDAIRE} onClick={() => setEmission(true)}>
+                    <Plus aria-hidden size={16} /> Nouvelle instruction
+                  </button>
+                ) : courant.cle !== 'archivees' ? (
+                  <button type="button" className={BTN_SECONDAIRE} onClick={() => changerOnglet('archivees')}>
+                    Voir les instructions archivées
+                  </button>
+                ) : undefined
+              }
+            />
+          )
+        }
+        pied={
+          affichees.length > 0 ? (
+            <>
+              <span>
+                {affichees.length} instruction{affichees.length > 1 ? 's' : ''} · relance automatique tous les 7 jours tant qu’elle reste ouverte
+              </span>
+              <span className="xl:hidden">{CIRCUIT}</span>
+            </>
+          ) : undefined
+        }
+      >
+        {affichees.map((i) => {
+          const aTraiter = i.droits.prendreEnCompte || i.droits.executer;
+          return (
+            <LigneTableau key={i.id} grille={GRILLE} testid="instruction" label={i.objet} onClick={() => setOuverte(i.id)} actif={ouverte === i.id}>
+              <span className="text-[12.5px] text-text-muted">
+                <span className="lg:hidden">Émise le </span>
+                {dateCourte(i.emiseLe)}
+              </span>
+              <span className="block">
+                <b className="block font-semibold text-ink-900 lg:truncate">{i.objet}</b>
+                {i.agentConcerne && <small className="block truncate text-[12px] text-text-muted">Concerne {i.agentConcerne.nom}</small>}
+              </span>
+              <span className="block truncate">
+                <span className="text-text-muted lg:hidden">{emisesVue ? 'À ' : 'De '}</span>
+                {personneDe(i).nom}
+              </span>
+              <span className={i.enRetard && OUVERTE(i) ? 'font-semibold text-clay' : 'text-text-muted'}>
+                <span className="font-normal text-text-muted lg:hidden">Échéance </span>
+                {dateCourte(i.echeance)}
+              </span>
+              <span className="flex flex-wrap gap-1">
+                <Pastille ton={TON[i.statut]}>{LIBELLE_STATUT_INSTRUCTION[i.statut]}</Pastille>
+                {i.enRetard && <Pastille ton="rouge">En retard</Pastille>}
+              </span>
+              <button
+                type="button"
+                className={`${aTraiter ? BTN_LIGNE_PRINCIPAL : BTN_LIGNE} w-full max-w-[120px]`}
+                aria-label={`Voir l’instruction « ${i.objet} »`}
+                onClick={(e) => (e.stopPropagation(), setOuverte(i.id))}
+              >
+                Voir
+              </button>
+            </LigneTableau>
+          );
+        })}
+      </Tableau>
       {emission && (
         <FenetreEmission
           liste={liste}
           onClose={() => setEmission(false)}
-          onFait={() => (setEmission(false), setOnglet('emises'), charger())}
+          onFait={() => (setEmission(false), changerOnglet('emises'), charger())}
         />
       )}
       {ouverte && (
@@ -284,6 +422,15 @@ function FenetreEmission({
   );
 }
 
+function etapesInstruction(i: Instruction): { label: string; etat: EtatEtape }[] {
+  const rang = { EMISE: 0, RECUE: 1, PRISE_EN_COMPTE: 2, EXECUTEE: 3, REJETEE: 3 }[i.statut];
+  const fin = i.statut === 'REJETEE' ? 'Rejetée' : 'Exécutée';
+  return ['Émise', 'Reçue', 'Prise en compte', fin].map((label, n) => ({
+    label,
+    etat: n < rang || (n === 3 && rang === 3) ? 'fait' : n === rang ? 'courant' : 'avenir',
+  }));
+}
+
 function FicheInstruction({
   id,
   onClose,
@@ -308,140 +455,165 @@ function FicheInstruction({
       .then(() => getInstruction(id))
       .then((x) => (setI(x), setAction(null), setTexte(''), onChange()))
       .catch((e) => setErreur(messageChargement(e)));
-  return (
-    <Fenetre titre={i ? i.objet : 'Instruction'} onClose={onClose} largeur={620} erreur={erreur}>
-      {!i ? (
+
+  if (!i) {
+    return (
+      <FenetreDetail titre="Instruction" filAriane={['Instructions de la Direction']} onClose={onClose} largeur={720}>
+        <ErreurChargement message={erreur} />
         <Chargement erreur={erreur} />
-      ) : (
-        <div data-testid="fiche-instruction">
-          <div className="mb-3 flex flex-wrap gap-1.5">
-            <Badge tone={TON[i.statut]}>{LIBELLE_STATUT_INSTRUCTION[i.statut]}</Badge>
-            {i.enRetard && <Badge tone="clay">En retard</Badge>}
-          </div>
-          <p className="mb-3 whitespace-pre-wrap text-[13.5px]">{i.texte}</p>
-          <dl className="mb-4 space-y-1 text-[12.5px]">
-            <div>
-              <dt className="inline font-semibold">De : </dt>
-              <dd className="inline">{i.emetteur.nom}</dd>
-            </div>
-            <div>
-              <dt className="inline font-semibold">À : </dt>
-              <dd className="inline">{i.destinataire.nom}</dd>
-            </div>
-            {i.agentConcerne && (
-              <div>
-                <dt className="inline font-semibold">Agent concerné : </dt>
-                <dd className="inline">{i.agentConcerne.nom}</dd>
-              </div>
-            )}
-            <div>
-              <dt className="inline font-semibold">Suivi : </dt>
-              <dd className="inline" data-testid="suivi-instruction">
-                émise le {date(i.emiseLe)}
-                {i.recueLe && ` · reçue le ${date(i.recueLe)}`}
-                {i.priseEnCompteLe && ` · prise en compte le ${date(i.priseEnCompteLe)}`}
-                {i.executeeLe && ` · exécutée le ${date(i.executeeLe)}`}
-                {i.rejeteeLe && ` · rejetée le ${date(i.rejeteeLe)}`}
-                {i.echeance && ` · échéance ${date(i.echeance)}`}
-              </dd>
-            </div>
-            {i.compteRendu && (
-              <div>
-                <dt className="inline font-semibold">Compte rendu : </dt>
-                <dd className="inline">{i.compteRendu}</dd>
-              </div>
-            )}
-            {i.acteId && (
-              <div>
-                <dt className="inline font-semibold">Acte : </dt>
-                <dd className="inline">
-                  <Link className="underline" href={`/courrier?acte=${i.acteId}`}>
-                    voir l’acte d’exécution
-                  </Link>
-                </dd>
-              </div>
-            )}
-            {i.motifRejet && (
-              <div>
-                <dt className="inline font-semibold">Motif du rejet : </dt>
-                <dd className="inline">{i.motifRejet}</dd>
-              </div>
-            )}
-          </dl>
-          {action ? (
-            <form
-              className="rounded-md border border-line p-3"
-              onSubmit={(e) => {
-                e.preventDefault();
-                setErreur(null);
-                apres(
-                  action === 'executer'
-                    ? executerInstruction(id, { compteRendu: texte, ...(acteId ? { acteId } : {}) })
-                    : rejeterInstruction(id, texte),
-                );
-              }}
-            >
-              <label className="mb-2 block text-[12.5px] font-semibold">
-                {action === 'executer' ? 'Compte rendu d’exécution' : 'Motif du rejet'}
-                <textarea
-                  className={champ}
-                  rows={3}
-                  value={texte}
-                  onChange={(e) => setTexte(e.target.value)}
-                  required
-                  minLength={action === 'executer' ? 3 : 5}
-                />
-              </label>
-              {action === 'executer' && i.droits.acteRequis && (
-                <label className="mb-2 block text-[12.5px] font-semibold">
-                  Acte signé qui exécute l’instruction
-                  <select
-                    className={champ}
-                    value={acteId}
-                    onChange={(e) => setActeId(e.target.value)}
-                    required
-                  >
-                    <option value="">Choisir…</option>
-                    {(i.actesPossibles ?? []).map((a) => (
-                      <option key={a.id} value={a.id}>
-                        {a.libelle}
-                      </option>
-                    ))}
-                  </select>
-                  {(i.actesPossibles ?? []).length === 0 && (
-                    <span className="mt-1 block font-normal text-text-muted">
-                      Préparez puis faites signer l’acte dans le module Courrier (ou Documents
-                      générés).
-                    </span>
-                  )}
-                </label>
+      </FenetreDetail>
+    );
+  }
+
+  const aucuneAction = !i.droits.prendreEnCompte && !i.droits.executer && !i.droits.rejeter;
+  const cote = (
+    <div>
+      {action ? (
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            setErreur(null);
+            apres(
+              action === 'executer'
+                ? executerInstruction(id, { compteRendu: texte, ...(acteId ? { acteId } : {}) })
+                : rejeterInstruction(id, texte),
+            );
+          }}
+        >
+          <label className="mb-2 block text-[12.5px] font-semibold">
+            {action === 'executer' ? 'Compte rendu d’exécution' : 'Motif du rejet'}
+            <textarea
+              className={champ}
+              rows={4}
+              value={texte}
+              onChange={(e) => setTexte(e.target.value)}
+              required
+              minLength={action === 'executer' ? 3 : 5}
+            />
+          </label>
+          {action === 'executer' && i.droits.acteRequis && (
+            <label className="mb-2 block text-[12.5px] font-semibold">
+              Acte signé qui exécute l’instruction
+              <select
+                className={champ}
+                value={acteId}
+                onChange={(e) => setActeId(e.target.value)}
+                required
+              >
+                <option value="">Choisir…</option>
+                {(i.actesPossibles ?? []).map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.libelle}
+                  </option>
+                ))}
+              </select>
+              {(i.actesPossibles ?? []).length === 0 && (
+                <span className="mt-1 block font-normal text-text-muted">
+                  Préparez puis faites signer l’acte dans le module Courrier (ou Documents
+                  générés).
+                </span>
               )}
-              <div className="flex justify-end gap-2">
-                <Button type="button" onClick={() => setAction(null)}>
-                  Annuler
-                </Button>
-                <Button variant="solid" type="submit">
-                  {action === 'executer' ? 'Confirmer l’exécution' : 'Confirmer le rejet'}
-                </Button>
-              </div>
-            </form>
-          ) : (
-            <div className="flex flex-wrap gap-2">
-              {i.droits.prendreEnCompte && (
-                <Button variant="solid" onClick={() => apres(prendreEnCompte(id))}>
-                  Prendre en compte
-                </Button>
-              )}
-              {i.droits.executer && (
-                <Button variant="solid" onClick={() => setAction('executer')}>
-                  Marquer exécutée
-                </Button>
-              )}
-              {i.droits.rejeter && <Button onClick={() => setAction('rejeter')}>Rejeter</Button>}
-            </div>
+            </label>
           )}
+          <div className="grid gap-2">
+            <button type="submit" className={action === 'executer' ? BTN_SUCCES : BTN_DANGER_CONTOUR}>
+              {action === 'executer' ? 'Confirmer l’exécution' : 'Confirmer le rejet'}
+            </button>
+            <button type="button" className={BTN_SECONDAIRE} onClick={() => setAction(null)}>
+              Annuler
+            </button>
+          </div>
+        </form>
+      ) : aucuneAction ? (
+        <p className="text-[12.5px] text-text-muted">
+          {OUVERTE(i)
+            ? 'Aucune action ne vous revient : l’instruction est suivie par son destinataire.'
+            : 'Instruction close.'}
+        </p>
+      ) : (
+        <div className="grid gap-2">
+          {i.droits.prendreEnCompte && (
+            <button type="button" className={BTN_PRINCIPAL} onClick={() => apres(prendreEnCompte(id))}>
+              <Check aria-hidden size={16} /> Prendre en compte
+            </button>
+          )}
+          {i.droits.executer && (
+            <button type="button" className={BTN_SUCCES} onClick={() => setAction('executer')}>
+              <Check aria-hidden size={16} /> Marquer exécutée
+            </button>
+          )}
+          {i.droits.rejeter && (
+            <button type="button" className={BTN_DANGER_CONTOUR} onClick={() => setAction('rejeter')}>
+              <X aria-hidden size={16} /> Rejeter
+            </button>
+          )}
+          <p className="mt-1 text-[12px] text-text-muted">
+            Relance automatique tous les 7 jours tant que l’instruction reste ouverte.
+          </p>
         </div>
       )}
-    </Fenetre>
+      <div className="mt-4 border-t border-line pt-4">
+        <CleValeur
+          largeur={100}
+          lignes={[
+            ['Statut', (
+              <span className="flex flex-wrap gap-1">
+                <Pastille ton={TON[i.statut]}>{LIBELLE_STATUT_INSTRUCTION[i.statut]}</Pastille>
+                {i.enRetard && <Pastille ton="rouge">En retard</Pastille>}
+              </span>
+            )],
+            ['Émise le', date(i.emiseLe)],
+            ['De', i.emetteur.nom],
+            ['À', i.destinataire.nom],
+            ...(i.agentConcerne ? ([['Agent concerné', i.agentConcerne.nom]] as [string, string][]) : []),
+            ['Échéance', i.echeance ? date(i.echeance) : '—'],
+          ]}
+        />
+      </div>
+    </div>
+  );
+
+  return (
+    <FenetreDetail
+      titre={i.objet}
+      filAriane={['Instructions de la Direction', i.emetteur.nom]}
+      entete={<Etapes etapes={etapesInstruction(i)} label="Suivi de l’instruction" />}
+      cote={cote}
+      onClose={onClose}
+      largeur={900}
+      testid="fiche-instruction"
+    >
+      <ErreurChargement message={erreur} />
+      <SectionFenetre titre="Instruction">
+        <p className="whitespace-pre-wrap text-[13.5px] leading-relaxed text-text">{i.texte}</p>
+      </SectionFenetre>
+      <SectionFenetre titre="Suivi">
+        <p className="text-[13px] text-text" data-testid="suivi-instruction">
+          émise le {date(i.emiseLe)}
+          {i.recueLe && ` · reçue le ${date(i.recueLe)}`}
+          {i.priseEnCompteLe && ` · prise en compte le ${date(i.priseEnCompteLe)}`}
+          {i.executeeLe && ` · exécutée le ${date(i.executeeLe)}`}
+          {i.rejeteeLe && ` · rejetée le ${date(i.rejeteeLe)}`}
+          {i.echeance && ` · échéance ${date(i.echeance)}`}
+        </p>
+      </SectionFenetre>
+      {i.compteRendu && (
+        <SectionFenetre titre="Compte rendu">
+          <p className="whitespace-pre-wrap text-[13.5px]">{i.compteRendu}</p>
+        </SectionFenetre>
+      )}
+      {i.acteId && (
+        <SectionFenetre titre="Acte">
+          <Link className="text-[13.5px] font-semibold text-ink underline" href={`/courrier?acte=${i.acteId}`}>
+            voir l’acte d’exécution
+          </Link>
+        </SectionFenetre>
+      )}
+      {i.motifRejet && (
+        <SectionFenetre titre="Motif du rejet">
+          <p className="whitespace-pre-wrap text-[13.5px] text-clay">{i.motifRejet}</p>
+        </SectionFenetre>
+      )}
+    </FenetreDetail>
   );
 }

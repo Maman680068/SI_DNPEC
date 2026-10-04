@@ -8,7 +8,8 @@ import { PERIODE_STATUT_LABEL } from '../../../../lib/stages/types';
 import { Erreur, Libelle, SELECT_CLASS, messageErreur } from '../../../../components/courrier/ui';
 import { ChoixUnite } from '../../../../components/stages/FenetresStage';
 import { ErreurChargement, messageChargement } from '../../../../components/ui/ErreurChargement';
-import { Button } from '../../../../components/ui/Button';
+import { ChevronLeft } from 'lucide-react';
+import { Bandeau, BTN_PRINCIPAL, BTN_SECONDAIRE, EnTetePage } from '../../../../components/ui/Charte';
 
 const date = (iso: string) => new Date(iso).toLocaleDateString('fr-FR', { dateStyle: 'medium', timeZone: 'UTC' });
 const cle = (u: { divisionId: string | null; sectionId: string | null; celluleId: string | null }) =>
@@ -69,18 +70,18 @@ export default function ParametresStagesPage() {
 
   return (
     <div className="max-w-[960px]">
-      <ErreurChargement message={erreurChargement} />
       {reglages?.voitPlanning && (
-        <Link href="/stages" className="mb-4 inline-block text-[13px] text-accent">
-          ← Stagiaires
+        <Link href="/stages" className="mb-2 inline-flex items-center gap-1 text-[13px] font-semibold text-ink hover:underline">
+          <ChevronLeft aria-hidden size={15} /> Stagiaires
         </Link>
       )}
-      <h1 className="mb-5 text-[22px] font-extrabold">{reglages && !reglages.voitPlanning ? 'Réglages des stages' : 'Planning, capacités et modèle d’attestation'}</h1>
+      <EnTetePage titre={reglages && !reglages.voitPlanning ? 'Réglages des stages' : 'Planning, capacités et modèle d’attestation'} />
+      <ErreurChargement message={erreurChargement} />
       <Erreur message={erreur} />
-      {info && <div className="mb-4 rounded-md bg-sage-soft px-3.5 py-3 text-[13px] text-sage">{info}</div>}
+      {info && <Bandeau ton="vert">{info}</Bandeau>}
 
-      <section className="mb-6 rounded-lg border border-line bg-surface p-4" data-testid="modele">
-        <h2 className="mb-2 text-[15px] font-bold">Modèle d’attestation</h2>
+      <section className="mb-4 rounded-xl border border-line bg-surface px-[18px] py-4" data-testid="modele">
+        <h2 className="mb-2 font-heading text-[15.5px] font-bold text-ink-900">Modèle d’attestation</h2>
         {modele?.modele ? (
           <p className="mb-3 text-[13px]">
             Modèle actif : <strong>{modele.modele.fileName}</strong> ({modele.modele.type === 'DOCX' ? 'Word' : 'PDF à champs'}),{' '}
@@ -88,7 +89,7 @@ export default function ParametresStagesPage() {
               ? 'modèle par défaut de la DNPEC, fourni avec l’application'
               : `importé le ${date(modele.modele.createdAt)}${modele.modele.importePar ? ` par ${modele.modele.importePar.firstName} ${modele.modele.importePar.lastName}` : ''}`}{' '}
             — champs utilisés : {modele.modele.champs.join(', ')}. Pour le remplacer, importez un autre modèle ci-dessous.{' '}
-            <button className="text-accent underline" onClick={() => agir(() => telechargerModele(), 'Modèle téléchargé.')}>
+            <button type="button" className="font-semibold text-ink underline" onClick={() => agir(() => telechargerModele(), 'Modèle téléchargé.')}>
               Télécharger
             </button>
           </p>
@@ -106,9 +107,9 @@ export default function ParametresStagesPage() {
             <Libelle htmlFor="mod-fichier">Nouveau modèle (.docx, ou .pdf à champs)</Libelle>
             <input id="mod-fichier" type="file" accept=".docx,.pdf" className="block text-[13px]" onChange={(e) => setFichier(e.target.files?.[0] ?? null)} required />
           </div>
-          <Button type="submit" variant="gold" disabled={enCours || !fichier}>
+          <button type="submit" className={BTN_PRINCIPAL} disabled={enCours || !fichier}>
             Importer
-          </Button>
+          </button>
         </form>
         <details>
           <summary className="cursor-pointer text-[13px] font-semibold">Champs disponibles ({modele?.champsDisponibles.length ?? 0})</summary>
@@ -128,8 +129,8 @@ export default function ParametresStagesPage() {
         </details>
       </section>
 
-      <section className="mb-6 rounded-lg border border-line bg-surface p-4" data-testid="capacites">
-        <h2 className="mb-2 text-[15px] font-bold">Capacités d’accueil</h2>
+      <section className="mb-4 rounded-xl border border-line bg-surface px-[18px] py-4" data-testid="capacites">
+        <h2 className="mb-2 font-heading text-[15.5px] font-bold text-ink-900">Capacités d’accueil</h2>
         <p className="mb-3 text-[12.5px] text-text-muted">Nombre maximal de stagiaires simultanés ; au-delà, une période est refusée. Une période en section compte aussi pour sa division.</p>
         {reglages && reglages.capacites.length > 0 && (
           <ul className="mb-3 text-[13px]">
@@ -139,7 +140,7 @@ export default function ParametresStagesPage() {
                   {c.libelle} : <strong>{c.maximum}</strong>
                 </span>
                 {reglages.peutModifier && (
-                  <button className="text-[12.5px] text-accent underline" onClick={() => agir(() => fixerCapacite(c.uniteKey, null), 'Limite retirée.')}>
+                  <button type="button" className="text-[12.5px] font-semibold text-ink underline" onClick={() => agir(() => fixerCapacite(c.uniteKey, null), 'Limite retirée.')}>
                     Retirer la limite
                   </button>
                 )}
@@ -160,9 +161,9 @@ export default function ParametresStagesPage() {
                 <Libelle htmlFor="cap-max">Maximum</Libelle>
                 <input id="cap-max" type="number" min={0} max={100} className={`${SELECT_CLASS} !w-28`} value={maximum} onChange={(e) => setMaximum(e.target.value)} required />
               </div>
-              <Button type="submit" disabled={enCours || !cle(unite)}>
+              <button type="submit" className={BTN_SECONDAIRE} disabled={enCours || !cle(unite)}>
                 Fixer la capacité
-              </Button>
+              </button>
             </div>
           </form>
         )}
@@ -170,12 +171,12 @@ export default function ParametresStagesPage() {
 
       {reglages?.voitPlanning && (
       <section className="mb-6" data-testid="planning">
-        <h2 className="mb-2 text-[15px] font-bold">Planning {planning ? `du ${date(planning.debut)} au ${date(planning.fin)}` : ''}</h2>
+        <h2 className="mb-2 font-heading text-[15.5px] font-bold text-ink-900">Planning {planning ? `du ${date(planning.debut)} au ${date(planning.fin)}` : ''}</h2>
         {parUnite.length === 0 ? (
           <p className="text-[13px] text-text-faint">Aucune période sur cette fenêtre.</p>
         ) : (
           parUnite.map(([k, u]) => (
-            <div key={k} className="mb-3 rounded-lg border border-line bg-surface p-3">
+            <div key={k} className="mb-3 rounded-xl border border-line bg-surface px-4 py-3">
               <div className="mb-1.5 text-[13.5px] font-bold">
                 {u.libelle}
                 {planning?.capacites.find((c) => c.uniteKey === k) && <span className="ml-2 font-normal text-text-muted">(maximum {planning.capacites.find((c) => c.uniteKey === k)!.maximum})</span>}
@@ -183,7 +184,7 @@ export default function ParametresStagesPage() {
               <ul className="text-[12.5px]">
                 {u.periodes.map((p) => (
                   <li key={p.id} className="flex flex-wrap justify-between gap-2 border-t border-line py-1">
-                    <Link href={`/stages/${p.stageId}`} className="text-accent">
+                    <Link href={`/stages/${p.stageId}`} className="font-semibold text-ink hover:underline">
                       {p.stagiaire.firstName} {p.stagiaire.lastName}
                     </Link>
                     <span className="text-text-muted">

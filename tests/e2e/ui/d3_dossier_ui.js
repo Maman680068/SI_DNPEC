@@ -102,6 +102,31 @@ function espion(page) {
   await d.getByLabel('Rechercher une personne').fill(`camara${S}`);
   check('liste rechargée : la personne importée apparaît', await attendre(async () => (await d.locator('[data-testid=ligne-personnel]').count()) === 1));
 
+  console.log('— DRH : synthèse du dossier du personnel (bande, complétude, alertes), bureau puis téléphone');
+  const syn = (await call('drh', 'GET', '/api/v1/rh/dossiers')).body;
+  const bandeDrh = (await d.getByRole('region', { name: 'Synthèse des dossiers' }).innerText()).replace(/\s+/g, ' ');
+  check('bande = API (en activité, « à vérifier », matricules provisoires, complétude moyenne)', bandeDrh.includes(`${syn.synthese.enActivite} Agents en activité`) && bandeDrh.includes(`${syn.synthese.aVerifier} Dossiers « à vérifier »`) && bandeDrh.includes(`${syn.synthese.matriculesProvisoires} Matricules provisoires`) && bandeDrh.includes(`${syn.synthese.completudeMoyenne} % Complétude moyenne`), bandeDrh);
+  check('boutons du DRH : « Importer (Excel) » et « Nouvel agent »', (await d.getByRole('button', { name: 'Importer (Excel)' }).count()) === 1 && (await d.getByRole('button', { name: 'Nouvel agent' }).count()) === 1);
+  const importee = syn.lignes.find((l) => l.nom === `Camara${S}`);
+  const ligneImp = d.getByRole('row').filter({ has: d.locator('[data-testid=ligne-personnel]') }).first();
+  const texteImp = (await ligneImp.innerText()).replace(/\s+/g, ' ');
+  check('ligne importée : complétude et première alerte de l’API, matricule provisoire', !!importee && texteImp.includes(`${importee.completude} %`) && texteImp.includes(importee.alertes[0].libelle) && importee.matriculeProvisoire, texteImp);
+  await d.screenshot({ path: `${SHOTS}/d3_synthese_drh_desktop.png`, fullPage: true });
+  await ligneImp.getByRole('cell').nth(2).click();
+  await d.waitForURL(`**/personnel/${importee.userId}`);
+  check('clic sur la ligne : dossier de la personne ouvert', true);
+  const dm = await loginPage(b, 'drh', { width: 390, height: 844 });
+  await dm.goto(`${WEB}/personnel`);
+  await dm.getByRole('region', { name: 'Synthèse des dossiers' }).waitFor();
+  await dm.locator('[data-testid=ligne-personnel]').first().waitFor();
+  check('DRH sur téléphone : synthèse lisible, sans défilement horizontal', (await dm.evaluate(() => document.documentElement.scrollWidth)) <= 390);
+  await dm.screenshot({ path: `${SHOTS}/d3_synthese_drh_mobile.png`, fullPage: true });
+  await dm.context().close();
+  for (const k of ['chefssr', 'dn']) {
+    const r = await call(k, 'GET', '/api/v1/rh/dossiers');
+    check(`${k} : synthèse du DRH refusée (403)`, r.status === 403);
+  }
+
   console.log('— Chef de section (mobile) et DN (bureau) : niveau 1 seulement, rien du niveau 2 reçu');
   for (const [key, viewport, shot] of [['chefssr', { width: 390, height: 844 }, 'd3_dossier_chef_mobile.png'], ['dn', undefined, 'd3_dossier_dn_desktop.png']]) {
     const c = await loginPage(b, key, viewport);

@@ -32,6 +32,15 @@ export class DocumentFiltersDto {
   @IsDateString()
   dateTo?: string;
 
+  // Période couverte (refonte de l'interface) : documents dont la période couverte chevauche [couvreDu, couvreAu].
+  @IsOptional()
+  @IsDateString()
+  couvreDu?: string;
+
+  @IsOptional()
+  @IsDateString()
+  couvreAu?: string;
+
   @IsOptional()
   @IsString()
   @MaxLength(100)

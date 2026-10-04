@@ -68,7 +68,7 @@
           "etapes": [
             "Le tableau de bord s’adapte à votre rôle : vos tâches en tête, puis votre solde de congés, vos demandes en cours et les réunions des 7 prochains jours.",
             "Un chef y voit en plus les absences de son équipe pour les 7 prochains jours, les demandes de congé qui attendent son avis et les activités du plan dont il est responsable ; la Direction, l’avancement du plan de travail, les décisions de réunion et les instructions ouvertes ; le DRH, les alertes RH et les congés à décider.",
-            "« Ouvrir » mène à l’écran du bloc. Les absences n’indiquent jamais le motif médical : seul l’écran Congés le montre, à ceux qui ont le droit de le voir."
+            "« Voir » mène à l’écran du bloc. Les absences n’indiquent jamais le motif médical : seul l’écran Congés le montre, à ceux qui ont le droit de le voir."
           ],
           "capture": "tableau-de-bord.png"
         }
@@ -95,9 +95,9 @@
         {
           "titre": "Congés et absences",
           "etapes": [
-            "Menu Personnel → « Congés & absences » → « Nouvelle demande de congé ».",
+            "Menu Personnel → « Congés & absences » → « Demander un congé ».",
             "Choisissez le type, les dates et, si besoin, un motif, puis envoyez : votre chef donne son avis (48 heures ouvrées ; sans réponse, l’avis est réputé favorable), puis le DRH décide.",
-            "Chaque demande affiche son étape (« Avis du chef attendu », « Décision du DRH attendue »…). Vous êtes prévenu de la décision ; « Mon solde » indique les jours restants.",
+            "Chaque demande affiche son étape (« Avis du chef attendu », « Décision du DRH attendue »…). Vous êtes prévenu de la décision ; la bande de soldes en haut de « Mes congés » indique les jours restants.",
             "Congé maladie : votre chef (celui qui donne l’avis) et le DRH en voient la nature et le motif ; la Direction et le reste de la hiérarchie voient « Absence — motif protégé ». « Joindre le certificat médical » : seuls vous et le DRH pourrez le lire.",
             "Les jours fériés ne sont décomptés ni dans vos jours de congé ni dans le délai d’avis du chef ; le calendrier est consultable dans l’onglet « Jours fériés »."
           ],
@@ -106,8 +106,8 @@
         {
           "titre": "Messagerie, réunions, documents",
           "etapes": [
-            "« Messagerie » : messagerie directe avec n’importe quel collègue, annonces et sondages qui vous sont adressés.",
-            "« Réunions » : vos invitations ; répondez « Confirmer ma présence » ou « Décliner ». Vous pouvez aussi créer une réunion et réserver une salle.",
+            "« Messagerie » : messagerie directe avec n’importe quel collègue, annonces et sondages qui vous sont adressés. Le trombone « Joindre un document des Archives » cite un document : seuls ceux qui ont le droit de l’ouvrir en voient le titre. À droite, la fiche de votre interlocuteur rappelle les documents échangés et vos tâches en commun.",
+            "« Réunions » : vos invitations ; répondez « Je participe » ou « Absent ». L’organisateur complète le compte rendu par « Modifier la réunion ». Vous pouvez aussi créer une réunion et réserver une salle.",
             "« Archives & documents » : les documents de votre division et les documents publiés. Au dépôt, indiquez le type, la date et la période couverte ; chaque document porte un statut (Brouillon, Validé, Diffusable) repris sur le fichier téléchargé."
           ],
           "capture": "reunions.png"
@@ -115,7 +115,7 @@
         {
           "titre": "Logistique",
           "etapes": [
-            "Menu « Logistique » → « + Nouvelle demande » : fournitures, matériel ou intervention sur un bien.",
+            "Menu « Logistique » → « Nouvelle demande » : fournitures, matériel ou intervention sur un bien.",
             "Le circuit s’affiche avant l’envoi : validation par votre chef puis traitement par un gestionnaire, ou directement le gestionnaire.",
             "Onglet « Mes biens » : le matériel qui vous est affecté ; « Signaler une panne » crée une demande d’intervention.",
             "Onglet « Réservations » : choisissez un jour et des heures, « Voir les disponibilités », puis « Réserver »."
@@ -134,7 +134,7 @@
         {
           "titre": "Documents",
           "etapes": [
-            "Archives & documents → « Mon espace division » ou, dans une cellule rattachée à la Direction, « Mon espace cellule » : déposez-y vos documents ; seuls les membres de votre unité les voient tant qu’ils ne sont pas publiés.",
+            "Archives & documents → onglet « Espace de [votre unité] » (division, ou cellule rattachée à la Direction) → « Déposer un document » : déposez-y vos documents ; seuls les membres de votre unité les voient tant qu’ils ne sont pas publiés.",
             "Depuis une tâche ou une réunion : « Déposer un document » ; le document est lié à son origine et reste dans la GED de votre division.",
             "« Marquer comme final » quand le document est achevé : votre chef de division peut alors le valider.",
             "Personnel → « Documents générés » → « Rapport d’activité » : votre rapport sur une période, construit depuis vos tâches (aperçu, PDF, Word, dépôt en GED).",
@@ -148,7 +148,7 @@
             "Général → « Plan de travail » : les objectifs de l’année de votre unité et des unités au-dessus, leurs activités (responsable, période, indicateur) et leur avancement, calculé à partir des tâches.",
             "En créant une tâche, choisissez l’« Activité du plan de travail » à laquelle elle contribue.",
             "Mes tâches : boutons « Liste », « Kanban » ou « Calendrier » pour changer de vue (le dernier choix est retenu). La veille d’une échéance, vous êtes prévenu ; en cas de retard, votre chef l’est.",
-            "Messagerie → « Fils de discussion » : « + Nouveau fil » (objet, plusieurs destinataires, message) ; « Joindre un objet » renvoie vers une tâche, un document, un courrier ou une réunion — seuls ceux qui y ont droit peuvent l’ouvrir.",
+            "Messagerie → « Fils de discussion » : « Nouveau fil » (objet, plusieurs destinataires, message) ; « Joindre un objet » renvoie vers une tâche, un document, un courrier ou une réunion — seuls ceux qui y ont droit peuvent l’ouvrir.",
             "Sous chaque message : « Lu par … le … » pour chaque destinataire."
           ],
           "capture": "fils.png"
@@ -183,9 +183,9 @@
           "titre": "Congés de la section",
           "etapes": [
             "Congés & absences → onglet « À traiter » : les demandes de vos agents qui attendent votre avis, avec l’échéance. Un rappel arrive 12 heures ouvrées avant.",
-            "« Examiner » puis « Avis favorable » ou « Avis défavorable » (motif obligatoire). Sans avis dans le délai, il est réputé favorable. Le DRH décide ensuite.",
+            "« Donner mon avis » puis « Avis favorable » ou « Avis défavorable » (motif obligatoire). Sans avis dans le délai, il est réputé favorable. Le DRH décide ensuite.",
             "Congé maladie d’un de vos agents : vous en voyez le type, les dates et la durée ; « Afficher le motif » le montre après votre mot de passe (lecture tracée). Le certificat médical reste réservé à l’agent et au DRH.",
-            "Onglet « Suivi » : les autres demandes de votre périmètre, en lecture. Le délai d’avis ne compte ni les week-ends ni les jours fériés."
+            "Onglet « Suivi de l’équipe » : les autres demandes de votre périmètre, en lecture. Le délai d’avis ne compte ni les week-ends ni les jours fériés."
           ],
           "capture": "conges.png"
         },
@@ -193,7 +193,7 @@
           "titre": "Courrier, demandes logistiques, stagiaires",
           "etapes": [
             "Courrier : traitez les courriers qui vous sont imputés et visez les actes de vos agents (onglet « À faire »).",
-            "Logistique → « À valider » : les demandes de vos agents qui exigent votre accord ; « Valider » ou « Refuser » avec un motif.",
+            "Logistique → « À valider » : les demandes de vos agents qui exigent votre accord ; « Valider » ou « Rejeter avec un motif ».",
             "Stagiaires : acceptez ou refusez une période de stage dans votre section et désignez le tuteur ; visez les évaluations des tuteurs."
           ],
           "capture": "courrier.png"
@@ -209,7 +209,7 @@
         {
           "titre": "Documents et rapports",
           "etapes": [
-            "Documents générés → « Ordres de mission » : « + Nouvel ordre de mission » pour un agent de votre section (destination, objet, dates, frais en francs guinéens, écrits aussi en toutes lettres), puis « Préparer l’acte » pour la signature de la Direction.",
+            "Documents générés → « Ordres de mission » : « Nouvel ordre de mission » (en haut à droite) pour un agent de votre section (destination, objet, dates, frais en francs guinéens, écrits aussi en toutes lettres), puis « Voir » sur la ligne → « Préparer l’acte » pour la signature de la Direction.",
             "« Rapport d’activité » : choisissez votre section et la période ; le rapport reprend les tâches, jamais ressaisi.",
             "Un document déposé porte le statut « Brouillon » ; c’est le chef de division qui le valide."
           ],
@@ -218,9 +218,9 @@
         {
           "titre": "Plan de travail de la section",
           "etapes": [
-            "Général → « Plan de travail » → « + Nouvel objectif » : l’objectif de l’année pour votre section.",
-            "« + Activité » : libellé, responsable (un membre de la section), début, fin, indicateur et cible.",
-            "Cliquez sur une activité : ses tâches en Kanban ou en Calendrier, « + Nouvelle tâche » pour en rattacher une. L’avancement se calcule tout seul ; « En retard » s’affiche si la fin est passée avant 100 %.",
+            "Général → « Plan de travail » → « Nouvel objectif » : l’objectif de l’année pour votre section.",
+            "« Activité » : libellé, responsable (un membre de la section), début, fin, indicateur et cible.",
+            "Cliquez sur une activité : ses tâches en Kanban ou en Calendrier, « Nouvelle tâche » pour en rattacher une. L’avancement se calcule tout seul ; « En retard » s’affiche si la fin est passée avant 100 %.",
             "Vous êtes prévenu quand une tâche d’un agent de la section dépasse son échéance. Le rapport d’activité (Documents générés) reprend les activités du plan."
           ],
           "capture": "plan-travail.png"
@@ -228,7 +228,7 @@
         {
           "titre": "Besoins de formation",
           "etapes": [
-            "Personnel → « Ressources humaines » → « Formation » → « + Exprimer un besoin » : intitulé, priorité, origine (entretien, plan de travail…) et nombre d’agents concernés.",
+            "Personnel → « Ressources humaines » → « Formation » → « Exprimer un besoin » : intitulé, priorité, origine (entretien, plan de travail…) et nombre d’agents concernés.",
             "Le DRH consolide les besoins de toutes les unités et décide : « Retenu » dans le plan de formation, « Réalisé » ou « Écarté ». Vous voyez les besoins de votre unité et leur statut."
           ]
         }
@@ -296,7 +296,7 @@
         {
           "titre": "Besoins de formation",
           "etapes": [
-            "Personnel → « Ressources humaines » → « Formation » → « + Exprimer un besoin » : intitulé, priorité, origine (entretien, plan de travail…) et nombre d’agents concernés.",
+            "Personnel → « Ressources humaines » → « Formation » → « Exprimer un besoin » : intitulé, priorité, origine (entretien, plan de travail…) et nombre d’agents concernés.",
             "Le DRH consolide les besoins de toutes les unités et décide : « Retenu » dans le plan de formation, « Réalisé » ou « Écarté ». Vous voyez les besoins de votre unité et leur statut."
           ]
         }
@@ -316,7 +316,7 @@
           "etapes": [
             "Le tableau de bord couvre toute la DNPEC : tâches, retards, congés, courrier à imputer, stagiaires, logistique.",
             "La visibilité s’arrête où commence le contenu protégé (congés maladie, plis personnels, informations personnelles du dossier) : c’est le principe du « besoin d’en connaître ».",
-            "Congés & absences : l’onglet « Suivi » montre les demandes de la Direction en lecture ; c’est le DRH qui décide, sauf pour une demande du DRH lui-même, que vous décidez (onglet « À traiter »). Sans chef dans l’unité, c’est vous qui donnez l’avis."
+            "Congés & absences : l’onglet « Suivi de l’équipe » montre les demandes de la Direction en lecture ; c’est le DRH qui décide, sauf pour une demande du DRH lui-même, que vous décidez (onglet « À traiter »). Sans chef dans l’unité, c’est vous qui donnez l’avis."
           ],
           "capture": "tableau-de-bord.png"
         },
@@ -355,7 +355,7 @@
         {
           "titre": "Instructions de la Direction",
           "etapes": [
-            "Général → « Instructions » → « + Nouvelle instruction » : objet, texte, destinataire, échéance ; « Agent concerné » pour une instruction RH (l’agent ne la voit qu’une fois exécutée).",
+            "Général → « Instructions » → « Nouvelle instruction » : objet, texte, destinataire, échéance ; « Agent concerné » pour une instruction RH (l’agent ne la voit qu’une fois exécutée). « Exporter » télécharge la liste en Excel ; les instructions closes sont dans l’onglet « Archivées ».",
             "Suivi : Émise → Reçue (à l’ouverture par le destinataire) → Prise en compte → Exécutée ou Rejetée (avec un motif). Vous êtes prévenu à chaque étape.",
             "Sans réponse, le destinataire est relancé tous les 7 jours et vous en êtes informé.",
             "Une instruction RH s’exécute par un acte signé du Courrier (par exemple une attestation préparée par le DRH).",
@@ -418,7 +418,7 @@
         {
           "titre": "Enregistrer le courrier arrivée",
           "etapes": [
-            "Courrier → onglet « Arrivées » → « + Enregistrer un courrier » : choisissez le registre (seuls les vôtres sont proposés), l’expéditeur, l’objet, les dates, la confidentialité.",
+            "Courrier → bouton « Enregistrer un courrier » (en haut de la page) : choisissez le registre (seuls les vôtres sont proposés), l’expéditeur, l’objet, les dates, la confidentialité.",
             "Joignez le scan (« Ajouter un scan ») ; le numéro est attribué automatiquement, sans trou.",
             "Une date de réception dans le futur, ou un courrier daté après sa réception, demande une dérogation motivée.",
             "Un courrier enregistré ne se supprime pas : en cas d’erreur, il s’annule avec un motif (le numéro reste consommé)."
@@ -445,8 +445,8 @@
         {
           "titre": "Organigramme",
           "etapes": [
-            "Personnel → « Organisation » : sur une unité, « + Sous-unité » crée une division, une section, une cellule ou une instance ; « Modifier » change son code ou son libellé.",
-            "« Fermer » demande un motif ; une unité ne se ferme que lorsqu’aucun agent ni aucune sous-unité ouverte n’y est plus rattaché. Son historique reste consultable (« Historique », case « Afficher les unités fermées »).",
+            "Personnel → « Organisation » : sur une unité, « Sous-unité » crée une division, une section, une cellule ou une instance ; « Modifier » change son code ou son libellé.",
+            "« Fermer » demande un motif ; une unité ne se ferme que lorsqu’aucun agent ni aucune sous-unité ouverte n’y est plus rattaché. Son historique reste consultable (« Voir » sur l’unité, case « Afficher les unités fermées »).",
             "Le responsable de chaque unité est déduit des nominations (changement de rôle, chef de cellule) ; « Pas de responsable désigné » signale un poste à pourvoir."
           ],
           "capture": "organigramme.png"
@@ -473,7 +473,7 @@
         {
           "titre": "Stages",
           "etapes": [
-            "Personnel → « Stagiaires » → « + Nouveau stage » : stagiaire, établissement, dates ; puis ajoutez les périodes (unité, dates, format d’évaluation).",
+            "Personnel → « Stagiaires » → « Nouveau stage » : stagiaire, établissement, dates ; puis ajoutez les périodes (unité, dates, format d’évaluation).",
             "Chaque responsable d’unité accepte la période et désigne le tuteur ; le changement d’unité se fait tout seul à la date prévue.",
             "« Planning, capacités, modèle » : capacités d’accueil par unité et modèle d’attestation (Word avec des champs {{NOM_COMPLET}}, {{DATE_DEBUT}}…).",
             "En fin de stage : « Clôturer », puis « Préparer l’attestation finale » (registre ATT) : l’acte part à la signature du DN ou de la DNA.",
@@ -484,9 +484,9 @@
         {
           "titre": "Congés et absences",
           "etapes": [
-            "Congés & absences → « À traiter » : les demandes dont l’avis du chef est rendu (ou réputé favorable après le délai). « Approuver » ou « Refuser » (motif obligatoire).",
+            "Congés & absences → « À traiter » : les demandes dont l’avis du chef est rendu (ou réputé favorable après le délai). « Valider » ou « Rejeter avec un motif ».",
             "Vous voyez le type d’un congé maladie ; « Afficher le motif » et le certificat médical joint par l’agent vous demandent votre mot de passe. Chaque lecture est tracée. Le chef qui donne l’avis voit aussi le motif, jamais le certificat.",
-            "Onglet « Suivi » : toutes les demandes de la Direction. Une demande que vous déposez vous-même est décidée par le DN ou la DNA.",
+            "Onglet « Suivi de l’équipe » : toutes les demandes de la Direction. Une demande que vous déposez vous-même est décidée par le DN ou la DNA.",
             "Le délai d’avis du chef (48 heures ouvrées par défaut) se règle dans « Paramétrage et supervision » par l’administrateur.",
             "Onglet « Jours fériés » : saisissez chaque année les fêtes religieuses (Tabaski, fin du Ramadan, Maouloud, lundi de Pâques…) ; « Ajouter les fêtes fixes » reprend les fêtes nationales. Une alerte vous prévient en début d’année si l’année suivante est vide."
           ],
@@ -496,8 +496,8 @@
           "titre": "Attestations de travail",
           "etapes": [
             "Personnel → « Documents générés » → « Attestations de travail » : choisissez l’agent, « Nouvelle attestation de travail ».",
-            "« Aperçu » montre exactement le document imprimé (mention « PROJET — non signé ») ; « PDF » ou « Word » pour le télécharger.",
-            "« Préparer l’acte » : l’attestation part dans le module Courrier (visa, signature du DN ou de la DNA, numéro). Une fois signée, l’agent la retrouve dans son écran ; « Transmettre » la lui envoie par la messagerie.",
+            "« Aperçu » montre exactement le document imprimé (mention « PROJET — non signé ») ; « Voir » sur la ligne ouvre la fenêtre de l’attestation : « PDF » ou « Word » pour la télécharger.",
+            "Dans la même fenêtre, « Préparer l’acte » : l’attestation part dans le module Courrier (visa, signature du DN ou de la DNA, numéro). Une fois signée, l’agent la retrouve dans son écran ; « Transmettre » la lui envoie par la messagerie.",
             "Instruction RH de la Direction : Général → « Instructions » → « Prendre en compte », préparez puis faites signer l’acte, enfin « Marquer exécutée » en choisissant l’acte signé."
           ],
           "capture": "documents-generes.png"
@@ -505,7 +505,7 @@
         {
           "titre": "Effectifs et alertes RH",
           "etapes": [
-            "Personnel → « Ressources humaines » → « Effectifs » : répartition par unité, statut et catégorie.",
+            "Personnel → « Ressources humaines » → « Effectifs » : indicateurs (agents en fonction, ancienneté moyenne, part des femmes, départs prévus), répartition par unité et par statut et catégorie, alertes RH regroupées ; « Exporter » produit un fichier Excel sans aucun nom.",
             "Onglet « Alertes » : fins de contrat et de stage proches, avancements d’échelon à instruire (ancienneté réglée dans Paramétrage), dossiers incomplets selon la liste des pièces requises. Une alerte disparaît d’elle-même quand sa cause est réglée.",
             "Onglet « Pièces requises » : la liste des pièces attendues dans chaque dossier ; en déposant une pièce dans un dossier, choisissez la pièce requise qu’elle remplit."
           ],
@@ -515,7 +515,7 @@
           "titre": "Carrière et actes",
           "etapes": [
             "Avant le premier mouvement : choisissez dans « Familles d’actes » le registre du Courrier de chaque famille (sa séquence de numéros).",
-            "« + Nouveau mouvement » : l’agent, le type (nomination, avancement d’échelon, promotion, mutation, fin de contrat), la date d’effet et la nouvelle valeur → « Préparer le mouvement ».",
+            "« Nouveau mouvement » : l’agent, le type (nomination, avancement d’échelon, promotion, mutation, fin de contrat), la date d’effet et la nouvelle valeur → « Préparer le mouvement ».",
             "Nomination à un poste de chef (ou DN, DNA) : choisissez le « Poste visé » dans la liste ; le rôle, l’unité et l’intitulé de la fonction en découlent (« Autre fonction » garde le texte libre, sans effet sur les droits). Après la signature, le mouvement affiche « Droits en attente (administrateur) », puis « Droits appliqués » ou « Droits refusés » avec le motif.",
             "« Préparer l’acte » : l’acte est créé dans le Courrier, avec la décision jointe, et suit le circuit de visa et de signature. Le dossier n’est modifié qu’à la signature par le DN ou la DNA ; l’agent est prévenu.",
             "Une mutation ne concerne qu’un chargé d’études ; pour un chef, un assistant ou un stagiaire, passez par le changement de rôle (Organisation)."
@@ -525,7 +525,7 @@
         {
           "titre": "Fiches de poste et plan de formation",
           "etapes": [
-            "Onglet « Fiches de poste » → « + Nouvelle fiche de poste » : une fiche par fonction (missions, activités, compétences), lisible par tout le personnel.",
+            "Onglet « Fiches de poste » → « Nouvelle fiche de poste » : une fiche par fonction (missions, activités, compétences), lisible par tout le personnel.",
             "Onglet « Formation » : les besoins exprimés par les chefs d’unité ; choisissez « Retenu » pour les inscrire au plan de formation de l’année, puis « Réalisé »."
           ]
         }
@@ -551,7 +551,7 @@
         {
           "titre": "Inventaire et fournitures",
           "etapes": [
-            "« Inventaire » → « + Nouveau bien » : le numéro d’inventaire est attribué automatiquement ; « Affecter » à une personne ou une unité.",
+            "« Inventaire » → « Nouveau bien » : le numéro d’inventaire est attribué automatiquement ; « Affecter » à une personne ou une unité.",
             "Un bien hors d’usage se réforme (« Changer l’état » → Réformé, avec un motif) : il garde son numéro et son historique.",
             "« Fournitures » : articles, « Entrée » pour réapprovisionner, « Sortie » (avec motif) ; une alerte arrive sous le seuil."
           ],
@@ -568,7 +568,7 @@
         {
           "titre": "Véhicules et carburant",
           "etapes": [
-            "Logistique → onglet « Véhicules » → « + Nouveau véhicule » : immatriculation, marque, modèle, énergie et compteur.",
+            "Logistique → onglet « Véhicules » → « Nouveau véhicule » : immatriculation, marque, modèle, énergie et compteur.",
             "Cliquez sur un véhicule : son état (en service, en panne, en réparation, réformé), ses pleins et sa consommation en litres aux 100 km. Un plein se saisit en litres avec le compteur, qui ne peut jamais reculer ; il peut être rattaché à une mission du véhicule.",
             "Sous « Ordres de mission » : choisissez le véhicule de chaque mission (un véhicule ne sert pas à deux missions en même temps), puis « Enregistrer le retour » avec le compteur au retour. Le véhicule apparaît sur l’ordre de mission dans « Documents générés »."
           ],
@@ -615,7 +615,7 @@
         {
           "titre": "Comptes",
           "etapes": [
-            "Plus → « Administration » → « Utilisateurs » : « + Nouveau compte », approbation des inscriptions, suspension, désactivation (un compte n’est jamais supprimé).",
+            "Plus → « Administration » → « Utilisateurs » : « Nouveau compte », approbation des inscriptions, suspension, désactivation (un compte n’est jamais supprimé).",
             "À la création d’un compte (ou à l’approbation d’une inscription), rattachez-le à son agent : « Agent (dossier RH) » s’il existe déjà, sinon indiquez son matricule s’il est connu ; à défaut, un agent avec un matricule provisoire est créé pour le DRH.",
             "La personne est prévenue par email : inscription approuvée (rôle, unité, bouton « Se connecter »), inscription rejetée (motif facultatif, saisi dans la fenêtre « Rejeter l’inscription »), compte créé par vous (lien pour choisir son mot de passe, valable 7 jours).",
             "Sur un compte : « Changer de rôle » (aperçu des effets, puis confirmation avec un motif), mot de passe temporaire, lien de réinitialisation, « Réinitialiser la double authentification ».",
@@ -628,7 +628,7 @@
         {
           "titre": "Rôles fonctionnels",
           "etapes": [
-            "Plus → « Administration » → « Utilisateurs » → onglet « Rôles fonctionnels » : « + Attribuer un rôle » (personne, rôle, dates et motif facultatifs) ; « Retirer » demande un motif. La personne est prévenue.",
+            "Plus → « Administration » → « Utilisateurs » → onglet « Rôles fonctionnels » : « Attribuer un rôle » (personne, rôle, dates et motif facultatifs) ; « Retirer » demande un motif. La personne est prévenue.",
             "Un rôle (DRH, Gestionnaire RH, Chef du SAF, Validateur…) donne une capacité, jamais une visibilité plus large que celle de la personne ; pendant un intérim, le suppléant n’hérite jamais des rôles du titulaire.",
             "Agent du courrier et Gestionnaire logistique s’attribuent depuis Courrier et Logistique (administration) : ils apparaissent ici, « géré dans son module »."
           ],
@@ -637,9 +637,9 @@
         {
           "titre": "Paramétrage et supervision",
           "etapes": [
-            "Plus → « Administration » → « Paramétrage et supervision », onglet « Paramètres » : longueur minimale du mot de passe, conservation des journaux de connexion, expiration de session, alerte avant une fin de stage ou de contrat. « Modifier » : la valeur reste dans ses bornes et s’applique aussitôt ; chaque changement est tracé.",
+            "Plus → « Administration » → « Paramétrage et supervision », onglet « Paramètres » : longueur minimale du mot de passe, conservation des journaux de connexion, expiration de session, alerte avant une fin de stage ou de contrat. choisissez la rubrique, saisissez la nouvelle valeur puis « Enregistrer » (en haut de page) : la valeur reste dans ses bornes et s’applique aussitôt ; chaque changement est tracé.",
             "Onglet « Supervision » : état de la base, du stockage des fichiers, des emails, des tâches planifiées et du journal d’audit (nominal, dégradé, indisponible), sessions ouvertes, connexions, comptes à surveiller, accès refusés. Vous êtes prévenu (notification et email) dès qu’un service se dégrade.",
-            "Après chaque essai de restauration d’une sauvegarde : « Déclarer un test de restauration » (date, résultat). Un test tous les 6 mois est recommandé.",
+            "Après chaque essai de restauration d’une sauvegarde : « Déclarer un test » (date, résultat). Un test tous les 6 mois est recommandé.",
             "Plus → « Administration » → « Journal d’audit » : toutes les actions, filtrables ; « Vérifier l’intégrité » contrôle que personne n’a altéré le journal."
           ],
           "capture": "supervision.png"

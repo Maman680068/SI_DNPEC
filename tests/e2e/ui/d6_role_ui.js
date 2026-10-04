@@ -12,7 +12,7 @@ async function attendre(f) { for (let i = 0; i < 40; i++) { if (await f()) retur
   console.log('— Administrateur : création d’un compte Stagiaire sans unité');
   const a = await loginPage(b, 'admin');
   await a.goto(`${WEB}/users`);
-  await a.getByRole('button', { name: '+ Nouveau compte' }).click();
+  await a.getByRole('button', { name: 'Nouveau compte', exact: true }).click();
   await a.getByLabel('Adresse e-mail').fill(`stagui${S}@test.local`);
   await a.getByLabel('Prénom').fill('Mariama');
   await a.getByLabel('Nom', { exact: true }).fill(`Stagiaire${S}`);

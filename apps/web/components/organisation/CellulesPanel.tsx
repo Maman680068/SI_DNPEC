@@ -48,7 +48,7 @@ export function CellulesPanel() {
   return (
     <div>
       <div className="mb-3.5 flex items-center justify-between">
-        <h2 className="text-[16px] font-extrabold">Cellules transversales</h2>
+        <h2 className="font-heading text-[16px] font-bold text-ink-900">Cellules transversales</h2>
         <Button variant="gold" onClick={() => setCreating(true)}>
           + Nouvelle cellule
         </Button>

@@ -110,9 +110,9 @@ export interface ImputationInput {
 }
 export const getImputables = (cible: { arriveeId: string } | { imputationId: string }) =>
   apiFetch<Candidat[]>(`/courrier/imputables${query(cible)}`);
-export const imputer = (arriveeId: string, input: ImputationInput) => post<unknown>(`/courrier/arrivees/${arriveeId}/imputations`, input);
+export const imputer = (arriveeId: string, input: ImputationInput) => post<{ id: string }>(`/courrier/arrivees/${arriveeId}/imputations`, input);
 export const sousImputer = (imputationId: string, input: ImputationInput) =>
-  post<unknown>(`/courrier/imputations/${imputationId}/sous-imputations`, input);
+  post<{ id: string }>(`/courrier/imputations/${imputationId}/sous-imputations`, input);
 export const traiterImputation = (imputationId: string, input: { compteRendu?: string; reponseActeId?: string }) =>
   post<Arrivee>(`/courrier/imputations/${imputationId}/traiter`, input);
 export const convertirEnTache = (imputationId: string, input: { titre?: string; dueDate?: string }) =>

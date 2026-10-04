@@ -9,11 +9,17 @@ export interface Effectifs {
   parUnite: Repartition[];
   parStatut: Repartition[];
   parCategorie: Repartition[];
+  /** Statut d'emploi, catégorie précisée pour les fonctionnaires (« Fonctionnaires — A »). */
+  parStatutCategorie: Repartition[];
   ancienneteMoyenneAnnees: number | null;
   ancienneteRenseignee: number;
   femmes: number;
   genreRenseigne: number;
   partFemmes: number | null;
+  /** Fins de contrat ou de stage prévues dans les `departsHorizonMois` mois. */
+  departsPrevus: number;
+  departsHorizonMois: number;
+  matriculesProvisoires: number;
   calculeLe: string;
 }
 

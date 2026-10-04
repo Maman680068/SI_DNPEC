@@ -6,10 +6,11 @@ import { FoldersController } from './folders/folders.controller';
 import { FoldersService } from './folders/folders.service';
 import { DocumentsController } from './documents.controller';
 import { DocumentsService } from './documents.service';
+import { ArchivesController } from './archives.controller';
 
 @Module({
   imports: [OrgModule, TasksModule, MeetingsModule],
-  controllers: [FoldersController, DocumentsController],
+  controllers: [FoldersController, DocumentsController, ArchivesController],
   providers: [FoldersService, DocumentsService],
   exports: [DocumentsService],
 })

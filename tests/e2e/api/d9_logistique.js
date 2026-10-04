@@ -172,6 +172,10 @@ const notifs = (userId, type, depuis) => prisma.notification.count({ where: { us
   check('file « À traiter » vide pour un non-gestionnaire', (await call('agent1', 'GET', '/logistique/demandes?vue=a_traiter')).body.length === 0);
   const tb = (await call('chefssr', 'GET', '/logistique/tableau-de-bord')).body;
   check('tableau de bord du chef = sa file « À valider »', tb.aValider === (await call('chefssr', 'GET', '/logistique/demandes?vue=a_valider')).body.length && tb.gestionnaire === false);
+  // Refonte de l'interface (étape 7) : compteurs de la bande, en lecture, selon le rôle.
+  const tbg = (await call('agentsaf', 'GET', '/logistique/tableau-de-bord')).body;
+  check('bande : réservations du jour, véhicules (N / M), articles sous le seuil nommés (gestionnaire)', Number.isInteger(tbg.reservationsDuJour) && Number.isInteger(tbg.vehicules.total) && tbg.vehicules.disponibles + tbg.vehicules.enMission === tbg.vehicules.total && Array.isArray(tbg.stockBasLibelles) && tbg.stockBasLibelles.length === Math.min(3, tbg.stockBas), JSON.stringify(tbg));
+  check('non-gestionnaire : ni libellés de stock, ni date de retour de mission', tb.stockBasLibelles.length === 0 && tb.vehicules.retourLe === null && Number.isInteger(tb.reservationsDuJour));
 
   console.log('— Départ d’un détenteur, stagiaire, exports');
   const tmp = (await call('admin', 'POST', '/users', { email: `d9dep${S}@test.local`, password: 'Password123!', firstName: 'Partant', lastName: S, role: 'AGENT', divisionId: ids.DEE })).body.id;

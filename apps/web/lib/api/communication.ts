@@ -2,6 +2,7 @@ import { apiFetch } from './client';
 import type {
   Announcement,
   AnnouncementReadReceipt,
+  ContexteConversation,
   Conversation,
   CreateAnnouncementInput,
   DirectMessage,
@@ -46,3 +47,8 @@ export function getNombreMessagesNonLus(): Promise<number> {
 /** Signalé par le fil de messages après marquage « lu », pour que la pastille
  * de la barre du haut se mette à jour sans attendre son rafraîchissement. */
 export const EVENEMENT_MESSAGES_LUS = 'dnpec:messages-lus';
+
+/** Fiche de l'interlocuteur : fonction, unité, documents cités et tâches en commun que le lecteur voit. */
+export function getContexteConversation(userId: string): Promise<ContexteConversation> {
+  return apiFetch<ContexteConversation>(`/api/v1/messages/avec/${encodeURIComponent(userId)}/contexte`);
+}
