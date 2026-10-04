@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { ArriveeStatut } from '@prisma/client';
+import { ActeStatut, ArriveeStatut } from '@prisma/client';
 import { AuthenticatedUser } from '../common/types/auth-user.type';
 import { ArriveesService } from './arrivees.service';
 import { ActesService } from './actes.service';
@@ -31,6 +31,12 @@ export class CourrierTableauDeBordService {
       aExpedier: actes.filter((a) => a.droits.expedier).length,
       priseDeConnaissance: actes.filter((a) => a.droits.prendreConnaissance).length,
       brouillons: actes.filter((a) => a.droits.modifier).length,
+      // Vue du registre (bande de compteurs de la page Courrier) : décompte par statut des
+      // MÊMES listes visibles — jamais plus que ce que la personne voit à l'écran.
+      arriveesEnAttente: arrivees.filter((a) => a.statut === ArriveeStatut.ENREGISTRE).length,
+      visasEnCours: actes.filter((a) => a.statut === ActeStatut.EN_VISA).length,
+      actesASigner: actes.filter((a) => a.statut === ActeStatut.A_SIGNER).length,
+      actesAExpedier: actes.filter((a) => a.statut === ActeStatut.SIGNE).length,
     };
   }
 }

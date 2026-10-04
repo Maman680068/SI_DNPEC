@@ -430,6 +430,20 @@ export class ReservationsService {
     await this.audit.log({ actorId: actor.id, action: AuditAction.MODIFICATION, entityType: 'Reservation', entityId: r.id, metadata: { event: 'annulation', motif: 'Réunion annulée', meetingId } });
   }
 
+  /**
+   * Réservations actives du jour (refonte de l'interface, étape 7) : toutes pour un gestionnaire,
+   * les siennes (titulaire ou auteur) pour les autres — même périmètre que les listes.
+   */
+  async duJourCount(actor: AuthenticatedUser, maintenant = new Date()): Promise<number> {
+    const gestionnaire = await this.gestionnaires.estGestionnaire(actor);
+    const debut = new Date(maintenant);
+    debut.setHours(0, 0, 0, 0);
+    const fin = new Date(debut.getTime() + 864e5);
+    return this.prisma.reservation.count({
+      where: { statut: { in: ACTIVES }, debut: { lt: fin }, fin: { gt: debut }, ...(gestionnaire ? {} : { OR: [{ titulaireId: actor.id }, { creeeParId: actor.id }] }) },
+    });
+  }
+
   async aValiderCount(actor: AuthenticatedUser): Promise<number> {
     if (!(await this.gestionnaires.estGestionnaire(actor))) return 0;
     return this.prisma.reservation.count({ where: { statut: R.EN_ATTENTE, titulaireId: { not: actor.id } } });

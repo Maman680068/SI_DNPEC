@@ -1,5 +1,6 @@
 // N4 — écrans sous Chromium, bureau (1366) et téléphone (390) : dépôt dans la GED avec les
-// métadonnées obligatoires, statut de diffusion (marquer final, valider, historique), dépôt direct
+// métadonnées obligatoires (refonte : dossier, glisser-déposer, tableau, bandeau « à valider », fenêtre
+// du document), statut de diffusion (marquer final, valider, historique), dépôt direct
 // depuis une tâche, écran « Documents générés » (attestation de travail : aperçu fidèle et Word ;
 // ordre de mission avec frais en toutes lettres ; rapport d'activité sur téléphone).
 const fs = require('fs');
@@ -17,10 +18,27 @@ const sansDefilementHorizontal = (p) => p.evaluate(() => document.documentElemen
   const fichier = path.join(E.OUT, 'tmp', `note_${S}.txt`);
   fs.writeFileSync(fichier, `Note de conjoncture ${S}`);
 
-  console.log('— GED : dépôt avec métadonnées (bureau)');
+  console.log('— GED : dossier, glisser-déposer, dépôt avec métadonnées (bureau)');
   let p = await loginPage(b, 'agent1');
   await p.goto(`${WEB}/documents`);
-  await p.getByRole('button', { name: '+ Nouveau document' }).click();
+  const arbre = p.locator('[data-testid=arborescence-dossiers]');
+  await arbre.getByRole('button', { name: /Tous les documents/ }).waitFor();
+  await p.getByRole('tab', { name: /^Espace de la Division/ }).waitFor().catch(() => {}); // libellé posé une fois les unités chargées
+  check('onglets : espace de la division et « Publiés pour toute la DNPEC »', (await p.getByRole('tab', { name: /^Espace de la Division/ }).count()) === 1 && (await p.getByRole('tab', { name: /Publiés pour toute la DNPEC/ }).count()) === 1);
+  check('agent : aucun document n’attend sa validation (pas de bandeau)', (await p.locator('[data-testid=bandeau-a-valider]').count()) === 0);
+  await p.getByRole('button', { name: 'Nouveau dossier', exact: true }).first().click();
+  await arbre.getByPlaceholder('Nom du dossier').fill(`Notes N4 ${S}`);
+  await arbre.getByRole('button', { name: 'Créer', exact: true }).click();
+  await arbre.getByRole('button', { name: new RegExp(`Notes N4 ${S}`) }).click();
+  const zone = p.locator('[data-testid=zone-depot]');
+  check('zone de dépôt : « … dans « dossier » »', new RegExp(`déposer dans « Notes N4 ${S} »`).test(await zone.innerText()), await zone.innerText());
+  const glisse = await p.evaluateHandle((nom) => { const d = new DataTransfer(); d.items.add(new File(['note'], nom, { type: 'text/plain' })); return d; }, `glisse_${S}.txt`);
+  await zone.dispatchEvent('drop', { dataTransfer: glisse });
+  await p.locator('[data-testid=fichier-depose]').waitFor();
+  check('fichier glissé : formulaire de dépôt ouvert avec le fichier et le titre proposé', (await p.getByLabel('Titre', { exact: true }).inputValue()) === `glisse_${S}`);
+  check('… métadonnées obligatoires toujours exigées (envoi impossible sans type ni période)', await p.getByRole('button', { name: 'Envoyer' }).isDisabled());
+  await p.getByRole('button', { name: 'Annuler' }).click();
+  await p.getByRole('button', { name: 'Déposer un document', exact: true }).click();
   await p.getByLabel('Titre', { exact: true }).fill(`Note N4 ${S}`);
   const envoyer = p.getByRole('button', { name: 'Envoyer' });
   await p.getByLabel('Fichier', { exact: true }).setInputFiles(fichier);
@@ -30,23 +48,39 @@ const sansDefilementHorizontal = (p) => p.evaluate(() => document.documentElemen
   await p.locator('#doc-fin').fill('2026-09-30');
   await p.screenshot({ path: `${E.SHOTS}/n4_depot_bureau.png` });
   await envoyer.click();
-  await p.getByText(`Note N4 ${S}`).first().click();
+  const ligneDoc = p.locator('[data-testid=ligne-document]', { hasText: `Note N4 ${S}` });
+  await ligneDoc.waitFor();
+  check('tableau : chemin du dossier, type, période couverte, Brouillon, v1', new RegExp(`Notes N4 ${S}`).test(await ligneDoc.innerText()) && /Note de conjoncture/.test(await ligneDoc.innerText()) && /juil\. – sept\. 2026/.test(await ligneDoc.innerText()) && /Brouillon/.test(await ligneDoc.innerText()) && /v1/.test(await ligneDoc.innerText()), await ligneDoc.innerText());
+  check('arborescence : 1 document dans le nouveau dossier', /\b1\b/.test(await arbre.getByRole('button', { name: new RegExp(`Notes N4 ${S}`) }).innerText()));
+  await ligneDoc.click();
+  const fenetre = p.locator('[data-testid=fenetre-document]');
   const statut = p.locator('[data-testid=statut-document]');
   await statut.waitFor();
-  check('document déposé : Brouillon, type et période affichés', /Brouillon/.test(await statut.innerText()) && /Note de conjoncture/.test(await p.locator('[data-testid=metadonnees]').innerText()) && /30 sept\. 2026/.test(await p.locator('[data-testid=metadonnees]').innerText()));
+  check('fenêtre : fil d’Ariane unité › dossier, étapes du statut', new RegExp(`Notes N4 ${S}`).test(await fenetre.getByRole('navigation', { name: 'Fil d’Ariane' }).innerText()) && (await fenetre.getByRole('list', { name: 'Étapes du statut de diffusion' }).count()) === 1);
+  check('document déposé : Brouillon, type et période affichés', /Brouillon/.test(await statut.innerText()) && /Note de conjoncture/.test(await p.locator('[data-testid=metadonnees]').innerText()) && /30 septembre 2026/.test(await p.locator('[data-testid=metadonnees]').innerText()));
+  check('aperçu stylisé : bandeau « BROUILLON — non validé »', /BROUILLON — non validé/.test(await p.locator('[data-testid=apercu-statut]').innerText()));
   check('agent : aucune action de statut', (await p.locator('[data-testid=actions-statut]').count()) === 0);
+  check('pas encore Final : la phrase dit ce qui manque', /marqué « Final »/.test(await p.locator('[data-testid=phrase-validation]').innerText()));
   await p.getByRole('button', { name: 'Marquer comme final' }).click();
-  await p.getByText('Final', { exact: true }).first().waitFor();
+  await fenetre.getByText('Final', { exact: true }).first().waitFor();
   await p.context().close();
 
   console.log('— Statut : validation par le chef de division (bureau)');
   p = await loginPage(b, 'chefdpe');
   await p.goto(`${WEB}/documents`);
-  await p.getByText(`Note N4 ${S}`).first().click();
-  await p.getByRole('button', { name: 'Valider' }).click();
+  const bandeau = p.locator('[data-testid=bandeau-a-valider]');
+  await bandeau.waitFor();
+  check('bandeau : « N document(s) attend(ent) votre validation … marqué Final par … »', /attendent? votre validation/.test(await bandeau.innerText()) && /marqué Final/.test(await bandeau.innerText()), await bandeau.innerText());
+  await p.locator('[data-testid=ligne-document]', { hasText: `Note N4 ${S}` }).click(); // pas le bandeau, qui peut citer le même titre
+  await p.locator('[data-testid=fenetre-document]').waitFor();
+  check('phrase : « la validation est possible »', /la validation est possible/.test(await p.locator('[data-testid=phrase-validation]').innerText()));
+  const publier = p.getByRole('button', { name: 'Publier pour toute la DNPEC' });
+  check('« Publier » grisé avant validation (« Disponible après validation. »)', (await publier.isDisabled()) && (await p.getByText('Disponible après validation.').count()) === 1);
+  await p.getByRole('button', { name: 'Valider le document' }).click();
   await p.waitForFunction(() => /Validé/.test(document.querySelector('[data-testid=statut-document]')?.textContent ?? ''));
   await p.locator('[data-testid=historique-statut]').waitFor();
   check('validé : badge « Validé », historique (Brouillon → Validé, auteur)', /Brouillon → Validé/.test(await p.locator('[data-testid=historique-statut]').innerText()));
+  check('validé : aperçu « VALIDÉ », « Publier » disponible', /VALIDÉ/.test(await p.locator('[data-testid=apercu-statut]').innerText()) && !(await publier.isDisabled()));
   check('chef de division : pas de « Rendre diffusable » (DN, DNA)', (await p.getByRole('button', { name: 'Rendre diffusable' }).count()) === 0);
   await p.screenshot({ path: `${E.SHOTS}/n4_statut_bureau.png` });
   await p.context().close();
@@ -75,7 +109,7 @@ const sansDefilementHorizontal = (p) => p.evaluate(() => document.documentElemen
   check('menu : « Documents générés »', (await p.locator('a[href="/documents-generes"]').count()) === 1);
   await p.goto(`${WEB}/documents-generes`);
   await p.getByRole('tab', { name: 'Attestations de travail' }).waitFor();
-  await p.getByLabel('Agent').selectOption(ids.agent1);
+  await p.getByLabel('Agent', { exact: true }).selectOption(ids.agent1);
   await p.getByText('Créée le', { exact: false }).first().waitFor({ timeout: 5000 }).catch(() => {});
   const avant = await p.locator('[data-testid=attestation-travail]').count();
   await p.getByRole('button', { name: 'Nouvelle attestation de travail' }).click();
@@ -88,16 +122,23 @@ const sansDefilementHorizontal = (p) => p.evaluate(() => document.documentElemen
   await p.waitForTimeout(4000); // rendu du PDF par la visionneuse de Chromium
   await p.screenshot({ path: `${E.SHOTS}/n4_apercu_bureau.png` });
   await p.getByRole('button', { name: 'Fermer l’aperçu' }).click();
-  const [dl] = await Promise.all([p.waitForEvent('download'), att.getByRole('button', { name: 'Word' }).click()]);
+  // Refonte (étape 8) : la ligne ouvre une fenêtre deux colonnes (informations, puis actions à droite).
+  check('bande de synthèse : attestations, ordres, actes à préparer, en circuit', (await p.getByRole('region', { name: 'Synthèse des documents générés' }).locator('[data-testid^=compteur-]').count()) === 4);
+  await att.getByRole('button', { name: /^Voir l’attestation/ }).click();
+  const ficheAtt = p.locator('[data-testid=fiche-document-genere]');
+  await ficheAtt.waitFor();
+  check('fenêtre de l’attestation : agent et état de l’acte', /Projet — acte non préparé/.test(await ficheAtt.innerText()));
+  const [dl] = await Promise.all([p.waitForEvent('download'), ficheAtt.getByRole('button', { name: 'Word' }).click()]);
   check('téléchargement Word (.docx)', /\.docx$/.test(dl.suggestedFilename()), dl.suggestedFilename());
-  check('Préparer l’acte proposé au DRH', (await att.getByRole('button', { name: 'Préparer l’acte' }).count()) === 1);
+  check('Préparer l’acte proposé au DRH', (await ficheAtt.getByRole('button', { name: 'Préparer l’acte' }).count()) === 1);
+  await p.screenshot({ path: `${E.SHOTS}/n4_attestation_fenetre_bureau.png` });
   await p.context().close();
 
   console.log('— Ordre de mission (chef de section, téléphone)');
   p = await loginPage(b, 'chefssr', TELEPHONE);
   await p.goto(`${WEB}/documents-generes?onglet=ordres`);
-  await p.getByRole('button', { name: '+ Nouvel ordre de mission' }).click();
-  await p.getByLabel('Agent').selectOption(ids.agent1);
+  await p.getByRole('button', { name: 'Nouvel ordre de mission', exact: true }).click();
+  await p.getByLabel('Agent', { exact: true }).selectOption(ids.agent1);
   await p.getByLabel('Destination').fill('Labé');
   await p.getByLabel('Objet de la mission').fill(`Enquête de conjoncture ${S}`);
   await p.getByLabel('Départ').fill('2026-11-10');
@@ -106,8 +147,13 @@ const sansDefilementHorizontal = (p) => p.evaluate(() => document.documentElemen
   await p.getByRole('button', { name: 'Enregistrer l’ordre de mission' }).click();
   const om = p.locator('[data-testid=ordre-mission]', { hasText: `Enquête de conjoncture ${S}` });
   await om.waitFor();
-  check('frais en toutes lettres : « deux cent quatre-vingt-un mille »', /deux cent quatre-vingt-un mille \(281 000\) francs guinéens/.test(await om.innerText()), await om.innerText());
   check('téléphone : sans défilement horizontal', await sansDefilementHorizontal(p));
+  await om.getByRole('button', { name: /^Voir l’ordre de mission/ }).click();
+  const ficheOm = p.locator('[data-testid=fiche-document-genere]');
+  await ficheOm.waitFor();
+  check('frais en toutes lettres : « deux cent quatre-vingt-un mille »', /deux cent quatre-vingt-un mille \(281 000\) francs guinéens/.test(await ficheOm.innerText()), await ficheOm.innerText());
+  check('fenêtre sur téléphone : pleine largeur, sans défilement horizontal', (await ficheOm.evaluate((el) => el.getBoundingClientRect().width)) <= 390 && (await sansDefilementHorizontal(p)));
+  await ficheOm.getByRole('button', { name: 'Fermer', exact: true }).click();
   await p.screenshot({ path: `${E.SHOTS}/n4_ordre_mission_mobile.png`, fullPage: true });
   await p.context().close();
 
@@ -126,9 +172,11 @@ const sansDefilementHorizontal = (p) => p.evaluate(() => document.documentElemen
   console.log('— Document d’une cellule rattachée à la Direction : dépôt (téléphone), validation par le chef de cellule (bureau)');
   p = await loginPage(b, 'agentsaf', TELEPHONE);
   await p.goto(`${WEB}/documents`);
-  await p.getByRole('button', { name: 'Mon espace cellule' }).waitFor();
-  check('agent de cellule : onglet « Mon espace cellule », espace de sa cellule', /Cellule :/.test(await p.locator('body').innerText()));
-  await p.getByRole('button', { name: '+ Nouveau document' }).click();
+  const ongletCellule = p.getByRole('tab', { name: /^Espace d/ });
+  await ongletCellule.waitFor();
+  await p.locator('[data-testid=zone-depot]').waitFor();
+  check('agent de cellule : onglet « Espace … » de sa cellule, sans dossiers (propres aux divisions)', (await ongletCellule.getAttribute('aria-selected')) === 'true' && (await p.locator('[data-testid=arborescence-dossiers]').count()) === 0);
+  await p.getByRole('button', { name: 'Déposer un document', exact: true }).click();
   await p.getByLabel('Titre', { exact: true }).fill(`Note SAF ${S}`);
   await p.getByLabel('Fichier', { exact: true }).setInputFiles(fichier);
   await p.locator('#doc-type').selectOption('NOTE_TECHNIQUE');
@@ -138,14 +186,14 @@ const sansDefilementHorizontal = (p) => p.evaluate(() => document.documentElemen
   await p.getByText(`Note SAF ${S}`).first().click();
   await p.locator('[data-testid=statut-document]').waitFor();
   await p.getByRole('button', { name: 'Marquer comme final' }).click();
-  await p.getByText('Final', { exact: true }).first().waitFor();
+  await p.locator('[data-testid=fenetre-document]').getByText('Final', { exact: true }).first().waitFor();
   check('téléphone : pas de défilement horizontal', await sansDefilementHorizontal(p));
   await p.screenshot({ path: `${E.SHOTS}/n4_cellule_mobile.png` });
   await p.context().close();
   p = await loginPage(b, 'chefsaf');
   await p.goto(`${WEB}/documents`);
-  await p.getByText(`Note SAF ${S}`).first().click();
-  await p.getByRole('button', { name: 'Valider' }).click();
+  await p.locator('[data-testid=ligne-document]', { hasText: `Note SAF ${S}` }).click();
+  await p.getByRole('button', { name: 'Valider le document' }).click();
   await p.waitForFunction(() => /Validé/.test(document.querySelector('[data-testid=statut-document]')?.textContent ?? ''));
   check('le chef de la cellule valide le document de sa cellule', true);
   await p.screenshot({ path: `${E.SHOTS}/n4_cellule_chef_bureau.png` });

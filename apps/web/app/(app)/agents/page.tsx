@@ -4,10 +4,11 @@ import { useCallback, useEffect, useState } from 'react';
 import { getAgent, getOrganigramme, getPointsDeReprise, listerAgents } from '../../../lib/api/socle';
 import type { AgentDetail, PageAgents, PointsDeReprise, UniteOrganigramme } from '../../../lib/socle/types';
 import { Chargement, ErreurChargement, messageChargement } from '../../../components/ui/ErreurChargement';
-import { Badge } from '../../../components/ui/Badge';
-import { Button } from '../../../components/ui/Button';
-import { AgentPanneau, FenetreNouvelAgent, TON_STATUT } from '../../../components/socle/Agents';
+import { Plus } from 'lucide-react';
+import { AgentPanneau, FenetreNouvelAgent, TON_PASTILLE } from '../../../components/socle/Agents';
+import { BandeCompteurs, BarreOutils, BTN_LIGNE, BTN_PRINCIPAL, EnTetePage, EtatVide, FiltreSelect, Initiales, initialesDe, LigneTableau, Pastille, Recherche, Tableau } from '../../../components/ui/Charte';
 
+const GRILLE = 'lg:grid-cols-[minmax(0,1.4fr)_150px_110px_130px_170px_70px]';
 const date = (d: string) => new Date(d).toLocaleDateString('fr-FR', { timeZone: 'UTC' });
 
 /**
@@ -21,7 +22,12 @@ export default function AgentsPage() {
   const [reprise, setReprise] = useState<PointsDeReprise | null>(null);
   const [unites, setUnites] = useState<UniteOrganigramme[]>([]);
   const [erreur, setErreur] = useState<string | null>(null);
-  const [filtres, setFiltres] = useState<Record<string, string>>({ statut: 'EN_ACTIVITE' });
+  // ?matriculeProvisoire=true : lien « Voir » du panneau Alertes RH des effectifs.
+  const [filtres, setFiltres] = useState<Record<string, string>>((): Record<string, string> =>
+    typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('matriculeProvisoire') === 'true'
+      ? { statut: 'EN_ACTIVITE', matriculeProvisoire: 'true' }
+      : { statut: 'EN_ACTIVITE' },
+  );
   const [numero, setNumero] = useState(1);
   const [ouvert, setOuvert] = useState<AgentDetail | null>(null);
   const [nouvel, setNouvel] = useState(false);
@@ -57,7 +63,14 @@ export default function AgentsPage() {
     setFiltres((f) => ({ ...f, [k]: v }));
   };
 
-  if (!page) return <Chargement erreur={erreur} />;
+  if (!page)
+    return (
+      <div>
+        <EnTetePage titre="Agents" />
+        <ErreurChargement message={erreur} />
+        <Chargement erreur={erreur} />
+      </div>
+    );
   const nbPages = Math.max(1, Math.ceil(page.total / page.taille));
   const points = reprise
     ? [
@@ -68,31 +81,53 @@ export default function AgentsPage() {
         reprise.stagiairesSansDateDeFin > 0 && { texte: `${reprise.stagiairesSansDateDeFin} stagiaire(s) sans date de fin` },
       ].filter(Boolean) as { texte: string; action?: () => void }[]
     : [];
+  const bascule = (k: string, actif: boolean, libelle: string) => (
+    <button
+      type="button"
+      aria-pressed={actif}
+      onClick={() => filtre(k, actif ? '' : 'true')}
+      className={`h-9 rounded-[9px] border px-2.5 text-[13px] font-semibold ${actif ? 'border-ink bg-ink-50 text-ink' : 'border-line bg-surface text-text'}`}
+    >
+      {libelle}
+    </button>
+  );
 
   return (
     <div>
+      <EnTetePage
+        titre="Agents"
+        sousTitre={`${page.total} agent(s)`}
+        actions={
+          page.droits.peutCreer && (
+            <button type="button" className={BTN_PRINCIPAL} onClick={() => setNouvel(true)}>
+              <Plus aria-hidden size={17} /> Nouvel agent
+            </button>
+          )
+        }
+      />
       <ErreurChargement message={erreur} />
-      <div className="mb-[22px] flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <div className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-sage">Personnel</div>
-          <h1 className="text-[22px] font-extrabold">Agents</h1>
-        </div>
-        {page.droits.peutCreer && (
-          <Button variant="gold" onClick={() => setNouvel(true)}>
-            + Nouvel agent
-          </Button>
-        )}
-      </div>
+
+      {reprise && (
+        <BandeCompteurs
+          label="Reprise des agents"
+          items={[
+            { valeur: page.total, label: 'Agents affichés', sous: filtres.statut === 'EN_ACTIVITE' ? 'en activité' : 'selon les filtres' },
+            { valeur: reprise.matriculesProvisoires, label: 'Matricules provisoires', sous: 'à remplacer', ton: reprise.matriculesProvisoires ? 'rouge' : 'encre', onClick: () => filtre('matriculeProvisoire', filtres.matriculeProvisoire === 'true' ? '' : 'true'), actif: filtres.matriculeProvisoire === 'true' },
+            { valeur: reprise.unitesSansResponsable.length, label: 'Unités sans responsable', sous: reprise.unitesSansResponsable.map((u) => u.code).slice(0, 4).join(', ') || 'aucune', ton: reprise.unitesSansResponsable.length ? 'ambre' : 'encre' },
+            { valeur: reprise.stagiairesSansDateDeFin, label: 'Stagiaires sans date de fin', sous: 'fin prévue à renseigner', ton: reprise.stagiairesSansDateDeFin ? 'ambre' : 'encre' },
+          ]}
+        />
+      )}
 
       {points.length > 0 && (
-        <section aria-label="Reprise : points à traiter" className="mb-5 rounded-md border border-gold bg-gold-soft px-4 py-3">
-          <h2 className="mb-1.5 text-[13.5px] font-bold text-ink">Reprise : points à traiter</h2>
-          <ul className="list-disc space-y-0.5 pl-5 text-[12.5px] text-ink">
+        <section aria-label="Reprise : points à traiter" className="mb-3.5 rounded-[10px] border border-[#F2D58A] bg-gold-50 px-3.5 py-2.5">
+          <h2 className="mb-1 text-[13.5px] font-bold text-ink-900">Reprise : points à traiter</h2>
+          <ul className="list-disc space-y-0.5 pl-5 text-[13px] text-text">
             {points.map((p) => (
               <li key={p.texte}>
                 {p.texte}
                 {p.action && (
-                  <button type="button" onClick={p.action} className="ml-2 font-semibold underline">
+                  <button type="button" onClick={p.action} className="ml-2 font-semibold text-ink underline">
                     Afficher
                   </button>
                 )}
@@ -102,101 +137,88 @@ export default function AgentsPage() {
         </section>
       )}
 
-      <div className="mb-4 flex flex-wrap gap-2.5">
-        <input
-          aria-label="Rechercher un agent"
-          placeholder="Nom, prénom ou matricule…"
-          value={filtres.recherche ?? ''}
-          onChange={(e) => filtre('recherche', e.target.value)}
-          className="min-w-[200px] flex-1 rounded-md border border-line bg-surface px-3 py-2 text-[13px]"
+      <BarreOutils>
+        <Recherche value={filtres.recherche ?? ''} onChange={(v) => filtre('recherche', v)} placeholder="Nom, prénom ou matricule…" label="Rechercher un agent" />
+        <FiltreSelect
+          label="Statut"
+          value={filtres.statut ?? ''}
+          defaut="EN_ACTIVITE"
+          onChange={(v) => filtre('statut', v)}
+          options={[
+            { value: '', label: 'Tous les statuts' },
+            { value: 'EN_ACTIVITE', label: 'Statut : en activité' },
+            { value: 'SUSPENDU', label: 'Statut : suspendus' },
+            { value: 'PARTI', label: 'Statut : partis' },
+          ]}
         />
-        <select aria-label="Statut" value={filtres.statut ?? ''} onChange={(e) => filtre('statut', e.target.value)} className="rounded-md border border-line bg-surface px-3 py-2 text-[13px]">
-          <option value="">Tous les statuts</option>
-          <option value="EN_ACTIVITE">En activité</option>
-          <option value="SUSPENDU">Suspendus</option>
-          <option value="PARTI">Partis</option>
-        </select>
-        <select aria-label="Unité" value={filtres.uniteId ?? ''} onChange={(e) => filtre('uniteId', e.target.value)} className="max-w-full rounded-md border border-line bg-surface px-3 py-2 text-[13px]">
-          <option value="">Toutes les unités</option>
-          {unites.map((u) => (
-            <option key={u.id} value={u.id}>
-              {u.code} — {u.libelle}
-            </option>
-          ))}
-        </select>
-        <label className="flex items-center gap-1.5 text-[12.5px] text-text-muted">
-          <input type="checkbox" checked={filtres.finProche === 'true'} onChange={(e) => filtre('finProche', e.target.checked ? 'true' : '')} />
-          Fin dans 15 jours
-        </label>
-        <label className="flex items-center gap-1.5 text-[12.5px] text-text-muted">
-          <input type="checkbox" checked={filtres.matriculeProvisoire === 'true'} onChange={(e) => filtre('matriculeProvisoire', e.target.checked ? 'true' : '')} />
-          Matricule provisoire
-        </label>
-      </div>
+        <FiltreSelect
+          label="Unité"
+          value={filtres.uniteId ?? ''}
+          defaut=""
+          onChange={(v) => filtre('uniteId', v)}
+          options={[{ value: '', label: 'Toutes les unités' }, ...unites.map((u) => ({ value: u.id, label: `${u.code} — ${u.libelle}` }))]}
+        />
+        {bascule('finProche', filtres.finProche === 'true', 'Fin dans 15 jours')}
+        {bascule('matriculeProvisoire', filtres.matriculeProvisoire === 'true', 'Matricule provisoire')}
+      </BarreOutils>
 
-      <div className="overflow-x-auto rounded-md border border-line bg-surface">
-        <table className="w-full min-w-[640px] text-left text-[13px]">
-          <thead className="border-b border-line bg-bg text-[11.5px] uppercase tracking-wide text-text-faint">
-            <tr>
-              <th scope="col" className="px-3 py-2">Matricule</th>
-              <th scope="col" className="px-3 py-2">Agent</th>
-              <th scope="col" className="px-3 py-2">Unité</th>
-              <th scope="col" className="px-3 py-2">Statut</th>
-              <th scope="col" className="px-3 py-2">Fin prévue</th>
-            </tr>
-          </thead>
-          <tbody>
-            {page.donnees.map((a) => (
-              <tr key={a.id} className="border-b border-line last:border-0 hover:bg-bg">
-                <td className="px-3 py-2 font-mono text-[12px]">
-                  {a.matricule}
-                  {a.matriculeProvisoire && <span className="ml-1.5 text-[10.5px] font-semibold text-clay">(provisoire)</span>}
-                </td>
-                <td className="px-3 py-2">
-                  <button type="button" onClick={() => ouvrir(a.id)} className="text-left font-semibold text-ink hover:underline">
-                    {a.prenoms} {a.nom}
-                  </button>
-                  {a.fonction && <div className="text-[11.5px] text-text-muted">{a.fonction}</div>}
-                </td>
-                <td className="px-3 py-2">{a.unite ? a.unite.code : '—'}</td>
-                <td className="px-3 py-2">
-                  <Badge tone={TON_STATUT[a.statut]}>{a.libelleStatut.toUpperCase()}</Badge>
-                </td>
-                <td className="px-3 py-2">
-                  {a.dateFinPrevue ? (
-                    <span className={a.finProche ? 'font-semibold text-clay' : ''}>
-                      {date(a.dateFinPrevue)} {a.natureFinPrevue === 'STAGE' ? '(stage)' : '(contrat)'}
-                    </span>
-                  ) : (
-                    '—'
-                  )}
-                </td>
-              </tr>
-            ))}
-            {page.donnees.length === 0 && (
-              <tr>
-                <td colSpan={5} className="px-3 py-6 text-center text-text-muted">
-                  Aucun agent pour ces critères.
-                </td>
-              </tr>
+      <Tableau
+        label="Agents"
+        testid="agents"
+        grille={GRILLE}
+        colonnes={['Agent', 'Matricule', 'Unité', 'Statut', 'Fin prévue', <span key="a" className="sr-only">Actions</span>]}
+        vide={<EtatVide texte="Aucun agent pour ces critères." action={<button type="button" className={BTN_LIGNE} onClick={() => (setNumero(1), setFiltres({}))}>Effacer les filtres</button>} />}
+        pied={
+          <>
+            <span>{page.total} agent(s)</span>
+            {nbPages > 1 && (
+              <span className="flex items-center gap-2">
+                <button type="button" className={`${BTN_LIGNE} disabled:opacity-50`} disabled={numero <= 1} onClick={() => setNumero((n) => n - 1)}>
+                  Précédent
+                </button>
+                Page {numero} / {nbPages}
+                <button type="button" className={`${BTN_LIGNE} disabled:opacity-50`} disabled={numero >= nbPages} onClick={() => setNumero((n) => n + 1)}>
+                  Suivant
+                </button>
+              </span>
             )}
-          </tbody>
-        </table>
-      </div>
-      <div className="mt-3 flex items-center justify-between text-[12.5px] text-text-muted">
-        <span>{page.total} agent(s)</span>
-        {nbPages > 1 && (
-          <span className="flex items-center gap-2">
-            <Button className="!px-2.5 !py-1" disabled={numero <= 1} onClick={() => setNumero((n) => n - 1)}>
-              Précédent
-            </Button>
-            Page {numero} / {nbPages}
-            <Button className="!px-2.5 !py-1" disabled={numero >= nbPages} onClick={() => setNumero((n) => n + 1)}>
-              Suivant
-            </Button>
-          </span>
-        )}
-      </div>
+          </>
+        }
+      >
+        {page.donnees.map((a) => (
+          <LigneTableau key={a.id} grille={GRILLE} testid="ligne-agent" label={`${a.prenoms} ${a.nom}`} onClick={() => ouvrir(a.id)} actif={ouvert?.id === a.id}>
+            <span className="flex items-center gap-2.5">
+              <Initiales texte={initialesDe(a.prenoms, a.nom)} />
+              <span className="min-w-0">
+                <b className="block truncate font-semibold text-ink-900">
+                  {a.prenoms} {a.nom}
+                </b>
+                {a.fonction && <small className="block truncate text-[12px] text-text-muted">{a.fonction}</small>}
+              </span>
+            </span>
+            <span className="font-mono text-[12.5px] text-text-muted">
+              {a.matricule}
+              {a.matriculeProvisoire && <span className="ml-1.5 font-sans text-[11.5px] font-semibold text-clay">(provisoire)</span>}
+            </span>
+            <span className="text-text-muted">{a.unite ? a.unite.code : '—'}</span>
+            <Pastille ton={TON_PASTILLE[a.statut]}>{a.libelleStatut}</Pastille>
+            <span>
+              {a.dateFinPrevue ? (
+                <span className={a.finProche ? 'font-semibold text-clay' : 'text-text-muted'}>
+                  {date(a.dateFinPrevue)} {a.natureFinPrevue === 'STAGE' ? '(stage)' : '(contrat)'}
+                </span>
+              ) : (
+                <span className="text-text-muted">—</span>
+              )}
+            </span>
+            <span className="flex lg:justify-end">
+              <button type="button" className={BTN_LIGNE} aria-label={`Voir la fiche de ${a.prenoms} ${a.nom}`} onClick={(e) => (e.stopPropagation(), ouvrir(a.id))}>
+                Voir
+              </button>
+            </span>
+          </LigneTableau>
+        ))}
+      </Tableau>
 
       {ouvert && <AgentPanneau agent={ouvert} onClose={() => setOuvert(null)} onChange={apresAction} />}
       {nouvel && (

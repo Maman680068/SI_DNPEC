@@ -4,13 +4,14 @@ import { useCallback, useEffect, useState } from 'react';
 import { exprimerBesoin, getPlanFormation, statutBesoin } from '../../lib/api/rh';
 import type { OrigineFormation, PlanFormation, PrioriteFormation, StatutFormation } from '../../lib/rh/types';
 import { LIBELLE_ORIGINE, LIBELLE_STATUT_FORMATION } from '../../lib/rh/types';
-import { Button } from '../ui/Button';
-import { Badge } from '../ui/Badge';
+import { Plus } from 'lucide-react';
+import { BandeCompteurs, BarreOutils, BTN_LIGNE, BTN_PRINCIPAL, EtatVide, LigneTableau, Pastille, Tableau } from '../ui/Charte';
 import { Fenetre } from '../ui/Fenetre';
 import { Chargement, ErreurChargement, messageChargement } from '../ui/ErreurChargement';
 
-const champ = 'mt-1 w-full rounded-md border border-line bg-surface px-3 py-2 text-[13px]';
-const TON_PRIORITE = { HAUTE: 'clay', MOYENNE: 'gold', BASSE: 'muted' } as const;
+const champ = 'mt-1 w-full rounded-[9px] border border-line bg-surface px-3 py-2 text-[13.5px] font-normal';
+const TON_PRIORITE = { HAUTE: 'rouge', MOYENNE: 'ambre', BASSE: 'gris' } as const;
+const GRILLE = 'lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_150px_140px_130px]';
 const LIBELLE_PRIORITE: Record<PrioriteFormation, string> = { HAUTE: 'Priorité haute', MOYENNE: 'Priorité moyenne', BASSE: 'Priorité basse' };
 
 /** Plan de formation (SIG-RF-CAR-08) : besoins exprimés par les unités, consolidés par le DRH. */
@@ -24,42 +25,63 @@ export function OngletFormation() {
     charger();
   }, [charger]);
   if (!p) return <><ErreurChargement message={erreur} /><Chargement erreur={erreur} /></>;
+  const n = (st: StatutFormation) => p.besoins.filter((b) => b.statut === st).length;
   return (
-    <div className="max-w-[900px]">
+    <div>
       <ErreurChargement message={erreur} />
-      <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
-        <label className="text-[12.5px] font-semibold">
-          Année
-          <select value={annee} onChange={(e) => setAnnee(Number(e.target.value))} className="ml-2 rounded-md border border-line bg-surface px-2 py-1.5 text-[13px]">
-            {[annee - 1, annee, annee + 1].map((a) => <option key={a} value={a}>{a}</option>)}
-          </select>
-        </label>
-        {p.droits.exprimer && <Button variant="solid" onClick={() => setNouveau(true)}>+ Exprimer un besoin</Button>}
-      </div>
-      {p.besoins.length === 0 ? (
-        <p className="rounded-lg border border-line bg-surface p-5 text-[13px] text-text-muted">Aucun besoin exprimé pour {annee}.</p>
-      ) : (
-        <ul className="divide-y divide-line rounded-lg border border-line bg-surface" data-testid="besoins-formation">
-          {p.besoins.map((b) => (
-            <li key={b.id} data-testid="besoin" className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
-              <div className="min-w-0">
-                <div className="text-[13.5px] font-semibold">{b.intitule}</div>
-                <div className="text-[12px] text-text-muted">{b.unite} · {LIBELLE_ORIGINE[b.origine]} · {b.effectif} agent(s)</div>
-              </div>
-              <div className="flex flex-wrap items-center gap-1.5">
-                <Badge tone={TON_PRIORITE[b.priorite]}>{LIBELLE_PRIORITE[b.priorite]}</Badge>
-                {p.droits.decider ? (
-                  <select aria-label={`Statut du besoin ${b.intitule}`} value={b.statut} onChange={(e) => statutBesoin(b.id, e.target.value).then(charger).catch((x) => setErreur(messageChargement(x)))} className="rounded-md border border-line bg-surface px-2 py-1 text-[12.5px]">
-                    {(Object.keys(LIBELLE_STATUT_FORMATION) as StatutFormation[]).map((s) => <option key={s} value={s}>{LIBELLE_STATUT_FORMATION[s]}</option>)}
-                  </select>
-                ) : (
-                  <Badge tone={b.statut === 'RETENU' || b.statut === 'REALISE' ? 'sage' : 'muted'}>{LIBELLE_STATUT_FORMATION[b.statut]}</Badge>
-                )}
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
+      <BandeCompteurs
+        label={`Plan de formation ${annee}`}
+        items={[
+          { valeur: n('EXPRIME'), label: 'Besoins exprimés', sous: 'à examiner par le DRH', ton: n('EXPRIME') ? 'ambre' : 'encre' },
+          { valeur: n('RETENU'), label: 'Retenus', sous: `au plan ${annee}`, ton: 'vert' },
+          { valeur: n('REALISE'), label: 'Réalisés', sous: 'formations suivies' },
+          { valeur: p.besoins.reduce((t, b) => t + (b.statut === 'ECARTE' ? 0 : b.effectif), 0), label: 'Agents concernés', sous: 'hors besoins écartés', ton: 'gris' },
+        ]}
+      />
+      <BarreOutils
+        droite={
+          p.droits.exprimer && (
+            <button type="button" className={BTN_PRINCIPAL} onClick={() => setNouveau(true)}>
+              <Plus aria-hidden size={16} /> Exprimer un besoin
+            </button>
+          )
+        }
+      >
+        <select aria-label="Année" value={annee} onChange={(e) => setAnnee(Number(e.target.value))} className="h-9 rounded-[9px] border border-line bg-surface px-2.5 text-[13px] font-semibold">
+          {[annee - 1, annee, annee + 1].map((a) => <option key={a} value={a}>Année {a}</option>)}
+        </select>
+      </BarreOutils>
+      <Tableau
+        label={`Besoins de formation ${annee}`}
+        testid="besoins-formation"
+        grille={GRILLE}
+        colonnes={['Formation', 'Unité', 'Origine', 'Priorité', 'Statut']}
+        vide={
+          <EtatVide
+            texte={`Aucun besoin exprimé pour ${annee}.`}
+            action={p.droits.exprimer ? <button type="button" className={BTN_LIGNE} onClick={() => setNouveau(true)}>Exprimer le premier besoin</button> : undefined}
+          />
+        }
+      >
+        {p.besoins.map((b) => (
+          <LigneTableau key={b.id} grille={GRILLE} testid="besoin">
+            <span className="block">
+              <b className="block font-semibold text-ink-900">{b.intitule}</b>
+              <small className="block text-[12px] text-text-muted">{b.effectif} agent(s)</small>
+            </span>
+            <span className="block truncate text-text-muted">{b.unite ?? '—'}</span>
+            <span className="text-text-muted">{LIBELLE_ORIGINE[b.origine]}</span>
+            <Pastille ton={TON_PRIORITE[b.priorite]}>{LIBELLE_PRIORITE[b.priorite]}</Pastille>
+            {p.droits.decider ? (
+              <select aria-label={`Statut du besoin ${b.intitule}`} value={b.statut} onChange={(e) => statutBesoin(b.id, e.target.value).then(charger).catch((x) => setErreur(messageChargement(x)))} className="h-[30px] rounded-[7px] border border-line bg-surface px-2 text-[12.5px] font-semibold">
+                {(Object.keys(LIBELLE_STATUT_FORMATION) as StatutFormation[]).map((s) => <option key={s} value={s}>{LIBELLE_STATUT_FORMATION[s]}</option>)}
+              </select>
+            ) : (
+              <Pastille ton={b.statut === 'RETENU' || b.statut === 'REALISE' ? 'vert' : 'gris'}>{LIBELLE_STATUT_FORMATION[b.statut]}</Pastille>
+            )}
+          </LigneTableau>
+        ))}
+      </Tableau>
       {nouveau && <FenetreBesoin annee={annee} unite={p.monUnite} onClose={() => setNouveau(false)} onFait={() => (setNouveau(false), charger())} />}
     </div>
   );

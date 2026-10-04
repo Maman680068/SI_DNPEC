@@ -1,4 +1,5 @@
-// C2 — tiroir arrivée et fenêtres, parcours réels dans Chromium.
+// C2 — fenêtre d'un courrier arrivé (refonte, étape 5 : étapes, scan, imputation dans la fenêtre, actions à
+// droite, historique) et petites fenêtres, parcours réels dans Chromium.
 const E = require('../config');
 const { browser, loginPage, check, bilan, WEB } = require('./helpers');
 const { call, ids } = require('../lib');
@@ -16,6 +17,12 @@ const idDepuisUrl = (u) => new URL(u).searchParams.get('arrivee');
 const dlg = (p) => p.locator('form[role=dialog]');
 const champ = (p, label) => dlg(p).getByLabel(label, { exact: true });
 const optionsDe = (p, label) => champ(p, label).locator('option').allInnerTexts();
+// Fenêtre du courrier arrivé et son formulaire « Imputer ce courrier ».
+const fen = (p) => p.getByTestId('fenetre-arrivee');
+const fi = (p) => p.getByTestId('formulaire-imputer');
+const champFi = (p, label) => fi(p).getByLabel(label, { exact: true });
+const optionsFi = (p, label) => champFi(p, label).locator('option').allInnerTexts();
+const jourDans = (n) => { const d = new Date(Date.now() + n * J); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 
 (async () => {
   await suppleance('dn', 'chefdee');
@@ -24,7 +31,7 @@ const optionsDe = (p, label) => champ(p, label).locator('option').allInnerTexts(
   console.log('— Enregistrement au registre d’une division (secrétariat DPE)');
   const sec = await loginPage(b, 'secdpe');
   await sec.goto(WEB + '/courrier?onglet=arrivees');
-  await sec.getByRole('button', { name: '+ Enregistrer un courrier' }).click();
+  await sec.getByRole('button', { name: 'Enregistrer un courrier' }).first().click();
   // Liste des registres chargée à l'ouverture de la fenêtre : attendre qu'elle ne dise plus « Chargement… ».
   let regs = [];
   for (let i = 0; i < 40 && (regs = await optionsDe(sec, 'Registre')).some((t) => /Chargement/.test(t)); i++) await new Promise((r) => setTimeout(r, 250));
@@ -39,27 +46,36 @@ const optionsDe = (p, label) => champ(p, label).locator('option').allInnerTexts(
   await sec.getByRole('button', { name: 'Enregistrer', exact: true }).click();
   await sec.waitForURL(/arrivee=/);
   const U = idDepuisUrl(sec.url());
-  await sec.getByRole('dialog', { name: /Courrier arrivée/ }).getByRole('heading').first().waitFor();
-  const numero = await sec.getByRole('dialog', { name: /Courrier arrivée/ }).getByRole('heading').first().innerText();
-  check('courrier enregistré, numéroté, tiroir ouvert', /\S/.test(numero) && !!U, numero);
-  check('secrétariat : pas de bouton « Imputer »', (await sec.getByRole('button', { name: 'Imputer', exact: true }).count()) === 0);
-  check('secrétariat : « Corriger » et « Annuler l’enregistrement »', (await sec.getByRole('button', { name: 'Corriger' }).count()) === 1 && (await sec.getByRole('button', { name: 'Annuler l’enregistrement' }).count()) === 1);
+  // Le titre « Courrier arrivé » est provisoire le temps du chargement : attendre « numéro — objet ».
+  await fen(sec).getByRole('heading', { name: new RegExp(`— Cadrage budgétaire DPE ${S}$`) }).first().waitFor();
+  const numero = await fen(sec).getByRole('heading', { name: new RegExp(`— Cadrage budgétaire DPE ${S}$`) }).first().innerText();
+  check('courrier enregistré, numéroté, fenêtre ouverte : titre « numéro — objet »', !!U && numero.endsWith(`— Cadrage budgétaire DPE ${S}`) && /\d/.test(numero.split(' — ')[0]), numero);
+  check('fil « Courrier arrivé · Registre … », étape 1 faite, statut « À imputer »', /Courrier arrivé/.test(await fen(sec).getByRole('navigation', { name: 'Fil d’Ariane' }).innerText()) && /^Enregistré le/.test(await fen(sec).getByRole('list', { name: 'Étapes du courrier' }).locator('li').first().innerText()) && (await fen(sec).getByTestId('statut-arrivee').innerText()) === 'À imputer');
+  check('scan affiché à côté des informations', (await fen(sec).getByTestId('scans').innerText()).includes('scan.pdf'));
+  check('secrétariat : pas de bouton « Imputer » ni de formulaire d’imputation', (await sec.getByRole('button', { name: 'Imputer', exact: true }).count()) === 0 && (await fi(sec).count()) === 0);
+  check('secrétariat : « Corriger l’enregistrement », « Ajouter un scan » et « Annuler l’enregistrement »', (await sec.getByRole('button', { name: 'Corriger l’enregistrement' }).count()) === 1 && (await sec.getByRole('button', { name: 'Ajouter un scan' }).count()) === 1 && (await sec.getByRole('button', { name: 'Annuler l’enregistrement' }).count()) === 1);
+  check('historique : enregistrement daté', (await fen(sec).getByTestId('historique').innerText()).includes('enregistré au registre'));
 
   console.log('— DN impute un courrier du registre de la DPE');
   const dn = await loginPage(b, 'dn');
   await dn.goto(`${WEB}/courrier?arrivee=${U}`);
-  await dn.getByRole('button', { name: 'Imputer', exact: true }).click();
-  await champ(dn, 'Imputer à').locator('option').nth(1).waitFor({ state: 'attached' });
-  const proposes = (await optionsDe(dn, 'Imputer à')).slice(1);
+  // Formulaire « Imputer ce courrier » directement dans la fenêtre ; « Imputer » (à droite) l'envoie.
+  await champFi(dn, 'À').locator('option').nth(1).waitFor({ state: 'attached' });
+  const proposes = (await optionsFi(dn, 'À')).slice(1);
   const imputables = (await call('dn', 'GET', `/courrier/imputables?arriveeId=${U}`)).body;
   check('liste proposée = GET /courrier/imputables (membres de la DPE)', proposes.length === imputables.length && proposes.length > 0 && proposes.every((t) => !/DEE|AGENTDEE/.test(t)), proposes.join(' | '));
-  await champ(dn, 'Imputer à').selectOption({ label: proposes.find((t) => /CHEFSSR/.test(t)) });
-  await champ(dn, 'Instructions (facultatif)').fill('Préparer une note de cadrage.');
-  const d5 = new Date(Date.now() + 5 * J);
-  await champ(dn, 'Échéance (facultatif)').fill(`${d5.getFullYear()}-${String(d5.getMonth() + 1).padStart(2, '0')}-${String(d5.getDate()).padStart(2, '0')}`);
-  await dn.getByRole('dialog', { name: 'Imputer le courrier' }).getByRole('button', { name: 'Imputer' }).click();
+  check('pas de case « Ajouter une sous-imputation » (aucune imputation reçue à sous-imputer)', (await fi(dn).getByLabel('Ajouter une sous-imputation').count()) === 0);
+  await dn.getByRole('button', { name: 'Imputer', exact: true }).click();
+  check('« Imputer » sans destinataire : message, rien d’envoyé', /Choisissez la personne/.test(await fi(dn).getByRole('alert').innerText()));
+  await champFi(dn, 'À').selectOption({ label: proposes.find((t) => /CHEFSSR/.test(t)) });
+  await champFi(dn, 'Instruction').fill('Préparer une note de cadrage.');
+  await champFi(dn, 'Échéance de traitement').fill(jourDans(5));
+  await dn.screenshot({ path: `${SHOTS}/c2_arrivee_imputer_desktop.png` });
+  await dn.getByRole('button', { name: 'Imputer', exact: true }).click();
   await dn.locator('[data-testid=imputation]').first().waitFor();
   check('imputation affichée dans l’arbre', (await dn.locator('[data-testid=imputation]').first().innerText()).includes('CHEFSSR'));
+  await fen(dn).getByTestId('statut-arrivee').getByText('Imputé', { exact: true }).waitFor();
+  check('statut « Imputé », historique « imputé à CHEFSSR »', /imputé à CHEFSSR/.test(await fen(dn).getByTestId('historique').innerText()));
   check('DN (imputant) : « Convertir en tâche » proposé', (await dn.getByRole('button', { name: 'Convertir en tâche' }).count()) === 1);
   await dn.screenshot({ path: `${SHOTS}/c2_arrivee_contenu_desktop.png` });
 
@@ -84,15 +100,17 @@ const optionsDe = (p, label) => champ(p, label).locator('option').allInnerTexts(
   console.log('— Refus affichés (messages de l’API)');
   const dee = await loginPage(b, 'agentdee');
   await dee.goto(`${WEB}/courrier?arrivee=${U}`);
-  const refus = dee.getByRole('dialog', { name: 'Courrier arrivée' }).getByRole('alert');
+  const refus = fen(dee).getByRole('alert');
   await refus.waitFor();
   check('lien vers un courrier hors périmètre : message 403 de l’API', (await refus.innerText()).length > 5, await refus.innerText());
   const A2 = (await require('../lib').upload('secdpe', '/courrier/arrivees', { registreId: require(E.etat('registres.json')).ARRU, uniteKey: `DIV:${ids.DPE}`, dateReception: iso(0), expediteur: 'Test', objet: `Refus ${S}`, confidentialite: 'ORDINAIRE' })).body;
   await dn.goto(`${WEB}/courrier?arrivee=${A2.id}`);
   await dn.getByRole('button', { name: 'Imputer', exact: true }).waitFor();
+  await champFi(dn, 'À').locator('option').nth(1).waitFor({ state: 'attached' });
+  await champFi(dn, 'À').selectOption({ index: 1 });
   await call('secdpe', 'POST', `/courrier/arrivees/${A2.id}/annuler`, { motif: 'Annulé pendant la saisie' });
   await dn.getByRole('button', { name: 'Imputer', exact: true }).click();
-  const r409 = dn.getByRole('dialog', { name: 'Imputer le courrier' }).getByRole('alert');
+  const r409 = fi(dn).getByRole('alert');
   await r409.waitFor();
   check('courrier annulé entre-temps : refus 409 affiché dans la fenêtre', /annulé/i.test(await r409.innerText()), await r409.innerText());
 
@@ -100,7 +118,7 @@ const optionsDe = (p, label) => champ(p, label).locator('option').allInnerTexts(
   await sec.close();
   const sdg = await loginPage(b, 'secdg');
   await sdg.goto(WEB + '/courrier?onglet=arrivees');
-  await sdg.getByRole('button', { name: '+ Enregistrer un courrier' }).click();
+  await sdg.getByRole('button', { name: 'Enregistrer un courrier' }).first().click();
   await champ(sdg, 'Confidentialité').selectOption('PERSONNEL');
   check('pli personnel : ni objet ni scan dans le formulaire', (await champ(sdg, 'Objet').count()) === 0 && (await champ(sdg, 'Scans (facultatif)').count()) === 0);
   await champ(sdg, 'Expéditeur').fill('Cabinet du Ministre');
@@ -124,7 +142,7 @@ const optionsDe = (p, label) => champ(p, label).locator('option').allInnerTexts(
   check('requalification : confirmation exigée', /définitive/.test(await dpe.getByRole('dialog', { name: 'Requalifier le pli' }).getByRole('alert').innerText()));
   await dlg(dpe).getByLabel(/Je comprends/).check();
   await dpe.getByRole('button', { name: 'Requalifier définitivement' }).click();
-  await dpe.getByRole('dialog', { name: /Courrier arrivée/ }).getByText('CONFIDENTIEL', { exact: true }).waitFor();
+  await fen(dpe).getByTestId('niveau').getByText('Confidentiel', { exact: true }).waitFor();
   check('pli requalifié CONFIDENTIEL', true);
 
   console.log('— Confidentiel : contenu protégé, accès délégués, intérim');
@@ -137,7 +155,7 @@ const optionsDe = (p, label) => champ(p, label).locator('option').allInnerTexts(
   await pi.getByRole('menuitemradio', { name: /DN Test/ }).click();
   await pi.getByText('Mode intérim').waitFor();
   await pi.goto(`${WEB}/courrier?arrivee=${K.id}`);
-  const refusPi = pi.getByRole('dialog', { name: 'Courrier arrivée' }).getByRole('alert');
+  const refusPi = fen(pi).getByRole('alert');
   await refusPi.waitFor();
   check('P.I. du DN sans accès ouvert : message de l’API', (await refusPi.innerText()).length > 5, await refusPi.innerText());
   await dn.goto(`${WEB}/courrier?arrivee=${K.id}`);
@@ -150,15 +168,22 @@ const optionsDe = (p, label) => champ(p, label).locator('option').allInnerTexts(
   await dn.locator('[data-testid=acces-delegues] li').first().waitFor();
   check('accès ouvert listé, révocable', (await dn.locator('[data-testid=acces-delegues] li').first().innerText()).includes('Révoquer'));
   await pi.reload();
-  await pi.getByRole('button', { name: 'Imputer', exact: true }).click();
-  const mention = pi.getByRole('dialog', { name: 'Imputer le courrier' }).getByText(/Sera enregistré par vous/);
+  await fi(pi).waitFor();
+  const mention = fi(pi).getByText(/Sera enregistré par vous/);
   check('P.I. : « Sera enregistré par vous, au nom de DN Test »', (await mention.innerText()).includes('au nom de DN Test'), await mention.innerText());
-  await champ(pi, 'Imputer à').locator('option').nth(1).waitFor({ state: 'attached' });
-  await champ(pi, 'Imputer à').selectOption({ label: (await optionsDe(pi, 'Imputer à')).find((t) => /CHEFSAF/.test(t)) });
-  await pi.getByRole('dialog', { name: 'Imputer le courrier' }).getByRole('button', { name: 'Imputer' }).click();
+  await champFi(pi, 'À').locator('option').nth(1).waitFor({ state: 'attached' });
+  await champFi(pi, 'À').selectOption({ label: (await optionsFi(pi, 'À')).find((t) => /CHEFSAF/.test(t)) });
+  await fi(pi).getByLabel('Créer aussi une tâche pour le suivi').check();
+  await pi.getByRole('button', { name: 'Imputer', exact: true }).click();
+  check('« Créer aussi une tâche » sans échéance : message, rien d’envoyé', /échéance/i.test(await fi(pi).getByRole('alert').innerText()) && (await pi.locator('[data-testid=imputation]').count()) === 0);
+  await champFi(pi, 'Échéance de traitement').fill(jourDans(4));
+  await pi.getByRole('button', { name: 'Imputer', exact: true }).click();
   await pi.locator('[data-testid=imputation]').first().waitFor();
   const ligne = await pi.locator('[data-testid=imputation]').first().innerText();
   check('imputation P.I. : « par CHEFDEE P.I. de DN »', /CHEFDEE Test\s+P\.I\.\s+de DN Test/.test(ligne), ligne.replace(/\n/g, ' / '));
+  await pi.locator('[data-testid=imputation]').first().getByRole('link', { name: /Tâche associée/ }).waitFor();
+  const kApi = (await call('chefdee', 'GET', `/courrier/arrivees/${K.id}`, undefined, { 'X-Interim-For': ids.dn })).body;
+  check('« Créer aussi une tâche pour le suivi » : tâche créée (conversion existante)', !!kApi.imputations[0].tache, JSON.stringify(kApi.imputations[0].tache));
 
   console.log('— Mobile');
   const m = await loginPage(b, 'chefdpe', { width: 390, height: 844 });

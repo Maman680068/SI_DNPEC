@@ -127,6 +127,8 @@ export class PersonnelFilesService {
     });
     return {
       peutImporter: estDrh(actor),
+      // Refonte de l'interface (étape 7) : le DRH reçoit en plus la synthèse GET api/v1/rh/dossiers.
+      syntheseDrh: estDrh(actor),
       personnes: personnes.filter((p) => this.peutLireNiveau1(actor, p)),
     };
   }

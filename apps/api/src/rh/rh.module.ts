@@ -5,12 +5,13 @@ import { RhController } from './rh.controller';
 import { EffectifsService } from './effectifs.service';
 import { CarriereService } from './carriere.service';
 import { ReferentielRhService } from './referentiel-rh.service';
+import { DossiersSyntheseService } from './dossiers-synthese.service';
 
 /** Ressources humaines du socle N6 : effectifs et alertes, carrière et actes, fiches de poste, formation. */
 @Module({
   imports: [CommunicationModule, CourrierModule],
   controllers: [RhController],
-  providers: [EffectifsService, CarriereService, ReferentielRhService],
+  providers: [EffectifsService, CarriereService, ReferentielRhService, DossiersSyntheseService],
   exports: [EffectifsService],
 })
 export class RhModule {}

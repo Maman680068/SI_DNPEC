@@ -85,3 +85,10 @@ export interface AudienceScopeValue {
   celluleId: string;
   recipientUserIds: string[];
 }
+
+/** Fiche de l'interlocuteur (GET api/v1/messages/avec/:id/contexte) : seulement ce que le lecteur peut voir. */
+export interface ContexteConversation {
+  interlocuteur: { id: string; prenom: string; nom: string; fonction: string; unite: string | null };
+  documents: { id: string; titre: string; nomFichier: string | null; version: number | null; chemin: string; lien: string }[];
+  taches: { id: string; titre: string; statut: string; echeance: string | null; lien: string }[];
+}

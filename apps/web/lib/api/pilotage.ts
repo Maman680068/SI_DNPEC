@@ -1,4 +1,4 @@
-import { apiFetch } from './client';
+import { apiFetch, telechargerFichier } from './client';
 import type {
   ActiviteDetail,
   ActiviteDisponible,
@@ -58,6 +58,8 @@ export const supprimerActivite = (id: string) =>
 // Instructions de la Direction
 export const getInstructions = () => apiFetch<ListeInstructions>('/api/v1/instructions');
 export const getInstruction = (id: string) => apiFetch<Instruction>(`/api/v1/instructions/${id}`);
+/** Export Excel de la liste (même périmètre que l'écran). */
+export const exporterInstructions = () => telechargerFichier('/api/v1/instructions/export.xlsx', null);
 export const emettreInstruction = (input: {
   objet: string;
   texte: string;

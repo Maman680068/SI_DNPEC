@@ -35,7 +35,10 @@ const dlg = (p) => p.locator('form[role=dialog]');
   drh.on('dialog', (x) => x.accept());
   await ouvrirPlus(drh);
   await drh.getByRole('link', { name: 'Stagiaires' }).click();
-  await drh.getByRole('button', { name: '+ Nouveau stage' }).click();
+  await drh.getByRole('heading', { name: 'Stagiaires', exact: true }).waitFor();
+  const ligneStage = drh.locator('[data-testid=ligne-stage]').first();
+  check('liste des stages : action « Voir » sur la ligne (ou état vide)', (await drh.locator('[data-testid=ligne-stage]').count()) === 0 || (await ligneStage.getByRole('link', { name: /^Voir le stage de / }).count()) === 1);
+  await drh.getByRole('button', { name: 'Nouveau stage', exact: true }).click();
   await dlg(drh).getByLabel('Stagiaire').selectOption(st);
   await dlg(drh).getByLabel('Établissement d’origine').fill('Université Kofi Annan de Guinée');
   await dlg(drh).getByLabel('Diplôme préparé (facultatif)').fill('Master Économétrie');
@@ -46,7 +49,7 @@ const dlg = (p) => p.locator('form[role=dialog]');
   const sid = drh.url().split('/').pop();
   check('stage créé, fiche ouverte', !!(await prisma.stage.findUnique({ where: { id: sid } })));
   const periode = async (unite, debut, fin, format) => {
-    await drh.getByRole('button', { name: '+ Ajouter une période' }).click();
+    await drh.getByRole('button', { name: 'Ajouter une période', exact: true }).click();
     if (unite.cellule) { await dlg(drh).getByRole('button', { name: 'Cellule' }).click(); await dlg(drh).getByLabel('Cellule').selectOption(unite.cellule); }
     else { await dlg(drh).getByLabel('Division').selectOption(unite.division); if (unite.section) await dlg(drh).getByLabel('Section').selectOption(unite.section); }
     await dlg(drh).getByLabel('Du').fill(debut); await dlg(drh).getByLabel('Au').fill(fin);
@@ -58,6 +61,7 @@ const dlg = (p) => p.locator('form[role=dialog]');
   await periode({ cellule: ids.SAF }, d(20), d(40), 'TEXTE');
   await drh.locator('[data-testid=periode-2]').waitFor();
   check('deux périodes « à accepter par l’unité »', (await drh.getByText('À accepter par l’unité').count()) === 2);
+  check('colonne de droite : actions du stage et phrase d’explication', (await drh.getByRole('button', { name: 'Modifier le stage' }).count()) === 1 && (await drh.getByTestId('explication-stage').count()) === 1);
   await drh.screenshot({ path: `${SHOTS}/d6_stage_plan_drh_desktop.png`, fullPage: true });
 
   console.log('— DRH : capacité d’accueil (paramètres) et refus affiché');

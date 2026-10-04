@@ -1,4 +1,6 @@
-import { Body, Controller, Get, HttpCode, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, Post, Res } from '@nestjs/common';
+import type { Response } from 'express';
+import { envoyerExcel } from '../courrier/fichiers';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { AuthenticatedUser } from '../common/types/auth-user.type';
 import { InstructionsService } from './instructions.service';
@@ -17,6 +19,12 @@ export class InstructionsController {
   @Post()
   emettre(@CurrentUser() actor: AuthenticatedUser, @Body() dto: InstructionDto) {
     return this.instructions.emettre(actor, dto);
+  }
+
+  /** Export Excel de la liste (même périmètre que `GET /`). Déclarée avant `:id`. */
+  @Get('export.xlsx')
+  async exporter(@CurrentUser() actor: AuthenticatedUser, @Res({ passthrough: true }) res: Response) {
+    return envoyerExcel(res, await this.instructions.exporter(actor), 'instructions');
   }
 
   @Get(':id')

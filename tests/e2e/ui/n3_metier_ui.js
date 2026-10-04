@@ -1,5 +1,5 @@
 // N3 — écrans sous Chromium, bureau (1366) et téléphone (390) : avis du chef puis décision du DRH
-// sur un congé (onglet « À traiter », circuit affiché), motif médical déverrouillé par le DRH et par le
+// sur un congé (onglet « À traiter », fenêtre d'avis : circuit, absents, tâches, solde annuel), écran « Mes congés » (soldes, circuit, calendrier), motif médical déverrouillé par le DRH et par le
 // chef qui donne l'avis après réauthentification, « motif protégé » pour le DN, certificat médical
 // joint par l'agent, calendrier des jours fériés (saisie par l'administrateur, lecture par l'agent), avancement calculé d'une tâche (plus de curseur),
 // encadreur principal désigné, rapport de stage déposé par le stagiaire puis validé par l'encadreur.
@@ -19,8 +19,8 @@ const sansDefilementHorizontal = (p) => p.evaluate(() => document.documentElemen
 async function ouvrirDemande(p, onglet, nom) {
   await p.goto(`${WEB}/leaves`);
   await p.getByRole('tab', { name: new RegExp(`^${onglet}`) }).click();
-  const carte = p.locator('div', { hasText: nom }).filter({ has: p.getByRole('button', { name: /Examiner|Consulter/ }) }).last();
-  await carte.getByRole('button', { name: /Examiner|Consulter/ }).click();
+  // Refonte de l'interface : tableau compact, action sur la ligne (« Donner mon avis », « Décider », « Voir »).
+  await p.getByRole('button', { name: new RegExp(`^(Donner mon avis|Décider|Voir) — ${nom}$`) }).first().click();
   await p.locator('[data-testid=circuit-conge]').waitFor();
 }
 
@@ -41,8 +41,13 @@ async function ouvrirDemande(p, onglet, nom) {
   let p = await loginPage(b, 'chefssr');
   await ouvrirDemande(p, 'À traiter', nom);
   const circuit = await p.locator('[data-testid=circuit-conge]').innerText();
-  check('tiroir : étape « avis du chef attendu » et échéance affichée', /avis/i.test(circuit) && /réputé favorable/.test(circuit), circuit.slice(0, 120));
-  check('boutons d’avis, pas de décision', (await p.getByRole('button', { name: 'Avis favorable' }).count()) === 1 && (await p.getByRole('button', { name: 'Approuver' }).count()) === 0);
+  const fenetre = p.getByTestId('fenetre-conge');
+  await fenetre.getByText(/^Solde de /).waitFor();
+  const texteFenetre = await fenetre.innerText();
+  check('fenêtre : étape « Votre avis » et échéance de l’avis tacite affichée', /Votre avis/.test(circuit) && /réputé favorable/.test(texteFenetre), circuit.slice(0, 120));
+  check('fenêtre : période (Du, Au, Durée, Reprise), absents de l’équipe, tâches pendant l’absence', ['Reprise', 'Absents dans votre équipe sur la période', 'à échéance pendant l’absence'].every((x) => texteFenetre.includes(x)));
+  check('fenêtre : solde de congé annuel seul, jamais le total des absences maladie', !/Absences maladie/i.test(texteFenetre));
+  check('boutons d’avis, pas de décision', (await p.getByRole('button', { name: 'Avis favorable' }).count()) === 1 && (await p.getByRole('button', { name: 'Valider', exact: true }).count()) === 0);
   await p.screenshot({ path: `${E.SHOTS}/n3_avis_chef_bureau.png` });
   await p.getByRole('button', { name: 'Avis favorable' }).click();
   await p.locator('[data-testid=circuit-conge]').waitFor({ state: 'detached' });
@@ -52,12 +57,12 @@ async function ouvrirDemande(p, onglet, nom) {
   console.log('— Congé : décision du DRH (bureau)');
   p = await loginPage(b, 'drh');
   await ouvrirDemande(p, 'À traiter', nom);
-  await p.getByText(/SOLDE/i).first().waitFor();
+  await p.getByTestId('fenetre-conge').getByText(/^Solde de /).waitFor();
   await p.waitForTimeout(500);
   check('DRH : le solde du demandeur s’affiche (aucun refus)', (await p.getByText('pas accès au solde').count()) === 0);
-  check('DRH : avis favorable du chef affiché, boutons de décision', /favorable/i.test(await p.locator('[data-testid=circuit-conge]').innerText()) && (await p.getByRole('button', { name: 'Approuver' }).count()) === 1);
+  check('DRH : avis favorable du chef affiché (« Avis du chef : favorable »), boutons de décision', /favorable/i.test(await p.locator('[data-testid=circuit-conge]').innerText()) && (await p.getByRole('button', { name: 'Valider', exact: true }).count()) === 1);
   await p.screenshot({ path: `${E.SHOTS}/n3_decision_drh_bureau.png` });
-  await p.getByRole('button', { name: 'Approuver' }).click();
+  await p.getByRole('button', { name: 'Valider', exact: true }).click();
   await p.locator('[data-testid=circuit-conge]').waitFor({ state: 'detached' });
   check('demande approuvée', (await prisma.leaveRequest.findUnique({ where: { id: c.id } })).status === 'APPROUVEE');
 
@@ -94,7 +99,7 @@ async function ouvrirDemande(p, onglet, nom) {
   await p.getByText(/motif protégé/).first().waitFor();
   check('DN : « Absence — motif protégé », sans le type', (await p.getByText(`Hospitalisation ${S}`).count()) === 0);
   await ouvrirDemande(p, 'Suivi', nom);
-  check('DN : consultation sans aucun bouton d’avis ou de décision', (await p.getByRole('button', { name: /Avis favorable|Approuver/ }).count()) === 0);
+  check('DN : consultation sans aucun bouton d’avis ou de décision', (await p.getByRole('button', { name: /Avis favorable|^Valider$/ }).count()) === 0);
   await p.context().close();
 
   console.log('— Certificat médical (agent, téléphone)');
@@ -108,6 +113,12 @@ async function ouvrirDemande(p, onglet, nom) {
   await p.getByText(`certificat_${S}.pdf`).first().waitFor();
   check('agent : certificat joint à son congé maladie', true);
   await p.screenshot({ path: `${E.SHOTS}/n3_certificat_mobile.png` });
+  check('agent (téléphone) : bande de soldes, demandes en cours avec circuit, calendrier, prochains jours fériés', (await p.getByTestId('soldes-conges').count()) === 1 && (await p.getByTestId('demande-en-cours').count()) >= 1 && (await p.getByTestId('calendrier-conges').count()) === 1 && (await p.getByTestId('prochains-feries').count()) === 1);
+  check('agent (téléphone) : « Mes congés » sans défilement horizontal', await sansDefilementHorizontal(p));
+  await p.getByRole('button', { name: 'Demander un congé' }).first().click();
+  await p.getByText('Nouvelle demande de congé').waitFor();
+  check('agent : « Demander un congé » ouvre la fenêtre de création', true);
+  await p.getByRole('button', { name: 'Annuler', exact: true }).last().click();
   fs.rmSync(fichierCert, { force: true });
   await call('agent1', 'POST', `/leaves/${m2.id}/cancel`);
   await p.context().close();
@@ -206,10 +217,12 @@ async function ouvrirDemande(p, onglet, nom) {
   p = await loginPage(b, 'chefssr', TELEPHONE);
   await ouvrirDemande(p, 'À traiter', nom);
   await p.getByRole('button', { name: 'Avis défavorable' }).click();
-  await p.getByLabel('Motif de l’avis défavorable').fill('Période de clôture budgétaire');
-  check('téléphone : tiroir d’avis sans défilement horizontal', await sansDefilementHorizontal(p));
+  await p.getByText('Un avis défavorable doit être motivé').waitFor();
+  check('téléphone : avis défavorable sans motif refusé à l’écran', (await prisma.leaveRequest.findUnique({ where: { id: c2.id } })).avisEtat === null);
+  await p.getByLabel('Motif de l’avis (obligatoire si défavorable)').fill('Période de clôture budgétaire');
+  check('téléphone : fenêtre d’avis sans défilement horizontal', await sansDefilementHorizontal(p));
   await p.screenshot({ path: `${E.SHOTS}/n3_avis_chef_mobile.png` });
-  await p.getByRole('button', { name: 'Confirmer l’avis défavorable' }).click();
+  await p.getByRole('button', { name: 'Avis défavorable' }).click();
   await p.locator('[data-testid=circuit-conge]').waitFor({ state: 'detached' });
   const l2 = await prisma.leaveRequest.findUnique({ where: { id: c2.id } });
   check('avis défavorable motivé enregistré', l2.avisEtat === 'DEFAVORABLE' && /clôture/.test(l2.avisMotif));

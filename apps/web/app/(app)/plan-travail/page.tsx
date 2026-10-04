@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
+import { Plus } from 'lucide-react';
 import { apiFetch } from '../../../lib/api/client';
 import {
   creerActivite,
@@ -16,9 +17,22 @@ import {
 } from '../../../lib/api/pilotage';
 import type { Activite, ActiviteDetail, Objectif, Plan } from '../../../lib/pilotage/types';
 import type { Task } from '../../../lib/tasks/types';
+import { useOrg } from '../../../lib/org/OrgProvider';
 import { Button } from '../../../components/ui/Button';
-import { Badge } from '../../../components/ui/Badge';
 import { Fenetre } from '../../../components/ui/Fenetre';
+import { FenetreDetail } from '../../../components/ui/FenetreDetail';
+import {
+  Anneau,
+  BTN_DANGER_CONTOUR,
+  BTN_PRINCIPAL,
+  BTN_SECONDAIRE,
+  BandeCompteurs,
+  CleValeur,
+  EnTetePage,
+  EtatVide,
+  Pastille,
+  SectionFenetre,
+} from '../../../components/ui/Charte';
 import {
   Chargement,
   ErreurChargement,
@@ -30,7 +44,8 @@ import { CalendarView } from '../../../components/tasks/CalendarView';
 import { CreateTaskModal } from '../../../components/tasks/CreateTaskModal';
 
 const champ = 'mt-1 w-full rounded-md border border-line bg-surface px-3 py-2 text-[13px]';
-const petit = '!px-3 !py-1.5 !text-[12.5px]';
+const SELECT = 'h-9 max-w-full rounded-[9px] border border-line bg-surface px-2.5 text-[13px] font-semibold text-text';
+const PETIT = 'inline-flex h-[34px] items-center gap-1.5 rounded-[8px] border border-line bg-surface px-[11px] text-[13px] font-bold text-ink hover:bg-bg';
 const date = (iso: string) =>
   new Date(iso).toLocaleDateString('fr-FR', {
     day: 'numeric',
@@ -38,22 +53,39 @@ const date = (iso: string) =>
     year: 'numeric',
     timeZone: 'UTC',
   });
+const MOIS = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'];
+const GRILLE = 'lg:grid-cols-[minmax(0,1.3fr)_170px_minmax(0,1.6fr)_80px]';
 
-function Avancement({ valeur, retard }: { valeur: number; retard?: boolean }) {
+/** Couleur de la barre d'une activité : verte terminée, rouge en retard, bleue en cours. */
+const couleurActivite = (a: Pick<Activite, 'avancement' | 'enRetard'>) => (a.avancement >= 100 ? 'bg-sage' : a.enRetard ? 'bg-clay' : 'bg-ink');
+const etatActivite = (a: Pick<Activite, 'avancement' | 'enRetard'>) => (a.avancement >= 100 ? 'terminée' : a.enRetard ? 'en retard' : 'en cours');
+
+/** Frise de janvier à décembre : barre de l'activité (dateDebut → dateFin) et trait doré « aujourd'hui ». */
+function Frise({ a, annee }: { a: Activite; annee: number }) {
+  const debutAn = Date.UTC(annee, 0, 1);
+  const finAn = Date.UTC(annee + 1, 0, 1);
+  const part = (t: number) => Math.max(0, Math.min(1, (t - debutAn) / (finAn - debutAn))) * 100;
+  const gauche = part(new Date(a.dateDebut).getTime());
+  const droite = part(new Date(a.dateFin).getTime() + 86_400_000);
+  const maintenant = Date.now();
   return (
-    <div className="flex items-center gap-2" aria-label={`Avancement ${valeur} %`}>
-      <div className="h-1.5 w-20 overflow-hidden rounded-full bg-bg">
-        <div
-          className={`h-full ${retard ? 'bg-clay' : 'bg-sage'}`}
-          style={{ width: `${valeur}%` }}
-        />
-      </div>
-      <span className="text-[12px] font-semibold tabular-nums">{valeur} %</span>
+    <div
+      role="img"
+      aria-label={`Du ${date(a.dateDebut)} au ${date(a.dateFin)}, ${etatActivite(a)}`}
+      className="relative h-[22px] rounded-[5px]"
+      style={{ background: 'repeating-linear-gradient(90deg,#F2F3F8 0 calc(100%/12 - 1px),#E4E6EF calc(100%/12 - 1px) calc(100%/12))' }}
+    >
+      {droite > gauche && <i className={`absolute top-1 h-3.5 rounded-[4px] ${couleurActivite(a)}`} style={{ left: `${gauche}%`, width: `${Math.max(droite - gauche, 0.8)}%` }} />}
+      {maintenant >= debutAn && maintenant < finAn && <span aria-hidden className="absolute -bottom-[3px] -top-[3px] w-0.5 bg-gold" style={{ left: `${part(maintenant)}%` }} />}
     </div>
   );
 }
 
-/** Plan de travail (socle N5) : objectif → activités datées → tâches ; avancement calculé. */
+/**
+ * Plan de travail (socle N5 ; refonte de l'interface, étape 6, maquette validée) : objectif → activités
+ * datées → tâches ; avancement calculé (jamais saisi). Bande de synthèse, un panneau par objectif avec
+ * anneau d'avancement et frise annuelle des activités ; fiche d'une activité par ?activite=.
+ */
 export default function PlanTravailPage() {
   const annee0 = new Date().getFullYear();
   const [annee, setAnnee] = useState(annee0);
@@ -86,102 +118,132 @@ export default function PlanTravailPage() {
     );
   }
 
+  const activites = plan.objectifs.flatMap((o) => o.activites);
+  const terminees = activites.filter((a) => a.avancement >= 100).length;
+  const enRetard = activites.filter((a) => a.enRetard).length;
+  const moyenne = activites.length ? Math.round(activites.reduce((s, a) => s + a.avancement, 0) / activites.length) : 0;
+
+  const boutonObjectif = plan.peutCreer && (
+    <button type="button" className={BTN_PRINCIPAL} onClick={() => setNouvelObjectif(true)}>
+      <Plus aria-hidden size={17} />
+      Nouvel objectif
+    </button>
+  );
+
   return (
-    <div className="max-w-[1100px]">
-      <div className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-sage">Général</div>
-      <div className="mb-1 flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-[22px] font-extrabold">Plan de travail</h1>
-        {plan.peutCreer && (
-          <Button variant="solid" onClick={() => setNouvelObjectif(true)}>
-            + Nouvel objectif
-          </Button>
-        )}
-      </div>
-      <p className="mb-5 text-[13px] text-text-muted">
-        Objectifs de l’année, activités datées (responsable, indicateur) et tâches qui les
-        réalisent. L’avancement est calculé à partir des tâches, jamais saisi.
-      </p>
+    <div>
+      <EnTetePage
+        titre={`Plan de travail ${annee}`}
+        avantActions={
+          <div className="flex w-full min-w-0 items-center gap-2 sm:w-auto">
+            <select aria-label="Unité" className={`${SELECT} min-w-0 flex-1 sm:max-w-[320px] sm:flex-none`} value={uniteId} onChange={(e) => setUniteId(e.target.value)}>
+              <option value="">Toutes les unités visibles</option>
+              {plan.unites.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.libelle}
+                </option>
+              ))}
+            </select>
+            <select aria-label="Année" className={SELECT} value={annee} onChange={(e) => setAnnee(Number(e.target.value))}>
+              {[annee0 - 1, annee0, annee0 + 1].map((a) => (
+                <option key={a} value={a}>
+                  {a}
+                </option>
+              ))}
+            </select>
+          </div>
+        }
+        actions={boutonObjectif || undefined}
+      />
       <ErreurChargement message={erreur} />
 
-      <div className="mb-5 flex flex-wrap gap-3">
-        <label className="text-[12.5px] font-semibold">
-          Année
-          <select
-            className={champ}
-            value={annee}
-            onChange={(e) => setAnnee(Number(e.target.value))}
-          >
-            {[annee0 - 1, annee0, annee0 + 1].map((a) => (
-              <option key={a} value={a}>
-                {a}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="min-w-[220px] text-[12.5px] font-semibold">
-          Unité
-          <select className={champ} value={uniteId} onChange={(e) => setUniteId(e.target.value)}>
-            <option value="">Toutes les unités visibles</option>
-            {plan.unites.map((u) => (
-              <option key={u.id} value={u.id}>
-                {u.libelle}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
+      <BandeCompteurs
+        label={`Synthèse du plan de travail ${annee}`}
+        items={[
+          { valeur: plan.objectifs.length, label: plan.objectifs.length > 1 ? 'Objectifs' : 'Objectif', sous: 'dans votre périmètre', testid: 'synthese-objectifs' },
+          { valeur: activites.length, label: activites.length > 1 ? 'Activités' : 'Activité', sous: `dont ${terminees} terminée${terminees > 1 ? 's' : ''}`, testid: 'synthese-activites' },
+          { valeur: `${moyenne} %`, label: 'Avancement moyen', sous: 'calculé sur les tâches', ton: 'vert', testid: 'synthese-avancement' },
+          { valeur: enRetard, label: enRetard > 1 ? 'Activités en retard' : 'Activité en retard', sous: 'échéance dépassée', ton: enRetard ? 'rouge' : 'encre', testid: 'synthese-retard' },
+        ]}
+      />
 
       {plan.objectifs.length === 0 && (
-        <p className="rounded-lg border border-line bg-surface p-5 text-[13px] text-text-muted">
-          Aucun objectif pour {annee}.
-        </p>
+        <div className="rounded-xl border border-line bg-surface">
+          <EtatVide texte={`Aucun objectif pour ${annee}.`} action={boutonObjectif || undefined} />
+        </div>
       )}
 
-      <div className="space-y-4">
+      <div className="space-y-3.5">
         {plan.objectifs.map((o) => (
-          <section
-            key={o.id}
-            data-testid="objectif"
-            className="rounded-lg border border-line bg-surface p-4"
-          >
-            <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
-              <div className="min-w-0">
-                <div className="text-[11.5px] font-semibold uppercase tracking-wide text-text-faint">
-                  {o.unite}
+          <section key={o.id} data-testid="objectif" aria-label={o.libelle} className="overflow-hidden rounded-xl border border-line bg-surface">
+            <div className="flex flex-wrap items-center gap-3.5 border-b border-line px-4 py-3.5 sm:px-[18px]">
+              <Anneau valeur={o.avancement} taille={52} couleur={o.avancement >= 50 ? 'var(--couleur-sage)' : '#F0B429'} label={`Avancement de l’objectif : ${o.avancement} %`} />
+              <div className="min-w-0 flex-1">
+                <h2 className="font-heading text-[15.5px] font-bold text-ink-900">{o.libelle}</h2>
+                <span className="mt-0.5 block text-[12.5px] text-text-muted">{[o.description, o.unite].filter(Boolean).join(' · ')}</span>
+              </div>
+              {(o.droits.ajouterActivite || o.droits.supprimer) && (
+                <div className="flex flex-wrap items-center gap-2">
+                  {o.droits.ajouterActivite && (
+                    <button type="button" className={PETIT} onClick={() => setActivitePour(o)}>
+                      <Plus aria-hidden size={14} />
+                      Activité
+                    </button>
+                  )}
+                  {o.droits.supprimer && (
+                    <button
+                      type="button"
+                      className={`${PETIT} !text-clay`}
+                      onClick={() => {
+                        if (window.confirm('Supprimer cet objectif ?'))
+                          supprimerObjectif(o.id)
+                            .then(charger)
+                            .catch((e) => setErreur(messageChargement(e)));
+                      }}
+                    >
+                      Supprimer
+                    </button>
+                  )}
                 </div>
-                <h2 className="text-[16px] font-bold">{o.libelle}</h2>
-                {o.description && <p className="text-[12.5px] text-text-muted">{o.description}</p>}
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <Avancement valeur={o.avancement} />
-                {o.droits.ajouterActivite && (
-                  <Button className={petit} onClick={() => setActivitePour(o)}>
-                    + Activité
-                  </Button>
-                )}
-                {o.droits.supprimer && (
-                  <Button
-                    className={petit}
-                    onClick={() => {
-                      if (window.confirm('Supprimer cet objectif ?'))
-                        supprimerObjectif(o.id)
-                          .then(charger)
-                          .catch((e) => setErreur(messageChargement(e)));
-                    }}
-                  >
-                    Supprimer
-                  </Button>
-                )}
-              </div>
+              )}
             </div>
             {o.activites.length === 0 ? (
-              <p className="text-[12.5px] text-text-muted">Aucune activité.</p>
+              <EtatVide
+                texte="Aucune activité pour cet objectif."
+                action={
+                  o.droits.ajouterActivite ? (
+                    <button type="button" className={PETIT} onClick={() => setActivitePour(o)}>
+                      <Plus aria-hidden size={14} />
+                      Ajouter une activité
+                    </button>
+                  ) : undefined
+                }
+              />
             ) : (
-              <ul className="divide-y divide-line">
-                {o.activites.map((a) => (
-                  <LigneActivite key={a.id} a={a} onOuvrir={() => setActiviteOuverte(a.id)} />
-                ))}
-              </ul>
+              <div role="table" aria-label={`Activités — ${o.libelle}`}>
+                <div role="rowgroup">
+                  <div role="row" className={`hidden h-8 items-center gap-3.5 border-b border-[#F0F1F6] bg-[#FAFBFD] px-[18px] text-[11.5px] font-semibold text-text-muted lg:grid ${GRILLE}`}>
+                    <span role="columnheader">Activité et indicateur</span>
+                    <span role="columnheader">Responsable</span>
+                    <span role="columnheader" className="grid grid-cols-12 text-center">
+                      {MOIS.map((m, i) => (
+                        <span key={i} aria-hidden>
+                          {m}
+                        </span>
+                      ))}
+                      <span className="sr-only">Calendrier de janvier à décembre {annee}</span>
+                    </span>
+                    <span role="columnheader" className="text-right">
+                      Avancement
+                    </span>
+                  </div>
+                </div>
+                <div role="rowgroup">
+                  {o.activites.map((a) => (
+                    <LigneActivite key={a.id} a={a} annee={annee} onOuvrir={() => setActiviteOuverte(a.id)} />
+                  ))}
+                </div>
+              </div>
             )}
           </section>
         ))}
@@ -216,23 +278,37 @@ export default function PlanTravailPage() {
   );
 }
 
-function LigneActivite({ a, onOuvrir }: { a: Activite; onOuvrir: () => void }) {
+function LigneActivite({ a, annee, onOuvrir }: { a: Activite; annee: number; onOuvrir: () => void }) {
+  const { getUserInitials } = useOrg();
   return (
-    <li data-testid="activite" className="flex flex-wrap items-center justify-between gap-3 py-2.5">
-      <button onClick={onOuvrir} className="min-w-0 flex-1 text-left">
-        <div className="text-[13.5px] font-semibold text-ink underline-offset-2 hover:underline">
+    <div role="row" data-testid="activite" className={`grid grid-cols-1 items-center gap-x-3.5 gap-y-2 border-b border-[#F0F1F6] px-4 py-3 last:border-b-0 sm:px-[18px] lg:min-h-[58px] lg:py-2 ${GRILLE}`}>
+      <span role="cell" className="min-w-0">
+        <button type="button" onClick={onOuvrir} className="block max-w-full truncate text-left text-[13.5px] font-semibold text-text hover:text-ink hover:underline">
           {a.libelle}
-        </div>
-        <div className="text-[12px] text-text-muted">
-          {a.responsable.nom} · du {date(a.dateDebut)} au {date(a.dateFin)} · {a.indicateur}
-          {a.cible ? ` — cible : ${a.cible}` : ''} · {a.nombreTaches} tâche(s)
-        </div>
-      </button>
-      <div className="flex items-center gap-2">
-        {a.enRetard && <Badge tone="clay">En retard</Badge>}
-        <Avancement valeur={a.avancement} retard={a.enRetard} />
-      </div>
-    </li>
+        </button>
+        <span className="block truncate text-[12.5px] text-text-muted">
+          {a.indicateur}
+          {a.cible ? ` — cible : ${a.cible}` : ''} · {a.nombreTaches} tâche{a.nombreTaches > 1 ? 's' : ''}
+        </span>
+      </span>
+      <span role="cell" className="flex min-w-0 items-center gap-2 text-[13px]">
+        <span aria-hidden className="grid h-[26px] w-[26px] flex-none place-items-center rounded-full bg-ink-50 text-[10px] font-bold text-ink">
+          {getUserInitials(a.responsable.id) || a.responsable.nom.split(' ').map((x) => x.charAt(0)).slice(0, 2).join('')}
+        </span>
+        <span className="truncate">{a.responsable.nom}</span>
+      </span>
+      <span role="cell" className="block">
+        <Frise a={a} annee={annee} />
+      </span>
+      <span role="cell" className={`flex items-center gap-2 text-[13px] font-bold lg:justify-end ${a.enRetard ? 'text-clay' : 'text-text'}`}>
+        {a.enRetard && (
+          <span className="lg:sr-only">
+            <Pastille ton="rouge">En retard</Pastille>
+          </span>
+        )}
+        {a.avancement} %
+      </span>
+    </div>
   );
 }
 
@@ -464,9 +540,87 @@ function FicheActivite({
     charger();
   }, [charger]);
 
+  const cote = a && (
+    <>
+      <SectionFenetre titre="Actions">
+        <div className="flex flex-col gap-2">
+          <button type="button" className={BTN_PRINCIPAL} onClick={() => setNouvelleTache(true)}>
+            <Plus aria-hidden size={16} />
+            Nouvelle tâche
+          </button>
+          {a.droits.modifier && (
+            <button
+              type="button"
+              className={BTN_SECONDAIRE}
+              disabled={!!edition}
+              onClick={() =>
+                setEdition({
+                  libelle: a.libelle,
+                  responsableId: a.responsable.id,
+                  dateDebut: a.dateDebut.slice(0, 10),
+                  dateFin: a.dateFin.slice(0, 10),
+                  indicateur: a.indicateur,
+                  cible: a.cible ?? '',
+                })
+              }
+            >
+              Modifier
+            </button>
+          )}
+          {a.droits.supprimer && (
+            <button
+              type="button"
+              className={BTN_DANGER_CONTOUR}
+              onClick={() => {
+                if (window.confirm('Supprimer cette activité ?'))
+                  supprimerActivite(id)
+                    .then(() => (onChange(), onClose()))
+                    .catch((e) => setErreur(messageChargement(e)));
+              }}
+            >
+              Supprimer
+            </button>
+          )}
+        </div>
+      </SectionFenetre>
+      <SectionFenetre titre="Informations" className="mb-0">
+        <div className="mb-3 flex items-center gap-3">
+          <Anneau valeur={a.avancement} taille={52} couleur={a.avancement >= 100 ? 'var(--couleur-sage)' : a.enRetard ? '#CE1126' : '#1B2A6B'} label={`Avancement : ${a.avancement} %`} />
+          <span className="text-[12.5px] text-text-muted">Calculé sur les tâches rattachées, jamais saisi.</span>
+        </div>
+        <CleValeur
+          largeur={92}
+          lignes={[
+            ['Responsable', a.responsable.nom],
+            ['Période', `du ${date(a.dateDebut)} au ${date(a.dateFin)}`],
+            ['Indicateur', a.indicateur],
+            ['Cible', a.cible || '—'],
+            ['Tâches', String(a.nombreTaches)],
+            ['Unité', a.objectif.unite],
+          ]}
+        />
+      </SectionFenetre>
+    </>
+  );
+
   return (
     <>
-      <Fenetre titre={a ? a.libelle : 'Activité'} onClose={onClose} largeur={880} erreur={erreur}>
+      <FenetreDetail
+        titre={a ? a.libelle : 'Activité'}
+        onClose={onClose}
+        largeur={1100}
+        testid="fiche-activite"
+        filAriane={a ? ['Plan de travail', String(a.objectif.annee), a.objectif.libelle] : ['Plan de travail']}
+        entete={
+          a && (
+            <div className="mt-2.5 flex flex-wrap gap-2">
+              {a.avancement >= 100 ? <Pastille ton="vert">Terminée</Pastille> : a.enRetard ? <Pastille ton="rouge">En retard</Pastille> : <Pastille ton="encre">En cours</Pastille>}
+            </div>
+          )
+        }
+        cote={cote || undefined}
+      >
+        {erreur && <p role="alert" className="mb-3 rounded-md bg-clay-soft px-3 py-2.5 text-[13px] text-clay">{erreur}</p>}
         {!a ? (
           <Chargement erreur={erreur} />
         ) : edition ? (
@@ -489,89 +643,32 @@ function FicheActivite({
             </div>
           </form>
         ) : (
-          <div data-testid="fiche-activite">
-            <div className="mb-3 text-[12.5px] text-text-muted">
-              {a.objectif.unite} · Objectif « {a.objectif.libelle} » ({a.objectif.annee})
-            </div>
-            <dl className="mb-4 grid grid-cols-1 gap-x-6 gap-y-1.5 text-[13px] sm:grid-cols-2">
-              <div>
-                <dt className="inline font-semibold">Responsable : </dt>
-                <dd className="inline">{a.responsable.nom}</dd>
-              </div>
-              <div>
-                <dt className="inline font-semibold">Période : </dt>
-                <dd className="inline">
-                  du {date(a.dateDebut)} au {date(a.dateFin)}
-                </dd>
-              </div>
-              <div>
-                <dt className="inline font-semibold">Indicateur : </dt>
-                <dd className="inline">
-                  {a.indicateur}
-                  {a.cible ? ` — cible : ${a.cible}` : ''}
-                </dd>
-              </div>
-              <div className="flex items-center gap-2">
-                <dt className="font-semibold">Avancement :</dt>
-                <dd className="flex items-center gap-2">
-                  <Avancement valeur={a.avancement} retard={a.enRetard} />
-                  {a.enRetard && <Badge tone="clay">En retard</Badge>}
-                </dd>
-              </div>
-            </dl>
+          <section aria-label="Tâches de l’activité">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-              <h3 className="text-[14px] font-bold">Tâches ({a.nombreTaches})</h3>
-              <div className="flex flex-wrap items-center gap-2">
-                <ViewToggle value={vue} onChange={setVue} vues={['kanban', 'calendar']} />
-                <Button className={petit} onClick={() => setNouvelleTache(true)}>
-                  + Nouvelle tâche
-                </Button>
-                {a.droits.modifier && (
-                  <Button
-                    className={petit}
-                    onClick={() =>
-                      setEdition({
-                        libelle: a.libelle,
-                        responsableId: a.responsable.id,
-                        dateDebut: a.dateDebut.slice(0, 10),
-                        dateFin: a.dateFin.slice(0, 10),
-                        indicateur: a.indicateur,
-                        cible: a.cible ?? '',
-                      })
-                    }
-                  >
-                    Modifier
-                  </Button>
-                )}
-                {a.droits.supprimer && (
-                  <Button
-                    className={petit}
-                    onClick={() => {
-                      if (window.confirm('Supprimer cette activité ?'))
-                        supprimerActivite(id)
-                          .then(() => (onChange(), onClose()))
-                          .catch((e) => setErreur(messageChargement(e)));
-                    }}
-                  >
-                    Supprimer
-                  </Button>
-                )}
-              </div>
+              <h3 className="text-[13px] font-bold text-ink-900">
+                Tâches <span className="font-semibold text-text-muted">{a.nombreTaches}</span>
+              </h3>
+              <ViewToggle value={vue} onChange={setVue} vues={['kanban', 'calendar']} />
             </div>
             {!taches ? (
               <Chargement erreur={erreur} />
             ) : taches.length === 0 ? (
-              <p className="text-[12.5px] text-text-muted">
-                Aucune tâche rattachée : l’avancement reste à 0 %.
-              </p>
+              <EtatVide
+                texte="Aucune tâche rattachée : l’avancement reste à 0 %."
+                action={
+                  <button type="button" className={BTN_SECONDAIRE} onClick={() => setNouvelleTache(true)}>
+                    Créer une tâche
+                  </button>
+                }
+              />
             ) : vue === 'kanban' ? (
               <KanbanBoard tasks={taches} onSelect={(t) => router.push(`/tasks/${t}`)} />
             ) : (
               <CalendarView tasks={taches} onSelect={(t) => router.push(`/tasks/${t}`)} />
             )}
-          </div>
+          </section>
         )}
-      </Fenetre>
+      </FenetreDetail>
       {nouvelleTache && (
         <CreateTaskModal
           presetActiviteId={id}

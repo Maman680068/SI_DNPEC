@@ -198,6 +198,11 @@ export interface TableauDeBordCourrier {
   aExpedier: number;
   priseDeConnaissance: number;
   brouillons: number;
+  /** Vue du registre (bande de compteurs de la page) : statuts des listes visibles. */
+  arriveesEnAttente: number;
+  visasEnCours: number;
+  actesASigner: number;
+  actesAExpedier: number;
 }
 
 /** Personne proposable (GET /courrier/imputables) — ce que le serveur accepterait. */

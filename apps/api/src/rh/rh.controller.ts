@@ -1,9 +1,12 @@
-import { Body, Controller, Get, HttpCode, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, Patch, Post, Query, Res } from '@nestjs/common';
+import type { Response } from 'express';
+import { envoyerExcel } from '../courrier/fichiers';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { AuthenticatedUser } from '../common/types/auth-user.type';
 import { EffectifsService } from './effectifs.service';
 import { CarriereService } from './carriere.service';
 import { ReferentielRhService } from './referentiel-rh.service';
+import { DossiersSyntheseService } from './dossiers-synthese.service';
 import {
   AnneeQueryDto,
   BesoinFormationDto,
@@ -22,6 +25,7 @@ export class RhController {
     private readonly effectifs: EffectifsService,
     private readonly carriere: CarriereService,
     private readonly referentiel: ReferentielRhService,
+    private readonly dossiers: DossiersSyntheseService,
   ) {}
 
   @Get()
@@ -32,6 +36,18 @@ export class RhController {
   @Get('effectifs')
   lireEffectifs(@CurrentUser() actor: AuthenticatedUser) {
     return this.effectifs.effectifs(actor);
+  }
+
+  /** Export Excel des effectifs (agrégats de l'écran, même périmètre : DRH, DN, DNA). */
+  @Get('effectifs/export.xlsx')
+  async exporterEffectifs(@CurrentUser() actor: AuthenticatedUser, @Res({ passthrough: true }) res: Response) {
+    return envoyerExcel(res, await this.effectifs.exporterEffectifs(actor), 'effectifs');
+  }
+
+  /** Dossier du personnel, vue du DRH : bande de compteurs et lignes (complétude, alertes) — lecture, DRH seul. */
+  @Get('dossiers')
+  dossiersSynthese(@CurrentUser() actor: AuthenticatedUser) {
+    return this.dossiers.synthese(actor);
   }
 
   @Get('alertes')

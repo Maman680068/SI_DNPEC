@@ -1,4 +1,7 @@
-// C2 — tiroir acte et fenêtres, parcours réels dans Chromium.
+// C2 — fenêtre d'un départ ou d'un acte (refonte, étape 8 : fil « Départ et acte · Registre … », titre
+// « objet — bénéficiaire », étapes Rédigé → Visas → Signature → Numéro → Expédition, circuit de visa vertical,
+// actions à droite selon les droits avec une phrase d'explication, Objet / Bénéficiaire / Niveau / Registre,
+// historique) et petites fenêtres, parcours réels dans Chromium.
 const E = require('../config');
 const { browser, loginPage, check, bilan, WEB } = require('./helpers');
 const { call, upload, ids } = require('../lib');
@@ -16,13 +19,18 @@ async function suppleance(titulaire, suppleant) {
 const dlg = (p) => p.locator('form[role=dialog]');
 const champ = (p, label) => dlg(p).getByLabel(label, { exact: true });
 const tiroir = (p) => p.locator('div[role=dialog]');
-// « état:Titre / détail » — sans la pastille (symbole) de l'étape.
-const etapes = (p) => p.locator('[data-testid=circuit] > ol > li').evaluateAll((els) => els.map((e) => e.getAttribute('data-etape') + ':' + e.querySelector('div').innerText.replace(/\n/g, ' / ')));
+// Pastille de statut de l'en-tête de la fenêtre.
+const statut = (p, t) => tiroir(p).getByTestId('statut-acte').getByText(t, { exact: true }).waitFor();
+// Circuit vertical du cycle en cours : « ligne:état:Titre / détail » (ligne = redige, visa, signature, numero,
+// expedition, connaissance, annule).
+const etapes = (p) => p.locator('[data-testid=circuit] > ol > li').evaluateAll((els) => els.map((e) => e.getAttribute('data-cle') + ':' + e.getAttribute('data-etape') + ':' + e.querySelector('div').innerText.replace(/\n/g, ' / ')));
+const visas = (e) => e.filter((x) => x.startsWith('visa:'));
+const ligneDe = (e, cle) => e.find((x) => x.startsWith(cle + ':')) ?? '';
 async function ouvrir(b, key, acteId, viewport) {
   const p = await loginPage(b, key, viewport);
   p.on('dialog', (d) => d.accept());
   await p.goto(`${WEB}/courrier?acte=${acteId}`);
-  await tiroir(p).getByRole('heading').first().waitFor();
+  await tiroir(p).getByTestId('statut-acte').waitFor();
   return p;
 }
 
@@ -47,30 +55,32 @@ async function ouvrir(b, key, acteId, viewport) {
   await dlg(ag).getByRole('button', { name: 'Enregistrer le brouillon' }).click();
   await ag.waitForURL(/acte=/);
   const K = new URL(ag.url()).searchParams.get('acte');
-  await tiroir(ag).getByText('BROUILLON', { exact: true }).waitFor();
-  check('brouillon créé, non numéroté, annexe jointe', (await tiroir(ag).innerText()).includes('Non numéroté') && (await tiroir(ag).getByText('note.pdf').count()) === 1);
+  await statut(ag, 'Brouillon');
+  check('brouillon créé, non numéroté, annexe jointe', (await tiroir(ag).innerText()).includes('Non numéroté') && (await tiroir(ag).getByRole('button', { name: 'note.pdf', exact: true }).count()) === 1);
   const nb = async (n) => tiroir(ag).getByRole('button', { name: n, exact: true }).count();
   const boutons = [await nb('Soumettre au visa'), await nb('Modifier'), await nb('Supprimer'), await nb('Annuler l’acte')];
   check('brouillon : Soumettre, Modifier, Supprimer ; pas d’Annuler', boutons.join() === '1,1,1,0', boutons.join());
   await tiroir(ag).getByRole('button', { name: 'Soumettre au visa' }).click();
-  await tiroir(ag).getByText('EN VISA', { exact: true }).waitFor();
+  await statut(ag, 'En visa');
   const e1 = await etapes(ag);
-  check('circuit : Chef de Section (en attente de CHEFSSR) → Chef de Division → Signature', e1.length === 3 && e1[0].startsWith('courant:Chef de Section') && e1[0].includes('CHEFSSR') && e1[1].startsWith('avenir:Chef de Division') && e1[1].includes('CHEFDPE') && e1[2].startsWith('avenir:Signature'), e1.join(' | '));
+  const v1 = visas(e1);
+  check('circuit vertical : rédigé (fait) → visa du chef de section (en attente de CHEFSSR) → visa du chef de division → signature, numéro, expédition', e1[0].startsWith('redige:fait:Rédigé par AGENT1 Test') && v1.length === 2 && v1[0].startsWith('visa:courant:Visa du chef de section') && v1[0].includes('En attente de CHEFSSR') && v1[1].startsWith('visa:avenir:Visa du chef de division') && v1[1].includes('CHEFDPE') && ligneDe(e1, 'signature').startsWith('signature:avenir:') && ligneDe(e1, 'numero').includes('automatique à la signature') && !!ligneDe(e1, 'expedition'), e1.join(' | '));
 
   console.log('— Visa, renvoi, resoumission');
   const ssr = await ouvrir(b, 'chefssr', K);
-  check('viseur attendu : « Viser » et « Renvoyer »', (await tiroir(ssr).getByRole('button', { name: 'Viser' }).count()) === 1 && (await tiroir(ssr).getByRole('button', { name: 'Renvoyer pour correction' }).count()) === 1);
+  check('viseur attendu : « Viser » et « Renvoyer au rédacteur », phrase d’explication', (await tiroir(ssr).getByRole('button', { name: 'Viser' }).count()) === 1 && (await tiroir(ssr).getByRole('button', { name: 'Renvoyer au rédacteur' }).count()) === 1 && /étape suivante/.test(await tiroir(ssr).getByTestId('explication-acte').innerText()));
   await tiroir(ssr).getByRole('button', { name: 'Viser' }).click();
   await champ(ssr, 'Commentaire (facultatif)').fill('Bon pour moi.');
   await dlg(ssr).getByRole('button', { name: 'Viser' }).click();
-  await ssr.locator('[data-testid=circuit] li[data-etape=fait]').first().waitFor();
-  check('visa enregistré (étape faite, commentaire)', (await etapes(ssr))[0].includes('Visé par CHEFSSR Test') && (await etapes(ssr))[0].includes('Bon pour moi'));
+  await ssr.locator('[data-testid=circuit] li[data-cle=visa][data-etape=fait]').first().waitFor();
+  const vs = visas(await etapes(ssr));
+  check('visa enregistré (étape faite, « Visé par …, chef de section », commentaire)', vs[0].startsWith('visa:fait:Visé par CHEFSSR Test, chef de section') && vs[0].includes('« Bon pour moi. »'), vs[0]);
   check('après son visa : plus d’action de visa', (await tiroir(ssr).getByRole('button', { name: 'Viser' }).count()) === 0);
   const dpe = await ouvrir(b, 'chefdpe', K);
-  await tiroir(dpe).getByRole('button', { name: 'Renvoyer pour correction' }).click();
+  await tiroir(dpe).getByRole('button', { name: 'Renvoyer au rédacteur' }).click();
   await champ(dpe, 'Motif (obligatoire)').fill('Préciser le calendrier.');
   await dlg(dpe).getByRole('button', { name: 'Renvoyer' }).click();
-  await tiroir(dpe).getByText('RENVOYÉ', { exact: true }).waitFor();
+  await statut(dpe, 'Renvoyé');
   await ag.reload();
   await ag.locator('[data-testid=bandeau-renvoi]').waitFor();
   check('rédacteur : bandeau du motif de renvoi', (await ag.locator('[data-testid=bandeau-renvoi]').innerText()).includes('Préciser le calendrier.'));
@@ -79,7 +89,7 @@ async function ouvrir(b, key, acteId, viewport) {
   await dlg(ag).getByRole('button', { name: 'Enregistrer', exact: true }).click();
   await tiroir(ag).getByText('calendrier : fin octobre').waitFor();
   await tiroir(ag).getByRole('button', { name: 'Resoumettre' }).click();
-  await tiroir(ag).getByText('EN VISA', { exact: true }).waitFor();
+  await statut(ag, 'En visa');
   check('resoumis : nouveau cycle, précédent replié', (await tiroir(ag).getByText('Circuit de visa (soumission n° 2)').count()) === 1 && (await tiroir(ag).getByText('Soumissions précédentes (1)').count()) === 1);
 
   console.log('— Visa P.I. et signature par le DN');
@@ -93,25 +103,36 @@ async function ouvrir(b, key, acteId, viewport) {
   await tiroir(pi).getByRole('button', { name: 'Viser' }).click();
   check('P.I. : mention « au nom de CHEFDPE Test » dans la fenêtre', (await dlg(pi).innerText()).includes('au nom de CHEFDPE Test'));
   await dlg(pi).getByRole('button', { name: 'Viser' }).click();
-  await tiroir(pi).getByText('À SIGNER', { exact: true }).waitFor();
+  await statut(pi, 'À signer');
   const e2 = await etapes(pi);
-  check('circuit : « visé par CHEFDEE au nom de CHEFDPE »', /Visé par CHEFDEE Test au nom de CHEFDPE Test/.test(e2[1]), e2[1]);
+  check('circuit : « visé par CHEFDEE au nom de CHEFDPE »', /Visé par CHEFDEE Test au nom de CHEFDPE Test/.test(visas(e2)[1]), visas(e2)[1]);
   const dn = await ouvrir(b, 'dn', K);
   await dn.screenshot({ path: `${SHOTS}/c2_acte_circuit_desktop.png` });
-  await tiroir(dn).getByRole('button', { name: 'Signer' }).click();
+  const entete = await tiroir(dn).getByRole('list', { name: 'Étapes du circuit' }).locator('li').allInnerTexts();
+  const courante = await tiroir(dn).getByRole('list', { name: 'Étapes du circuit' }).locator('li[aria-current=step]').innerText();
+  check('en-tête : Rédigé → Visas → Signature (en cours) → Numéro → Expédition', entete.length === 5 && /^Rédigé[\s\S]*\| Visas[\s\S]*\| 3\s*Signature \| 4\s*Numéro \| 5\s*Expédition$/.test(entete.join(' | ')) && /Signature/.test(courante), entete.join(' | '));
+  check('circuit : « Signature du Directeur national ou de la DNA » en cours, « En attente depuis … »', /^signature:courant:Signature du Directeur national ou de la DNA[\s\S]*En attente depuis/.test(ligneDe(await etapes(dn), 'signature')), ligneDe(await etapes(dn), 'signature'));
+  check('fil « Départ et acte · Registre … · Non numéroté », titre = objet', /^Départ et acte · Registre .+ · Non numéroté$/.test((await tiroir(dn).getByRole('navigation', { name: 'Fil d’Ariane' }).innerText()).trim()) && (await tiroir(dn).getByRole('heading').first().innerText()).trim() === `Réponse — note de cadrage ${S}`);
+  check('DN : « Signer l’acte » en action principale, « Renvoyer au rédacteur » ensuite, pas de « Viser »', (await tiroir(dn).getByTestId('actions-acte').getByRole('button').first().innerText()).trim() === 'Signer l’acte' && (await tiroir(dn).getByTestId('actions-acte').getByRole('button').nth(1).innerText()).trim() === 'Renvoyer au rédacteur' && (await tiroir(dn).getByRole('button', { name: 'Viser' }).count()) === 0);
+  check('phrase d’explication : la signature attribue le numéro', /numéro suivant du registre/.test(await tiroir(dn).getByTestId('explication-acte').innerText()));
+  const infos = await tiroir(dn).locator('dl').first().innerText();
+  check('informations : Objet, Niveau, Registre', /Objet[\s\S]*Niveau[\s\S]*Ordinaire[\s\S]*Registre/.test(infos), infos.replace(/\n/g, ' / '));
+  await tiroir(dn).getByRole('button', { name: 'Signer l’acte' }).click();
   await champ(dn, 'Acte signé scanné (facultatif)').setInputFiles({ name: 'signe.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF signé') });
   await dlg(dn).getByRole('button', { name: 'Signer' }).click();
-  await tiroir(dn).getByText('SIGNÉ', { exact: true }).waitFor();
-  const numero = await tiroir(dn).getByRole('heading').first().innerText();
-  check('signé : numéro attribué, scan joint, étape Signature faite', numero !== 'Non numéroté' && (await tiroir(dn).getByText('signe.pdf').count()) === 1 && (await etapes(dn)).pop().startsWith('fait:Signature'), numero);
+  await statut(dn, 'Signé');
+  const fil = (await tiroir(dn).getByRole('navigation', { name: 'Fil d’Ariane' }).innerText()).trim();
+  const e4 = await etapes(dn);
+  check('signé : numéro attribué (fil « … · N° … », ligne « Numéro … attribué »), scan joint, signature faite', / · N° \S+$/.test(fil) && ligneDe(e4, 'numero').startsWith('numero:fait:Numéro ') && (await tiroir(dn).getByRole('button', { name: 'signe.pdf', exact: true }).count()) === 1 && ligneDe(e4, 'signature').startsWith('signature:fait:Signé par DN Test'), fil + ' | ' + e4.join(' | '));
+  check('historique : visas et signature datés', /visé par CHEFSSR/.test(await tiroir(dn).getByTestId('historique').innerText()) && /signé par DN/.test(await tiroir(dn).getByTestId('historique').innerText()));
 
   console.log('— Expédition (secrétariat) et lien vers la réponse');
   const sdg = await ouvrir(b, 'secdg', K);
   await tiroir(sdg).getByRole('button', { name: 'Expédier' }).click();
   await champ(sdg, 'Mode d’expédition').fill('Porteur');
   await dlg(sdg).getByRole('button', { name: 'Marquer expédié' }).click();
-  await tiroir(sdg).getByText('EXPÉDIÉ', { exact: true }).waitFor();
-  check('expédié, mode affiché', (await tiroir(sdg).innerText()).includes('Porteur'));
+  await statut(sdg, 'Expédié');
+  check('expédié : ligne « Expédié par … · Porteur », étape Expédition faite', /^expedition:fait:Expédié par [\s\S]*Porteur/.test(ligneDe(await etapes(sdg), 'expedition')) && (await tiroir(sdg).getByRole('list', { name: 'Étapes du circuit' }).locator('li').last().innerText()).includes('(fait)'), ligneDe(await etapes(sdg), 'expedition'));
   await tiroir(sdg).getByRole('button', { name: 'Voir le courrier arrivée' }).click();
   await sdg.waitForURL(/arrivee=/);
   check('« En réponse à » ouvre la fiche du courrier arrivée', new URL(sdg.url()).searchParams.get('arrivee') === A.id);
@@ -123,6 +144,7 @@ async function ouvrir(b, key, acteId, viewport) {
   check('(préparation) attestation signée', sg.status === 201, sg.status + ' ' + JSON.stringify(sg.body).slice(0, 120));
   const a2 = await ouvrir(b, 'agent2', kb.id);
   check('bénéficiaire : bandeau d’attente de sa prise de connaissance', (await a2.locator('[data-testid=bandeau-connaissance]').innerText()).includes('AGENT2'));
+  check('titre « objet — bénéficiaire », Bénéficiaire dans les informations, ligne « Prise de connaissance » en cours', (await tiroir(a2).getByRole('heading').first().innerText()).trim() === `Attestation ${S} — AGENT2 Test` && /Bénéficiaire\s+AGENT2 Test/.test(await tiroir(a2).locator('dl').first().innerText()) && ligneDe(await etapes(a2), 'connaissance').startsWith('connaissance:courant:Prise de connaissance par AGENT2 Test'));
   await tiroir(a2).getByRole('button', { name: 'J’ai pris connaissance' }).click();
   await tiroir(a2).getByText(/A pris connaissance le/).waitFor();
   check('prise de connaissance enregistrée, bouton retiré', (await tiroir(a2).getByRole('button', { name: 'J’ai pris connaissance' }).count()) === 0 && (await a2.locator('[data-testid=bandeau-connaissance]').count()) === 0);
@@ -148,7 +170,7 @@ async function ouvrir(b, key, acteId, viewport) {
     await tiroir(ag2).getByRole('button', { name: 'Resoumettre' }).click();
     await tiroir(ag2).getByText('Circuit de visa (soumission n° 2)').waitFor();
     const e3 = await etapes(ag2);
-    check('circuit recalculé : Chef de Section sans objet (poste vacant)', e3[0].startsWith('saute:Chef de Section') && /vacant/i.test(e3[0]), e3.join(' | '));
+    check('circuit recalculé : visa du chef de section sans objet (poste vacant)', visas(e3)[0].startsWith('visa:saute:Visa du chef de section — sans objet') && /vacant/i.test(visas(e3)[0]), e3.join(' | '));
   } finally {
     await prisma.user.update({ where: { id: ids.chefssr }, data: { status: 'ACTIF' } });
   }

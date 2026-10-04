@@ -5,10 +5,8 @@ import { changerFormat, enregistrerEvaluation, soumettreEvaluation, viserEvaluat
 import type { FormatEvaluation, Niveau, Periode, Stage } from '../../lib/stages/types';
 import { CRITERES, EVALUATION_STATUT_LABEL, FORMAT_LABEL, NIVEAU_LABEL } from '../../lib/stages/types';
 import { Erreur, SELECT_CLASS, TEXTAREA_CLASS, messageErreur } from '../courrier/ui';
-import { Badge } from '../ui/Badge';
-import { Button } from '../ui/Button';
+import { BTN_LIGNE, BTN_LIGNE_PRINCIPAL, Pastille } from '../ui/Charte';
 
-const petit = 'px-3 py-1.5 text-[12.5px]';
 
 /** Évaluation d'une période : affichage selon ce que l'API transmet, format
  * modifiable tant qu'elle n'est pas commencée, rédaction par le tuteur, visa. */
@@ -37,10 +35,10 @@ export function BlocEvaluation({ stage, periode, onChange, onRenvoyer }: { stage
     enregistrerEvaluation(stage.id, periode.id, { ...(periode.formatEvaluation === 'GRILLE' ? { criteres } : {}), appreciation });
 
   return (
-    <div className="mt-3 rounded-md border border-line bg-bg px-3.5 py-3" data-testid={`evaluation-${periode.ordre}`}>
+    <div className="mt-3 rounded-[10px] border border-line bg-[#FAFBFD] px-3.5 py-3" data-testid={`evaluation-${periode.ordre}`}>
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <span className="text-[12.5px] font-bold">Évaluation — {FORMAT_LABEL[periode.formatEvaluation]}</span>
-        {ev && <Badge tone={ev.statut === 'VISEE' ? 'sage' : ev.statut === 'RENVOYEE' ? 'clay' : 'gold'}>{EVALUATION_STATUT_LABEL[ev.statut]}</Badge>}
+        {ev && <Pastille ton={ev.statut === 'VISEE' ? 'vert' : ev.statut === 'RENVOYEE' ? 'rouge' : 'ambre'}>{EVALUATION_STATUT_LABEL[ev.statut]}</Pastille>}
       </div>
 
       {periode.droits.changerFormat && (
@@ -94,13 +92,12 @@ export function BlocEvaluation({ stage, periode, onChange, onRenvoyer }: { stage
             <textarea className={TEXTAREA_CLASS} value={appreciation} onChange={(e) => setAppreciation(e.target.value)} maxLength={5000} />
           </label>
           <div className="flex flex-wrap justify-end gap-2">
-            <Button type="submit" className={petit} disabled={enCours}>
+            <button type="submit" className={`${BTN_LIGNE} disabled:opacity-50`} disabled={enCours}>
               Enregistrer le brouillon
-            </Button>
-            <Button
+            </button>
+            <button
               type="button"
-              variant="gold"
-              className={petit}
+              className={`${BTN_LIGNE_PRINCIPAL} disabled:opacity-50`}
               disabled={enCours}
               onClick={() =>
                 agir(async () => {
@@ -110,7 +107,7 @@ export function BlocEvaluation({ stage, periode, onChange, onRenvoyer }: { stage
               }
             >
               Soumettre au visa
-            </Button>
+            </button>
           </div>
         </form>
       ) : ev ? (
@@ -139,12 +136,12 @@ export function BlocEvaluation({ stage, periode, onChange, onRenvoyer }: { stage
 
       {periode.droits.viser && (
         <div className="mt-2 flex flex-wrap justify-end gap-2">
-          <Button className={petit} disabled={enCours} onClick={onRenvoyer}>
+          <button type="button" className={`${BTN_LIGNE} disabled:opacity-50`} disabled={enCours} onClick={onRenvoyer}>
             Renvoyer au tuteur
-          </Button>
-          <Button variant="gold" className={petit} disabled={enCours} onClick={() => agir(() => viserEvaluation(stage.id, periode.id), 'Évaluation visée : le stagiaire peut la lire.')}>
+          </button>
+          <button type="button" className={`${BTN_LIGNE_PRINCIPAL} disabled:opacity-50`} disabled={enCours} onClick={() => agir(() => viserEvaluation(stage.id, periode.id), 'Évaluation visée : le stagiaire peut la lire.')}>
             Viser
-          </Button>
+          </button>
         </div>
       )}
       {info && <p className="mt-2 text-[12.5px] text-sage">{info}</p>}

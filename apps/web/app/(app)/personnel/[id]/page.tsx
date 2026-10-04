@@ -19,8 +19,8 @@ import { CAREER_EVENT_LABEL, EMPLOYMENT_STATUS_LABEL, STATUT_CHAMP_LABEL } from 
 import { ROLE_LABEL, STATUS_LABEL } from '../../../../lib/users/types';
 import { Erreur, messageErreur } from '../../../../components/courrier/ui';
 import { FenetreDiplome, FenetreNiveauDeux, FenetreNiveauUn, FenetrePiece, FenetreSignaler } from '../../../../components/personnel/FenetresDossier';
-import { Badge } from '../../../../components/ui/Badge';
-import { Button } from '../../../../components/ui/Button';
+import { ChevronLeft, Lock } from 'lucide-react';
+import { BTN_LIGNE, BTN_LIGNE_PRINCIPAL, BTN_PRINCIPAL, BTN_SECONDAIRE, Initiales, Pastille, initialesDe } from '../../../../components/ui/Charte';
 
 type Fenetre = 'niveau1' | 'niveau2' | 'diplome' | 'piece' | 'signaler' | null;
 
@@ -28,7 +28,7 @@ const date = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString('fr
 
 function Statut({ statut }: { statut: StatutChamp | undefined }) {
   if (!statut || statut === 'NON_RENSEIGNE') return null;
-  return <Badge tone={statut === 'CONFIRME' ? 'sage' : 'gold'}>{STATUT_CHAMP_LABEL[statut]}</Badge>;
+  return <Pastille ton={statut === 'CONFIRME' ? 'vert' : 'ambre'}>{STATUT_CHAMP_LABEL[statut]}</Pastille>;
 }
 
 function Ligne({ label, valeur, statut, children }: { label: string; valeur: ReactNode; statut?: StatutChamp; children?: ReactNode }) {
@@ -46,17 +46,15 @@ function Ligne({ label, valeur, statut, children }: { label: string; valeur: Rea
 
 function Section({ titre, action, children, testid }: { titre: string; action?: ReactNode; children: ReactNode; testid?: string }) {
   return (
-    <section className="mb-5 rounded-lg border border-line bg-surface p-4 sm:p-5" data-testid={testid}>
-      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-[14px] font-bold">{titre}</h2>
+    <section className="mb-4 rounded-xl border border-line bg-surface" data-testid={testid}>
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-[18px] py-3">
+        <h2 className="font-heading text-[15.5px] font-bold text-ink-900">{titre}</h2>
         {action}
       </div>
-      {children}
+      <div className="px-[18px] py-2">{children}</div>
     </section>
   );
 }
-
-const petit = 'px-3 py-1.5 text-[12.5px]';
 
 /** Dossier d'une personne (D3). Tout ce qui s'affiche vient de l'API : le
  * niveau 2 n'est rendu que si l'API l'a transmis (personne concernée et DRH),
@@ -111,8 +109,9 @@ export default function DossierPage() {
   if (!dossier) {
     return (
       <div>
-        <Link href="/personnel" className="mb-4 inline-block text-[13px] text-accent">
-          ← Dossier du personnel
+        <Link href="/personnel" className="mb-3 inline-flex items-center gap-1 text-[13px] font-semibold text-ink hover:underline">
+          <ChevronLeft aria-hidden size={15} />
+          Dossier du personnel
         </Link>
         <Erreur message={erreur} />
         {!erreur && <p className="text-sm text-text-muted">Chargement…</p>}
@@ -125,35 +124,38 @@ export default function DossierPage() {
 
   return (
     <div className="max-w-[860px]">
-      <Link href="/personnel" className="mb-4 inline-block text-[13px] text-accent">
-        ← Dossier du personnel
+      <Link href="/personnel" className="mb-3 inline-flex items-center gap-1 text-[13px] font-semibold text-ink hover:underline">
+        <ChevronLeft aria-hidden size={15} />
+        Dossier du personnel
       </Link>
-      <div className="mb-5">
-        <div className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-sage">Dossier du personnel</div>
-        <h1 className="text-[22px] font-extrabold">
+      <div className="mb-4 flex items-center gap-3.5">
+        <Initiales texte={initialesDe(p.firstName, p.lastName)} taille={48} />
+        <div className="min-w-0">
+        <h1 className="font-heading text-[24px] font-extrabold leading-tight text-ink-900">
           {p.firstName} {p.lastName}
         </h1>
-        <p className="text-[13px] text-text-muted">
+        <p className="text-[13.5px] text-text-muted">
           {ROLE_LABEL[p.role]}
           {p.jobTitle ? ` — ${p.jobTitle}` : ''}
           {unite ? ` — ${unite}` : ''}
           {p.status !== 'ACTIF' ? ` — compte ${STATUS_LABEL[p.status].toLowerCase()}` : ''}
         </p>
+        </div>
       </div>
 
       <Erreur message={erreur} />
-      {info && <div className="mb-4 rounded-md bg-sage-soft px-3.5 py-3 text-[13px] text-sage">{info}</div>}
+      {info && <div role="status" className="mb-4 rounded-[10px] border border-[#A9D5B7] bg-sage-50 px-3.5 py-2.5 text-[13px] text-sage">{info}</div>}
 
       {droits.confirmer && (
-        <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-gold bg-gold-soft px-4 py-3" data-testid="bandeau-a-verifier">
+        <div role="status" className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-[10px] border border-[#F2D58A] bg-gold-50 px-3.5 py-2.5" data-testid="bandeau-a-verifier">
           <p className="text-[13px] text-ink">Des informations de votre dossier sont « à vérifier ». Relisez-les, puis confirmez-les ou signalez une erreur.</p>
-          <Button
-            variant="gold"
+          <button type="button"
+            className={BTN_PRINCIPAL}
             disabled={enCours}
             onClick={() => agir(() => confirmerMesInformations(dossier.userId), 'Confirmation impossible', 'Vos informations sont confirmées.')}
           >
             Confirmer mes informations
-          </Button>
+          </button>
         </div>
       )}
 
@@ -162,9 +164,9 @@ export default function DossierPage() {
         testid="niveau-1"
         action={
           droits.modifier && (
-            <Button className={petit} onClick={() => setFenetre('niveau1')}>
+            <button type="button" className={BTN_LIGNE} onClick={() => setFenetre('niveau1')}>
               Modifier
-            </Button>
+            </button>
           )
         }
       >
@@ -177,12 +179,12 @@ export default function DossierPage() {
           <Ligne label="Date de prise de service" valeur={date(basic.serviceStartDate)} statut={statuts.serviceStartDate} />
           <Ligne label="Fiche de poste" valeur={basic.jobDescriptionFileName} statut={statuts.jobDescription}>
             {basic.jobDescriptionFileName && (
-              <Button
-                className={petit}
+              <button type="button"
+                className={BTN_LIGNE}
                 onClick={() => agir(() => telechargerFicheDePoste(dossier.userId, basic.jobDescriptionFileName as string), 'Téléchargement impossible')}
               >
                 Télécharger
-              </Button>
+              </button>
             )}
           </Ligne>
         </dl>
@@ -195,9 +197,9 @@ export default function DossierPage() {
             testid="niveau-2"
             action={
               droits.modifier && (
-                <Button className={petit} onClick={() => setFenetre('niveau2')}>
+                <button type="button" className={BTN_LIGNE} onClick={() => setFenetre('niveau2')}>
                   Modifier
-                </Button>
+                </button>
               )
             }
           >
@@ -222,9 +224,9 @@ export default function DossierPage() {
             titre="Diplômes"
             action={
               droits.modifier && (
-                <Button className={petit} onClick={() => setFenetre('diplome')}>
+                <button type="button" className={BTN_LIGNE} onClick={() => setFenetre('diplome')}>
                   Ajouter
-                </Button>
+                </button>
               )
             }
           >
@@ -239,20 +241,20 @@ export default function DossierPage() {
                       <span className="text-text-muted">{[d.institution, d.obtainedYear].filter(Boolean).map((x) => ` — ${x}`).join('')}</span>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <Badge tone={d.verified ? 'sage' : 'gold'}>{d.verified ? 'Confirmé' : 'À vérifier'}</Badge>
+                      <Pastille ton={d.verified ? 'vert' : 'ambre'}>{d.verified ? 'Confirmé' : 'À vérifier'}</Pastille>
                       {d.fileName && (
-                        <Button className={petit} onClick={() => agir(() => telechargerDiplome(dossier.userId, d.id, d.fileName as string), 'Téléchargement impossible')}>
+                        <button type="button" className={BTN_LIGNE} onClick={() => agir(() => telechargerDiplome(dossier.userId, d.id, d.fileName as string), 'Téléchargement impossible')}>
                           Justificatif
-                        </Button>
+                        </button>
                       )}
                       {droits.modifier && (
-                        <Button
-                          className={petit}
+                        <button type="button"
+                          className={BTN_LIGNE}
                           disabled={enCours}
                           onClick={() => window.confirm(`Supprimer le diplôme « ${d.title} » ?`) && agir(() => supprimerDiplome(dossier.userId, d.id), 'Suppression impossible')}
                         >
                           Supprimer
-                        </Button>
+                        </button>
                       )}
                     </div>
                   </li>
@@ -265,9 +267,9 @@ export default function DossierPage() {
             titre="Pièces administratives"
             action={
               droits.modifier && (
-                <Button className={petit} onClick={() => setFenetre('piece')}>
+                <button type="button" className={BTN_LIGNE} onClick={() => setFenetre('piece')}>
                   Ajouter
-                </Button>
+                </button>
               )
             }
           >
@@ -285,18 +287,18 @@ export default function DossierPage() {
                       </span>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <Badge tone={d.verified ? 'sage' : 'gold'}>{d.verified ? 'Confirmé' : 'À vérifier'}</Badge>
-                      <Button className={petit} onClick={() => agir(() => telechargerPiece(dossier.userId, d.id, d.fileName), 'Téléchargement impossible')}>
+                      <Pastille ton={d.verified ? 'vert' : 'ambre'}>{d.verified ? 'Confirmé' : 'À vérifier'}</Pastille>
+                      <button type="button" className={BTN_LIGNE} onClick={() => agir(() => telechargerPiece(dossier.userId, d.id, d.fileName), 'Téléchargement impossible')}>
                         Télécharger
-                      </Button>
+                      </button>
                       {droits.modifier && (
-                        <Button
-                          className={petit}
+                        <button type="button"
+                          className={BTN_LIGNE}
                           disabled={enCours}
                           onClick={() => window.confirm(`Supprimer la pièce « ${d.label} » ?`) && agir(() => supprimerPiece(dossier.userId, d.id), 'Suppression impossible')}
                         >
                           Supprimer
-                        </Button>
+                        </button>
                       )}
                     </div>
                   </li>
@@ -331,22 +333,23 @@ export default function DossierPage() {
           </Section>
         </>
       ) : dossier.niveau2Verrouille ? (
-        <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-dashed border-gold bg-gold-soft px-4 py-3" data-testid="niveau-2-verrouille">
-          <p className="text-[12.5px] text-ink">
-            🔒 Informations personnelles, diplômes, pièces et historique de carrière : éléments protégés. Confirmez votre identité pour les afficher.
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-[10px] border border-[#F2D58A] bg-gold-50 px-3.5 py-2.5" data-testid="niveau-2-verrouille">
+          <p className="flex items-start gap-2 text-[13px] text-ink">
+            <Lock aria-hidden size={16} className="mt-0.5 flex-none" />
+            Informations personnelles, diplômes, pièces et historique de carrière : éléments protégés. Confirmez votre identité pour les afficher.
           </p>
-          <Button variant="solid" className={petit} onClick={() => demanderReauthentification().then((ok) => ok && charger())}>
+          <button type="button" className={BTN_LIGNE_PRINCIPAL} onClick={() => demanderReauthentification().then((ok) => ok && charger())}>
             Afficher les données protégées
-          </Button>
+          </button>
         </div>
       ) : (
-        <p className="mb-5 rounded-lg border border-dashed border-line px-4 py-3 text-[12.5px] text-text-muted" data-testid="niveau-2-reserve">
+        <p className="mb-4 rounded-[10px] border border-line bg-surface px-3.5 py-2.5 text-[13px] text-text-muted" data-testid="niveau-2-reserve">
           Les informations personnelles, diplômes, pièces administratives et l’historique de carrière sont réservés à la personne concernée et au DRH.
         </p>
       )}
 
       {droits.signaler && (
-        <Button onClick={() => setFenetre('signaler')}>Signaler une erreur</Button>
+        <button type="button" className={BTN_SECONDAIRE} onClick={() => setFenetre('signaler')}>Signaler une erreur</button>
       )}
 
       {fenetre === 'niveau1' && <FenetreNiveauUn dossier={dossier} onClose={() => setFenetre(null)} onDone={fermerEtRecharger('Situation administrative enregistrée.')} />}

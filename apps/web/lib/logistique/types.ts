@@ -108,8 +108,14 @@ export interface TableauLogistique {
   aValider: number;
   aTraiter: number;
   stockBas: number;
+  /** Premiers articles sous le seuil (gestionnaire). */
+  stockBasLibelles: string[];
   mesDemandesEnCours: number;
   reservationsAValider: number;
+  /** Réservations actives du jour : toutes (gestionnaire), les siennes (autres). */
+  reservationsDuJour: number;
+  /** Parc du jour ; `retourLe` (retour de mission le plus proche) pour le gestionnaire seul. */
+  vehicules: { total: number; disponibles: number; enMission: number; retourLe: string | null };
 }
 
 export type TypeRessource = 'SALLE' | 'MATERIEL_PRESENTATION';

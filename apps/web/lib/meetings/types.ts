@@ -21,6 +21,9 @@ export interface Meeting {
   status: MeetingStatus;
   cancelledAt: string | null;
   cancellationReason: string | null;
+  /** Compte rendu (texte libre, organisateur) et réunion déclarée ouverte (D2). */
+  minutesText?: string | null;
+  isOpen?: boolean;
   createdById: string;
   createdAt: string;
   updatedAt: string;
@@ -89,4 +92,15 @@ export interface ConvertDecisionInput {
   title?: string;
   assigneeId: string;
   dueDate: string;
+}
+
+/** « Décisions à suivre » de la page Réunions (GET api/v1/decisions/a-suivre). */
+export interface DecisionASuivre extends Omit<Decision, 'droits'> {
+  meeting: { id: string; title: string; startAt: string };
+  enRetard: boolean;
+}
+
+export interface DecisionsASuivre {
+  enRetard: number;
+  decisions: DecisionASuivre[];
 }

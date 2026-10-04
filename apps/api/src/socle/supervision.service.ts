@@ -225,7 +225,7 @@ export class SupervisionService {
       droits: { peutDeclarerTest: actor.role === SystemRole.ADMIN_SYSTEME && !actor.interimForId },
       genereLe: maintenant,
       etatGlobal: services.some((s) => s.etat === 'INDISPONIBLE') ? 'INDISPONIBLE' : services.some((s) => s.etat === 'DEGRADE') ? 'DEGRADE' : 'NOMINAL',
-      services,
+      services: services.map((s) => ({ ...s, action: s.etat === 'NOMINAL' ? null : this.actionService(actor, s.cle) })),
       taches,
       sessions: { ouvertes: sessions, expirationJours: expiration },
       connexions: { reussies24h: connexions24h, echecs24h },
@@ -241,6 +241,18 @@ export class SupervisionService {
         derniers: derniersRefus.map((r) => ({ id: r.id, date: r.createdAt, compte: r.userId ? noms.get(r.userId) ?? 'Compte inconnu' : 'Non connecté', methode: r.methode, route: r.route, etape: r.etape ?? 'AUTRE', objetType: r.objetType, motif: r.motif })),
       },
     };
+  }
+
+  /**
+   * Action proposée pour un service à traiter (refonte de l'interface, étape 7) : seulement un écran
+   * existant que le lecteur peut ouvrir (aucune action inventée : l'envoi des emails ou l'espace
+   * disque se règlent chez l'hébergeur, hors application).
+   */
+  private actionService(actor: AuthenticatedUser, cle: string): { libelle: string; lien: string } | null {
+    if (cle === 'fonction-role' && actor.role === SystemRole.ADMIN_SYSTEME) return { libelle: 'Confirmer', lien: '/users?onglet=nominations' };
+    if (cle === 'taches') return { libelle: 'Détail', lien: '#taches-planifiees' };
+    if (cle === 'audit') return { libelle: 'Détail', lien: '/journal-audit' };
+    return null;
   }
 
   /**

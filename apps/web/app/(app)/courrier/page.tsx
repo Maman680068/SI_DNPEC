@@ -2,11 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { FileText, PenLine, Plus } from 'lucide-react';
 import { useAuth } from '../../../lib/auth/AuthProvider';
 import { exporterActes, exporterArrivees, getActes, getArrivees, getMesHabilitations, getRegistres, getTableauDeBord, getUnites } from '../../../lib/api/courrier';
 import {
   ACTE_STATUT_LABEL,
   ARRIVEE_STATUT_LABEL,
+  nomPersonne,
   type Acte,
   type ActeStatut,
   type Arrivee,
@@ -15,34 +17,34 @@ import {
   type TableauDeBordCourrier,
   type Unite,
 } from '../../../lib/courrier/types';
+import { anneeActe, imputationsRacines, listeAnnees } from '../../../lib/courrier/affichage';
 import { AFaire } from '../../../components/courrier/AFaire';
-import { CompteursCourrier, RUBRIQUES, type Rubrique } from '../../../components/courrier/CompteursCourrier';
+import { CompteursCourrier, RUBRIQUES, totalAFaire, type Rubrique } from '../../../components/courrier/CompteursCourrier';
 import { Filtres, type FiltresValeur } from '../../../components/courrier/Filtres';
-import { LigneActe, LigneArrivee, Vide } from '../../../components/courrier/Lignes';
+import { COLONNES_ACTES, COLONNES_ARRIVEES, GRILLE_ACTES, GRILLE_ARRIVEES, LigneActe, LigneArrivee } from '../../../components/courrier/Lignes';
 import { Erreur, messageErreur } from '../../../components/courrier/ui';
 import { TiroirArrivee } from '../../../components/courrier/TiroirArrivee';
 import { FenetreEnregistrer } from '../../../components/courrier/FenetresArrivee';
 import { TiroirActe } from '../../../components/courrier/TiroirActe';
 import { FenetreRediger } from '../../../components/courrier/FenetresActe';
-import { Button } from '../../../components/ui/Button';
+import { BTN_PRINCIPAL, BTN_SECONDAIRE, BandeCompteurs, EnTetePage, EtatVide, Onglets, Tableau, type Compteur } from '../../../components/ui/Charte';
 
 type Onglet = 'a-faire' | 'arrivees' | 'actes';
-const ONGLETS: { cle: Onglet; libelle: string }[] = [
-  { cle: 'a-faire', libelle: 'À faire' },
-  { cle: 'arrivees', libelle: 'Arrivées' },
-  { cle: 'actes', libelle: 'Départs et actes' },
+/** Filtre de statut posé par un compteur de la bande (vue du registre). */
+type Carte = 'arriveesEnAttente' | 'visasEnCours' | 'actesASigner' | 'actesAExpedier';
+const CARTES: { cle: Carte; label: string; sous: string; onglet: 'arrivees' | 'actes'; statut: string; ton: Compteur['ton']; perso: Rubrique }[] = [
+  { cle: 'arriveesEnAttente', label: 'À imputer', sous: 'arrivées en attente', onglet: 'arrivees', statut: 'ENREGISTRE', ton: 'ambre', perso: 'aImputer' },
+  { cle: 'visasEnCours', label: 'Visas en cours', sous: 'actes dans le circuit', onglet: 'actes', statut: 'EN_VISA', ton: 'encre', perso: 'aViser' },
+  { cle: 'actesASigner', label: 'À signer', sous: 'en attente de signature', onglet: 'actes', statut: 'A_SIGNER', ton: 'rouge', perso: 'aSigner' },
+  { cle: 'actesAExpedier', label: 'À expédier', sous: 'signés, non partis', onglet: 'actes', statut: 'SIGNE', ton: 'vert', perso: 'aExpedier' },
 ];
-/** Administrateur système : son seul courrier personnel (l'API ne lui renvoie
- * rien d'autre) — mêmes listes, libellées comme telles. */
-const ONGLETS_PERSONNELS: { cle: Onglet; libelle: string }[] = [
-  { cle: 'a-faire', libelle: 'À faire' },
-  { cle: 'arrivees', libelle: 'Mes plis personnels' },
-  { cle: 'actes', libelle: 'Mes actes' },
-];
+
+const SANS_TROU = 'Numérotation continue, sans trou';
 
 export default function CourrierPage() {
   const router = useRouter();
   const { user } = useAuth();
+  /** Administrateur système : son seul courrier personnel (l'API ne lui renvoie rien d'autre). */
   const personnel = user?.role === 'ADMIN_SYSTEME';
   const [onglet, setOnglet] = useState<Onglet>('a-faire');
   const [rubrique, setRubrique] = useState<Rubrique | null>(null);
@@ -56,6 +58,7 @@ export default function CourrierPage() {
   const [habilitations, setHabilitations] = useState<Awaited<ReturnType<typeof getMesHabilitations>>>([]);
   const [filtresArr, setFiltresArr] = useState<FiltresValeur>({});
   const [filtresActes, setFiltresActes] = useState<FiltresValeur>({});
+  const [imputeA, setImputeA] = useState('');
   const [arrivees, setArrivees] = useState<Arrivee[] | null>(null);
   const [actes, setActes] = useState<Acte[] | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
@@ -63,8 +66,8 @@ export default function CourrierPage() {
   /** Fenêtre de rédaction : null = fermée ; repondA = réponse à un courrier arrivée. */
   const [rediger, setRediger] = useState<{ repondA?: { id: string; numero: string } } | null>(null);
 
-  // Ouverture profonde (liens des emails : ?arrivee=, ?acte= ; carte du tableau
-  // de bord : ?rubrique=) — lue une fois au montage, comme /communication.
+  // Ouverture profonde (liens des emails : ?arrivee=, ?acte= ; tableau de bord : ?rubrique=,
+  // ?onglet=) — lue une fois au montage, comme /communication.
   useEffect(() => {
     const p = new URLSearchParams(window.location.search);
     const r = p.get('rubrique');
@@ -135,7 +138,7 @@ export default function CourrierPage() {
     if (onglet === 'actes') chargerActes();
   }, [onglet, chargerActes]);
 
-  /** Après une action dans un tiroir : tout ce qui peut en dépendre est rechargé. */
+  /** Après une action dans une fenêtre : tout ce qui peut en dépendre est rechargé. */
   const recharger = useCallback(() => {
     chargerAFaire();
     if (onglet === 'arrivees') chargerArrivees();
@@ -173,12 +176,21 @@ export default function CourrierPage() {
     setOnglet('a-faire');
     majUrl({ ...etat, onglet: 'a-faire', rubrique: suivante });
   };
+  /** Compteur de la bande : le registre concerné, filtré sur ce statut (second clic : filtre retiré). */
+  const carteActive = (c: (typeof CARTES)[number]) => onglet === c.onglet && (c.onglet === 'arrivees' ? filtresArr : filtresActes).statut === c.statut;
+  const choisirCarte = (c: (typeof CARTES)[number]) => {
+    const statut = carteActive(c) ? undefined : c.statut;
+    if (c.onglet === 'arrivees') setFiltresArr((f) => ({ ...f, statut }));
+    else setFiltresActes((f) => ({ ...f, statut }));
+    setOnglet(c.onglet);
+    majUrl({ ...etat, onglet: c.onglet, rubrique: null });
+  };
 
   async function exporter() {
     setErreur(null);
     try {
-      if (onglet === 'arrivees') await exporterArrivees({ ...filtresArr, statut: filtresArr.statut as ArriveeStatut | undefined });
-      else await exporterActes({ ...filtresActes, statut: filtresActes.statut as ActeStatut | undefined });
+      if (onglet === 'actes') await exporterActes({ ...filtresActes, statut: filtresActes.statut as ActeStatut | undefined });
+      else await exporterArrivees({ ...filtresArr, statut: filtresArr.statut as ArriveeStatut | undefined });
     } catch (e) {
       setErreur(messageErreur(e, 'Export impossible'));
     }
@@ -188,100 +200,180 @@ export default function CourrierPage() {
   const registresActes = registres.filter((r) => r.nature !== 'ARRIVEE');
   const peutEnregistrer = habilitations.some((h) => h.registre.nature === 'ARRIVEE');
 
+  // « Imputé à » : personnes imputées (premier niveau) dans la liste chargée ; filtre local.
+  const imputes = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const a of arrivees ?? []) for (const i of imputationsRacines(a)) m.set(i.imputeAId, nomPersonne(a.personnes, i.imputeAId));
+    return [...m].map(([id, nom]) => ({ id, nom })).sort((x, y) => x.nom.localeCompare(y.nom, 'fr'));
+  }, [arrivees]);
+  const arriveesAffichees = useMemo(
+    () => (arrivees && imputeA ? arrivees.filter((a) => imputationsRacines(a).some((i) => i.imputeAId === imputeA)) : arrivees),
+    [arrivees, imputeA],
+  );
+
+  const libelleRegistre = (id: string | undefined, liste: Registre[]) => (id ? `registre « ${liste.find((r) => r.id === id)?.libelle ?? '…'} »` : 'tous les registres');
+  const piedArrivees = arriveesAffichees && (
+    <>
+      <span>
+        {arriveesAffichees.length} courrier{arriveesAffichees.length > 1 ? 's' : ''} affiché{arriveesAffichees.length > 1 ? 's' : ''} · {libelleRegistre(filtresArr.registreId, registresArrivee)}
+        {arriveesAffichees.length > 0 ? `, ${listeAnnees(arriveesAffichees.map((a) => a.annee))}` : ''}
+      </span>
+      <span>{SANS_TROU}</span>
+    </>
+  );
+  const piedActes = actes && (
+    <>
+      <span>
+        {actes.length} départ{actes.length > 1 ? 's' : ''} et acte{actes.length > 1 ? 's' : ''} affiché{actes.length > 1 ? 's' : ''} · {libelleRegistre(filtresActes.registreId, registresActes)}
+        {actes.length > 0 ? `, ${listeAnnees(actes.map(anneeActe))}` : ''}
+      </span>
+      <span>{SANS_TROU}</span>
+    </>
+  );
+
+  const onglets = [
+    { cle: 'a-faire' as const, label: 'À faire', n: tableau ? totalAFaire(tableau) : null, chaud: true },
+    { cle: 'arrivees' as const, label: personnel ? 'Mes plis personnels' : 'Arrivées', n: aFaire?.arrivees.length ?? null },
+    { cle: 'actes' as const, label: personnel ? 'Mes actes' : 'Départs et actes', n: aFaire?.actes.length ?? null },
+  ];
+
   return (
     <div>
-      <div className="mb-5">
-        <div className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-sage">Général</div>
-        <h1 className="text-[22px] font-extrabold">{personnel ? 'Mon courrier' : 'Courrier et actes'}</h1>
-        <p className="mt-1 max-w-[680px] text-[13px] text-text-muted">
-          {personnel
-            ? 'Votre courrier personnel : plis qui vous sont adressés, lettres et actes que vous rédigez ou qui vous concernent.'
-            : 'Registres du courrier arrivée, des départs et des actes : enregistrement, imputation, visa, signature et expédition.'}
-        </p>
-      </div>
+      <EnTetePage
+        titre={personnel ? 'Mon courrier' : 'Courrier et actes'}
+        sousTitre={personnel ? 'Plis qui vous sont adressés, lettres et actes que vous rédigez ou qui vous concernent' : undefined}
+        actions={
+          <>
+            <button type="button" className={BTN_SECONDAIRE} onClick={exporter}>
+              <FileText aria-hidden size={16} />
+              Exporter
+            </button>
+            {peutEnregistrer && (
+              <button type="button" className={BTN_PRINCIPAL} onClick={() => setEnregistrer(true)}>
+                <Plus aria-hidden size={16} />
+                Enregistrer un courrier
+              </button>
+            )}
+          </>
+        }
+      />
 
-      {tableau && (
-        <div className="mb-5">
-          <CompteursCourrier tableau={tableau} actif={onglet === 'a-faire' ? rubrique : null} onChoisir={choisirRubrique} />
-        </div>
+      {tableau && !personnel && (
+        <BandeCompteurs
+          variante="cartes"
+          label="Registre du courrier"
+          items={CARTES.map((c) => ({
+            valeur: tableau[c.cle],
+            label: c.label,
+            sous: tableau[c.perso] > 0 ? `${c.sous} · dont ${tableau[c.perso]} pour vous` : c.sous,
+            ton: tableau[c.cle] > 0 ? c.ton : 'gris',
+            onClick: () => choisirCarte(c),
+            actif: carteActive(c),
+            testid: `carte-${c.cle}`,
+          }))}
+        />
       )}
 
-      <div role="tablist" className="-mx-4 mb-5 flex gap-2 overflow-x-auto px-4 pb-1 md:mx-0 md:px-0">
-        {(personnel ? ONGLETS_PERSONNELS : ONGLETS).map((o) => (
-          <button
-            key={o.cle}
-            role="tab"
-            aria-selected={onglet === o.cle}
-            onClick={() => choisirOnglet(o.cle)}
-            className={`flex-shrink-0 whitespace-nowrap rounded-full border px-4 py-2 text-[13px] font-semibold ${
-              onglet === o.cle ? 'border-ink bg-ink text-white' : 'border-line bg-surface text-text-muted hover:text-ink'
-            }`}
-          >
-            {o.libelle}
-          </button>
-        ))}
-      </div>
+      <Onglets label="Courrier" onglets={onglets} actif={onglet} onChange={choisirOnglet} />
 
       <Erreur message={erreur} />
 
-      {onglet === 'a-faire' &&
-        (aFaire ? (
-          <AFaire
-            arrivees={aFaire.arrivees}
-            actes={aFaire.actes}
-            rubrique={rubrique}
-            unite={libelleUnite}
-            ouvrirArrivee={ouvrirArrivee}
-            ouvrirActe={ouvrirActe}
-          />
-        ) : (
-          <p className="text-sm text-text-muted">Chargement…</p>
-        ))}
+      {onglet === 'a-faire' && (
+        <>
+          {tableau && <CompteursCourrier tableau={tableau} actif={rubrique} onChoisir={choisirRubrique} />}
+          {aFaire ? (
+            <AFaire arrivees={aFaire.arrivees} actes={aFaire.actes} rubrique={rubrique} unite={libelleUnite} ouvrirArrivee={ouvrirArrivee} ouvrirActe={ouvrirActe} />
+          ) : (
+            <p className="text-sm text-text-muted">Chargement…</p>
+          )}
+        </>
+      )}
 
       {onglet === 'arrivees' && (
         <>
-          <div className="mb-3 flex flex-wrap items-center justify-end gap-2">
-            <Button onClick={exporter}>Exporter (Excel)</Button>
-            {peutEnregistrer && (
-              <Button variant="gold" onClick={() => setEnregistrer(true)}>
-                + Enregistrer un courrier
-              </Button>
-            )}
-          </div>
-          <Filtres valeur={filtresArr} onChange={setFiltresArr} registres={registresArrivee} statuts={ARRIVEE_STATUT_LABEL} />
-          {arrivees === null ? (
+          <Filtres
+            key="arrivees"
+            valeur={filtresArr}
+            onChange={setFiltresArr}
+            registres={registresArrivee}
+            statuts={ARRIVEE_STATUT_LABEL}
+            imputes={imputes}
+            imputeA={imputeA}
+            onImputeA={setImputeA}
+            placeholder="Numéro, objet, expéditeur…"
+          />
+          {arriveesAffichees === null ? (
             <p className="text-sm text-text-muted">Chargement…</p>
-          ) : arrivees.length === 0 ? (
-            <Vide>Aucun courrier arrivée pour ces critères.</Vide>
           ) : (
-            <div className="space-y-2">
-              {arrivees.map((a) => (
+            <Tableau
+              label={personnel ? 'Mes plis personnels' : 'Registre des arrivées'}
+              colonnes={COLONNES_ARRIVEES}
+              grille={GRILLE_ARRIVEES}
+              testid="registre-arrivees"
+              pied={piedArrivees}
+              vide={
+                <EtatVide
+                  texte="Aucun courrier arrivée pour ces critères."
+                  action={
+                    peutEnregistrer ? (
+                      <button type="button" className={BTN_SECONDAIRE} onClick={() => setEnregistrer(true)}>
+                        <Plus aria-hidden size={16} />
+                        Enregistrer un courrier
+                      </button>
+                    ) : undefined
+                  }
+                />
+              }
+            >
+              {arriveesAffichees.map((a) => (
                 <LigneArrivee key={a.id} a={a} unite={libelleUnite} onOpen={() => ouvrirArrivee(a.id)} />
               ))}
-            </div>
+            </Tableau>
           )}
         </>
       )}
 
       {onglet === 'actes' && (
         <>
-          <div className="mb-3 flex flex-wrap items-center justify-end gap-2">
-            <Button onClick={exporter}>Exporter (Excel)</Button>
-            <Button variant="gold" onClick={() => setRediger({})}>
-              + Rédiger
-            </Button>
-          </div>
-          <Filtres valeur={filtresActes} onChange={setFiltresActes} registres={registresActes} statuts={ACTE_STATUT_LABEL} />
+          <Filtres
+            key="actes"
+            valeur={filtresActes}
+            onChange={setFiltresActes}
+            registres={registresActes}
+            statuts={ACTE_STATUT_LABEL}
+            placeholder="Numéro, objet, destinataire…"
+            droite={
+              <button type="button" className={BTN_SECONDAIRE} onClick={() => setRediger({})}>
+                <PenLine aria-hidden size={16} />
+                Rédiger
+              </button>
+            }
+          />
           {actes === null ? (
             <p className="text-sm text-text-muted">Chargement…</p>
-          ) : actes.length === 0 ? (
-            <Vide>Aucun départ ni acte pour ces critères.</Vide>
           ) : (
-            <div className="space-y-2">
+            <Tableau
+              label={personnel ? 'Mes actes' : 'Registre des départs et actes'}
+              colonnes={COLONNES_ACTES}
+              grille={GRILLE_ACTES}
+              testid="registre-actes"
+              pied={piedActes}
+              vide={
+                <EtatVide
+                  texte="Aucun départ ni acte pour ces critères."
+                  action={
+                    <button type="button" className={BTN_SECONDAIRE} onClick={() => setRediger({})}>
+                      <PenLine aria-hidden size={16} />
+                      Rédiger un départ ou un acte
+                    </button>
+                  }
+                />
+              }
+            >
               {actes.map((a) => (
                 <LigneActe key={a.id} a={a} onOpen={() => ouvrirActe(a.id)} />
               ))}
-            </div>
+            </Tableau>
           )}
         </>
       )}

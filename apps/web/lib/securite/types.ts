@@ -32,7 +32,8 @@ export interface Supervision {
   droits: { peutDeclarerTest: boolean };
   genereLe: string;
   etatGlobal: EtatService;
-  services: { cle: string; libelle: string; etat: EtatService; detail: string }[];
+  /** `action` : écran existant proposé pour un service à traiter (calculé par l'API). */
+  services: { cle: string; libelle: string; etat: EtatService; detail: string; action?: { libelle: string; lien: string } | null }[];
   taches: { tache: string; libelle: string; periodeMinutes: number; derniere: { debut: string; fin: string | null; statut: string; message: string | null } | null; echecs24h: number }[];
   sessions: { ouvertes: number; expirationJours: number };
   connexions: { reussies24h: number; echecs24h: number };

@@ -11,7 +11,7 @@ const S = Date.now().toString(36);
   for (const [vp, suffixe] of [[undefined, 'desktop'], [{ width: 390, height: 844 }, 'mobile']]) {
     const p = await loginPage(b, 'secdg', vp);
     await p.goto(WEB + '/courrier?onglet=arrivees');
-    await p.getByRole('button', { name: '+ Enregistrer un courrier' }).click();
+    await p.getByRole('button', { name: 'Enregistrer un courrier' }).first().click();
     await champ(p, 'Expéditeur').fill('Ministère du Plan');
     await champ(p, 'Objet').fill(`Dates UI ${suffixe} ${S}`);
     check(`${suffixe} : dates normales, pas d’avertissement`, (await p.locator('[data-testid=controle-dates]').count()) === 0);
@@ -34,7 +34,7 @@ const S = Date.now().toString(36);
     await p.locator('[data-testid=derogation-date]').waitFor();
     check(`${suffixe} : enregistré, fiche avec la dérogation et son motif`, (await p.locator('[data-testid=derogation-date]').innerText()).includes('Remis par porteur'));
     if (suffixe === 'desktop') {
-      await p.getByRole('button', { name: 'Corriger' }).click();
+      await p.getByRole('button', { name: 'Corriger l’enregistrement' }).click();
       await champ(p, 'Date de réception').fill(jour(-5));
       await champ(p, 'Date du courrier').fill(jour(-2));
       await p.locator('[data-testid=controle-dates]').waitFor();
@@ -47,7 +47,7 @@ const S = Date.now().toString(36);
       await dlg(p).getByRole('button', { name: 'Enregistrer la correction' }).click();
       await p.locator('[data-testid=derogation-date]', { hasText: 'Date de l’original vérifiée.' }).waitFor();
       check('correction avec dérogation : nouveau motif affiché', true);
-      await p.getByRole('button', { name: 'Corriger' }).click();
+      await p.getByRole('button', { name: 'Corriger l’enregistrement' }).click();
       await champ(p, 'Date du courrier').fill(jour(-6));
       check('correction qui supprime l’anomalie : plus d’avertissement', (await p.locator('[data-testid=controle-dates]').count()) === 0);
       await dlg(p).getByRole('button', { name: 'Enregistrer la correction' }).click();

@@ -15,6 +15,12 @@ export class DecisionsController {
     return this.decisionsService.dashboard(actor);
   }
 
+  /** Décisions à suivre (page Réunions) : lecture seule, même périmètre que le relevé de chaque réunion. */
+  @Get('api/v1/decisions/a-suivre')
+  aSuivre(@CurrentUser() actor: AuthenticatedUser) {
+    return this.decisionsService.aSuivre(actor);
+  }
+
   @Get('meetings/:meetingId/decisions')
   findAllForMeeting(@Param('meetingId') meetingId: string, @CurrentUser() actor: AuthenticatedUser) {
     return this.decisionsService.findAllForMeeting(actor, meetingId);

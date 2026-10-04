@@ -1,4 +1,4 @@
-import { apiFetch } from './client';
+import { apiFetch, telechargerFichier } from './client';
 import type {
   AlerteRh,
   Effectifs,
@@ -15,6 +15,7 @@ import type {
 const j = (method: string, body?: unknown) => ({ method, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
 
 export const getEffectifs = () => apiFetch<Effectifs>('/api/v1/rh/effectifs');
+export const exporterEffectifs = () => telechargerFichier('/api/v1/rh/effectifs/export.xlsx', null);
 export const getAlertesRh = () => apiFetch<AlerteRh[]>('/api/v1/rh/alertes');
 export const getPiecesRequises = () => apiFetch<ListePieces>('/api/v1/rh/pieces-requises');
 export const creerPieceRequise = (libelle: string) => apiFetch('/api/v1/rh/pieces-requises', j('POST', { libelle }));

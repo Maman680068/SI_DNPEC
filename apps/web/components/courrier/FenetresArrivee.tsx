@@ -19,7 +19,7 @@ import type { Arrivee, Candidat, Confidentialite, Imputation, ImputationNature, 
 import { NATURE_IMPUTATION_LABEL, formatDate } from '../../lib/courrier/types';
 import { ROLE_LABEL } from '../../lib/users/types';
 import { Field } from '../ui/Input';
-import { Erreur, Fenetre, Libelle, SELECT_CLASS, TEXTAREA_CLASS, messageErreur } from './ui';
+import { Erreur, Fenetre, Libelle, MentionInterim, SELECT_CLASS, TEXTAREA_CLASS, messageErreur } from './ui';
 
 function aujourdhui(): string {
   const d = new Date();
@@ -524,5 +524,143 @@ export function FenetreRequalifier({ arrivee, onClose, onFait }: { arrivee: Arri
         Je comprends que le pli ne sera plus personnel et que ce choix est définitif.
       </label>
     </Fenetre>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Imputation dans la fenêtre du courrier (refonte de l'interface, étape 5)
+// ---------------------------------------------------------------------------
+
+export const ID_FORMULAIRE_IMPUTER = 'formulaire-imputer';
+
+/**
+ * « Imputer ce courrier » directement dans la fenêtre : mêmes appels que FenetreImputer
+ * (GET /courrier/imputables, imputer ou sous-imputer), puis, si la case est cochée, la
+ * conversion en tâche existante (l'imputant en est l'auteur). La case « Ajouter une
+ * sous-imputation » n'apparaît que si la personne a elle-même reçu une imputation qu'elle peut
+ * sous-imputer (droits de l'API). Le bouton qui envoie est l'action principale de la colonne
+ * de droite (attribut `form`).
+ */
+export function FormulaireImputer({
+  arrivee,
+  sousImputable,
+  onFait,
+  onEnCours,
+}: {
+  arrivee: Arrivee;
+  /** Imputation reçue que la personne peut sous-imputer (droits.sousImputer), s'il y en a une. */
+  sousImputable: Imputation | null;
+  /** Après l'imputation (avertissement si la tâche de suivi n'a pas pu être créée). */
+  onFait: (avertissement?: string) => void;
+  /** Envoi en cours : la fenêtre désactive son bouton « Imputer ». */
+  onEnCours?: (enCours: boolean) => void;
+}) {
+  const [sous, setSous] = useState(false);
+  const parent = sous ? sousImputable : null;
+  const [candidats, setCandidats] = useState<Candidat[] | null>(null);
+  const [imputeAId, setImputeAId] = useState('');
+  const [nature, setNature] = useState<ImputationNature>('ATTRIBUTION');
+  const [instructions, setInstructions] = useState('');
+  const [echeance, setEcheance] = useState('');
+  const [tache, setTache] = useState(false);
+  const { enCours, erreur, setErreur, envoyer } = useEnvoi();
+  useEffect(() => onEnCours?.(enCours), [enCours, onEnCours]);
+
+  useEffect(() => {
+    setCandidats(null);
+    setImputeAId('');
+    if (parent?.echeance) setEcheance(versJour(parent.echeance));
+    getImputables(parent ? { imputationId: parent.id } : { arriveeId: arrivee.id })
+      .then(setCandidats)
+      .catch((e) => setErreur(messageErreur(e, 'Impossible de charger les personnes')));
+  }, [arrivee.id, parent, setErreur]);
+
+  async function soumettre(e: React.FormEvent) {
+    e.preventDefault();
+    if (!imputeAId) return setErreur('Choisissez la personne.');
+    if (tache && !echeance) return setErreur('Indiquez l’échéance de traitement : elle sera celle de la tâche.');
+    const input = { imputeAId, nature, instructions: instructions.trim() || undefined, echeance: echeance ? finDeJourIso(echeance) : undefined };
+    let cree: { id: string } | null = null;
+    const ok = await envoyer(async () => {
+      cree = parent ? await sousImputer(parent.id, input) : await imputer(arrivee.id, input);
+    }, 'Imputation impossible');
+    if (!ok || !cree) return;
+    if (tache) {
+      const id = (cree as { id: string }).id;
+      const okTache = await envoyer(() => convertirEnTache(id, { dueDate: finDeJourIso(echeance) }), 'La tâche de suivi n’a pas pu être créée');
+      if (!okTache) return onFait('Courrier imputé, mais la tâche de suivi n’a pas pu être créée : utilisez « Convertir en tâche » sur l’imputation.');
+    }
+    onFait();
+  }
+
+  const champ = 'h-[38px] w-full rounded-[9px] border border-line bg-surface px-[11px] text-[13.5px] focus:border-ink focus:outline focus:outline-2 focus:outline-ink';
+  const libelle = 'mb-[5px] block text-[12.5px] font-semibold text-text-muted';
+  return (
+    <form id={ID_FORMULAIRE_IMPUTER} onSubmit={soumettre} aria-label={parent ? 'Sous-imputer ce courrier' : 'Imputer ce courrier'} data-testid="formulaire-imputer" className="mb-[18px]">
+      <h3 className="mb-2 text-[13px] font-bold text-ink-900">{parent ? 'Sous-imputer ce courrier' : 'Imputer ce courrier'}</h3>
+      {parent && (
+        <p className="mb-2 text-[12.5px] text-text-muted">
+          Au sein de votre périmètre{parent.echeance ? `, au plus tard pour le ${formatDate(parent.echeance)} (votre échéance)` : ''}.
+        </p>
+      )}
+      <Erreur message={erreur} />
+      <div className="grid gap-x-2.5 sm:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
+        <div className="mb-2.5">
+          <label htmlFor="imp-a" className={libelle}>
+            À
+          </label>
+          <select id="imp-a" className={champ} value={imputeAId} onChange={(e) => setImputeAId(e.target.value)} disabled={!candidats}>
+            <option value="">{candidats === null ? 'Chargement…' : candidats.length === 0 ? 'Personne à qui imputer' : 'Choisir…'}</option>
+            {candidats?.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.firstName} {c.lastName} — {c.jobTitle ?? ROLE_LABEL[c.role]}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="mb-2.5">
+          <label htmlFor="imp-echeance" className={libelle}>
+            Échéance de traitement{parent?.echeance ? ' (obligatoire)' : ''}
+          </label>
+          <input id="imp-echeance" type="date" className={champ} value={echeance} onChange={(e) => setEcheance(e.target.value)} min={aujourdhui()} required={!!parent?.echeance} />
+        </div>
+      </div>
+      <div className="mb-2.5 sm:w-1/2 sm:pr-[5px]">
+        <label htmlFor="imp-nature" className={libelle}>
+          Nature
+        </label>
+        <select id="imp-nature" className={champ} value={nature} onChange={(e) => setNature(e.target.value as ImputationNature)}>
+          {(Object.keys(NATURE_IMPUTATION_LABEL) as ImputationNature[]).map((n) => (
+            <option key={n} value={n}>
+              {NATURE_IMPUTATION_LABEL[n]}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className="mb-2.5">
+        <label htmlFor="imp-instruction" className={libelle}>
+          Instruction
+        </label>
+        <textarea
+          id="imp-instruction"
+          className={`${champ} !h-auto min-h-[58px] py-2`}
+          value={instructions}
+          onChange={(e) => setInstructions(e.target.value)}
+          maxLength={2000}
+          placeholder="Préparer une note, proposer des agents…"
+        />
+      </div>
+      <label className="my-1 flex items-center gap-[9px] text-[13.5px]">
+        <input type="checkbox" checked={tache} onChange={(e) => setTache(e.target.checked)} className="h-[17px] w-[17px] accent-ink" />
+        Créer aussi une tâche pour le suivi
+      </label>
+      {sousImputable && (
+        <label className="my-1 flex items-center gap-[9px] text-[13.5px]">
+          <input type="checkbox" checked={sous} onChange={(e) => setSous(e.target.checked)} className="h-[17px] w-[17px] accent-ink" />
+          Ajouter une sous-imputation
+        </label>
+      )}
+      <MentionInterim />
+    </form>
   );
 }

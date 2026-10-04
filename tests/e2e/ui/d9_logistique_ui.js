@@ -46,9 +46,13 @@ const sansDefilement = async (p) => (await p.evaluate(() => document.documentEle
   const g = await loginPage(b, 'agentsaf');
   await g.goto(`${WEB}/logistique`);
   await g.getByRole('heading', { name: 'Logistique' }).waitFor();
-  check('onglets du gestionnaire', (await g.getByRole('button', { name: /^Fournitures/ }).count()) === 1 && (await g.getByRole('button', { name: 'Inventaire' }).count()) === 1);
-  await g.getByRole('button', { name: /^Fournitures/ }).click();
-  await g.getByRole('button', { name: '+ Nouvel article' }).click();
+  check('onglets du gestionnaire', (await g.getByRole('tab', { name: /^Fournitures/ }).count()) === 1 && (await g.getByRole('tab', { name: 'Inventaire' }).count()) === 1);
+  // Refonte (étape 7) : bande de compteurs du gestionnaire = API (file à traiter, réservations du jour, stock, véhicules).
+  const tbG = (await call('agentsaf', 'GET', '/logistique/tableau-de-bord')).body;
+  const bande = (await g.getByRole('region', { name: 'Logistique en un coup d’œil' }).innerText()).replace(/\s+/g, ' ');
+  check('bande du gestionnaire : 4 compteurs de l’API', bande.includes(`${tbG.aTraiter} Demandes à traiter`) && bande.includes(`${tbG.reservationsDuJour} Réservations aujourd’hui`) && bande.includes(`${tbG.stockBas} Fournitures sous le seuil`) && bande.includes(`${tbG.vehicules.disponibles} / ${tbG.vehicules.total} Véhicules disponibles`), bande);
+  await g.getByRole('tab', { name: /^Fournitures/ }).click();
+  await g.getByRole('button', { name: 'Nouvel article' }).click();
   await dlg(g).getByLabel('Catégorie').selectOption({ label: `Papeterie ${S}` });
   await dlg(g).getByLabel('Libellé').fill(`Ramette A4 ${S}`);
   await dlg(g).getByLabel('Unité').fill('ramette');
@@ -70,7 +74,7 @@ const sansDefilement = async (p) => (await p.evaluate(() => document.documentEle
   await dlg(g).getByRole('button', { name: 'Annuler' }).click();
   await g.keyboard.press('Escape');
   await g.goto(`${WEB}/logistique?onglet=inventaire`);
-  await g.getByRole('button', { name: '+ Nouveau bien' }).click();
+  await g.getByRole('button', { name: 'Nouveau bien' }).click();
   await dlg(g).getByLabel('Catégorie').selectOption({ label: `IN${L} — Informatique ${S}` });
   await dlg(g).getByLabel('Désignation').fill(`Ordinateur portable ${S}`);
   await dlg(g).getByLabel('Marque').fill('Dell');
@@ -88,7 +92,7 @@ const sansDefilement = async (p) => (await p.evaluate(() => document.documentEle
   await pan(g).getByRole('button', { name: 'Fermer' }).click();
   await g.goto(`${WEB}/logistique?onglet=reservations`);
   await g.getByRole('button', { name: 'Ressources' }).click();
-  await g.getByRole('button', { name: '+ Nouvelle ressource' }).click();
+  await g.getByRole('button', { name: 'Nouvelle ressource' }).click();
   await dlg(g).getByLabel('Nom').fill(`Salle de conférence ${S}`);
   await dlg(g).getByLabel('Capacité (facultatif)').fill('30');
   await dlg(g).getByRole('button', { name: 'Enregistrer' }).click();
@@ -100,8 +104,9 @@ const sansDefilement = async (p) => (await p.evaluate(() => document.documentEle
   const a = await loginPage(b, 'agent1', MOBILE);
   await a.goto(`${WEB}/logistique`);
   await a.getByRole('heading', { name: 'Logistique' }).waitFor();
-  check('agent : pas d’onglet Fournitures, « Mes biens »', (await a.getByRole('button', { name: /^Fournitures/ }).count()) === 0 && (await a.getByRole('button', { name: 'Mes biens' }).count()) === 1);
-  await a.getByRole('button', { name: '+ Nouvelle demande' }).click();
+  check('agent : pas d’onglet Fournitures, « Mes biens »', (await a.getByRole('tab', { name: /^Fournitures/ }).count()) === 0 && (await a.getByRole('tab', { name: 'Mes biens' }).count()) === 1);
+  check('agent : bande « Mes demandes en cours », sans compteur de gestionnaire', (await a.getByTestId('compteur-mes-demandes').count()) === 1 && (await a.getByTestId('compteur-a-traiter').count()) === 0 && (await a.getByTestId('compteur-stock').count()) === 0);
+  await a.getByRole('button', { name: 'Nouvelle demande', exact: true }).first().click();
   await dlg(a).getByLabel('Article').selectOption({ label: `Ramette A4 ${S} (Papeterie ${S})` });
   await dlg(a).getByLabel('Quantité (ramette)').fill('2');
   await dlg(a).getByLabel('Objet').fill(`Ramettes pour la note ${S}`);
@@ -110,7 +115,7 @@ const sansDefilement = async (p) => (await p.evaluate(() => document.documentEle
   await dlg(a).getByRole('button', { name: 'Envoyer la demande' }).click();
   await a.getByText('Demande envoyée à votre chef pour validation.').waitFor();
   check('mobile : pas de défilement horizontal', await sansDefilement(a));
-  await a.getByRole('button', { name: 'Mes biens' }).click();
+  await a.getByRole('tab', { name: 'Mes biens' }).click();
   await a.getByText(`Ordinateur portable ${S}`).click();
   check('fiche du bien (agent) : aucune action de gestion', (await pan(a).getByRole('button', { name: /Affecter|Réaffecter|Changer l’état|Modifier/ }).count()) === 0);
   await pan(a).getByRole('button', { name: 'Signaler une panne' }).click();
@@ -118,7 +123,7 @@ const sansDefilement = async (p) => (await p.evaluate(() => document.documentEle
   check('demande d’intervention pré-remplie sur le bien', (await dlg(a).getByLabel('Type').inputValue()) === 'INTERVENTION' && /Panne/.test(await dlg(a).getByLabel('Objet').inputValue()));
   await dlg(a).getByRole('button', { name: 'Envoyer la demande' }).click();
   await a.getByText('Demande envoyée à votre chef pour validation.').waitFor();
-  await a.getByRole('button', { name: /^Réservations/ }).click();
+  await a.getByRole('tab', { name: /^Réservations/ }).click();
   await a.getByLabel('Jour').fill(JOUR);
   await a.getByLabel('De').fill('09:00');
   await a.getByLabel('À').fill('11:00');
@@ -146,11 +151,12 @@ const sansDefilement = async (p) => (await p.evaluate(() => document.documentEle
   const nAv = (await call('chefssr', 'GET', '/logistique/tableau-de-bord')).body.aValider;
   check(`« À traiter » = compteur de l’API (${nAv} à valider)`, nAv >= 2 && carte.includes(`${nAv} Demandes logistiques à valider`), carte);
   await ligneLog.click();
-  await c.getByRole('button', { name: 'À valider' }).click();
+  await c.getByRole('button', { name: 'À valider', exact: true }).click();
+  check('demande du chef : « Valider » sur la ligne (droit de l’API)', (await c.getByTestId('ligne-demande').filter({ hasText: `Ramettes pour la note ${S}` }).getByRole('button', { name: 'Valider' }).count()) === 1);
   await c.getByText(`Ramettes pour la note ${S}`).click();
   await pan(c).getByRole('button', { name: 'Valider' }).click();
   await c.getByText('Demande validée : transmise aux gestionnaires.').waitFor();
-  await c.getByRole('button', { name: /^Réservations/ }).click();
+  await c.getByRole('tab', { name: /^Réservations/ }).click();
   await c.getByLabel('Jour').fill(JOUR); await c.getByLabel('De').fill('10:00'); await c.getByLabel('À').fill('12:00');
   await c.getByRole('button', { name: 'Voir les disponibilités' }).click();
   const carteC = c.getByTestId('ressource').filter({ hasText: `Salle de conférence ${S}` });
@@ -164,15 +170,16 @@ const sansDefilement = async (p) => (await p.evaluate(() => document.documentEle
   await dlg(c).getByRole('button', { name: 'Prendre le créneau' }).click();
   await c.getByText('Réservation confirmée.').waitFor();
   await a.reload();
-  await a.getByRole('button', { name: /^Réservations/ }).click();
-  await a.getByRole('button', { name: 'Mes réservations' }).click();
+  await a.getByRole('tab', { name: /^Réservations/ }).click();
+  await a.getByRole('button', { name: 'Mes réservations', exact: true }).click();
   const ligne = a.getByTestId('ligne-reservation').filter({ hasText: `Atelier conjoncture ${S}` });
   await ligne.getByText('Annulée pour priorité').waitFor();
   check('agent : réservation « annulée pour priorité », prioritaire nommé', /priorité de CHEFSSR Test/.test(await ligne.innerText()));
 
   console.log('— Gestionnaire : traitement, stock');
   await g.goto(`${WEB}/logistique`);
-  await g.getByRole('button', { name: 'À traiter' }).click();
+  await g.getByRole('button', { name: 'À traiter', exact: true }).click();
+  check('file du gestionnaire : « Traiter » sur la ligne', (await g.getByTestId('ligne-demande').filter({ hasText: `Ramettes pour la note ${S}` }).getByRole('button', { name: 'Traiter' }).count()) === 1);
   await g.getByText(`Ramettes pour la note ${S}`).click();
   await pan(g).getByRole('button', { name: 'Prendre en charge' }).click();
   await g.getByText('Demande prise en charge.').waitFor();

@@ -34,12 +34,14 @@ const MARQUES = [
   for (const [compte, url, marque, onglet] of MARQUES) {
     const p = await loginPage(b, compte);
     await p.goto(WEB + url);
-    if (onglet) await p.getByRole('tab', { name: onglet, exact: true }).first().click();
+    if (onglet) await p.getByRole('tab', { name: new RegExp(`^${onglet}( \\d+)?$`) }).first().click(); // onglet suivi de son compteur
     await p.waitForLoadState('networkidle').catch(() => {});
     await p.waitForTimeout(600);
     // Chaque mention « TEST — » doit porter sa marque dans sa carte (3 lignes avant ou après).
     const toutes = (await p.locator('body').innerText()).split('\n');
-    const blocs = toutes.map((l, i) => (l.includes('TEST — ') ? toutes.slice(Math.max(0, i - 3), i + 4).join(' ') : null)).filter(Boolean);
+    let blocs = toutes.map((l, i) => (l.includes('TEST — ') ? toutes.slice(Math.max(0, i - 3), i + 4).join(' ') : null)).filter(Boolean);
+    // Courrier (refonte, étape 5) : une ligne de registre par courrier — la marque est cherchée dans sa ligne.
+    if (url === '/courrier') blocs = (await p.locator('[data-testid=ligne-arrivee], [data-testid=ligne-acte]').allInnerTexts()).map((t) => t.replace(/\n/g, ' ')).filter((t) => t.includes('TEST — '));
     if (url === '/courrier') check(`${compte} ${url} (${onglet}) : jamais de clé d’unité brute (« unité supprimée »)`, !toutes.some((l) => /(DIV|CEL|SEC):[a-z0-9]{10,}/.test(l)));
     check(`${compte} ${url}${onglet ? ` (${onglet})` : ''} : éléments de démonstration seulement ${marque} (${blocs.length})`, blocs.every((b) => marque.test(b)), blocs.filter((b) => !marque.test(b)).slice(0, 2).join(' | '));
     await p.screenshot({ path: `${E.SHOTS}/demo_apres_${compte}${url.replace(/\//g, '_')}${onglet ? '_' + onglet.replace(/\W+/g, '_') : ''}.png`, fullPage: true });

@@ -6,6 +6,8 @@ import type { Attribution, ListeAttributions } from '../../lib/socle/types';
 import { Chargement, ErreurChargement, messageChargement } from '../ui/ErreurChargement';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
+import { BTN_PRINCIPAL } from '../ui/Charte';
+import { Plus } from 'lucide-react';
 import { Field } from '../ui/Input';
 import { Choix, Fenetre, Texte } from '../ui/Fenetre';
 
@@ -48,15 +50,15 @@ export function RolesFonctionnels() {
             Rôles en cours seulement
           </label>
           {liste.droits.peutAttribuer && (
-            <Button variant="gold" onClick={() => setAttribuer(true)}>
-              + Attribuer un rôle
-            </Button>
+            <button type="button" className={BTN_PRINCIPAL} onClick={() => setAttribuer(true)}>
+              <Plus aria-hidden size={16} /> Attribuer un rôle
+            </button>
           )}
         </div>
       </div>
-      <div className="relative overflow-x-auto rounded-md border border-line bg-surface">
+      <div className="relative overflow-x-auto rounded-xl border border-line bg-surface">
         <table className="w-full min-w-[680px] text-left text-[13px]">
-          <thead className="border-b border-line bg-bg text-[11.5px] uppercase tracking-wide text-text-faint">
+          <thead className="border-b border-line bg-[#F7F8FB] text-[12px] font-semibold text-text-muted">
             <tr>
               <th scope="col" className="px-3 py-2">Personne</th>
               <th scope="col" className="px-3 py-2">Rôle</th>

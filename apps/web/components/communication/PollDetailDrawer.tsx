@@ -5,8 +5,9 @@ import { useAuth } from '../../lib/auth/AuthProvider';
 import { useOrg } from '../../lib/org/OrgProvider';
 import { closePoll, getPoll, votePoll } from '../../lib/api/polls';
 import type { Poll } from '../../lib/polls/types';
-import { Badge } from '../ui/Badge';
-import { Button } from '../ui/Button';
+import { Check } from 'lucide-react';
+import { BTN_DANGER_CONTOUR, BTN_PRINCIPAL, CleValeur, Pastille, SectionFenetre } from '../ui/Charte';
+import { SCOPE_LABEL } from '../../lib/communication/types';
 import { FenetreDetail } from '../ui/FenetreDetail';
 
 // Pas d'infrastructure temps réel dans le projet (ni WebSocket ni SSE) — un
@@ -92,29 +93,51 @@ export function PollDetailDrawer({
   }
 
   return (
-    <FenetreDetail titre={poll.question} onClose={onClose} sansEntete largeur={720}>
-        <div className="mb-4 flex items-start justify-between">
-          <div className="flex flex-wrap items-center gap-2">
-            {poll.isClosed && <Badge tone="clay">Clôturé</Badge>}
-            {isAuthor && <Badge tone="gold">Vous êtes l’auteur</Badge>}
-          </div>
-          <button onClick={onClose} aria-label="Fermer" className="flex h-[30px] w-[30px] flex-shrink-0 items-center justify-center rounded-md bg-bg text-text-muted">
-            ✕
-          </button>
-        </div>
-
-        <h2 className="mb-1.5 text-[19px] font-semibold leading-snug">{poll.question}</h2>
-        <p className="mb-5 text-[12px] text-text-faint">
-          Par {isAuthor ? 'vous' : getUserLabel(poll.authorId)} · {formatDateTime(poll.createdAt)}
-          {poll.closesAt && !poll.isClosed && ` · clôture le ${formatDateTime(poll.closesAt)}`}
-        </p>
-
-        <div className="mb-2 text-[11px] text-text-faint">
-          {poll.totalVoters} participant{poll.totalVoters > 1 ? 's' : ''}
-          {poll.allowMultiple && ' · plusieurs choix possibles'}
-        </div>
-
-        <div className="mb-6 space-y-2.5">
+    <FenetreDetail
+      titre={poll.question}
+      onClose={onClose}
+      largeur={860}
+      filAriane={['Communication', 'Sondages']}
+      testid="fenetre-sondage"
+      cote={
+        <>
+          <SectionFenetre titre="Actions">
+            {error && <div role="alert" className="mb-3 rounded-md bg-clay-soft px-3 py-2.5 text-[13px] text-clay">{error}</div>}
+            <div className="flex flex-col gap-2">
+              {poll.allowMultiple && canVote && (
+                <button type="button" className={BTN_PRINCIPAL} disabled={voting || pendingSelection.length === 0} onClick={handleVoteMultiple}>
+                  {voting ? 'Envoi…' : poll.myOptionIds.length > 0 ? 'Mettre à jour mon vote' : 'Voter'}
+                </button>
+              )}
+              {isAuthor && !poll.isClosed && (
+                <button type="button" className={BTN_DANGER_CONTOUR} disabled={closing} onClick={handleClose}>
+                  Clôturer le sondage
+                </button>
+              )}
+              {!(poll.allowMultiple && canVote) && !(isAuthor && !poll.isClosed) && (
+                <p className="text-[12.5px] text-text-muted">{poll.isClosed ? 'Sondage clôturé : plus de vote possible.' : 'Cliquez sur un choix pour voter.'}</p>
+              )}
+            </div>
+          </SectionFenetre>
+          <SectionFenetre titre="Informations" className="mb-0">
+            <CleValeur
+              largeur={96}
+              lignes={[
+                ['État', poll.isClosed ? <Pastille key="e" ton="gris">Clôturé</Pastille> : poll.myOptionIds.length > 0 ? <Pastille key="e" ton="vert">Vous avez voté</Pastille> : <Pastille key="e" ton="ambre">À répondre</Pastille>],
+                ['Portée', SCOPE_LABEL[poll.scope]],
+                ['Auteur', isAuthor ? 'Vous' : getUserLabel(poll.authorId)],
+                ['Créé le', formatDateTime(poll.createdAt)],
+                ...(poll.closesAt && !poll.isClosed ? ([['Clôture le', formatDateTime(poll.closesAt)]] as [string, string][]) : []),
+                ['Participants', String(poll.totalVoters)],
+                ['Choix', poll.allowMultiple ? 'Plusieurs choix possibles' : 'Un seul choix'],
+              ]}
+            />
+          </SectionFenetre>
+        </>
+      }
+    >
+      <SectionFenetre titre="Résultats" n={poll.totalVoters} className="mb-0">
+        <div className="space-y-2.5">
           {poll.options.map((option) => {
             const percent = poll.totalVoters > 0 ? Math.round((option.voteCount / poll.totalVoters) * 100) : 0;
             const mine = poll.myOptionIds.includes(option.id);
@@ -124,58 +147,47 @@ export function PollDetailDrawer({
 
             return (
               <div key={option.id}>
-                <button
-                  type="button"
-                  disabled={!canVote || voting}
-                  onClick={() => (poll.allowMultiple ? toggleMultiple(option.id) : handleVoteSingle(option.id))}
-                  className={`relative w-full overflow-hidden rounded-md border px-3.5 py-2.5 text-left text-[13.5px] disabled:cursor-default ${
-                    mine ? 'border-accent' : 'border-line'
-                  }`}
-                >
-                  <div
-                    className="absolute inset-y-0 left-0 bg-accent-soft"
-                    style={{ width: `${percent}%` }}
-                    aria-hidden
-                  />
-                  <div className="relative flex items-center justify-between gap-2">
-                    <span className="flex items-center gap-2 font-medium">
-                      {poll.allowMultiple && canVote && (
-                        <input
-                          type="checkbox"
-                          checked={pendingSelection.includes(option.id)}
-                          onChange={() => toggleMultiple(option.id)}
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                      )}
-                      {option.label}
-                      {mine && <span className="text-accent">✓</span>}
-                    </span>
-                    <span className="flex-shrink-0 text-text-muted">
-                      {option.voteCount} · {percent}%
-                    </span>
-                  </div>
-                </button>
-                {voterNames && voterNames.length > 0 && (
-                  <p className="mt-1 pl-3.5 text-[11px] text-text-faint">{voterNames.join(', ')}</p>
-                )}
+                {(() => {
+                  const contenu = (
+                    <>
+                      <div className="absolute inset-y-0 left-0 bg-ink-50" style={{ width: `${percent}%` }} aria-hidden />
+                      <div className="relative flex items-center justify-between gap-2">
+                        <span className="flex items-center gap-2 font-medium">
+                          {poll.allowMultiple && canVote && (
+                            <input type="checkbox" checked={pendingSelection.includes(option.id)} onChange={() => toggleMultiple(option.id)} disabled={voting} />
+                          )}
+                          {option.label}
+                          {mine && (
+                            <>
+                              <Check aria-hidden size={15} className="text-ink" />
+                              <span className="sr-only">(votre choix)</span>
+                            </>
+                          )}
+                        </span>
+                        <span className="flex-shrink-0 text-text-muted">
+                          {option.voteCount} · {percent}%
+                        </span>
+                      </div>
+                    </>
+                  );
+                  const classe = `relative block w-full overflow-hidden rounded-[10px] border px-3.5 py-2.5 text-left text-[13.5px] ${mine ? 'border-ink' : 'border-line'}`;
+                  // Choix multiple : une case à cocher par choix (pas de case dans un bouton) ; choix unique : un clic vote.
+                  return poll.allowMultiple && canVote ? (
+                    <label data-testid="option-sondage" className={`${classe} cursor-pointer`}>
+                      {contenu}
+                    </label>
+                  ) : (
+                    <button type="button" data-testid="option-sondage" disabled={!canVote || voting} aria-pressed={mine} onClick={() => handleVoteSingle(option.id)} className={`${classe} disabled:cursor-default`}>
+                      {contenu}
+                    </button>
+                  );
+                })()}
+                {voterNames && voterNames.length > 0 && <p className="mt-1 pl-3.5 text-[12px] text-text-muted">{voterNames.join(', ')}</p>}
               </div>
             );
           })}
         </div>
-
-        {poll.allowMultiple && canVote && (
-          <Button variant="solid" disabled={voting || pendingSelection.length === 0} onClick={handleVoteMultiple} className="mb-4">
-            {voting ? 'Envoi…' : poll.myOptionIds.length > 0 ? 'Mettre à jour mon vote' : 'Voter'}
-          </Button>
-        )}
-
-        {error && <div className="mb-4 rounded-md bg-clay-soft px-3 py-2.5 text-[13px] text-clay">{error}</div>}
-
-        {isAuthor && !poll.isClosed && (
-          <Button variant="outline" className="border-clay text-clay hover:bg-clay-soft" disabled={closing} onClick={handleClose}>
-            Clôturer le sondage
-          </Button>
-        )}
+      </SectionFenetre>
     </FenetreDetail>
   );
 }

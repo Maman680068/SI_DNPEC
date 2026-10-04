@@ -97,3 +97,18 @@ export const STATUS_LABEL: Record<LeaveRequestStatus, string> = {
 };
 
 export const LEADERSHIP_ROLES_FOR_LEAVES = ['DN', 'DNA', 'CHEF_DIVISION', 'CHEF_SECTION', 'CHEF_CELLULE'];
+
+/** Contexte de la fenêtre d'avis ou de décision (GET api/v1/conges/:id/contexte) : absents et tâches
+ * nuls pour le demandeur ; solde de congé annuel seul. */
+export interface ContexteConge {
+  demandeId: string;
+  avisants: { id: string; nom: string }[];
+  feriesDansPeriode: number;
+  soldeAnnuel: { annee: number; libelle: string; totalDays: number; usedDays: number; remainingDays: number } | null;
+  absents: { demandeId: string; userId: string; nom: string; type: string; debut: string; fin: string }[] | null;
+  taches: { id: string; titre: string; echeance: string | null; statut: string }[] | null;
+}
+
+/** Codes de types de congé reconnus par l'écran (anneau du congé annuel, absences maladie de l'agent). */
+export const CODE_CONGE_ANNUEL = 'CONGE_ANNUEL';
+export const CODE_CONGE_MALADIE = 'CONGE_MALADIE';

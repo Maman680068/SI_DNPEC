@@ -19,6 +19,8 @@ export interface IdentitePersonnel {
 
 export interface ListePersonnel {
   peutImporter: boolean;
+  /** Vrai pour le DRH : l'écran affiche la synthèse (GET api/v1/rh/dossiers). */
+  syntheseDrh?: boolean;
   personnes: IdentitePersonnel[];
 }
 
@@ -120,3 +122,33 @@ export const CAREER_EVENT_LABEL: Record<CareerEventType, string> = {
   CHANGEMENT_FONCTION: 'Changement de fonction',
 };
 
+
+/** Synthèse du DRH (GET /api/v1/rh/dossiers) : complétude et alertes calculées par l'API. */
+export type StatutAgentDossier = 'EN_ACTIVITE' | 'SUSPENDU' | 'PARTI';
+export type TypeAlerteDossier = 'FIN_STAGE' | 'FIN_CONTRAT' | 'AVANCEMENT_ECHELON' | 'DOSSIER_A_VERIFIER' | 'MATRICULE_PROVISOIRE';
+
+export interface LigneDossier {
+  agentId: string | null;
+  userId: string | null;
+  prenom: string;
+  nom: string;
+  matricule: string | null;
+  matriculeProvisoire: boolean;
+  poste: string | null;
+  role: SystemRole | null;
+  unite: string | null;
+  statut: StatutAgentDossier;
+  finPrevue: string | null;
+  completude: number;
+  aVerifier: boolean;
+  alertes: { type: TypeAlerteDossier; libelle: string }[];
+  lien: string;
+}
+
+export interface SyntheseDossiers {
+  droits: { importer: boolean; creerAgent: boolean };
+  synthese: { enActivite: number; suspendus: number; partis: number; aVerifier: number; matriculesProvisoires: number; completudeMoyenne: number | null };
+  elementsCompletude: number;
+  lignes: LigneDossier[];
+  calculeLe: string;
+}

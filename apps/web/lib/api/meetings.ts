@@ -2,6 +2,7 @@ import { apiFetch } from './client';
 import type {
   ConvertDecisionInput,
   CreateMeetingInput,
+  DecisionsASuivre,
   DecisionsReleve,
   Meeting,
   MeetingResponseStatus,
@@ -22,6 +23,11 @@ export function createMeeting(input: CreateMeetingInput): Promise<Meeting> {
 
 export function respondToMeeting(id: string, status: MeetingResponseStatus): Promise<Meeting> {
   return apiFetch<Meeting>(`/meetings/${id}/respond`, { method: 'PATCH', body: JSON.stringify({ status }) });
+}
+
+/** Compte rendu et « réunion ouverte » (PATCH /meetings/:id, organisateur seulement). */
+export function updateMeeting(id: string, input: { minutesText?: string; isOpen?: boolean }): Promise<Meeting> {
+  return apiFetch<Meeting>(`/meetings/${id}`, { method: 'PATCH', body: JSON.stringify(input) });
 }
 
 export function cancelMeeting(id: string, reason?: string): Promise<Meeting> {
@@ -56,4 +62,9 @@ export function closeDecision(id: string): Promise<unknown> {
 
 export function remindDecision(id: string): Promise<unknown> {
   return apiFetch(`/decisions/${id}/remind`, { method: 'POST' });
+}
+
+/** Décisions des réunions visibles, ouvertes (retards en tête) puis clôturées récemment. */
+export function getDecisionsASuivre(): Promise<DecisionsASuivre> {
+  return apiFetch<DecisionsASuivre>('/api/v1/decisions/a-suivre');
 }

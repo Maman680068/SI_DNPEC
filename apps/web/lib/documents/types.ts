@@ -91,6 +91,9 @@ export interface DocumentFilters {
   folderId?: string;
   dateFrom?: string;
   dateTo?: string;
+  /** Période couverte qui chevauche [couvreDu, couvreAu] (AAAA-MM-JJ). */
+  couvreDu?: string;
+  couvreAu?: string;
   q?: string;
   typeDocument?: TypeDocument;
   statutDiffusion?: StatutDiffusion;
@@ -109,3 +112,14 @@ export const CATEGORY_LABEL: Record<DocumentCategory, string> = {
  * (tout le monde) — la publication institutionnelle, elle, est plus restreinte,
  * voir CAN_PUBLISH_ROLES ci-dessous. */
 export const CAN_PUBLISH_ROLES = ['DN', 'DNA', 'CHEF_DIVISION'];
+
+/** Ton de la pastille de statut (charte : Brouillon gris, Validé bleu, Diffusable vert). */
+export const STATUT_PASTILLE: Record<StatutDiffusion, 'gris' | 'bleu' | 'vert'> = { BROUILLON: 'gris', VALIDE: 'bleu', DIFFUSABLE: 'vert' };
+
+/** Synthèse de l'écran « Archives & documents » (api/v1/documents/synthese). */
+export interface SyntheseArchives {
+  /** Documents qui attendent la validation de l'acteur (Final, métadonnées complètes). */
+  aValider: { id: string; titre: string; divisionId: string | null; celluleId: string | null; marqueFinalPar: string | null }[];
+  /** Documents publiés pour toute la DNPEC. */
+  publies: number;
+}

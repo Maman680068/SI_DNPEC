@@ -233,6 +233,17 @@ fonctionnalité ajoute sa suite (`tests/e2e/api/`, `tests/e2e/ui/`) et sa ligne 
 - Fiches de détail : `components/ui/FenetreDetail.tsx` (fenêtre centrée 960 px, Échap, clic sur le fond,
   focus gardé, plein écran sur téléphone) — plus aucun panneau latéral ; fiche de tâche `FenetreTache`.
   Mes tâches : vues Liste / Kanban / Calendrier (`useVueTaches`, dernier choix retenu dans le navigateur).
+- Écrans (refonte, étapes 3 à 8) : composants communs `components/ui/Charte.tsx` (`EnTetePage`, `Onglets`,
+  `BandeCompteurs`, `BarreOutils`/`Recherche`/`FiltreSelect`, `Tableau`/`LigneTableau`, `Pastille`, `Etapes`,
+  `Panneau`, `SectionFenetre`, `CleValeur`, `EtatVide`, constantes `BTN_*`) ; fenêtre deux colonnes (contenu
+  à gauche, actions + phrase d'explication + informations à droite). Un libellé par action (« Valider »,
+  « Rejeter avec un motif », « Voir », « Exporter », « Déposer un document »), aucun « + » dans un libellé.
+  Tons de statut : vert abouti/actif, ambre attend une action, rouge rejeté/retard, gris brouillon/clos/annulé,
+  encre reçu, bleu à venir. Données ajoutées pour ces écrans, toutes en lecture avec leur suite 403 (`u_*.js`) :
+  `api/v1/conges/:id/contexte`, `api/v1/documents/synthese` (+ filtre `couvreDu`/`couvreAu` de
+  `GET /documents`), `api/v1/messages/avec/:userId/contexte`, `api/v1/decisions/a-suivre`,
+  `api/v1/rh/dossiers`, `api/v1/rh/effectifs/export.xlsx`, `api/v1/instructions/export.xlsx`. L'annuaire
+  n'expose ni email ni téléphone.
 - Liens vers le web (notifications, emails) : chaque lien de l'API doit viser une page
   existante qui lit ses paramètres (contrôlé par `tests/e2e/api/i_liens.js`). Renommer ou
   supprimer une page déjà visée par des liens envoyés : ajouter l'ancien format à

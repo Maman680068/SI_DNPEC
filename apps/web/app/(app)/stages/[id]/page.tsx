@@ -31,11 +31,11 @@ import {
   FenetrePeriode,
   FenetreTuteur,
 } from '../../../../components/stages/FenetresStage';
-import { Badge } from '../../../../components/ui/Badge';
-import { Button } from '../../../../components/ui/Button';
+import { ChevronLeft, ChevronRight, Pencil, Plus } from 'lucide-react';
+import { Bandeau, BTN_DANGER_CONTOUR, BTN_LIGNE, BTN_LIGNE_PRINCIPAL, BTN_PRINCIPAL, BTN_SECONDAIRE, CleValeur, EnTetePage, EtatVide, Panneau, Pastille, type TonPastille } from '../../../../components/ui/Charte';
 
 const date = (iso: string) => new Date(iso).toLocaleDateString('fr-FR', { dateStyle: 'medium', timeZone: 'UTC' });
-const petit = 'px-3 py-1.5 text-[12.5px]';
+const TON_STAGE: Record<Stage['statut'], TonPastille> = { EN_COURS: 'vert', PREVU: 'bleu', TERMINE: 'gris', INTERROMPU: 'rouge' };
 
 type Fenetre =
   | { t: 'modifier' }
@@ -48,12 +48,12 @@ type Fenetre =
   | { t: 'renvoyerRapport' }
   | null;
 
-function tonPeriode(p: Periode): 'gold' | 'sage' | 'clay' | 'muted' | 'accent' {
-  if (p.statut === 'EN_COURS') return 'accent';
-  if (p.statut === 'TERMINEE' || p.statut === 'ACCEPTEE') return 'sage';
-  if (p.statut === 'REFUSEE') return 'clay';
-  if (p.statut === 'PROPOSEE') return 'gold';
-  return 'muted';
+function tonPeriode(p: Periode): TonPastille {
+  if (p.statut === 'EN_COURS') return 'bleu';
+  if (p.statut === 'TERMINEE' || p.statut === 'ACCEPTEE') return 'vert';
+  if (p.statut === 'REFUSEE') return 'rouge';
+  if (p.statut === 'PROPOSEE') return 'ambre';
+  return 'gris';
 }
 
 /** Fiche d'un stage (D6) : tout ce qui est proposé vient de `droits` renvoyés
@@ -101,8 +101,8 @@ export default function StagePage() {
   if (!stage) {
     return (
       <div>
-        <Link href="/stages" className="mb-4 inline-block text-[13px] text-accent">
-          ← Stagiaires
+        <Link href="/stages" className="mb-3 inline-flex items-center gap-1 text-[13px] font-semibold text-ink hover:underline">
+          <ChevronLeft aria-hidden size={15} /> Stagiaires
         </Link>
         <Erreur message={erreur} />
         {!erreur && <p className="text-sm text-text-muted">Chargement…</p>}
@@ -111,242 +111,289 @@ export default function StagePage() {
   }
   const { droits, attestation, rapport } = stage;
   const moi = stage.vue === 'STAGIAIRE';
+  const actionsStage = droits.modifier || droits.cloturer || droits.interrompre;
 
   return (
-    <div className="max-w-[900px]">
-      <Link href="/stages" className="mb-4 inline-block text-[13px] text-accent">
-        ← {moi ? 'Mon stage' : 'Stagiaires'}
-      </Link>
-      <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <div className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-sage">Stage</div>
-          <h1 className="text-[22px] font-extrabold">
-            {stage.stagiaire.firstName} {stage.stagiaire.lastName}
-          </h1>
-          <p className="text-[13px] text-text-muted">
-            {stage.etablissement}
-            {stage.diplomePrepare ? ` — ${stage.diplomePrepare}` : ''} — du {date(stage.dateDebut)} au {date(stage.dateFin)}
-          </p>
-          <p className="text-[12.5px] text-text-faint">Rattachement actuel : {stage.rattachementActuel}</p>
-        </div>
-        <Badge tone={stage.statut === 'EN_COURS' ? 'accent' : stage.statut === 'INTERROMPU' ? 'clay' : stage.statut === 'TERMINE' ? 'sage' : 'gold'}>{STAGE_STATUT_LABEL[stage.statut]}</Badge>
-      </div>
+    <div>
+      <nav aria-label="Fil d’Ariane" className="mb-2 flex items-center gap-1.5 text-[12.5px] text-text-muted">
+        <Link href="/stages" className="font-semibold text-ink hover:underline">
+          {moi ? 'Mon stage' : 'Stagiaires'}
+        </Link>
+        <ChevronRight aria-hidden size={13} />
+        <span>{stage.etablissement}</span>
+      </nav>
+      <EnTetePage
+        titre={`${stage.stagiaire.firstName} ${stage.stagiaire.lastName}`}
+        avantActions={<Pastille ton={TON_STAGE[stage.statut]}>{STAGE_STATUT_LABEL[stage.statut]}</Pastille>}
+        sousTitre={`du ${date(stage.dateDebut)} au ${date(stage.dateFin)}`}
+      />
 
-      {stage.motifInterruption && <p className="mb-4 rounded-md bg-clay-soft px-3.5 py-2.5 text-[13px] text-clay">Stage interrompu : {stage.motifInterruption}</p>}
+      {stage.motifInterruption && (
+        <Bandeau ton="rouge">Stage interrompu : {stage.motifInterruption}</Bandeau>
+      )}
       <Erreur message={erreur} />
-      {info && <div className="mb-4 rounded-md bg-sage-soft px-3.5 py-3 text-[13px] text-sage">{info}</div>}
+      {info && <Bandeau ton="vert">{info}</Bandeau>}
 
-      {(droits.modifier || droits.ajouterPeriode || droits.cloturer || droits.interrompre) && (
-        <div className="mb-5 flex flex-wrap gap-2">
-          {droits.ajouterPeriode && (
-            <Button variant="gold" onClick={() => setFenetre({ t: 'periode' })}>
-              + Ajouter une période
-            </Button>
-          )}
-          {droits.modifier && <Button onClick={() => setFenetre({ t: 'modifier' })}>Modifier le stage</Button>}
-          {droits.cloturer && (
-            <Button disabled={enCours} onClick={() => window.confirm('Clôturer ce stage ?') && agir(() => cloturerStage(stage.id), 'Stage clôturé.')}>
-              Clôturer
-            </Button>
-          )}
-          {droits.interrompre && <Button onClick={() => setFenetre({ t: 'interrompre' })}>Interrompre</Button>}
-        </div>
-      )}
-
-      <section className="mb-6">
-        <h2 className="mb-2.5 text-[15px] font-bold">Plan de rotation</h2>
-        {stage.periodes.length === 0 ? (
-          <p className="text-[13px] text-text-faint">Aucune période pour l’instant.</p>
-        ) : (
-          <ol className="space-y-3">
-            {stage.periodes.map((p) => (
-              <li key={p.id} className={`rounded-lg border border-line bg-surface p-4 ${p.statut === 'ANNULEE' ? 'opacity-60' : ''}`} data-testid={`periode-${p.ordre}`}>
-                <div className="mb-1.5 flex flex-wrap items-start justify-between gap-2">
-                  <div>
-                    <div className="text-[14px] font-bold">
-                      {p.ordre}. {p.unite}
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_300px]">
+        <div className="min-w-0 space-y-4">
+          <Panneau
+            titre="Plan de rotation"
+            compteur={<span className="text-[12.5px] font-semibold text-text-faint">{stage.periodes.length}</span>}
+            action={
+              droits.ajouterPeriode && (
+                <button type="button" className={BTN_PRINCIPAL} onClick={() => setFenetre({ t: 'periode' })}>
+                  <Plus aria-hidden size={16} /> Ajouter une période
+                </button>
+              )
+            }
+          >
+            {stage.periodes.length === 0 ? (
+              <EtatVide
+                texte="Aucune période pour l’instant."
+                action={droits.ajouterPeriode ? <button type="button" className={BTN_LIGNE} onClick={() => setFenetre({ t: 'periode' })}>Planifier la première période</button> : undefined}
+              />
+            ) : (
+              <ol>
+                {stage.periodes.map((p) => (
+                  <li key={p.id} className={`border-b border-[#F0F1F6] px-[18px] py-3.5 last:border-b-0 ${p.statut === 'ANNULEE' ? 'opacity-60' : ''}`} data-testid={`periode-${p.ordre}`}>
+                    <div className="mb-1 flex flex-wrap items-start justify-between gap-2">
+                      <div className="flex min-w-0 items-start gap-2.5">
+                        <b className="grid h-[22px] w-[22px] flex-none place-items-center rounded-full bg-ink-50 text-[11px] text-ink">{p.ordre}</b>
+                        <div className="min-w-0">
+                          <div className="text-[14px] font-bold text-ink-900">{p.unite}</div>
+                          <div className="text-[12.5px] text-text-muted">
+                            du {date(p.dateDebut)} au {date(p.dateFin)} — {FORMAT_LABEL[p.formatEvaluation]}
+                          </div>
+                        </div>
+                      </div>
+                      <Pastille ton={tonPeriode(p)}>{PERIODE_STATUT_LABEL[p.statut]}</Pastille>
                     </div>
-                    <div className="text-[12.5px] text-text-muted">
-                      du {date(p.dateDebut)} au {date(p.dateFin)} — {FORMAT_LABEL[p.formatEvaluation]}
+                    <div className="pl-[32px] text-[12.5px] text-text-muted">
+                      Tuteur : {p.tuteur ? `${p.tuteur.firstName} ${p.tuteur.lastName}` : '—'}
+                      {p.responsables.length > 0 && ` · Responsable : ${p.responsables.map((r) => `${r.firstName} ${r.lastName}`).join(', ')}`}
                     </div>
-                  </div>
-                  <Badge tone={tonPeriode(p)}>{PERIODE_STATUT_LABEL[p.statut]}</Badge>
-                </div>
-                <div className="text-[12.5px] text-text-muted">
-                  Tuteur : {p.tuteur ? `${p.tuteur.firstName} ${p.tuteur.lastName}` : '—'}
-                  {p.responsables.length > 0 && ` · Responsable : ${p.responsables.map((r) => `${r.firstName} ${r.lastName}`).join(', ')}`}
-                </div>
-                {p.objectifs && <p className="mt-1 whitespace-pre-wrap text-[13px]">Objectifs : {p.objectifs}</p>}
-                {p.motifRefus && p.statut === 'REFUSEE' && <p className="mt-1 text-[12.5px] text-clay">Refusée : {p.motifRefus}</p>}
+                    {p.objectifs && <p className="mt-1 whitespace-pre-wrap pl-[32px] text-[13px]">Objectifs : {p.objectifs}</p>}
+                    {p.motifRefus && p.statut === 'REFUSEE' && <p className="mt-1 pl-[32px] text-[12.5px] text-clay">Refusée : {p.motifRefus}</p>}
 
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {p.droits.accepter && (
-                    <Button variant="gold" className={petit} onClick={() => setFenetre({ t: 'accepter', periode: p })}>
-                      Accepter et désigner le tuteur
-                    </Button>
+                    {(p.droits.accepter || p.droits.refuser || p.droits.changerTuteur || p.droits.modifier || p.droits.annuler) && (
+                      <div className="mt-2 flex flex-wrap gap-1.5 pl-[32px]">
+                        {p.droits.accepter && (
+                          <button type="button" className={BTN_LIGNE_PRINCIPAL} onClick={() => setFenetre({ t: 'accepter', periode: p })}>
+                            Accepter et désigner le tuteur
+                          </button>
+                        )}
+                        {p.droits.refuser && (
+                          <button type="button" className={BTN_LIGNE} onClick={() => setFenetre({ t: 'refuser', periode: p })}>
+                            Rejeter avec un motif
+                          </button>
+                        )}
+                        {p.droits.changerTuteur && (
+                          <button type="button" className={BTN_LIGNE} onClick={() => setFenetre({ t: 'tuteur', periode: p })}>
+                            Changer de tuteur
+                          </button>
+                        )}
+                        {p.droits.modifier && (
+                          <button type="button" className={BTN_LIGNE} onClick={() => setFenetre({ t: 'periode', periode: p })}>
+                            Modifier
+                          </button>
+                        )}
+                        {p.droits.annuler && (
+                          <button
+                            type="button"
+                            className={`${BTN_LIGNE} disabled:opacity-50`}
+                            disabled={enCours}
+                            onClick={() => window.confirm('Retirer cette période du plan ?') && agir(() => retirerPeriode(stage.id, p.id), 'Période retirée du plan.')}
+                          >
+                            Retirer du plan
+                          </button>
+                        )}
+                      </div>
+                    )}
+                    {(p.evaluation || p.droits.rediger || p.droits.changerFormat || p.droits.viser) && (
+                      <div className="pl-[32px]">
+                        <BlocEvaluation
+                          key={p.id}
+                          stage={stage}
+                          periode={p}
+                          onChange={setStage}
+                          onRenvoyer={() => setFenetre({ t: 'renvoyer', periode: p })}
+                        />
+                      </div>
+                    )}
+                  </li>
+                ))}
+              </ol>
+            )}
+          </Panneau>
+
+          {(stage.encadrantPrincipal || rapport.statut || Object.values(rapport.droits).some(Boolean)) && (
+            <Panneau titre="Rapport de stage" testid="rapport-stage">
+              <div className="px-[18px] py-3.5">
+                <p className="mb-1 text-[13px]" data-testid="encadrant-principal">
+                  Encadreur principal :{' '}
+                  {stage.encadrantPrincipal ? (
+                    <strong>
+                      {stage.encadrantPrincipal.firstName} {stage.encadrantPrincipal.lastName}
+                    </strong>
+                  ) : (
+                    <span className="text-text-muted">non désigné</span>
                   )}
-                  {p.droits.refuser && (
-                    <Button className={petit} onClick={() => setFenetre({ t: 'refuser', periode: p })}>
-                      Refuser
-                    </Button>
+                </p>
+                <p className="mb-2 flex flex-wrap items-center gap-1.5 text-[13px]" data-testid="statut-rapport">
+                  {rapport.statut ? (
+                    <>
+                      <Pastille ton={rapport.statut === 'VALIDE' ? 'vert' : rapport.statut === 'A_REPRENDRE' ? 'rouge' : 'ambre'}>{RAPPORT_STATUT_LABEL[rapport.statut]}</Pastille>
+                      <span>
+                        {rapport.fichier ? ` ${rapport.fichier}` : ''}
+                        {rapport.deposeLe ? ` — déposé le ${date(rapport.deposeLe)}` : ''}
+                        {rapport.valideLe ? `, validé le ${date(rapport.valideLe)}` : ''}
+                      </span>
+                    </>
+                  ) : (
+                    <span className="text-text-muted">Aucun rapport déposé.</span>
                   )}
-                  {p.droits.changerTuteur && (
-                    <Button className={petit} onClick={() => setFenetre({ t: 'tuteur', periode: p })}>
-                      Changer de tuteur
-                    </Button>
+                </p>
+                {rapport.statut === 'A_REPRENDRE' && rapport.motif && <p className="mb-2 rounded-[8px] bg-clay-50 px-3 py-2 text-[12.5px] text-clay">Motif : {rapport.motif}</p>}
+                {moi && rapport.droits.deposer && !stage.encadrantPrincipal && <p className="mb-2 text-[12.5px] text-text-muted">Le DRH doit d’abord désigner votre encadreur principal.</p>}
+                <div className="flex flex-wrap gap-1.5">
+                  {rapport.droits.designerEncadrant && (
+                    <button type="button" className={BTN_LIGNE} onClick={() => setFenetre({ t: 'encadrant' })}>
+                      {stage.encadrantPrincipal ? 'Changer d’encadreur' : 'Désigner l’encadreur'}
+                    </button>
                   )}
-                  {p.droits.modifier && (
-                    <Button className={petit} onClick={() => setFenetre({ t: 'periode', periode: p })}>
-                      Modifier
-                    </Button>
+                  {rapport.droits.deposer && stage.encadrantPrincipal && (
+                    <label className={`${BTN_LIGNE_PRINCIPAL} relative cursor-pointer focus-within:outline focus-within:outline-2 focus-within:outline-ink`}>
+                      {rapport.statut ? 'Déposer une nouvelle version' : 'Déposer mon rapport'}
+                      <input
+                        type="file"
+                        className="sr-only"
+                        aria-label="Fichier du rapport"
+                        disabled={enCours}
+                        onChange={(e) => {
+                          const f = e.target.files?.[0];
+                          e.target.value = '';
+                          if (f) agir(() => deposerRapport(stage.id, f), 'Rapport déposé : votre encadreur est prévenu.');
+                        }}
+                      />
+                    </label>
                   )}
-                  {p.droits.annuler && (
-                    <Button
-                      className={petit}
-                      disabled={enCours}
-                      onClick={() => window.confirm('Retirer cette période du plan ?') && agir(() => retirerPeriode(stage.id, p.id), 'Période retirée du plan.')}
-                    >
-                      Retirer du plan
-                    </Button>
+                  {rapport.droits.telecharger && (
+                    <button type="button" className={BTN_LIGNE} onClick={() => agir(() => telechargerRapport(stage.id))}>
+                      Télécharger le rapport
+                    </button>
+                  )}
+                  {rapport.droits.valider && (
+                    <>
+                      <button type="button" className={`${BTN_LIGNE_PRINCIPAL} disabled:opacity-50`} disabled={enCours} onClick={() => agir(() => validerRapport(stage.id), 'Rapport validé.')}>
+                        Valider le rapport
+                      </button>
+                      <button type="button" className={BTN_LIGNE} onClick={() => setFenetre({ t: 'renvoyerRapport' })}>
+                        Demander une reprise
+                      </button>
+                    </>
                   )}
                 </div>
-                {(p.evaluation || p.droits.rediger || p.droits.changerFormat || p.droits.viser) && (
-                  <BlocEvaluation
-                    key={p.id}
-                    stage={stage}
-                    periode={p}
-                    onChange={setStage}
-                    onRenvoyer={() => setFenetre({ t: 'renvoyer', periode: p })}
-                  />
+              </div>
+            </Panneau>
+          )}
+
+          {(attestation.acte || Object.values(attestation.droits).some(Boolean)) && (
+            <Panneau titre="Attestation de fin de stage" testid="attestation">
+              <div className="px-[18px] py-3.5">
+                {attestation.acte ? (
+                  <p className="mb-2 text-[13px]">
+                    {attestation.acte.numero ? (
+                      <>
+                        Attestation n° <strong>{attestation.acte.numero}</strong>
+                        {attestation.acte.signeAt ? `, signée le ${date(attestation.acte.signeAt)}` : ''}
+                        {attestation.acte.priseConnaissanceAt ? ` — prise de connaissance le ${date(attestation.acte.priseConnaissanceAt)}` : ''}.
+                      </>
+                    ) : (
+                      <>Acte en préparation dans le module Courrier (visa puis signature du DN ou de la DNA).</>
+                    )}
+                  </p>
+                ) : (
+                  stage.vue === 'DRH' && (
+                    <p className="mb-2 text-[12.5px] text-text-muted">
+                      {attestation.modeleImporte ? 'Modèle d’attestation importé.' : 'Aucun modèle importé : mise en page standard.'}{' '}
+                      <Link href="/stages/parametres" className="font-semibold text-ink underline">
+                        Modèle et capacités
+                      </Link>
+                    </p>
+                  )
                 )}
-              </li>
-            ))}
-          </ol>
-        )}
-      </section>
-
-      {(stage.encadrantPrincipal || rapport.statut || Object.values(rapport.droits).some(Boolean)) && (
-        <section className="mb-6 rounded-lg border border-line bg-surface p-4" data-testid="rapport-stage">
-          <h2 className="mb-2 text-[15px] font-bold">Rapport de stage</h2>
-          <p className="mb-1 text-[13px]" data-testid="encadrant-principal">
-            Encadreur principal :{' '}
-            {stage.encadrantPrincipal ? (
-              <strong>
-                {stage.encadrantPrincipal.firstName} {stage.encadrantPrincipal.lastName}
-              </strong>
-            ) : (
-              <span className="text-text-muted">non désigné</span>
-            )}
-          </p>
-          <p className="mb-2 text-[13px]" data-testid="statut-rapport">
-            {rapport.statut ? (
-              <>
-                <Badge tone={rapport.statut === 'VALIDE' ? 'sage' : rapport.statut === 'A_REPRENDRE' ? 'clay' : 'gold'}>{RAPPORT_STATUT_LABEL[rapport.statut]}</Badge>
-                {rapport.fichier ? ` ${rapport.fichier}` : ''}
-                {rapport.deposeLe ? ` — déposé le ${date(rapport.deposeLe)}` : ''}
-                {rapport.valideLe ? `, validé le ${date(rapport.valideLe)}` : ''}
-              </>
-            ) : (
-              <span className="text-text-muted">Aucun rapport déposé.</span>
-            )}
-          </p>
-          {rapport.statut === 'A_REPRENDRE' && rapport.motif && <p className="mb-2 rounded bg-clay/10 px-3 py-2 text-[12.5px]">Motif : {rapport.motif}</p>}
-          {moi && rapport.droits.deposer && !stage.encadrantPrincipal && <p className="mb-2 text-[12.5px] text-text-muted">Le DRH doit d’abord désigner votre encadreur principal.</p>}
-          <div className="flex flex-wrap gap-2">
-            {rapport.droits.designerEncadrant && (
-              <Button className={petit} onClick={() => setFenetre({ t: 'encadrant' })}>
-                {stage.encadrantPrincipal ? 'Changer d’encadreur' : 'Désigner l’encadreur'}
-              </Button>
-            )}
-            {rapport.droits.deposer && stage.encadrantPrincipal && (
-              <label className={`${petit} relative cursor-pointer rounded-md bg-gold font-semibold text-ink`}>
-                {rapport.statut ? 'Déposer une nouvelle version' : 'Déposer mon rapport'}
-                <input
-                  type="file"
-                  className="sr-only"
-                  aria-label="Fichier du rapport"
-                  disabled={enCours}
-                  onChange={(e) => {
-                    const f = e.target.files?.[0];
-                    e.target.value = '';
-                    if (f) agir(() => deposerRapport(stage.id, f), 'Rapport déposé : votre encadreur est prévenu.');
-                  }}
-                />
-              </label>
-            )}
-            {rapport.droits.telecharger && (
-              <Button className={petit} onClick={() => agir(() => telechargerRapport(stage.id))}>
-                Télécharger le rapport
-              </Button>
-            )}
-            {rapport.droits.valider && (
-              <>
-                <Button variant="gold" className={petit} disabled={enCours} onClick={() => agir(() => validerRapport(stage.id), 'Rapport validé.')}>
-                  Valider le rapport
-                </Button>
-                <Button className={petit} onClick={() => setFenetre({ t: 'renvoyerRapport' })}>
-                  Demander une reprise
-                </Button>
-              </>
-            )}
-          </div>
-        </section>
-      )}
-
-      {(attestation.acte || Object.values(attestation.droits).some(Boolean)) && (
-        <section className="mb-6 rounded-lg border border-line bg-surface p-4" data-testid="attestation">
-          <h2 className="mb-2 text-[15px] font-bold">Attestation de fin de stage</h2>
-          {attestation.acte ? (
-            <p className="mb-2 text-[13px]">
-              {attestation.acte.numero ? (
-                <>
-                  Attestation n° <strong>{attestation.acte.numero}</strong>
-                  {attestation.acte.signeAt ? `, signée le ${date(attestation.acte.signeAt)}` : ''}
-                  {attestation.acte.priseConnaissanceAt ? ` — prise de connaissance le ${date(attestation.acte.priseConnaissanceAt)}` : ''}.
-                </>
-              ) : (
-                <>Acte en préparation dans le module Courrier (visa puis signature du DN ou de la DNA).</>
-              )}
-            </p>
-          ) : (
-            stage.vue === 'DRH' && (
-              <p className="mb-2 text-[12.5px] text-text-muted">
-                {attestation.modeleImporte ? 'Modèle d’attestation importé.' : 'Aucun modèle importé : mise en page standard.'}{' '}
-                <Link href="/stages/parametres" className="text-accent underline">
-                  Modèle et capacités
-                </Link>
-              </p>
-            )
+                <div className="flex flex-wrap gap-1.5">
+                  {attestation.droits.provisoire && (
+                    <button type="button" className={BTN_LIGNE} onClick={() => agir(() => telechargerProvisoire(stage.id))}>
+                      Version provisoire (PDF)
+                    </button>
+                  )}
+                  {attestation.droits.document && (
+                    <button type="button" className={BTN_LIGNE} onClick={() => agir(() => telechargerDocument(stage.id))}>
+                      Document rempli
+                    </button>
+                  )}
+                  {attestation.droits.creerActe && (
+                    <button type="button" className={BTN_LIGNE_PRINCIPAL} onClick={() => setFenetre({ t: 'acte' })}>
+                      Préparer l’attestation finale
+                    </button>
+                  )}
+                  {attestation.droits.telechargerFinale && (
+                    <button type="button" className={BTN_LIGNE} onClick={() => agir(() => telechargerFinale(stage.id))}>
+                      Télécharger l’attestation signée
+                    </button>
+                  )}
+                  {attestation.droits.prendreConnaissance && (
+                    <button type="button" className={`${BTN_LIGNE_PRINCIPAL} disabled:opacity-50`} disabled={enCours} onClick={() => agir(() => prendreConnaissanceAttestation(stage.id), 'Prise de connaissance enregistrée.')}>
+                      J’ai pris connaissance de mon attestation
+                    </button>
+                  )}
+                </div>
+              </div>
+            </Panneau>
           )}
-          <div className="flex flex-wrap gap-2">
-            {attestation.droits.provisoire && (
-              <Button className={petit} onClick={() => agir(() => telechargerProvisoire(stage.id))}>
-                Version provisoire (PDF)
-              </Button>
-            )}
-            {attestation.droits.document && (
-              <Button className={petit} onClick={() => agir(() => telechargerDocument(stage.id))}>
-                Document rempli
-              </Button>
-            )}
-            {attestation.droits.creerActe && (
-              <Button variant="gold" className={petit} onClick={() => setFenetre({ t: 'acte' })}>
-                Préparer l’attestation finale
-              </Button>
-            )}
-            {attestation.droits.telechargerFinale && (
-              <Button className={petit} onClick={() => agir(() => telechargerFinale(stage.id))}>
-                Télécharger l’attestation signée
-              </Button>
-            )}
-            {attestation.droits.prendreConnaissance && (
-              <Button variant="gold" className={petit} disabled={enCours} onClick={() => agir(() => prendreConnaissanceAttestation(stage.id), 'Prise de connaissance enregistrée.')}>
-                J’ai pris connaissance de mon attestation
-              </Button>
-            )}
-          </div>
-        </section>
-      )}
+        </div>
+
+        <aside className="space-y-4" aria-label="Actions et informations du stage">
+          {actionsStage && (
+            <section aria-label="Actions sur le stage" className="grid gap-2 rounded-xl border border-line bg-surface p-4">
+              {droits.modifier && (
+                <button type="button" className={BTN_SECONDAIRE} onClick={() => setFenetre({ t: 'modifier' })}>
+                  <Pencil aria-hidden size={15} /> Modifier le stage
+                </button>
+              )}
+              {droits.cloturer && (
+                <button type="button" className={BTN_SECONDAIRE} disabled={enCours} onClick={() => window.confirm('Clôturer ce stage ?') && agir(() => cloturerStage(stage.id), 'Stage clôturé.')}>
+                  Clôturer
+                </button>
+              )}
+              {droits.interrompre && (
+                <button type="button" className={BTN_DANGER_CONTOUR} onClick={() => setFenetre({ t: 'interrompre' })}>
+                  Interrompre
+                </button>
+              )}
+              <p className="text-[12.5px] text-text-muted" data-testid="explication-stage">
+                Le plan de rotation, les évaluations et l’attestation se traitent dans les panneaux de gauche. Clôturer ou interrompre termine le stage ; le dossier est conservé.
+              </p>
+            </section>
+          )}
+          <section aria-label="Informations du stage" className="rounded-xl border border-line bg-surface p-4">
+            <h2 className="mb-3 font-heading text-[14px] font-bold text-ink-900">Informations</h2>
+            <CleValeur
+              largeur={104}
+              lignes={[
+                ['Statut', <Pastille key="s" ton={TON_STAGE[stage.statut]}>{STAGE_STATUT_LABEL[stage.statut]}</Pastille>],
+                ['Établissement', stage.etablissement],
+                ...(stage.diplomePrepare ? ([['Diplôme', stage.diplomePrepare]] as [string, string][]) : []),
+                ['Début', date(stage.dateDebut)],
+                ['Fin', date(stage.dateFin)],
+                ['Rattachement', stage.rattachementActuel],
+                ['Encadreur', stage.encadrantPrincipal ? `${stage.encadrantPrincipal.firstName} ${stage.encadrantPrincipal.lastName}` : 'non désigné'],
+              ]}
+            />
+          </section>
+        </aside>
+      </div>
 
       {fenetre?.t === 'modifier' && <FenetreModifierStage stage={stage} onClose={() => setFenetre(null)} onDone={fermer} />}
       {fenetre?.t === 'periode' && <FenetrePeriode stage={stage} periode={fenetre.periode} onClose={() => setFenetre(null)} onDone={fermer} />}
@@ -354,7 +401,7 @@ export default function StagePage() {
         <FenetreTuteur stage={stage} periode={fenetre.periode} mode={fenetre.t === 'accepter' ? 'accepter' : 'changer'} onClose={() => setFenetre(null)} onDone={fermer} />
       )}
       {fenetre?.t === 'refuser' && (
-        <FenetreMotif titre="Refuser la période" sousTitre="Le DRH est prévenu et corrige le plan." valider="Refuser" action={(m) => refuserPeriode(stage.id, fenetre.periode.id, m)} onClose={() => setFenetre(null)} onDone={fermer} />
+        <FenetreMotif titre="Rejeter la période" sousTitre="Le DRH est prévenu et corrige le plan." valider="Rejeter" action={(m) => refuserPeriode(stage.id, fenetre.periode.id, m)} onClose={() => setFenetre(null)} onDone={fermer} />
       )}
       {fenetre?.t === 'renvoyer' && (
         <FenetreMotif titre="Renvoyer l’évaluation au tuteur" valider="Renvoyer" action={(m) => renvoyerEvaluation(stage.id, fenetre.periode.id, m)} onClose={() => setFenetre(null)} onDone={fermer} />

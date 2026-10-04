@@ -24,6 +24,8 @@ export function NewConversationSearch({ onPick, focus = 0 }: { onPick: (userId: 
     const timer = setTimeout(() => {
       searchUsers(query).then((users) => {
         if (!cancelled) setResults(users.filter((u) => u.id !== currentUser?.id));
+      }).catch(() => {
+        if (!cancelled) setResults([]);
       });
     }, 200);
     return () => {
@@ -33,19 +35,20 @@ export function NewConversationSearch({ onPick, focus = 0 }: { onPick: (userId: 
   }, [query, currentUser?.id]);
 
   return (
-    <div className="relative border-b border-line p-3">
+    <div className="relative">
       <input
         ref={champ}
         aria-label="Nouvelle conversation : rechercher un nom"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        placeholder="Nouvelle conversation — rechercher un nom…"
-        className="w-full rounded-md border border-line bg-bg px-3 py-2 text-[12.5px] focus:border-accent focus:outline focus:outline-2 focus:outline-accent"
+        placeholder="Destinataire — rechercher un nom…"
+        className="h-9 w-full rounded-[9px] border border-ink bg-surface px-[11px] text-[13.5px] placeholder:text-text-faint focus:outline focus:outline-2 focus:outline-ink"
       />
       {results.length > 0 && (
-        <div className="absolute left-3 right-3 top-full z-10 mt-1 rounded-md border border-line bg-surface py-1 shadow-lg">
+        <div className="absolute left-0 right-0 top-full z-10 mt-1 max-h-72 overflow-y-auto rounded-[9px] border border-line bg-surface py-1 shadow-lg">
           {results.map((u) => (
             <button
+              type="button"
               key={u.id}
               onClick={() => {
                 onPick(u.id);
@@ -57,7 +60,7 @@ export function NewConversationSearch({ onPick, focus = 0 }: { onPick: (userId: 
               <span className="font-semibold">
                 {u.firstName} {u.lastName}
               </span>
-              {u.jobTitle && <span className="ml-1.5 text-text-faint">· {u.jobTitle}</span>}
+              {u.jobTitle && <span className="ml-1.5 text-text-muted">· {u.jobTitle}</span>}
             </button>
           ))}
         </div>

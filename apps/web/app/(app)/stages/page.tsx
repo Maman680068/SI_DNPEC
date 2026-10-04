@@ -11,8 +11,8 @@ import type { ListeStages, ResumeStage } from '../../../lib/stages/types';
 import { STAGE_STATUT_LABEL } from '../../../lib/stages/types';
 import { Chargement, ErreurChargement, messageChargement } from '../../../components/ui/ErreurChargement';
 import { FenetreNouveauStage } from '../../../components/stages/FenetresStage';
-import { Badge } from '../../../components/ui/Badge';
-import { Button } from '../../../components/ui/Button';
+import { Plus, Settings2 } from 'lucide-react';
+import { BandeCompteurs, BTN_LIGNE, BTN_LIGNE_PRINCIPAL, BTN_PRINCIPAL, BTN_SECONDAIRE, EnTetePage, EtatVide, Initiales, initialesDe, LigneTableau, Onglets, Pastille, Tableau, type TonPastille } from '../../../components/ui/Charte';
 
 type Onglet = 'en-cours' | 'a-venir' | 'termines';
 const ONGLETS: { cle: Onglet; libelle: string }[] = [
@@ -20,6 +20,8 @@ const ONGLETS: { cle: Onglet; libelle: string }[] = [
   { cle: 'a-venir', libelle: 'À venir' },
   { cle: 'termines', libelle: 'Terminés' },
 ];
+const GRILLE = 'lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_200px_minmax(0,1fr)_170px_70px]';
+const TON: Partial<Record<ResumeStage['statut'], TonPastille>> = { EN_COURS: 'vert', PREVU: 'bleu' };
 const date = (iso: string) => new Date(iso).toLocaleDateString('fr-FR', { dateStyle: 'medium', timeZone: 'UTC' });
 const onglet = (s: ResumeStage): Onglet => (s.statut === 'EN_COURS' ? 'en-cours' : s.statut === 'PREVU' ? 'a-venir' : 'termines');
 
@@ -49,66 +51,79 @@ export default function StagesPage() {
   const unite = (p: ResumeStage['periodeEnCours']) =>
     !p ? null : p.celluleId ? getCelluleName(p.celluleId) : [getDivisionName(p.divisionId), getSectionName(p.sectionId)].filter(Boolean).join(' · ');
 
+  const n = (o: Onglet) => liste?.stages.filter((s) => onglet(s) === o).length ?? 0;
+  const aTraiter = liste?.stages.reduce((t, s) => t + s.aTraiter, 0) ?? 0;
+  const titre = estStagiaire(user?.role) ? 'Mon stage' : 'Stagiaires';
+
   return (
     <div>
+      <EnTetePage
+        titre={titre}
+        actions={
+          liste?.peutCreer && (
+            <>
+              <Link href="/stages/parametres" className={BTN_SECONDAIRE}>
+                <Settings2 aria-hidden size={16} /> Planning, capacités, modèle
+              </Link>
+              <button type="button" className={BTN_PRINCIPAL} onClick={() => setCreation(true)}>
+                <Plus aria-hidden size={17} /> Nouveau stage
+              </button>
+            </>
+          )
+        }
+      />
       <ErreurChargement message={erreur} />
-      <div className="mb-[22px] flex flex-wrap items-end justify-between gap-3.5">
-        <div>
-          <div className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-sage">Personnel</div>
-          <h1 className="text-[22px] font-extrabold">{estStagiaire(user?.role) ? 'Mon stage' : 'Stagiaires'}</h1>
-        </div>
-        {liste?.peutCreer && (
-          <div className="flex flex-wrap gap-2.5">
-            <Link href="/stages/parametres">
-              <Button>Planning, capacités, modèle</Button>
-            </Link>
-            <Button variant="gold" onClick={() => setCreation(true)}>
-              + Nouveau stage
-            </Button>
-          </div>
-        )}
-      </div>
 
       {!liste ? (
         <Chargement erreur={erreur} />
       ) : (
         <>
-          <div className="mb-4 flex flex-wrap gap-0.5 rounded-md border border-line bg-bg p-0.5" style={{ width: 'fit-content' }}>
-            {ONGLETS.map((o) => (
-              <button
-                key={o.cle}
-                onClick={() => setTab(o.cle)}
-                className={`rounded-[6px] px-3.5 py-1.5 text-[12.5px] font-semibold ${tab === o.cle ? 'bg-surface text-ink shadow-sm' : 'text-text-muted'}`}
-              >
-                {o.libelle} ({liste.stages.filter((s) => onglet(s) === o.cle).length})
-              </button>
-            ))}
-          </div>
-          {affiches.length === 0 ? (
-            <p className="py-6 text-center text-[13px] text-text-faint">Aucun stage dans cette rubrique.</p>
-          ) : (
-            <ul className="divide-y divide-line overflow-hidden rounded-lg border border-line bg-surface">
-              {affiches.map((s) => (
-                <li key={s.id}>
-                  <Link href={`/stages/${s.id}`} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 hover:bg-bg" data-testid="ligne-stage">
-                    <div className="min-w-0">
-                      <div className="text-[14px] font-semibold">
-                        {s.stagiaire.firstName} {s.stagiaire.lastName}
-                      </div>
-                      <div className="truncate text-[12.5px] text-text-muted">
-                        {s.etablissement} — du {date(s.dateDebut)} au {date(s.dateFin)}
-                        {unite(s.periodeEnCours) ? ` — actuellement : ${unite(s.periodeEnCours)}` : ''}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {s.aTraiter > 0 && <Badge tone="gold">{s.aTraiter} à traiter</Badge>}
-                      <Badge tone="muted">{STAGE_STATUT_LABEL[s.statut]}</Badge>
-                    </div>
+          <BandeCompteurs
+            label="Synthèse des stages"
+            items={[
+              { valeur: n('en-cours'), label: 'En cours', sous: 'stagiaires accueillis', onClick: () => setTab('en-cours'), actif: tab === 'en-cours' },
+              { valeur: n('a-venir'), label: 'À venir', sous: 'stages prévus', onClick: () => setTab('a-venir'), actif: tab === 'a-venir' },
+              { valeur: aTraiter, label: 'Éléments à traiter', sous: 'périodes à accepter, évaluations', ton: aTraiter ? 'ambre' : 'encre' },
+              { valeur: n('termines'), label: 'Terminés', sous: 'clôturés ou interrompus', ton: 'gris', onClick: () => setTab('termines'), actif: tab === 'termines' },
+            ]}
+          />
+          <Onglets label="Stages" actif={tab} onChange={setTab} onglets={ONGLETS.map((o) => ({ cle: o.cle, label: o.libelle, n: n(o.cle) }))} />
+          <Tableau
+            label={`Stages ${ONGLETS.find((o) => o.cle === tab)?.libelle.toLowerCase()}`}
+            grille={GRILLE}
+            colonnes={['Stagiaire', 'Établissement', 'Période', 'Unité actuelle', 'Statut', <span key="a" className="sr-only">Actions</span>]}
+            vide={
+              <EtatVide
+                texte="Aucun stage dans cette rubrique."
+                action={liste.peutCreer ? <button type="button" className={BTN_LIGNE} onClick={() => setCreation(true)}>Créer un stage</button> : undefined}
+              />
+            }
+          >
+            {affiches.map((s) => (
+              <LigneTableau key={s.id} grille={GRILLE} testid="ligne-stage" label={`${s.stagiaire.firstName} ${s.stagiaire.lastName}`} onClick={() => router.push(`/stages/${s.id}`)}>
+                <span className="flex items-center gap-2.5">
+                  <Initiales texte={initialesDe(s.stagiaire.firstName, s.stagiaire.lastName)} />
+                  <Link href={`/stages/${s.id}`} onClick={(e) => e.stopPropagation()} className="truncate font-semibold text-ink-900 hover:underline">
+                    {s.stagiaire.firstName} {s.stagiaire.lastName}
                   </Link>
-                </li>
-              ))}
-            </ul>
-          )}
+                </span>
+                <span className="block truncate">{s.etablissement}</span>
+                <span className="text-text-muted">
+                  {date(s.dateDebut)} → {date(s.dateFin)}
+                </span>
+                <span className="block truncate text-text-muted">{unite(s.periodeEnCours) || '—'}</span>
+                <span className="flex flex-wrap gap-1">
+                  <Pastille ton={TON[s.statut] ?? 'gris'}>{STAGE_STATUT_LABEL[s.statut]}</Pastille>
+                  {s.aTraiter > 0 && <Pastille ton="ambre">{s.aTraiter} à traiter</Pastille>}
+                </span>
+                <span className="flex lg:justify-end">
+                  <Link href={`/stages/${s.id}`} onClick={(e) => e.stopPropagation()} className={s.aTraiter > 0 ? BTN_LIGNE_PRINCIPAL : BTN_LIGNE} aria-label={`Voir le stage de ${s.stagiaire.firstName} ${s.stagiaire.lastName}`}>
+                    Voir
+                  </Link>
+                </span>
+              </LigneTableau>
+            ))}
+          </Tableau>
         </>
       )}
       {creation && (

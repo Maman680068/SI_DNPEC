@@ -1,13 +1,15 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { Plus } from 'lucide-react';
 import { creerArticle, getArticles, getCategories, getMouvementsStock, modifierArticle, mouvementStock } from '../../lib/api/logistique';
 import type { Article, Categorie, MouvementStock } from '../../lib/logistique/types';
 import { Erreur, Fenetre, SELECT_CLASS } from '../courrier/ui';
 import { ErreurChargement, messageChargement } from '../ui/ErreurChargement';
-import { Badge } from '../ui/Badge';
-import { Button } from '../ui/Button';
-import { Champ, Info, Panneau, Vide, dateHeure, nom, useAction } from './commun';
+import { BTN_PRINCIPAL, BTN_SECONDAIRE, BarreOutils, EtatVide, FiltreSelect, LigneTableau, Pastille, Recherche, Tableau } from '../ui/Charte';
+import { Champ, Info, Panneau, dateHeure, nom, useAction } from './commun';
+
+const GRILLE = 'lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,1fr)_170px]';
 
 /** Fournitures (gestionnaires) : articles, stock suivi ou non, entrées et sorties. */
 export function OngletFournitures({ ouvrirId }: { ouvrirId: string | null }) {
@@ -16,6 +18,10 @@ export function OngletFournitures({ ouvrirId }: { ouvrirId: string | null }) {
   const [edition, setEdition] = useState<Article | 'nouveau' | null>(null);
   const [ouvert, setOuvert] = useState<Article | null>(null);
   const [info, setInfo] = useState<string | null>(null);
+  const [recherche, setRecherche] = useState('');
+  const [filtre, setFiltre] = useState<'TOUS' | 'SOUS_SEUIL'>('TOUS');
+  const q = recherche.trim().toLowerCase();
+  const affiches = (liste ?? []).filter((a) => (filtre === 'TOUS' || a.sousSeuil) && (!q || `${a.libelle} ${a.categorie.libelle}`.toLowerCase().includes(q)));
   const charger = useCallback(() => {
     getArticles()
       .then((l) => {
@@ -31,34 +37,38 @@ export function OngletFournitures({ ouvrirId }: { ouvrirId: string | null }) {
     <div data-testid="onglet-fournitures">
       <ErreurChargement message={erreur} />
       <Info message={info} />
-      <div className="mb-3 flex justify-end">
-        <Button variant="gold" onClick={() => setEdition('nouveau')}>
-          + Nouvel article
-        </Button>
-      </div>
-      {liste && liste.length === 0 && <Vide>Aucun article.</Vide>}
-      <ul className="divide-y divide-line overflow-hidden rounded-lg border border-line bg-surface">
-        {liste?.map((a) => (
-          <li key={a.id}>
-            <button type="button" onClick={() => setOuvert(a)} className="flex w-full flex-wrap items-center justify-between gap-2 px-4 py-3 text-left hover:bg-bg" data-testid="ligne-article">
-              <div className="min-w-0">
-                <div className="text-[14px] font-semibold">
-                  {a.libelle} {!a.actif && <Badge tone="muted">Inactif</Badge>}
-                </div>
-                <div className="text-[12.5px] text-text-muted">
-                  {a.categorie.libelle} · {a.suiviStock ? `stock suivi${a.seuilAlerte !== null ? `, seuil ${a.seuilAlerte}` : ''}` : 'au cas par cas'}
-                </div>
-              </div>
-              {a.suiviStock && (
-                <Badge tone={a.sousSeuil ? 'clay' : 'sage'}>
+      <BarreOutils
+        droite={
+          <button type="button" className={BTN_PRINCIPAL} onClick={() => setEdition('nouveau')}>
+            <Plus aria-hidden size={17} />
+            Nouvel article
+          </button>
+        }
+      >
+        <Recherche value={recherche} onChange={setRecherche} placeholder="Rechercher un article…" label="Rechercher un article" />
+        <FiltreSelect label="Stock" value={filtre} defaut="TOUS" onChange={setFiltre} options={[{ value: 'TOUS', label: 'Stock : tous' }, { value: 'SOUS_SEUIL', label: 'Sous le seuil' }]} />
+      </BarreOutils>
+      {liste && (
+        <Tableau label="Articles de fournitures" grille={GRILLE} colonnes={['Article', 'Catégorie', 'Suivi', 'Stock']} vide={<EtatVide texte={liste.length ? 'Aucun article ne correspond.' : 'Aucun article.'} />}>
+          {affiches.map((a) => (
+            <LigneTableau key={a.id} grille={GRILLE} onClick={() => setOuvert(a)} testid="ligne-article" label={a.libelle}>
+              <span className="block font-semibold">
+                {a.libelle} {!a.actif && <Pastille ton="gris">Inactif</Pastille>}
+              </span>
+              <span className="block truncate text-[12.5px] text-text-muted">{a.categorie.libelle}</span>
+              <span className="text-[12.5px] text-text-muted">{a.suiviStock ? `Stock suivi${a.seuilAlerte !== null ? `, seuil ${a.seuilAlerte}` : ''}` : 'Au cas par cas'}</span>
+              {a.suiviStock ? (
+                <Pastille ton={a.sousSeuil ? 'rouge' : 'vert'}>
                   {a.stock} {a.unite}
                   {a.sousSeuil ? ' — sous le seuil' : ''}
-                </Badge>
+                </Pastille>
+              ) : (
+                <span className="text-[12.5px] text-text-muted">—</span>
               )}
-            </button>
-          </li>
-        ))}
-      </ul>
+            </LigneTableau>
+          ))}
+        </Tableau>
+      )}
       {ouvert && (
         <FicheArticle
           article={ouvert}
@@ -97,15 +107,19 @@ function FicheArticle({ article: a, onClose, onModifier, onChange }: { article: 
   }, [a]);
   if (mv) return <FenetreMouvement article={a} type={mv} onClose={() => setMv(null)} onDone={(na) => { setMv(null); onChange(na, mv === 'ENTREE' ? 'Entrée enregistrée.' : 'Sortie enregistrée.'); }} />;
   return (
-    <Panneau titre={a.libelle} sousTitre={`${a.categorie.libelle} · ${a.suiviStock ? `${a.stock} ${a.unite} en stock` : 'stock non suivi'}`} onClose={onClose} testid="fiche-article">
+    <Panneau titre={a.libelle} filAriane={['Logistique', 'Fournitures']} sousTitre={`${a.categorie.libelle} · ${a.suiviStock ? `${a.stock} ${a.unite} en stock` : 'stock non suivi'}`} onClose={onClose} testid="fiche-article">
       <div className="mb-4 flex flex-wrap justify-end gap-2">
-        <Button onClick={onModifier}>Modifier</Button>
+        <button type="button" className={BTN_SECONDAIRE} onClick={onModifier}>
+          Modifier
+        </button>
         {a.suiviStock && (
           <>
-            <Button onClick={() => setMv('SORTIE')}>Sortie</Button>
-            <Button variant="gold" onClick={() => setMv('ENTREE')}>
+            <button type="button" className={BTN_SECONDAIRE} onClick={() => setMv('SORTIE')}>
+              Sortie
+            </button>
+            <button type="button" className={BTN_PRINCIPAL} onClick={() => setMv('ENTREE')}>
               Entrée
-            </Button>
+            </button>
           </>
         )}
       </div>

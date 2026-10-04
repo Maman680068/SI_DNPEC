@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useId, useState } from 'react';
+import { useState } from 'react';
+import { Pencil } from 'lucide-react';
 import {
   confirmerFinAgent,
   creerAgent,
@@ -12,8 +13,7 @@ import {
 } from '../../lib/api/socle';
 import type { ActionAgent, AgentDetail, StatutAgent, UniteOrganigramme } from '../../lib/socle/types';
 import { LIBELLE_MOUVEMENT } from '../../lib/socle/types';
-import { Badge } from '../ui/Badge';
-import { Button } from '../ui/Button';
+import { BTN_DANGER_CONTOUR, BTN_PRINCIPAL, BTN_SECONDAIRE, CleValeur, Pastille, SectionFenetre, type TonPastille } from '../ui/Charte';
 import { Field } from '../ui/Input';
 import { Choix, Fenetre, Texte } from '../ui/Fenetre';
 import { FenetreDetail } from '../ui/FenetreDetail';
@@ -22,6 +22,13 @@ export const TON_STATUT: Record<StatutAgent, 'sage' | 'clay' | 'muted'> = {
   EN_ACTIVITE: 'sage',
   SUSPENDU: 'clay',
   PARTI: 'muted',
+};
+
+/** Statut de l'agent en pastille de la charte. */
+export const TON_PASTILLE: Record<StatutAgent, TonPastille> = {
+  EN_ACTIVITE: 'vert',
+  SUSPENDU: 'rouge',
+  PARTI: 'gris',
 };
 
 const date = (d: string) => new Date(d).toLocaleDateString('fr-FR', { timeZone: 'UTC' });
@@ -35,15 +42,18 @@ const LIBELLE_ACTION: Record<Exclude<ActionAgent, 'MODIFIER'>, string> = {
   DEPART: 'Enregistrer le départ',
 };
 
-/** Panneau latéral d'un agent : identité, unité, compte, fin prévue, actions du DRH, historique. */
+/** Phrase d'explication sous les actions du cycle de vie (selon le statut et la fin prévue). */
+function explication(agent: AgentDetail): string {
+  if (agent.statut === 'PARTI') return 'Agent parti : son dossier et son historique sont conservés ; aucune action du cycle de vie ne s’applique plus.';
+  if (agent.statut === 'SUSPENDU') return 'Agent suspendu : son compte ne peut plus se connecter jusqu’à la réactivation. Chaque action est datée, motivée et inscrite à l’historique.';
+  if (agent.dateFinPrevue && !agent.finConfirmeeAt)
+    return 'Prolongez ou confirmez la fin prévue ; sans décision, l’agent passe « Parti » à l’échéance. Chaque action est datée, motivée et inscrite à l’historique.';
+  return 'Le cycle de vie de l’agent (suspension, réactivation, départ) est tenu par le DRH ; chaque action est datée, motivée et inscrite à l’historique.';
+}
+
+/** Fiche d'un agent (fenêtre centrée) : à gauche fin prévue et historique ; à droite les actions du DRH puis les informations. */
 export function AgentPanneau({ agent, onClose, onChange }: { agent: AgentDetail; onClose: () => void; onChange: (a: AgentDetail) => void }) {
-  const idTitre = useId();
   const [action, setAction] = useState<ActionAgent | null>(null);
-  useEffect(() => {
-    const echap = (e: KeyboardEvent) => e.key === 'Escape' && !action && onClose();
-    window.addEventListener('keydown', echap);
-    return () => window.removeEventListener('keydown', echap);
-  }, [onClose, action]);
   const stage = agent.natureFinPrevue === 'STAGE';
   const libelle = (a: Exclude<ActionAgent, 'MODIFIER'>) =>
     a === 'PROLONGER' ? (stage ? 'Prolonger le stage' : 'Prolonger le contrat') : LIBELLE_ACTION[a];
@@ -51,29 +61,78 @@ export function AgentPanneau({ agent, onClose, onChange }: { agent: AgentDetail;
     setAction(null);
     onChange(a);
   };
+  const autres = (['PROLONGER', 'CONFIRMER_FIN', 'SUSPENDRE', 'REACTIVER', 'DEPART'] as const).filter((a) => agent.actions.includes(a));
+
+  const cote = (
+    <div>
+      {agent.actions.length > 0 ? (
+        <div className="grid gap-2">
+          {autres.map((a) => (
+            <button
+              key={a}
+              type="button"
+              className={a === 'PROLONGER' || a === 'REACTIVER' ? BTN_PRINCIPAL : a === 'DEPART' || a === 'SUSPENDRE' ? BTN_DANGER_CONTOUR : BTN_SECONDAIRE}
+              onClick={() => setAction(a)}
+            >
+              {libelle(a)}
+            </button>
+          ))}
+          {agent.actions.includes('MODIFIER') && (
+            <button type="button" className={BTN_SECONDAIRE} onClick={() => setAction('MODIFIER')}>
+              <Pencil aria-hidden size={15} /> Modifier
+            </button>
+          )}
+        </div>
+      ) : (
+        <p className="text-[12.5px] text-text-muted">Aucune action possible sur cet agent.</p>
+      )}
+      <p className="mt-2.5 text-[12.5px] text-text-muted" data-testid="explication-cycle">{explication(agent)}</p>
+      <div className="mt-4 border-t border-line pt-4">
+        <CleValeur
+          largeur={84}
+          lignes={[
+            ['Statut', <Pastille key="s" ton={TON_PASTILLE[agent.statut]}>{agent.libelleStatut}</Pastille>],
+            ['Matricule', (
+              <span key="m" className="font-mono text-[12.5px]">
+                {agent.matricule}
+                {agent.matriculeProvisoire && <span className="ml-1 font-sans text-[11.5px] text-clay">(provisoire)</span>}
+              </span>
+            )],
+            ['Unité', (
+              <span key="u">
+                {agent.unite ? `${agent.unite.code} — ${agent.unite.libelle}` : '—'}
+                {agent.cheminUnite.length > 1 && <span className="block text-[11.5px] font-normal text-text-muted">{agent.cheminUnite.join(' › ')}</span>}
+              </span>
+            )],
+            ['Fonction', agent.fonction ?? '—'],
+            ['Genre', agent.genre === 'F' ? 'Femme' : agent.genre === 'M' ? 'Homme' : '—'],
+            ['Compte', agent.compte ? `${agent.compte.email} (${agent.compte.status === 'SUPPRIME' ? 'désactivé' : agent.compte.status.toLowerCase().replace('_', ' ')})` : 'Aucun compte'],
+          ]}
+        />
+      </div>
+    </div>
+  );
 
   return (
     <>
-      <FenetreDetail titre={`Agent — ${agent.prenoms} ${agent.nom}`} onClose={onClose} sansEntete largeur={720}>
-        <div className="mb-4 flex items-start justify-between gap-3">
-          <div>
-            <div className="text-[11px] font-bold uppercase tracking-wide text-sage">Agent</div>
-            <h2 id={idTitre} className="text-[19px] font-extrabold">
-              {agent.prenoms} {agent.nom}
-            </h2>
-            <div className="mt-1 flex flex-wrap items-center gap-2 text-[12.5px] text-text-muted">
-              <span className="font-mono">{agent.matricule}</span>
-              {agent.matriculeProvisoire && <Badge tone="clay">MATRICULE PROVISOIRE</Badge>}
-              <Badge tone={TON_STATUT[agent.statut]}>{agent.libelleStatut.toUpperCase()}</Badge>
-            </div>
+      <FenetreDetail
+        titre={`${agent.prenoms} ${agent.nom}`}
+        filAriane={['Agents', agent.unite?.code]}
+        entete={
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-[12.5px] text-text-muted">
+            <span className="font-mono">{agent.matricule}</span>
+            {agent.matriculeProvisoire && <Pastille ton="rouge">Matricule provisoire</Pastille>}
+            <Pastille ton={TON_PASTILLE[agent.statut]}>{agent.libelleStatut}</Pastille>
+            {agent.fonction && <span>· {agent.fonction}</span>}
           </div>
-          <button type="button" onClick={onClose} aria-label="Fermer" className="rounded-md px-2 py-1 text-text-muted hover:bg-bg">
-            ✕
-          </button>
-        </div>
-
+        }
+        cote={cote}
+        onClose={onClose}
+        largeur={900}
+        testid="fiche-agent"
+      >
         {agent.dateFinPrevue && agent.statut !== 'PARTI' && (
-          <div data-testid="fin-prevue" className={`mb-4 rounded-md px-3.5 py-3 text-[13px] ${agent.finProche ? 'bg-clay-soft text-clay' : 'bg-bg text-text'}`}>
+          <div data-testid="fin-prevue" className={`mb-4 rounded-[10px] border px-3.5 py-3 text-[13px] ${agent.finProche ? 'border-[#E7B3BB] bg-clay-50 text-clay' : 'border-line bg-[#FAFBFD] text-text'}`}>
             <strong>{stage ? 'Fin de stage' : 'Fin de contrat'} le {date(agent.dateFinPrevue)}</strong>
             {agent.joursAvantFin !== null && agent.joursAvantFin >= 0 && <> (dans {agent.joursAvantFin} jour{agent.joursAvantFin > 1 ? 's' : ''})</>}
             <div className="mt-1 text-[12.5px]">
@@ -84,46 +143,30 @@ export function AgentPanneau({ agent, onClose, onChange }: { agent: AgentDetail;
           </div>
         )}
         {agent.statut === 'PARTI' && agent.dateDepart && (
-          <div className="mb-4 rounded-md bg-bg px-3.5 py-3 text-[13px]">
+          <div className="mb-4 rounded-[10px] border border-line bg-[#FAFBFD] px-3.5 py-3 text-[13px]">
             Parti le {date(agent.dateDepart)}
             {agent.motifDepart && <> — {agent.motifDepart}</>}. Le dossier est conservé.
           </div>
         )}
 
-        {agent.actions.length > 0 && (
-          <div className="mb-5 flex flex-wrap gap-2">
-            {agent.actions.includes('MODIFIER') && <Button onClick={() => setAction('MODIFIER')}>Modifier</Button>}
-            {(['PROLONGER', 'CONFIRMER_FIN', 'SUSPENDRE', 'REACTIVER', 'DEPART'] as const)
-              .filter((a) => agent.actions.includes(a))
-              .map((a) => (
-                <Button key={a} variant={a === 'PROLONGER' ? 'solid' : 'outline'} className={a === 'DEPART' ? '!border-clay !text-clay' : ''} onClick={() => setAction(a)}>
-                  {libelle(a)}
-                </Button>
+        <SectionFenetre titre="Historique" n={agent.mouvements.length}>
+          {agent.mouvements.length === 0 ? (
+            <p className="text-[13px] text-text-muted">Aucun mouvement enregistré.</p>
+          ) : (
+            <ul className="divide-y divide-[#F0F1F6] rounded-[10px] border border-line">
+              {agent.mouvements.map((m) => (
+                <li key={m.id} className="px-3.5 py-2.5 text-[13px]">
+                  <div className="flex flex-wrap items-baseline justify-between gap-2">
+                    <span className="font-semibold text-ink-900">{LIBELLE_MOUVEMENT[m.type] ?? m.type}</span>
+                    <span className="text-[12px] text-text-muted">{date(m.dateEffet)}</span>
+                  </div>
+                  <div className="text-[12.5px] text-text-muted">{m.auteur ? `${m.auteur.firstName} ${m.auteur.lastName}` : 'Système'}</div>
+                  {m.motif && <div className="mt-0.5 text-[12.5px] text-text">{m.motif}</div>}
+                </li>
               ))}
-          </div>
-        )}
-
-        <dl className="mb-5 grid grid-cols-[130px_1fr] gap-x-3 gap-y-1.5 text-[13px]">
-          <dt className="text-text-muted">Unité</dt>
-          <dd>{agent.unite ? `${agent.unite.code} — ${agent.unite.libelle}` : '—'}{agent.cheminUnite.length > 1 && <div className="text-[11.5px] text-text-faint">{agent.cheminUnite.join(' › ')}</div>}</dd>
-          <dt className="text-text-muted">Fonction</dt>
-          <dd>{agent.fonction ?? '—'}</dd>
-          <dt className="text-text-muted">Genre</dt>
-          <dd>{agent.genre === 'F' ? 'Femme' : agent.genre === 'M' ? 'Homme' : '—'}</dd>
-          <dt className="text-text-muted">Compte</dt>
-          <dd>{agent.compte ? `${agent.compte.email} (${agent.compte.status === 'SUPPRIME' ? 'désactivé' : agent.compte.status.toLowerCase().replace('_', ' ')})` : 'Aucun compte'}</dd>
-        </dl>
-
-        <h3 className="mb-2 text-[14px] font-bold">Historique</h3>
-        <ul className="space-y-1.5">
-          {agent.mouvements.map((m) => (
-            <li key={m.id} className="rounded-md border border-line px-3 py-2 text-[12.5px]">
-              <span className="font-semibold">{LIBELLE_MOUVEMENT[m.type] ?? m.type}</span> — {date(m.dateEffet)}
-              <span className="text-text-muted"> · {m.auteur ? `${m.auteur.firstName} ${m.auteur.lastName}` : 'Système'}</span>
-              {m.motif && <div className="text-text-muted">{m.motif}</div>}
-            </li>
-          ))}
-        </ul>
+            </ul>
+          )}
+        </SectionFenetre>
       </FenetreDetail>
 
       {action === 'MODIFIER' && <FenetreModifierAgent agent={agent} onClose={() => setAction(null)} onFait={fait} />}

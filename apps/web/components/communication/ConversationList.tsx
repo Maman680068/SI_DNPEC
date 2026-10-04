@@ -3,64 +3,62 @@
 import { useAuth } from '../../lib/auth/AuthProvider';
 import { useOrg } from '../../lib/org/OrgProvider';
 import type { Conversation } from '../../lib/communication/types';
+import { extrait, quandListe } from '../../lib/communication/affichage';
+import { Initiales } from '../ui/Charte';
 
-function formatWhen(iso: string): string {
-  const date = new Date(iso);
-  const isToday = date.toDateString() === new Date().toDateString();
-  return isToday
-    ? date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
-    : date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
-}
-
+/** Liste des conversations (maquette : point doré si non lu, initiales, nom, extrait, heure). */
 export function ConversationList({
   conversations,
   selectedUserId,
   onSelect,
+  filtre = '',
 }: {
   conversations: Conversation[];
   selectedUserId: string | null;
   onSelect: (userId: string) => void;
+  filtre?: string;
 }) {
   const { user: currentUser } = useAuth();
   const { getUserLabel, getUserInitials } = useOrg();
+  const q = filtre.trim().toLowerCase();
+  const visibles = q ? conversations.filter((c) => `${getUserLabel(c.otherUserId)} ${c.lastMessage.body}`.toLowerCase().includes(q)) : conversations;
 
   if (conversations.length === 0) {
-    return <p className="px-4 py-6 text-center text-[13px] text-text-faint">Aucune conversation pour l&apos;instant.</p>;
+    return <p className="px-4 py-6 text-center text-[13px] text-text-muted">Aucune conversation pour l’instant : « Nouveau message » pour en démarrer une.</p>;
+  }
+  if (visibles.length === 0) {
+    return <p className="px-4 py-6 text-center text-[13px] text-text-muted">Aucune conversation ne correspond à « {filtre} ».</p>;
   }
 
   return (
-    <div>
-      {conversations.map((conversation) => {
+    <ul aria-label="Conversations">
+      {visibles.map((conversation) => {
         const unread = conversation.lastMessage.recipientId === currentUser?.id && !conversation.lastMessage.readAt;
         const isSelected = conversation.otherUserId === selectedUserId;
+        const nom = getUserLabel(conversation.otherUserId);
         return (
-          <button
-            key={conversation.otherUserId}
-            onClick={() => onSelect(conversation.otherUserId)}
-            className={`flex w-full items-center gap-2.5 border-b border-line px-4 py-3 text-left ${
-              isSelected ? 'bg-accent-soft' : 'hover:bg-bg'
-            }`}
-          >
-            <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-md bg-accent-soft text-[12px] font-bold text-accent">
-              {getUserInitials(conversation.otherUserId)}
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center justify-between gap-2">
-                <span className={`truncate text-[13px] ${unread ? 'font-bold text-ink' : 'font-semibold text-text'}`}>
-                  {getUserLabel(conversation.otherUserId)}
+          <li key={conversation.otherUserId}>
+            <button
+              type="button"
+              data-testid="conversation"
+              aria-current={isSelected ? 'true' : undefined}
+              aria-label={`${nom}${unread ? ' (non lu)' : ''}`}
+              onClick={() => onSelect(conversation.otherUserId)}
+              className={`flex w-full items-center gap-[11px] border-b border-[#F0F1F6] px-3.5 py-[11px] text-left ${isSelected ? 'bg-ink-50' : 'hover:bg-[#F6F7FC]'}`}
+            >
+              <Initiales texte={getUserInitials(conversation.otherUserId)} taille={36} />
+              <span className="min-w-0 flex-1">
+                <span className="flex items-baseline justify-between gap-2">
+                  <b className="truncate text-[13.5px] font-semibold text-text">{nom}</b>
+                  <span className="flex-none text-[11.5px] font-medium text-text-muted">{quandListe(conversation.lastMessage.createdAt)}</span>
                 </span>
-                <span className="flex-shrink-0 text-[10.5px] text-text-faint">
-                  {formatWhen(conversation.lastMessage.createdAt)}
-                </span>
-              </div>
-              <p className={`truncate text-[12px] ${unread ? 'font-semibold text-text' : 'text-text-muted'}`}>
-                {conversation.lastMessage.body}
-              </p>
-            </div>
-            {unread && <span className="h-2 w-2 flex-shrink-0 rounded-full bg-clay" />}
-          </button>
+                <span className={`mt-0.5 block truncate text-[12.5px] ${unread ? 'font-semibold text-text' : 'text-text-muted'}`}>{extrait(conversation.lastMessage.body)}</span>
+              </span>
+              {unread && <span aria-hidden className="h-[9px] w-[9px] flex-none rounded-full bg-gold" />}
+            </button>
+          </li>
         );
       })}
-    </div>
+    </ul>
   );
 }

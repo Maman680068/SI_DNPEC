@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { ArrowLeft, Lock, Paperclip, Plus } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import {
   creerFil,
@@ -13,6 +14,7 @@ import {
 import type { Fil, FilResume, TypeObjet } from '../../lib/pilotage/types';
 import { LIBELLE_TYPE_OBJET } from '../../lib/pilotage/types';
 import { Button } from '../ui/Button';
+import { Initiales } from '../ui/Charte';
 import { Fenetre } from '../ui/Fenetre';
 import { Chargement, messageChargement } from '../ui/ErreurChargement';
 
@@ -67,8 +69,9 @@ function ChoixObjet({
   if (valeur) {
     return (
       <div className="flex items-center gap-2 text-[12.5px]" data-testid="objet-joint">
-        <span>
-          📎 {LIBELLE_TYPE_OBJET[valeur.type]} : <strong>{valeur.libelle}</strong>
+        <span className="flex min-w-0 items-center gap-1.5">
+          <Paperclip aria-hidden size={14} className="flex-none text-text-muted" />
+          {LIBELLE_TYPE_OBJET[valeur.type]} : <strong className="truncate">{valeur.libelle}</strong>
         </span>
         <button type="button" className="text-clay underline" onClick={() => onChange(null)}>
           Retirer
@@ -80,7 +83,7 @@ function ChoixObjet({
     <div>
       <label className="block text-[12.5px] font-semibold">
         Joindre un objet{' '}
-        <span className="font-normal text-text-faint">
+        <span className="font-normal text-text-muted">
           (tâche, document, courrier, réunion — facultatif)
         </span>
         <input
@@ -100,7 +103,7 @@ function ChoixObjet({
                 className="w-full px-3 py-1.5 text-left text-[12.5px] hover:bg-bg"
                 onClick={() => (onChange(r), setQ(''))}
               >
-                <span className="text-text-faint">{LIBELLE_TYPE_OBJET[r.type]} · </span>
+                <span className="text-text-muted">{LIBELLE_TYPE_OBJET[r.type]} · </span>
                 {r.libelle}
               </button>
             </li>
@@ -115,9 +118,12 @@ function ChoixObjet({
 export function FilsDiscussion({
   filInitial,
   peutJoindre,
+  onChange,
 }: {
   filInitial: string | null;
   peutJoindre: boolean;
+  /** Après lecture ou envoi : compteur de l'onglet. */
+  onChange?: () => void;
 }) {
   const [fils, setFils] = useState<FilResume[] | null>(null);
   const [ouvert, setOuvert] = useState<string | null>(filInitial);
@@ -127,20 +133,23 @@ export function FilsDiscussion({
     getFils()
       .then(setFils)
       .catch((e) => setErreur(messageChargement(e)));
+    onChange?.();
+    // onChange (compteur de l'onglet) : fourni par la page, stable.
   }, []);
   useEffect(() => {
     charger();
   }, [charger]);
 
   return (
-    <div className="flex h-[calc(100vh-260px)] min-h-[420px] overflow-hidden rounded-lg border border-line bg-surface">
+    <div className="flex h-[calc(100vh-230px)] min-h-[480px] overflow-hidden rounded-xl border border-line bg-surface">
       <div
         className={`w-full flex-shrink-0 overflow-y-auto border-r border-line md:block md:w-[320px] ${ouvert ? 'hidden' : ''}`}
       >
         <div className="border-b border-line p-3">
-          <Button variant="gold" className="w-full" onClick={() => setNouveau(true)}>
-            + Nouveau fil
-          </Button>
+          <button type="button" onClick={() => setNouveau(true)} className="flex h-9 w-full items-center justify-center gap-1.5 rounded-[9px] bg-ink text-[13.5px] font-bold text-white hover:bg-ink-800">
+            <Plus aria-hidden size={15} />
+            Nouveau fil
+          </button>
         </div>
         {erreur && <p className="px-4 py-3 text-[12.5px] text-clay">{erreur}</p>}
         {!fils ? (
@@ -149,23 +158,26 @@ export function FilsDiscussion({
             className="px-4 py-6 text-center text-[13px] text-text-muted"
           />
         ) : fils.length === 0 ? (
-          <p className="px-4 py-6 text-center text-[13px] text-text-faint">
-            Aucun fil de discussion.
+          <p className="px-4 py-6 text-center text-[13px] text-text-muted">
+            Aucun fil de discussion : « Nouveau fil » pour en démarrer un.
           </p>
         ) : (
           <ul>
             {fils.map((f) => (
               <li key={f.id}>
                 <button
+                  type="button"
                   data-testid="fil"
+                  aria-current={ouvert === f.id ? 'true' : undefined}
                   onClick={() => setOuvert(f.id)}
-                  className={`w-full border-b border-line px-4 py-3 text-left ${ouvert === f.id ? 'bg-bg' : 'hover:bg-bg'}`}
+                  className={`w-full border-b border-[#F0F1F6] px-3.5 py-[11px] text-left ${ouvert === f.id ? 'bg-ink-50' : 'hover:bg-[#F6F7FC]'}`}
                 >
                   <div className="flex items-center justify-between gap-2">
                     <span className="truncate text-[13.5px] font-semibold">{f.objet}</span>
                     {f.nonLus > 0 && (
-                      <span className="rounded-full bg-clay px-1.5 text-[11px] font-bold text-white">
+                      <span className="flex-none rounded-[10px] bg-gold px-[7px] py-px text-[11.5px] font-bold text-ink-900">
                         {f.nonLus}
+                        <span className="sr-only"> non lu{f.nonLus > 1 ? 's' : ''}</span>
                       </span>
                     )}
                   </div>
@@ -173,7 +185,7 @@ export function FilsDiscussion({
                     {f.participants.map((p) => p.nom).join(', ')}
                   </div>
                   {f.dernier && (
-                    <div className="truncate text-[12px] text-text-faint">
+                    <div className={`truncate text-[12.5px] ${f.nonLus > 0 ? 'font-semibold text-text' : 'text-text-muted'}`}>
                       {f.dernier.auteur} : {f.dernier.extrait}
                     </div>
                   )}
@@ -192,8 +204,8 @@ export function FilsDiscussion({
             onChange={charger}
           />
         ) : (
-          <div className="flex h-full items-center justify-center text-[13px] text-text-faint">
-            Choisissez un fil ou démarrez-en un nouveau.
+          <div className="flex h-full items-center justify-center px-6 text-center text-[13.5px] text-text-muted">
+            Choisissez un fil ou démarrez-en un avec « Nouveau fil ».
           </div>
         )}
       </div>
@@ -233,20 +245,25 @@ function FilOuvert({
   if (!fil) return <Chargement erreur={erreur} className="p-6 text-[13px] text-text-muted" />;
   return (
     <div className="flex h-full flex-col">
-      <div className="border-b border-line px-4 py-3">
-        <button onClick={onRetour} className="mb-1 text-[12.5px] text-text-muted md:hidden">
-          ← Fils
+      <div className="flex items-center gap-[11px] border-b border-line px-4 py-3 sm:px-[18px]">
+        <button type="button" onClick={onRetour} aria-label="Retour à la liste des fils" className="-ml-1 grid h-8 w-8 flex-none place-items-center rounded-md text-text-muted hover:bg-bg md:hidden">
+          <ArrowLeft aria-hidden size={18} />
         </button>
-        <h2 className="text-[15px] font-bold">{fil.objet}</h2>
-        <div className="text-[12px] text-text-muted">
-          {fil.participants.map((p) => p.nom).join(', ')}
+        <div className="min-w-0">
+          <h2 className="truncate text-[14px] font-bold">{fil.objet}</h2>
+          <div className="truncate text-[12px] text-text-muted">
+            {fil.participants.map((p) => p.nom).join(', ')}
+          </div>
         </div>
       </div>
-      <ol className="flex-1 space-y-3 overflow-y-auto px-4 py-3">
+      <ol className="flex-1 space-y-3 overflow-y-auto bg-[#FAFBFD] px-4 py-4 sm:px-[22px]">
         {fil.messages.map((m) => (
-          <li key={m.id} data-testid="message-fil" className="rounded-md border border-line p-3">
-            <div className="mb-1 flex flex-wrap justify-between gap-2 text-[12px] text-text-muted">
-              <strong className="text-text">{m.auteur.nom}</strong>
+          <li key={m.id} data-testid="message-fil" className="rounded-[12px] border border-line bg-surface p-3">
+            <div className="mb-1 flex flex-wrap items-center justify-between gap-2 text-[12px] text-text-muted">
+              <span className="flex items-center gap-2">
+                <Initiales texte={m.auteur.nom.split(' ').map((x) => x.charAt(0)).slice(0, 2).join('').toUpperCase()} taille={26} />
+                <strong className="text-text">{m.auteur.nom}</strong>
+              </span>
               <span>{heure(m.createdAt)}</span>
             </div>
             <p className="whitespace-pre-wrap text-[13px]">{m.corps}</p>
@@ -254,17 +271,19 @@ function FilOuvert({
               (m.lien.accessible && m.lien.lien ? (
                 <Link
                   href={m.lien.lien}
-                  className="mt-2 inline-block rounded bg-bg px-2 py-1 text-[12.5px] text-ink underline"
+                  className="mt-2 inline-flex items-center gap-1.5 rounded-[8px] border border-line px-2.5 py-1.5 text-[12.5px] font-semibold text-ink hover:border-ink"
                   data-testid="lien-objet"
                 >
-                  📎 {LIBELLE_TYPE_OBJET[m.lien.type]} : {m.lien.libelle}
+                  <Paperclip aria-hidden size={14} />
+                  {LIBELLE_TYPE_OBJET[m.lien.type]} : {m.lien.libelle}
                 </Link>
               ) : (
-                <p className="mt-2 text-[12px] italic text-text-faint" data-testid="lien-objet">
-                  📎 {LIBELLE_TYPE_OBJET[m.lien.type]} joint(e) — vous n’y avez pas accès.
+                <p className="mt-2 flex items-center gap-1.5 text-[12px] italic text-text-muted" data-testid="lien-objet">
+                  <Lock aria-hidden size={13} />
+                  {LIBELLE_TYPE_OBJET[m.lien.type]} joint(e) — vous n’y avez pas accès.
                 </p>
               ))}
-            <p className="mt-2 text-[11.5px] text-text-faint" data-testid="accuses">
+            <p className="mt-2 text-[11.5px] text-text-muted" data-testid="accuses">
               {m.lectures
                 .map((l) =>
                   l.luLe ? `Lu par ${l.nom} le ${heure(l.luLe)}` : `Non lu par ${l.nom}`,

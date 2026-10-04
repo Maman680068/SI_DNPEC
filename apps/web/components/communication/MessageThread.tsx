@@ -1,58 +1,108 @@
 'use client';
 
-import { useEffect, useState, type FormEvent } from 'react';
+import Link from 'next/link';
+import { Fragment, useEffect, useRef, useState, type FormEvent } from 'react';
+import { ArrowLeft, Info, Lock, Paperclip, X } from 'lucide-react';
 import { useAuth } from '../../lib/auth/AuthProvider';
 import { useOrg } from '../../lib/org/OrgProvider';
 import { EVENEMENT_MESSAGES_LUS, getMessagesWith, markMessageRead, sendMessage } from '../../lib/api/communication';
-import type { DirectMessage } from '../../lib/communication/types';
+import type { ContexteConversation, DirectMessage } from '../../lib/communication/types';
+import { decouperCorps, heure, libelleJour, ligneDocument, memeJour } from '../../lib/communication/affichage';
 import { Chargement, messageChargement } from '../ui/ErreurChargement';
+import { IconeFichier, Initiales } from '../ui/Charte';
+import { ChoixDocument, type DocumentChoisi } from './ChoixDocument';
 
-function formatWhen(iso: string): string {
-  const date = new Date(iso);
-  const isToday = date.toDateString() === new Date().toDateString();
-  const time = date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-  return isToday ? time : `${date.toLocaleDateString('fr-FR')} ${time}`;
+/** Carte d'un document des Archives cité : cliquable si le lecteur peut l'ouvrir (l'API le dit), sinon muette. */
+function CarteDocument({ id, contexte, sortant }: { id: string; contexte: ContexteConversation | null; sortant: boolean }) {
+  const d = contexte?.documents.find((x) => x.id === id);
+  const place = sortant ? 'self-end' : 'self-start';
+  if (!d)
+    return (
+      <span data-testid="document-cite" className={`${place} flex max-w-[85%] items-center gap-2.5 rounded-[10px] border border-line bg-surface px-2.5 py-2 text-[13px] text-text-muted`}>
+        <Lock aria-hidden size={16} className="flex-none" />
+        {contexte ? 'Document des Archives — vous n’y avez pas accès.' : 'Document des Archives'}
+      </span>
+    );
+  return (
+    <Link href={d.lien} data-testid="document-cite" className={`${place} flex max-w-[85%] items-center gap-2.5 rounded-[10px] border border-line bg-surface px-2.5 py-2 text-[13px] hover:border-ink`}>
+      <IconeFichier nom={d.nomFichier ?? ''} />
+      <span className="min-w-0">
+        <b className="block truncate font-bold text-ink-900">{d.titre}</b>
+        <span className="block truncate text-[12.5px] text-text-muted">
+          {d.chemin}
+          {d.version ? ` · v${d.version}` : ''}
+        </span>
+      </span>
+    </Link>
+  );
 }
 
+/** Échange avec une personne (maquette : séparateurs par jour, bulles, « Lu à », trombone, « Envoyer »). */
 export function MessageThread({
   otherUserId,
   onSent,
   onBack,
+  contexte,
+  onContexteChange,
+  peutJoindre,
+  onFiche,
 }: {
   otherUserId: string;
   onSent: () => void;
   onBack?: () => void;
+  /** Fiche de l'interlocuteur (documents que le lecteur peut ouvrir), chargée par la page. */
+  contexte: ContexteConversation | null;
+  onContexteChange: () => void;
+  /** Trombone : la recherche dans les Archives (fermée aux stagiaires, comme la GED). */
+  peutJoindre: boolean;
+  /** Petits écrans : afficher la fiche de l'interlocuteur. */
+  onFiche?: () => void;
 }) {
   const { user: currentUser } = useAuth();
-  const { getUserLabel } = useOrg();
+  const { getUserLabel, getUserInitials } = useOrg();
   const [messages, setMessages] = useState<DirectMessage[] | null>(null);
   const [body, setBody] = useState('');
+  const [piece, setPiece] = useState<DocumentChoisi | null>(null);
+  const [choix, setChoix] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const fil = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setMessages(null);
-    getMessagesWith(otherUserId).then(async (result) => {
-      setMessages(result);
-      const unread = result.filter((m) => m.recipientId === currentUser?.id && !m.readAt);
-      if (unread.length > 0) {
-        await Promise.all(unread.map((m) => markMessageRead(m.id)));
-        window.dispatchEvent(new Event(EVENEMENT_MESSAGES_LUS));
-        onSent();
-      }
-    }).catch((err) => setError(messageChargement(err)));
+    setError(null);
+    setPiece(null);
+    setChoix(false);
+    getMessagesWith(otherUserId)
+      .then(async (result) => {
+        setMessages(result);
+        const unread = result.filter((m) => m.recipientId === currentUser?.id && !m.readAt);
+        if (unread.length > 0) {
+          await Promise.all(unread.map((m) => markMessageRead(m.id)));
+          window.dispatchEvent(new Event(EVENEMENT_MESSAGES_LUS));
+          onSent();
+        }
+      })
+      .catch((err) => setError(messageChargement(err)));
     // onSent ne doit déclencher un refetch que sur envoi/lecture, pas re-résoudre à chaque rendu.
   }, [otherUserId, currentUser?.id]);
 
+  useEffect(() => {
+    if (fil.current) fil.current.scrollTop = fil.current.scrollHeight;
+  }, [messages]);
+
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    if (!body.trim()) return;
+    const corps = [body.trim(), piece ? ligneDocument(piece.id) : ''].filter(Boolean).join('\n');
+    if (!corps) return;
     setSending(true);
     setError(null);
     try {
-      const message = await sendMessage(otherUserId, body.trim());
+      const message = await sendMessage(otherUserId, corps);
       setMessages((prev) => (prev ? [...prev, message] : [message]));
       setBody('');
+      if (piece) onContexteChange();
+      setPiece(null);
       onSent();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Impossible d'envoyer le message");
@@ -62,67 +112,110 @@ export function MessageThread({
   }
 
   const lastMine = messages ? [...messages].reverse().find((m) => m.senderId === currentUser?.id) : undefined;
+  const i = contexte?.interlocuteur.id === otherUserId ? contexte.interlocuteur : null;
 
   return (
-    <div className="flex h-full flex-col">
-      <div className="flex items-center gap-2 border-b border-line px-5 py-3.5">
-        <button
-          onClick={onBack}
-          aria-label="Retour à la liste des conversations"
-          className="-ml-1 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md text-text-muted md:hidden"
-        >
-          ←
+    <div className="flex h-full min-w-0 flex-col">
+      <div className="flex items-center gap-[11px] border-b border-line px-4 py-3 sm:px-[18px]">
+        <button type="button" onClick={onBack} aria-label="Retour à la liste des conversations" className="-ml-1 grid h-8 w-8 flex-none place-items-center rounded-md text-text-muted hover:bg-bg md:hidden">
+          <ArrowLeft aria-hidden size={18} />
         </button>
-        <div className="text-[13.5px] font-bold">{getUserLabel(otherUserId)}</div>
+        <Initiales texte={getUserInitials(otherUserId)} taille={36} />
+        <div className="min-w-0 flex-1">
+          <h2 className="truncate text-[14px] font-bold text-text">{i ? `${i.prenom} ${i.nom}` : getUserLabel(otherUserId)}</h2>
+          {i && <small className="block truncate text-[12px] text-text-muted">{[i.fonction, i.unite].filter(Boolean).join(' · ')}</small>}
+        </div>
+        {onFiche && (
+          <button type="button" onClick={onFiche} aria-label="Fiche de l’interlocuteur" className="grid h-8 w-8 flex-none place-items-center rounded-md border border-line text-text-muted hover:bg-bg xl:hidden">
+            <Info aria-hidden size={17} />
+          </button>
+        )}
       </div>
 
-      <div className="flex-1 space-y-2.5 overflow-y-auto px-5 py-4">
+      <div ref={fil} className="flex flex-1 flex-col gap-2.5 overflow-y-auto bg-[#FAFBFD] px-4 py-4 sm:px-[22px]" data-testid="echange">
         {messages === null ? (
-          <Chargement erreur={error} />
+          error ? <p className="text-[13px] text-clay">{error}</p> : <Chargement erreur={null} />
         ) : messages.length === 0 ? (
-          <p className="text-sm text-text-faint">Aucun message pour l&apos;instant.</p>
+          <p className="m-auto text-[13px] text-text-muted">Aucun message pour l’instant : écrivez le premier ci-dessous.</p>
         ) : (
-          messages.map((message) => {
+          messages.map((message, n) => {
             const isMine = message.senderId === currentUser?.id;
+            const { texte, documents } = decouperCorps(message.body);
+            const nouveauJour = n === 0 || !memeJour(messages[n - 1]!.createdAt, message.createdAt);
             return (
-              <div key={message.id} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
-                <div className="max-w-[70%]">
-                  <div
-                    className={`rounded-lg px-3.5 py-2.5 text-[13.5px] leading-relaxed ${
-                      isMine ? 'bg-ink text-white' : 'bg-bg text-text'
-                    }`}
-                  >
-                    {message.body}
+              <Fragment key={message.id}>
+                {nouveauJour && (
+                  <span data-testid="separateur-jour" className="self-center rounded-[10px] border border-line bg-surface px-2.5 py-0.5 text-[11.5px] font-semibold text-text-muted">
+                    {libelleJour(message.createdAt)}
+                  </span>
+                )}
+                {texte && (
+                  <div data-testid="message" className={`max-w-[85%] whitespace-pre-wrap break-words rounded-[14px] px-[13px] py-[9px] text-[13.5px] leading-[1.45] sm:max-w-[68%] ${isMine ? 'self-end rounded-br-[4px] bg-ink text-white' : 'self-start rounded-bl-[4px] border border-line bg-surface text-text'}`}>
+                    {texte}
                   </div>
-                  <div className={`mt-1 text-[10.5px] text-text-faint ${isMine ? 'text-right' : ''}`}>
-                    {formatWhen(message.createdAt)}
-                    {isMine && message.id === lastMine?.id && message.readAt && (
-                      <span className="ml-1.5 text-accent">· Lu à {formatWhen(message.readAt)}</span>
-                    )}
-                  </div>
-                </div>
-              </div>
+                )}
+                {documents.map((id) => (
+                  <CarteDocument key={id} id={id} contexte={contexte} sortant={isMine} />
+                ))}
+                {message.attachmentName && (
+                  <span className={`${isMine ? 'self-end' : 'self-start'} flex max-w-[85%] items-center gap-2.5 rounded-[10px] border border-line bg-surface px-2.5 py-2 text-[13px]`}>
+                    <IconeFichier nom={message.attachmentName} />
+                    <span className="min-w-0">
+                      <b className="block truncate font-bold text-ink-900">{message.attachmentName}</b>
+                      <span className="block text-[12.5px] text-text-muted">Pièce jointe</span>
+                    </span>
+                  </span>
+                )}
+                <span className={`text-[11px] text-text-muted ${isMine ? 'self-end' : 'self-start'}`}>
+                  {heure(message.createdAt)}
+                  {isMine && message.id === lastMine?.id && message.readAt && <span data-testid="lu-a"> · Lu à {heure(message.readAt)}</span>}
+                </span>
+              </Fragment>
             );
           })
         )}
       </div>
 
-      <form onSubmit={handleSubmit} className="flex gap-2 border-t border-line px-5 py-3.5">
-        <input
-          value={body}
-          onChange={(e) => setBody(e.target.value)}
-          placeholder="Écrire un message…"
-          className="flex-1 rounded-md border border-line bg-surface px-3.5 py-2.5 text-sm focus:border-accent focus:outline focus:outline-2 focus:outline-accent"
-        />
-        <button
-          type="submit"
-          disabled={sending || !body.trim()}
-          className="rounded-md bg-ink px-4 py-2.5 text-[13.5px] font-semibold text-white disabled:opacity-60"
-        >
-          Envoyer
-        </button>
+      <form onSubmit={handleSubmit} className="relative border-t border-line px-3 py-3 sm:px-4">
+        {choix && (
+          <ChoixDocument
+            onChoisir={(d) => {
+              setPiece(d);
+              setChoix(false);
+            }}
+            onFermer={() => setChoix(false)}
+          />
+        )}
+        {piece && (
+          <div className="mb-2 flex items-center gap-2 text-[12.5px]" data-testid="document-joint">
+            <Paperclip aria-hidden size={14} className="text-text-muted" />
+            <span className="min-w-0 truncate">
+              Document joint : <b>{piece.libelle}</b>
+            </span>
+            <button type="button" onClick={() => setPiece(null)} aria-label="Retirer le document joint" className="grid h-6 w-6 place-items-center rounded text-text-muted hover:bg-bg">
+              <X aria-hidden size={14} />
+            </button>
+          </div>
+        )}
+        <div className="flex items-center gap-2.5">
+          {peutJoindre && (
+            <button type="button" onClick={() => setChoix((c) => !c)} aria-label="Joindre un document des Archives" aria-expanded={choix} className="grid h-10 w-10 flex-none place-items-center rounded-[10px] border border-line text-text-muted hover:bg-bg">
+              <Paperclip aria-hidden size={17} />
+            </button>
+          )}
+          <input
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            aria-label="Votre message"
+            placeholder="Écrire un message…"
+            className="h-10 min-w-0 flex-1 rounded-[10px] border border-line bg-surface px-3 text-[13.5px] placeholder:text-text-faint focus:border-ink focus:outline focus:outline-2 focus:outline-ink"
+          />
+          <button type="submit" disabled={sending || (!body.trim() && !piece)} className="h-10 flex-none rounded-[10px] bg-ink px-3.5 text-[14px] font-bold text-white hover:bg-ink-800 disabled:opacity-60">
+            Envoyer
+          </button>
+        </div>
+        {error && messages !== null && <p className="mt-2 text-[12.5px] text-clay">{error}</p>}
       </form>
-      {error && <p className="px-5 pb-3 text-[12px] text-clay">{error}</p>}
     </div>
   );
 }
