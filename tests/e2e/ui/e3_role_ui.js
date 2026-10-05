@@ -14,6 +14,11 @@ async function nouveau(n, role, extra) {
 // Attend qu'une condition (lue en base) devienne vraie, 10 s au plus.
 async function attendre(f) { for (let i = 0; i < 40; i++) { if (await f()) return true; await new Promise((r) => setTimeout(r, 250)); } return false; }
 const ligne = (p, u) => p.locator('tr', { hasText: u.email });
+// Correctif « Utilisateurs, colonne Actions » : « Gérer » visible, les autres actions dans « Plus d'actions ».
+async function action(zone, page, nom) {
+  await zone.getByRole('button', { name: 'Plus d’actions' }).first().click();
+  await page.getByRole('menu').getByRole('menuitem', { name: nom }).click();
+}
 (async () => {
   const cnc = await prisma.cellule.findUnique({ where: { code: 'CNC' } });
   const rh = await prisma.cellule.findUnique({ where: { code: 'RH' } });
@@ -27,7 +32,7 @@ const ligne = (p, u) => p.locator('tr', { hasText: u.email });
   await ligne(p, u).waitFor();
 
   console.log('— Changer de rôle : Chargé d’Études → DRH');
-  await ligne(p, u).getByRole('button', { name: 'Changer de rôle' }).click();
+  await action(ligne(p, u), p, 'Changer de rôle');
   await dlg(p).getByLabel('Nouveau rôle').selectOption('DRH');
   await dlg(p).getByLabel(/^Cellule/).selectOption(rh.id);
   // Refonte (étape 9) : motif exigé dans la fenêtre (message sous le champ, aucun appel).
@@ -45,7 +50,7 @@ const ligne = (p, u) => p.locator('tr', { hasText: u.email });
   check('table à jour : DRH, cellule RH', (await ligne(p, u).innerText()).includes('Ressources Humaines'));
 
   console.log('— Refus affiché');
-  await ligne(p, u).getByRole('button', { name: 'Changer de rôle' }).click();
+  await action(ligne(p, u), p, 'Changer de rôle');
   await dlg(p).getByLabel('Nouveau rôle').selectOption('DN');
   await dlg(p).getByLabel('Motif', { exact: true }).fill('Tentative de second DN');
   await dlg(p).getByRole('button', { name: 'Voir les effets' }).click();
@@ -53,7 +58,7 @@ const ligne = (p, u) => p.locator('tr', { hasText: u.email });
   check('un second DN : message 409 de l’API dans la fenêtre', /déjà un DN actif/.test(await dlg(p).getByRole('alert').innerText()), await dlg(p).getByRole('alert').innerText());
   await dlg(p).getByRole('button', { name: 'Annuler' }).click();
   const asssaf = await prisma.user.findUnique({ where: { id: ids.chefsaf } });
-  await ligne(p, asssaf).getByRole('button', { name: 'Changer de rôle' }).click();
+  await action(ligne(p, asssaf), p, 'Changer de rôle');
   await dlg(p).getByLabel('Nouveau rôle').selectOption('AGENT');
   await dlg(p).getByRole('radio', { name: 'Cellule transversale' }).click();
   const celluleSel = dlg(p).getByLabel(/^Cellule/);
@@ -65,7 +70,7 @@ const ligne = (p, u) => p.locator('tr', { hasText: u.email });
   await dlg(p).getByRole('button', { name: 'Annuler' }).click();
 
   console.log('— Nommer chef de cellule (motif), puis retirer depuis Organisation');
-  await ligne(p, v).getByRole('button', { name: 'Nommer chef de cellule' }).click();
+  await action(ligne(p, v), p, 'Nommer chef de cellule');
   await dlg(p).getByLabel('Cellule', { exact: true }).selectOption(cnc.id);
   await dlg(p).getByRole('button', { name: 'Nommer chef' }).click();
   check('motif exigé par la fenêtre (message sous le champ)', (await dlg(p).getByText('Indiquez le motif de la nomination.').count()) === 1 && (await dlg(p).getByLabel('Motif', { exact: true }).evaluate((e) => !e.checkValidity())));
@@ -76,10 +81,10 @@ const ligne = (p, u) => p.locator('tr', { hasText: u.email });
   check('message de confirmation « Chef de cellule nommé »', /Chef de cellule nommé/.test(await p.getByTestId('toast').innerText()));
   await p.goto(WEB + '/organisation');
   await p.getByRole('tab', { name: 'Cellules' }).click();
-  const carte = p.locator('div', { hasText: 'Comité National de Coordination' }).filter({ has: p.getByRole('button', { name: 'Retirer le chef' }) }).last();
+  const carte = p.locator('div', { hasText: 'Comité National de Coordination' }).filter({ has: p.getByRole('button', { name: 'Plus d’actions pour CNC' }) }).last();
   await carte.waitFor();
   check('Organisation : nom du chef affiché', (await carte.innerText()).includes(`chef : V E3${S}`), (await carte.innerText()).split('\n').slice(0, 2).join(' / '));
-  await carte.getByRole('button', { name: 'Retirer le chef' }).click();
+  await action(carte, p, 'Retirer le chef');
   await dlg(p).getByLabel('Motif', { exact: true }).fill('Fin de fonction');
   await p.screenshot({ path: `${SHOTS}/e3_retirer_chef_desktop.png` });
   await dlg(p).getByRole('button', { name: 'Retirer le chef' }).click();
@@ -92,7 +97,7 @@ const ligne = (p, u) => p.locator('tr', { hasText: u.email });
   console.log('— Mobile');
   const m = await loginPage(b, 'admin', { width: 390, height: 844 });
   await m.goto(WEB + '/users');
-  await m.getByRole('button', { name: 'Changer de rôle' }).first().click();
+  await action(m.getByTestId('carte-compte').filter({ hasText: u.email }), m, 'Changer de rôle');
   await dlg(m).getByLabel('Motif', { exact: true }).waitFor();
   check('mobile 390 px : fenêtre sans défilement horizontal', (await m.evaluate(() => document.documentElement.scrollWidth)) <= 390);
   await m.screenshot({ path: `${SHOTS}/e3_changement_role_mobile.png` });

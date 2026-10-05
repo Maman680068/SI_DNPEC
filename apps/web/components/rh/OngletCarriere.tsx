@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import {
   annulerMouvement,
@@ -18,6 +19,7 @@ import type { SystemRole } from '../../lib/auth/types';
 import { Plus } from 'lucide-react';
 import { ChampDate, ChoixSegment, FenetreFormulaire, Grille2, Liste, Saisie, SelecteurPersonnes, ZoneTexte } from '../ui/Formulaire';
 import { messageErreur, useToast } from '../ui/Toast';
+import { MenuActions, type ActionMenu } from '../ui/MenuActions';
 import { FenetreDetail } from '../ui/FenetreDetail';
 import {
   BandeCompteurs,
@@ -66,6 +68,7 @@ export function OngletCarriere({ userId, voirFamilles }: { userId?: string; voir
   const valeur = (cle: string, v: string | null) =>
     !v ? '—' : cle === 'role' ? ROLE_LABEL[v as SystemRole] ?? v : cle === 'divisionId' ? getDivisionName(v) ?? v : cle === 'sectionId' ? getSectionName(v) ?? v : cle === 'celluleId' ? getCelluleName(v) ?? v : v;
   const toast = useToast();
+  const router = useRouter();
   const agir = (p: Promise<unknown>, titre: string, options?: { detail?: string; annuler?: () => void | Promise<void> }) => {
     p.then(() => {
       charger();
@@ -83,25 +86,31 @@ export function OngletCarriere({ userId, voirFamilles }: { userId?: string; voir
         {LIBELLE_CHAMP[c] ?? c} : {valeur(c, m.avant[c] ?? null)} → <strong>{valeur(c, m.apres[c] ?? null)}</strong>
       </span>
     ));
-  const actionsLigne = (m: Mouvement) => (
-    <>
-      {m.acte && (
-        <Link href={`/courrier?acte=${m.acte.id}`} onClick={(e) => e.stopPropagation()} className={BTN_LIGNE}>
-          Voir l’acte
-        </Link>
-      )}
-      {m.droits.preparerActe && (
-        <button type="button" className={BTN_LIGNE_PRINCIPAL} onClick={(e) => (e.stopPropagation(), acte(m.id))}>
-          Préparer l’acte
-        </button>
-      )}
-      {m.droits.annuler && (
-        <button type="button" className={BTN_LIGNE} onClick={(e) => (e.stopPropagation(), annuler(m.id))}>
-          Annuler
-        </button>
-      )}
-    </>
-  );
+  // Une action visible (la principale), les autres dans « Plus d'actions » : lignes de même hauteur.
+  const actionsLigne = (m: Mouvement) => {
+    const lienActe = m.acte ? `/courrier?acte=${m.acte.id}` : null;
+    const toutes: (ActionMenu & { principale?: boolean; lien?: string })[] = [
+      ...(m.droits.preparerActe ? [{ label: 'Préparer l’acte', principale: true, onSelect: () => acte(m.id) }] : []),
+      ...(lienActe ? [{ label: 'Voir l’acte', lien: lienActe, onSelect: () => router.push(lienActe) }] : []),
+      ...(m.droits.annuler ? [{ label: 'Annuler', onSelect: () => annuler(m.id) }] : []),
+    ];
+    const [premiere, ...autres] = toutes;
+    if (!premiere) return null;
+    return (
+      <>
+        {premiere.lien ? (
+          <Link href={premiere.lien} onClick={(e) => e.stopPropagation()} className={BTN_LIGNE}>
+            {premiere.label}
+          </Link>
+        ) : (
+          <button type="button" className={premiere.principale ? BTN_LIGNE_PRINCIPAL : BTN_LIGNE} onClick={(e) => (e.stopPropagation(), premiere.onSelect())}>
+            {premiere.label}
+          </button>
+        )}
+        <MenuActions actions={autres} />
+      </>
+    );
+  };
   const enCours = l.mouvements.filter((m) => m.statut === 'PREPARE' || m.statut === 'EN_ACTE');
   return (
     <div>

@@ -12,6 +12,7 @@ import { Fenetre, Texte } from '../ui/Fenetre';
 import { ChoixSegment, FenetreFormulaire, Grille2, Liste, Saisie } from '../ui/Formulaire';
 import { SqueletteListe } from '../ui/Squelette';
 import { messageErreur, useToast } from '../ui/Toast';
+import { MenuActions } from '../ui/MenuActions';
 
 type Action =
   | { nature: 'creer'; parent: UniteOrganigramme }
@@ -132,25 +133,19 @@ export function Organigramme() {
               {u.effectif} agent{u.effectif > 1 ? 's' : ''}
             </div>
           </div>
-          <div className="flex flex-wrap gap-1.5 pl-9 sm:pl-0">
-            {u.droits.typesEnfants.length > 0 && (
-              <button type="button" className={`${BTN_LIGNE} gap-1`} onClick={() => setAction({ nature: 'creer', parent: u })}>
-                <Plus aria-hidden size={13} /> Sous-unité
-              </button>
-            )}
-            {u.droits.peutModifier && (
-              <button type="button" className={BTN_LIGNE} onClick={() => setAction({ nature: 'modifier', unite: u })}>
-                Modifier
-              </button>
-            )}
-            {u.droits.peutFermer && (
-              <button type="button" className={BTN_LIGNE} title={u.droits.fermetureBloquee ?? undefined} onClick={() => setAction({ nature: 'fermer', unite: u })}>
-                Fermer
-              </button>
-            )}
+          {/* Un bouton visible (« Voir »), les autres actions dans « Plus d'actions ». */}
+          <div className="flex flex-none items-center gap-1.5 pl-9 sm:pl-0">
             <button type="button" className={BTN_LIGNE} onClick={() => setOuverte(u.id)} aria-label={`Voir ${u.code} (historique)`}>
               Voir
             </button>
+            <MenuActions
+              libelle={`Plus d’actions pour ${u.code}`}
+              actions={[
+                ...(u.droits.typesEnfants.length > 0 ? [{ label: 'Ajouter une sous-unité', onSelect: () => setAction({ nature: 'creer', parent: u }) }] : []),
+                ...(u.droits.peutModifier ? [{ label: 'Modifier', onSelect: () => setAction({ nature: 'modifier', unite: u }) }] : []),
+                ...(u.droits.peutFermer ? [{ label: 'Fermer', danger: true, aide: u.droits.fermetureBloquee ?? undefined, onSelect: () => setAction({ nature: 'fermer', unite: u }) }] : []),
+              ]}
+            />
           </div>
         </div>
         {!replie && sous.length > 0 && <ul>{sous.map((e) => noeud(e, niveau + 1))}</ul>}

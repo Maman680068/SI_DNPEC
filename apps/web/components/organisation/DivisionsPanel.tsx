@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { MenuActions } from '../ui/MenuActions';
 import { useOrg } from '../../lib/org/OrgProvider';
 import {
   createDivision,
@@ -136,25 +137,22 @@ export function DivisionsPanel() {
                       </div>
                     </div>
                   </button>
-                  <div className="flex flex-shrink-0 flex-wrap gap-2">
-                    <Button variant="outline" onClick={() => setEditingDivision(division)}>
+                  {/* Un bouton visible (« Modifier »), les autres actions dans « Plus d'actions ». */}
+                  <div className="flex flex-shrink-0 items-center gap-2">
+                    <Button variant="outline" className="whitespace-nowrap" onClick={() => setEditingDivision(division)}>
                       Modifier
                     </Button>
-                    <Button
-                      variant="outline"
-                      disabled={pendingDeleteId === division.id}
-                      onClick={() => handleToggleDivisionActive(division)}
-                    >
-                      {division.isActive ? 'Suspendre' : 'Réactiver'}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="border-clay text-clay hover:bg-clay-soft"
-                      disabled={pendingDeleteId === division.id}
-                      onClick={() => handleDeleteDivision(division)}
-                    >
-                      Supprimer
-                    </Button>
+                    <MenuActions
+                      libelle={`Plus d’actions pour ${division.code}`}
+                      actions={
+                        pendingDeleteId === division.id
+                          ? []
+                          : [
+                              { label: division.isActive ? 'Suspendre' : 'Réactiver', onSelect: () => void handleToggleDivisionActive(division) },
+                              { label: 'Supprimer', danger: true, onSelect: () => void handleDeleteDivision(division) },
+                            ]
+                      }
+                    />
                   </div>
                 </div>
 
@@ -186,25 +184,22 @@ export function DivisionsPanel() {
                               </div>
                               <div className="text-[11.5px] text-text-faint">{section.code}</div>
                             </div>
-                            <div className="flex flex-wrap gap-1.5">
-                              <Button variant="outline" onClick={() => setEditingSection(section)}>
+                            {/* Un bouton visible (« Modifier »), les autres actions dans « Plus d'actions ». */}
+                            <div className="flex flex-none items-center gap-1.5">
+                              <Button variant="outline" className="whitespace-nowrap" onClick={() => setEditingSection(section)}>
                                 Modifier
                               </Button>
-                              <Button
-                                variant="outline"
-                                disabled={pendingDeleteId === section.id}
-                                onClick={() => handleToggleSectionActive(section)}
-                              >
-                                {section.isActive ? 'Suspendre' : 'Réactiver'}
-                              </Button>
-                              <Button
-                                variant="outline"
-                                className="border-clay text-clay hover:bg-clay-soft"
-                                disabled={pendingDeleteId === section.id}
-                                onClick={() => handleDeleteSection(section)}
-                              >
-                                Supprimer
-                              </Button>
+                              <MenuActions
+                                libelle={`Plus d’actions pour ${section.code}`}
+                                actions={
+                                  pendingDeleteId === section.id
+                                    ? []
+                                    : [
+                                        { label: section.isActive ? 'Suspendre' : 'Réactiver', onSelect: () => void handleToggleSectionActive(section) },
+                                        { label: 'Supprimer', danger: true, onSelect: () => void handleDeleteSection(section) },
+                                      ]
+                                }
+                              />
                             </div>
                           </div>
                         ))}

@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { MenuActions, type ActionMenu } from '../../../../components/ui/MenuActions';
 import { useParams } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -210,40 +211,28 @@ export default function StagePage() {
                     {p.objectifs && <p className="mt-1 whitespace-pre-wrap pl-[32px] text-[13px]">Objectifs : {p.objectifs}</p>}
                     {p.motifRefus && p.statut === 'REFUSEE' && <p className="mt-1 pl-[32px] text-[12.5px] text-clay">Refusée : {p.motifRefus}</p>}
 
-                    {(p.droits.accepter || p.droits.refuser || p.droits.changerTuteur || p.droits.modifier || p.droits.annuler) && (
-                      <div className="mt-2 flex flex-wrap gap-1.5 pl-[32px]">
-                        {p.droits.accepter && (
-                          <button type="button" className={BTN_LIGNE_PRINCIPAL} onClick={() => setFenetre({ t: 'accepter', periode: p })}>
-                            Accepter et désigner le tuteur
+                    {/* Une action visible (la principale), les autres dans « Plus d'actions ». */}
+                    {(() => {
+                      const toutes: (ActionMenu & { principale?: boolean })[] = [
+                        ...(p.droits.accepter ? [{ label: 'Accepter et désigner le tuteur', principale: true, onSelect: () => setFenetre({ t: 'accepter', periode: p }) }] : []),
+                        ...(p.droits.modifier ? [{ label: 'Modifier', onSelect: () => setFenetre({ t: 'periode', periode: p }) }] : []),
+                        ...(p.droits.changerTuteur ? [{ label: 'Changer de tuteur', onSelect: () => setFenetre({ t: 'tuteur', periode: p }) }] : []),
+                        ...(p.droits.refuser ? [{ label: 'Rejeter avec un motif', onSelect: () => setFenetre({ t: 'refuser', periode: p }) }] : []),
+                        ...(p.droits.annuler && !enCours
+                          ? [{ label: 'Retirer du plan', danger: true, onSelect: () => void (window.confirm('Retirer cette période du plan ?') && agir(() => retirerPeriode(stage.id, p.id), { titre: 'Période retirée du plan', detail: p.unite })) }]
+                          : []),
+                      ];
+                      const [premiere, ...autres] = toutes;
+                      if (!premiere) return null;
+                      return (
+                        <div className="mt-2 flex items-center gap-1.5 pl-[32px]">
+                          <button type="button" className={premiere.principale ? BTN_LIGNE_PRINCIPAL : BTN_LIGNE} onClick={premiere.onSelect}>
+                            {premiere.label}
                           </button>
-                        )}
-                        {p.droits.refuser && (
-                          <button type="button" className={BTN_LIGNE} onClick={() => setFenetre({ t: 'refuser', periode: p })}>
-                            Rejeter avec un motif
-                          </button>
-                        )}
-                        {p.droits.changerTuteur && (
-                          <button type="button" className={BTN_LIGNE} onClick={() => setFenetre({ t: 'tuteur', periode: p })}>
-                            Changer de tuteur
-                          </button>
-                        )}
-                        {p.droits.modifier && (
-                          <button type="button" className={BTN_LIGNE} onClick={() => setFenetre({ t: 'periode', periode: p })}>
-                            Modifier
-                          </button>
-                        )}
-                        {p.droits.annuler && (
-                          <button
-                            type="button"
-                            className={`${BTN_LIGNE} disabled:opacity-50`}
-                            disabled={enCours}
-                            onClick={() => window.confirm('Retirer cette période du plan ?') && agir(() => retirerPeriode(stage.id, p.id), { titre: 'Période retirée du plan', detail: p.unite })}
-                          >
-                            Retirer du plan
-                          </button>
-                        )}
-                      </div>
-                    )}
+                          <MenuActions libelle={`Plus d’actions pour la période ${p.unite}`} actions={autres} />
+                        </div>
+                      );
+                    })()}
                     {(p.evaluation || p.droits.rediger || p.droits.changerFormat || p.droits.viser) && (
                       <div className="pl-[32px]">
                         <BlocEvaluation

@@ -25,7 +25,8 @@ const sansDefilementHorizontal = (p) => p.evaluate(() => document.documentElemen
   await p.goto(`${WEB}/organisation`);
   await p.locator('[data-testid=unite][data-code=DPE]').first().waitFor();
   check('agent : organigramme complet lisible (Direction, divisions, sections)', (await p.locator('[data-testid=unite][data-code=DNPEC]').count()) === 1 && (await p.locator('[data-testid=unite][data-code=SSR]').count()) === 1);
-  check('agent : aucune action de gestion', (await p.getByRole('button', { name: 'Sous-unité', exact: true }).count()) === 0 && (await p.getByRole('button', { name: 'Modifier', exact: true }).count()) === 0 && (await p.getByRole('button', { name: 'Fermer', exact: true }).count()) === 0);
+  // Correctif « colonne Actions » : les actions de gestion sont dans « Plus d'actions », absent pour l'agent.
+  check('agent : aucune action de gestion (pas de « Plus d’actions »)', (await p.getByRole('button', { name: /^Plus d’actions/ }).count()) === 0);
   // Refonte (étape 8) : bande de synthèse, recherche, fenêtre d'une unité (historique, lecture seule pour l'agent).
   check('bande de synthèse : unités actives, cellules, agents rattachés, sans responsable', (await p.getByRole('region', { name: 'Synthèse de l’organigramme' }).locator('[data-testid^=compteur-]').count()) === 4);
   await p.getByLabel('Rechercher une unité').fill('SSR');
@@ -48,7 +49,8 @@ const sansDefilementHorizontal = (p) => p.evaluate(() => document.documentElemen
   await p.goto(`${WEB}/organisation`);
   const dpe = p.locator('[data-testid=unite][data-code=DPE]').first();
   await dpe.waitFor();
-  await dpe.locator(':scope > div').getByRole('button', { name: 'Sous-unité', exact: true }).click();
+  await dpe.locator(':scope > div').getByRole('button', { name: 'Plus d’actions pour DPE' }).click();
+  await p.getByRole('menu').getByRole('menuitem', { name: 'Ajouter une sous-unité' }).click();
   // Refonte (étape 9) : fenêtre de formulaire « Nouvelle unité » (rattachement en sous-titre), message de confirmation.
   const fen = p.getByRole('dialog', { name: 'Nouvelle unité' });
   await fen.waitFor();
@@ -61,7 +63,8 @@ const sansDefilementHorizontal = (p) => p.evaluate(() => document.documentElemen
   check('message de confirmation « Unité créée »', /Unité créée/.test(await p.getByTestId('toast').innerText()));
   check('DRH : section créée sous DPE, affichée sans responsable', (await nouvelle.innerText()).includes('Pas de responsable désigné') && (await nouvelle.innerText()).includes('SECTION'));
   await p.screenshot({ path: `${E.SHOTS}/n1_organigramme_bureau.png`, fullPage: true });
-  await nouvelle.getByRole('button', { name: 'Fermer', exact: true }).click();
+  await nouvelle.getByRole('button', { name: `Plus d’actions pour UI${S}` }).click();
+  await p.getByRole('menu').getByRole('menuitem', { name: 'Fermer' }).click();
   const fFerme = p.getByRole('dialog', { name: `Fermer UI${S}` });
   await fFerme.getByRole('button', { name: 'Fermer l’unité' }).click();
   check('fermeture sans motif : formulaire bloqué par le navigateur', await fFerme.isVisible());
