@@ -143,6 +143,16 @@ const LOTS = [
     appel: async () => ({ status: (await porteeJournal('drh')) === 'Vos propres actions' ? 200 : 599 }),
   });
 
+  console.log('— Compte stagiaire créé avec son stage (lot « Accès des stagiaires ») : DRH et administrateur seulement');
+  for (const profil of Object.keys(PROFILS)) {
+    const peut = ['drh', 'admin'].includes(profil);
+    const j = (n) => new Date(Date.now() + n * 864e5).toISOString().slice(0, 10);
+    await caseMatrice({
+      objet: 'Compte stagiaire (créé avec son stage)', profil, action: 'créer (rôle Stagiaire seulement)', annexe: peut ? 'C — DRH ; administrateur (décision du lot)' : '—', attendu: peut,
+      appel: () => call(profil, 'POST', '/stages/nouveau-stagiaire', { prenom: 'Matrice', nom: `${profil}${S}`, email: `matrice.${profil}.${S.toLowerCase()}@test.local`, etablissement: 'Université', dateDebut: j(20), dateFin: j(50) }),
+    });
+  }
+
   console.log('— Paramétrage (N2) : L(T) DN/DNA, CLM(T) administrateur, — autres');
   for (const profil of Object.keys(PROFILS)) {
     const lit = ['dn', 'dna', 'admin'].includes(profil);

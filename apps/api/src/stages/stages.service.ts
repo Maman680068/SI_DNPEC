@@ -24,6 +24,7 @@ import {
   CapaciteDto,
   CreerStageDto,
   EvaluationDto,
+  NouveauStagiaireDto,
   ModifierPeriodeDto,
   ModifierStageDto,
   PeriodeDto,
@@ -44,6 +45,9 @@ import {
 import { estDrh, detenteursWhere } from '../socle/roles-fonctionnels';
 import { ReprisesN1Service } from '../socle/reprise-n1.service';
 import { StorageService } from '../common/storage/storage.service';
+import { PasswordService } from '../common/security/password.service';
+import { ComptesEmailsService } from '../users/comptes-emails.service';
+import { randomBytes } from 'crypto';
 
 const NOM = { select: { id: true, firstName: true, lastName: true } } as const;
 
@@ -141,6 +145,8 @@ export class StagesService {
     private readonly attestation: AttestationService,
     private readonly reprise: ReprisesN1Service,
     private readonly storage: StorageService,
+    private readonly passwords: PasswordService,
+    private readonly comptesEmails: ComptesEmailsService,
   ) {}
 
   // --------------------------------------------------------------------
@@ -205,6 +211,8 @@ export class StagesService {
     return {
       peutModifier: peutReglerStages(actor),
       voitPlanning: actor.role !== SystemRole.ADMIN_SYSTEME,
+      // Lot « Accès des stagiaires » : l'administrateur crée un nouveau stagiaire (compte et stage) d'ici.
+      peutCreerNouveauStagiaire: actor.role === SystemRole.ADMIN_SYSTEME,
       capacites: await Promise.all(capacites.map(async (c) => ({ uniteKey: c.uniteKey, maximum: c.maximum, libelle: await this.libelleCle(c.uniteKey) }))),
     };
   }
@@ -267,6 +275,86 @@ export class StagesService {
     // Socle NIMBA : la fin prévue de l'agent stagiaire suit le stage (alertes J-15 / J-3).
     await this.reprise.synchroniserCompte(stagiaire.id);
     return this.findOne(actor, stage.id);
+  }
+
+  /**
+   * Nouveau stagiaire (lot « Accès des stagiaires ») : le DRH — ou l'administrateur système — crée en
+   * une seule opération le compte, toujours au rôle Stagiaire (aucun autre rôle par ce chemin), et son
+   * stage. Puis : fin prévue de l'agent = fin du stage (alertes J-15/J-3, désactivation automatique),
+   * email « Choisir mon mot de passe » (lien de premier accès), information des administrateurs.
+   * L'administrateur ne reçoit que l'identifiant du stage : le contenu des stages reste au DRH.
+   */
+  async creerAvecNouveauStagiaire(actor: AuthenticatedUser, dto: NouveauStagiaireDto) {
+    const parDrh = estDrh(actor);
+    if (!parDrh && actor.role !== SystemRole.ADMIN_SYSTEME) {
+      throw new ForbiddenException('Réservé au DRH et à l’administrateur système.');
+    }
+    const [dateDebut, dateFin] = this.intervalle(dto.dateDebut, dto.dateFin);
+    const email = dto.email.trim().toLowerCase();
+    const dejaPris = 'Ce compte existe déjà : sélectionnez-le dans la liste.';
+    if (await this.prisma.user.findFirst({ where: { email: { equals: email, mode: 'insensitive' } }, select: { id: true } })) {
+      throw new ConflictException(dejaPris);
+    }
+    const passwordHash = await this.passwords.hash(randomBytes(24).toString('base64url'));
+    const parQui = parDrh ? 'le DRH' : 'l’administrateur système';
+    let cree: { stagiaireId: string; stageId: string };
+    try {
+      cree = await this.prisma.$transaction(async (tx) => {
+        const user = await tx.user.create({
+          data: {
+            email,
+            passwordHash,
+            firstName: dto.prenom.trim(),
+            lastName: dto.nom.trim(),
+            phone: dto.telephone?.trim() || null,
+            role: SystemRole.STAGIAIRE,
+            status: UserStatus.ACTIF,
+          },
+          select: { id: true },
+        });
+        const stage = await tx.stage.create({
+          data: {
+            stagiaireId: user.id,
+            etablissement: dto.etablissement.trim(),
+            diplomePrepare: dto.diplomePrepare?.trim(),
+            encadrantAcademique: dto.encadrantAcademique?.trim(),
+            dateDebut,
+            dateFin,
+            createdById: actor.id,
+          },
+          select: { id: true },
+        });
+        await this.audit.log(
+          { actorId: actor.id, action: AuditAction.CREATION, entityType: 'User', entityId: user.id, metadata: { event: 'compte_stagiaire_cree', libelle: `Compte stagiaire créé par ${parQui}`, email, role: SystemRole.STAGIAIRE, stageId: stage.id } },
+          tx,
+        );
+        await this.audit.log(
+          { actorId: actor.id, action: AuditAction.CREATION, entityType: 'Stage', entityId: stage.id, metadata: { stagiaireId: user.id, dateDebut, dateFin, nouveauCompte: true } },
+          tx,
+        );
+        return { stagiaireId: user.id, stageId: stage.id };
+      });
+    } catch (e) {
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') throw new ConflictException(dejaPris);
+      throw e;
+    }
+    // Socle NIMBA : l'agent du compte et sa fin prévue (= fin du stage, alertes J-15 / J-3).
+    await this.reprise.synchroniserCompte(cree.stagiaireId);
+    await this.comptesEmails.compteCree(cree.stagiaireId);
+    const admins = await this.prisma.user.findMany({ where: { role: SystemRole.ADMIN_SYSTEME, status: UserStatus.ACTIF, id: { not: actor.id } }, select: { id: true } });
+    const nom = `${dto.prenom.trim()} ${dto.nom.trim()}`;
+    for (const a of admins) {
+      await this.notifications.notify(
+        a.id,
+        NotificationType.STAGE_PLAN_MODIFIE,
+        `Compte stagiaire créé par ${parQui}`,
+        `${nom} (${email}) — stage ${this.dates({ dateDebut, dateFin })}. Pour information, aucune action n’est requise.`,
+        `/users`,
+        nom,
+        { libelleBouton: 'Voir le compte' },
+      );
+    }
+    return parDrh ? this.findOne(actor, cree.stageId) : { id: cree.stageId, stagiaire: { id: cree.stagiaireId, email } };
   }
 
   async modifier(actor: AuthenticatedUser, id: string, dto: ModifierStageDto) {

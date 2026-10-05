@@ -47,7 +47,7 @@ const toast = (p) => p.getByTestId('toast');
   await dlg(drh).getByRole('button', { name: 'Créer le stage' }).click();
   await dlg(drh).getByText('Choisissez le stagiaire.').waitFor();
   check('envoi vide : messages sous les champs (stagiaire, établissement, dates), rien d’envoyé', (await dlg(drh).getByTestId('erreur-champ').count()) === 4 && (await prisma.stage.count()) === nbStages);
-  await dlg(drh).getByRole('combobox', { name: 'Stagiaire', exact: true }).fill(`Aminata Camara${S}`);
+  await dlg(drh).getByRole('combobox', { name: 'Compte du stagiaire', exact: true }).fill(`Aminata Camara${S}`);
   await dlg(drh).getByRole('option', { name: new RegExp(`Aminata Camara${S}`) }).click();
   await dlg(drh).getByLabel('Établissement d’origine').fill('Université Kofi Annan de Guinée');
   await dlg(drh).getByLabel('Diplôme préparé (facultatif)').fill('Master Économétrie');

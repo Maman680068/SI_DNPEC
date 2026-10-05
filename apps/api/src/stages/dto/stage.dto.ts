@@ -1,5 +1,5 @@
 import { EvaluationFormat } from '@prisma/client';
-import { IsDateString, IsEnum, IsInt, IsObject, IsOptional, IsString, Length, Matches, Max, Min, ValidateIf } from 'class-validator';
+import { IsDateString, IsEmail, IsEnum, IsInt, IsObject, IsOptional, IsString, Length, Matches, Max, Min, ValidateIf } from 'class-validator';
 
 export class CreerStageDto {
   @IsString()
@@ -154,4 +154,48 @@ export class CapaciteDto {
   @Min(0)
   @Max(100)
   maximum!: number | null;
+}
+
+/**
+ * Stage d'un nouveau stagiaire (lot « Accès des stagiaires ») : le compte est créé avec le stage.
+ * Aucun champ de rôle : le compte reçoit toujours le rôle Stagiaire (un champ « role » envoyé est
+ * refusé par la validation globale, forbidNonWhitelisted).
+ */
+export class NouveauStagiaireDto {
+  @IsString()
+  @Length(1, 100)
+  prenom!: string;
+
+  @IsString()
+  @Length(1, 100)
+  nom!: string;
+
+  @IsEmail({}, { message: 'L’adresse e-mail n’est pas valide.' })
+  @Length(3, 200)
+  email!: string;
+
+  @IsOptional()
+  @IsString()
+  @Length(1, 40)
+  telephone?: string;
+
+  @IsString()
+  @Length(2, 200)
+  etablissement!: string;
+
+  @IsOptional()
+  @IsString()
+  @Length(1, 200)
+  diplomePrepare?: string;
+
+  @IsOptional()
+  @IsString()
+  @Length(1, 200)
+  encadrantAcademique?: string;
+
+  @IsDateString()
+  dateDebut!: string;
+
+  @IsDateString()
+  dateFin!: string;
 }

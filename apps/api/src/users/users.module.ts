@@ -15,6 +15,7 @@ import { ComptesEmailsService } from './comptes-emails.service';
   imports: [OrgModule, PersonnelModule, CommunicationModule],
   controllers: [UsersController],
   providers: [UsersService, ComptesEmailsService],
-  exports: [UsersService],
+  // ComptesEmailsService : aussi utilisé par les stages (compte stagiaire créé avec son stage).
+  exports: [UsersService, ComptesEmailsService],
 })
 export class UsersModule {}

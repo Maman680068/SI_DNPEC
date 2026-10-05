@@ -101,6 +101,15 @@ Généré par `tests/e2e/api/n1_matrice.js` (annexe 1 du cahier NIMBA v2.2). « 
 | Journal d’audit | Chef de section | lire (votre périmètre) | L(P) | accès | CONFORME |
 | Journal d’audit | Agent | lire (vos propres actions) | L(S) | accès | CONFORME |
 | Journal d’audit | DRH | lire (ses propres actions) | L(P) | accès | ÉCART |
+| Compte stagiaire (créé avec son stage) | DN | créer (rôle Stagiaire seulement) | — | refus (403) | CONFORME |
+| Compte stagiaire (créé avec son stage) | DNA | créer (rôle Stagiaire seulement) | — | refus (403) | CONFORME |
+| Compte stagiaire (créé avec son stage) | Chef de division | créer (rôle Stagiaire seulement) | — | refus (403) | CONFORME |
+| Compte stagiaire (créé avec son stage) | Chef de section | créer (rôle Stagiaire seulement) | — | refus (403) | CONFORME |
+| Compte stagiaire (créé avec son stage) | Agent | créer (rôle Stagiaire seulement) | — | refus (403) | CONFORME |
+| Compte stagiaire (créé avec son stage) | DRH | créer (rôle Stagiaire seulement) | C — DRH ; administrateur (décision du lot) | accès | CONFORME |
+| Compte stagiaire (créé avec son stage) | Chef SAF | créer (rôle Stagiaire seulement) | — | refus (403) | CONFORME |
+| Compte stagiaire (créé avec son stage) | Assistant DN | créer (rôle Stagiaire seulement) | — | refus (403) | CONFORME |
+| Compte stagiaire (créé avec son stage) | Administrateur | créer (rôle Stagiaire seulement) | C — DRH ; administrateur (décision du lot) | accès | CONFORME |
 | Paramétrage | DN | lire | L(T) | accès | CONFORME |
 | Paramétrage | DN | modifier | L(T) | refus (403) | CONFORME |
 | Paramétrage | DNA | lire | L(T) | accès | CONFORME |

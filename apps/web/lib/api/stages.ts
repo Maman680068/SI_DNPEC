@@ -13,6 +13,10 @@ export const fixerCapacite = (uniteKey: string, maximum: number | null) => apiFe
 
 export const creerStage = (input: { stagiaireId: string; etablissement: string; diplomePrepare?: string; encadrantAcademique?: string; dateDebut: string; dateFin: string }) =>
   apiFetch<Stage>('/stages', { method: 'POST', ...j(input) });
+/** Lot « Accès des stagiaires » : compte (rôle Stagiaire seulement) et stage en une opération. Le DRH reçoit le stage, l'administrateur son identifiant seulement. */
+export type NouveauStagiaire = { prenom: string; nom: string; email: string; telephone?: string; etablissement: string; diplomePrepare?: string; encadrantAcademique?: string; dateDebut: string; dateFin: string };
+export const creerStageNouveauStagiaire = (input: NouveauStagiaire) =>
+  apiFetch<Stage | { id: string; stagiaire: { id: string; email: string } }>('/stages/nouveau-stagiaire', { method: 'POST', ...j(input) });
 export const modifierStage = (id: string, input: Partial<{ etablissement: string; diplomePrepare: string; encadrantAcademique: string; dateDebut: string; dateFin: string }>) =>
   apiFetch<Stage>(`/stages/${id}`, { method: 'PATCH', ...j(input) });
 export const cloturerStage = (id: string) => apiFetch<Stage>(`/stages/${id}/cloturer`, { method: 'POST' });
