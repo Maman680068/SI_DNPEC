@@ -16,6 +16,7 @@ const RUBRIQUES: { nom: string; prefixes: string[] }[] = [
   { nom: 'Congés', prefixes: ['conges.'] },
   { nom: 'Personnel et RH', prefixes: ['rh.', 'finPrevue.'] },
   { nom: 'Sécurité', prefixes: ['motDePasse.', 'session.', 'connexions.'] },
+  { nom: 'Modélisation', prefixes: ['calcul.'] },
 ];
 const rubriqueDe = (cle: string) => RUBRIQUES.find((r) => r.prefixes.some((p) => cle.startsWith(p)))?.nom ?? 'Autres';
 

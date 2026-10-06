@@ -178,3 +178,13 @@ def test_sortie_du_paquet_ne_pollue_pas_la_reponse(tmp_path):
     construire(str(dossier), str(sortie))
     d = verifier(sortie.read_bytes()).json()
     assert d["statut"] == "ok" and d["info"]["x"] is None
+
+
+def test_paquet_de_demonstration_a_jour():
+    """apps/api/assets/paquet-demonstration.zip (démonstration) = le paquet factice d'exemples/, fichier par fichier."""
+    zf = zipfile.ZipFile(RACINE.parent / "api" / "assets" / "paquet-demonstration.zip")
+    noms = sorted(n for n in zf.namelist() if not n.endswith("/"))
+    attendus = sorted(str(p.relative_to(FACTICE)).replace(os.sep, "/") for p in FACTICE.rglob("*") if p.is_file() and "__pycache__" not in p.parts)
+    assert noms == attendus
+    for n in noms:
+        assert zf.read(n) == (FACTICE / n).read_bytes(), n

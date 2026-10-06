@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { CommunicationModule } from '../communication/communication.module';
-import { ModelesController, ModelisationController } from './modelisation.controller';
+import { ModelesController } from './modeles.controller';
+import { ModelisationController } from './modelisation.controller';
 import { ModelesService } from './modeles.service';
 import { AffectationsModelisationService } from './affectations.service';
 import { TravauxCalculService } from './travaux.service';

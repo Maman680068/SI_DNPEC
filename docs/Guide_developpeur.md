@@ -166,6 +166,20 @@ fonctionnalité ajoute sa suite (`tests/e2e/api/`, `tests/e2e/ui/`) et sa ligne 
   « suite à l'acte n° … »), échec gardé dans `erreur` ; refus motivé → DRH. Le DRH voit `droitsPoste` sur le
   mouvement. Écarts fonction du dossier / rôle du compte calculés à la lecture (supervision
   `fonction-role`, hors sonde publique ; tâche quotidienne `ecarts-fonction-role`).
+- Domaine B, lot B1 (`modelisation/`, routes `api/v1/modeles` et `api/v1/modelisation`, conception
+  `docs/conception_B1_referentiel_modeles.md`) : référentiel des modèles, dépôt d'un **paquet** zip au format
+  « dnpec-modele/1 » (modele.json validé par le serveur, zip contrôlé avant tout stockage, case « données
+  publiées ou autorisées » tracée). **Rôles de modélisation** (`affectations_modelisation`, le rang ne donne
+  aucun droit) : analyste (administrateur), responsable et suppléant d'un modèle (administrateur, DN, DNA) ;
+  jamais un stagiaire, jamais empruntés en intérim (`modelisation/acces.ts`). Administrateur des modèles =
+  `ADMIN_SYSTEME` : dépose, règle les manettes, confirme une dérogation, **ne valide ni n'active rien, ne voit
+  jamais les chiffres** d'une simulation. Version **immuable** (déclencheur), une seule active, approbateur ≠
+  auteur (contrainte) ; dérogation à deux (responsable demande, administrateur confirme). Service de calcul
+  `apps/calcul` (Python, Docker, IPOPT ; service Render gratuit `dnpec-calcul`, `CALCUL_URL` +
+  `CALCUL_SECRET`), appelé seulement par la **file de travaux en base** (`TravauxCalculService` : réveil du
+  service, essais `calcul.tentativesMax` / `calcul.delaiRelanceSecondes`). Exécution interne `POST
+  api/v1/modeles/:id/executer` (analystes et responsables, version active, bornes réglées). En e2e, le service
+  tourne derrière un relais de test (`tests/e2e/outils/relais_calcul.js` : endormi, coupé).
 - Stages (`stages/`, D6) : job quotidien `StagesRotationService.executer(now)` (appelable avec une
   date simulée) ; attestation finale = acte du Courrier (`ActesService`).
   Réglages (capacités, modèle d'attestation) : DRH **et** administrateur système

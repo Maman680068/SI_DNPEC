@@ -32,7 +32,7 @@ async function caseMatrice({ objet, profil, action, annexe, appel, attendu, ecar
 
 const LOTS = [
   ['Campagne et bulletin de paie, élément de rémunération, ordre de paiement', 'hors périmètre (D5, finances SAF)'],
-  ['Objets du domaine modélisation (annexe 1.3)', 'hors périmètre (domaine B)'],
+  ['Simulations, scénarios, diffusion (annexe 1.3)', 'domaine B, lots suivants (B1 livre le référentiel des modèles, joué ci-dessous)'],
 ];
 
 (async () => {
@@ -305,9 +305,37 @@ const LOTS = [
     await caseMatrice({ objet: 'Tableau de bord par rôle', profil, action: 'lire le sien', annexe: 'L (chacun, jamais plus que ses écrans)', attendu: true, appel: () => call(profil, 'GET', '/api/v1/tableau-de-bord') });
   }
 
+  console.log('— Domaine B, lot B1 : le rang ne donne aucun droit ; rôles de modélisation ; administrateur des modèles');
+  // Les suites précédentes (38q, 38r) ont pu donner des rôles de modélisation aux comptes de test : on part
+  // de comptes sans rôle (fin datée et motivée, comme à l'écran), pour juger le seul rang.
+  for (const profil of Object.keys(PROFILS)) {
+    const r = await call('admin', 'GET', `/api/v1/modelisation/affectations?userId=${ids[profil]}`);
+    for (const a of r.body?.affectations ?? []) if (!a.fin) await call('admin', 'POST', `/api/v1/modelisation/affectations/${a.id}/fin`, { motif: 'Matrice : comptes sans rôle de modélisation' });
+  }
+  for (const profil of Object.keys(PROFILS)) {
+    await caseMatrice({ objet: 'Référentiel des modèles', profil, action: 'lire (sans rôle de modélisation)', annexe: profil === 'admin' ? 'L (administrateur des modèles)' : '— (rang sans droit)', attendu: profil === 'admin', appel: () => call(profil, 'GET', '/api/v1/modeles') });
+    await caseMatrice({
+      objet: 'Version de modèle', profil, action: 'déposer (droit contrôlé avant le paquet)', annexe: profil === 'admin' ? 'C (administrateur)' : '—', attendu: profil === 'admin',
+      appel: async () => { const r = await upload(profil, '/api/v1/modeles/versions', { donneesConfirmees: 'true' }); return { status: r.status === 422 ? 200 : r.status }; },
+    });
+    const gere = ['admin', 'dn', 'dna'].includes(profil);
+    await caseMatrice({ objet: 'Rôle de modélisation', profil, action: 'lire les rôles d’une personne', annexe: gere ? 'L (administrateur, DN, DNA)' : '—', attendu: gere, appel: () => call(profil, 'GET', `/api/v1/modelisation/affectations?userId=${ids.agent2}`) });
+    let cree;
+    await caseMatrice({
+      objet: 'Rôle de modélisation', profil, action: 'attribuer « analyste »', annexe: profil === 'admin' ? 'C (administrateur)' : '—', attendu: profil === 'admin',
+      appel: async () => (cree = await call(profil, 'POST', '/api/v1/modelisation/affectations', { userId: ids.agent2, role: 'ANALYSTE', motif: 'Matrice des habilitations' })),
+    });
+    if (cree?.status === 201) await call('admin', 'POST', `/api/v1/modelisation/affectations/${cree.body.id}/fin`, { motif: 'Fin du test de la matrice' });
+  }
+  const actif = ((await call('admin', 'GET', '/api/v1/modeles')).body.modeles || []).find((m) => m.versionActive);
+  if (actif) {
+    await caseMatrice({ objet: 'Exécution d’un modèle', profil: 'admin', action: 'lancer une simulation', annexe: '— (il ne voit jamais les chiffres)', attendu: false, appel: () => call('admin', 'POST', `/api/v1/modeles/${actif.id}/executer`, { scenario: { mode: 'statique' } }) });
+    await caseMatrice({ objet: 'Exécution d’un modèle', profil: 'dn', action: 'lancer une simulation (sans rôle d’analyste)', annexe: '— (rang sans droit)', attendu: false, appel: () => call('dn', 'POST', `/api/v1/modeles/${actif.id}/executer`, { scenario: { mode: 'statique' } }) });
+  }
+
   // Rapport lisible : tableau des cases jouées + objets renvoyés à un lot ultérieur.
   const md = [
-    '# Matrice des habilitations — état N6',
+    '# Matrice des habilitations — état N6 et domaine B (lot B1)',
     '',
     'Généré par `tests/e2e/api/n1_matrice.js` (annexe 1 du cahier NIMBA v2.2). « ÉCART » : comportement actuel conservé en N1 et vérifié tel quel.',
     '',

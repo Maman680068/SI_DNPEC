@@ -101,6 +101,16 @@ const compte = async () => ({
   const vehicule = await prisma.vehicule.findUnique({ where: { immatriculation: 'TEST 0001 DM' }, include: { pleins: true, missions: true } });
   check('véhicule (N6) : 2 pleins en litres, compteur 58 800 km, affecté à l’ordre de mission N4 de démonstration', !!vehicule && vehicule.pleins.length === 2 && vehicule.kilometrage === 58800 && vehicule.missions.length === 1 && vehicule.missions[0].agentId === idsDemo.find((x) => x === vehicule.missions[0].agentId));
   check('fiche de poste et besoin de formation (N6)', (await prisma.fichePoste.count({ where: { fonction: { startsWith: 'TEST — ' } } })) === 1 && (await prisma.besoinFormation.count({ where: { intitule: { startsWith: 'TEST — ' }, creeParId: { in: idsDemo } } })) === 1);
+  const modeleDemo = await prisma.modele.findUnique({ where: { code: 'TEST_DEMONSTRATION' }, include: { versions: true, affectations: { where: { fin: null } } } });
+  const analystes = await prisma.affectationModelisation.count({ where: { role: 'ANALYSTE', fin: null, userId: { in: idsDemo } } });
+  check(
+    'modèle de démonstration (domaine B, B1) : responsable et suppléant de démonstration, 2 analystes ; version 1 vérifiée, approuvée, active ; une simulation',
+    !!modeleDemo && modeleDemo.nom === 'TEST — Modèle de démonstration' && modeleDemo.versions.length === 1 && modeleDemo.versions[0].statut === 'ACTIVE' &&
+      modeleDemo.affectations.filter((a) => idsDemo.includes(a.userId)).length === 2 && analystes === 2 &&
+      (await prisma.travailCalcul.count({ where: { type: 'EXECUTION', statut: 'TERMINE', version: { modeleId: modeleDemo.id } } })) === 1,
+    JSON.stringify(modeleDemo?.versions.map((v) => v.statut)),
+  );
+  check('paquet de démonstration livré avec l’application (jamais écrit dans le stockage)', modeleDemo?.versions[0].fileKey === 'integre:paquet-demonstration.zip');
 
   console.log('— Données réelles intactes');
   const apres = await D.empreinte(prisma);

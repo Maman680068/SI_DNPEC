@@ -632,6 +632,20 @@
           "capture": "utilisateurs.png"
         },
         {
+          "titre": "Modèles (domaine B)",
+          "etapes": [
+            "Menu « Modélisation » → « Modèles » → « Déposer un modèle » : une fenêtre en 4 étapes. 1. Fichier : le paquet .zip au format « dnpec-modele/1 » (50 Mo au plus) ; cochez « Je confirme que les données de ce paquet sont publiées ou autorisées pour cet hébergement » (votre confirmation est tracée). Un zip piégé ou un modele.json non conforme est refusé avant tout enregistrement.",
+            "2. Vérification automatique : le service de calcul lance seul les contrôles du paquet. S’il dort (il s’endort après 15 minutes sans travail), la fenêtre affiche « Réveil du service de calcul… » pendant une minute environ, puis « Calcul en cours… ». En cas d’échec (service injoignable), la version attend : « Relancer la vérification ».",
+            "3. Manettes et compteurs : décochez une manette ou resserrez ses bornes (jamais au-delà de celles du paquet), décochez un compteur. 4. « Envoyer au responsable » : le responsable et son suppléant sont prévenus.",
+            "Vous ne validez ni n’activez rien : l’approbation revient au responsable du modèle, au suppléant si le responsable a déposé la version. Une version déposée ne se modifie plus : pour corriger, déposez une nouvelle version. Un dépôt pas encore envoyé se reprend (« Reprendre le dépôt ») ou s’abandonne avec un motif.",
+            "Dérogation : quand le responsable demande une dérogation sur un contrôle bloquant en échec, vous êtes prévenu ; sur la fiche du modèle, « Confirmer la dérogation… » montre le contrôle, l’écart et le motif. Vous ne confirmez jamais votre propre demande ; la version gardera la mention « activée avec dérogation ».",
+            "Vous ne voyez jamais les chiffres d’une simulation : seulement son état technique (qui, quand, durée, réussite ou échec).",
+            "Rôles de modélisation (le rang ne donne aucun droit) : Utilisateurs → « ⋯ » → « Rôles de modélisation ». « Analyste » : vous seul l’attribuez ; « Responsable » ou « Suppléant » d’un modèle : vous, le DN ou la DNA (aussi depuis la fiche du modèle, « Désigner »). Motif obligatoire ; « Mettre fin… » garde l’historique ; jamais pour un stagiaire.",
+            "Supervision : « Service de calcul (modèles) » indique s’il est éveillé, endormi (normal : il se réveille au premier calcul) ou injoignable, avec le dernier appel et la durée moyenne ; « Paquets de modèles » indique l’espace occupé."
+          ],
+          "capture": "modeles-depot.png"
+        },
+        {
           "titre": "Rôles fonctionnels",
           "etapes": [
             "Plus → « Administration » → « Utilisateurs » → onglet « Rôles fonctionnels » : « Attribuer un rôle » (personne, rôle, dates et motif facultatifs) ; « Retirer » demande un motif. La personne est prévenue.",
@@ -668,6 +682,65 @@
             "Les jours fériés sont exclus du délai d’avis du chef (heures ouvrées) et du décompte des jours de congé. En début d’année, une alerte vous prévient si l’année suivante n’a aucun jour férié."
           ],
           "capture": "jours-feries.png"
+        }
+      ]
+    },
+    {
+      "cle": "responsable-modele",
+      "titre": "Responsable de modèle",
+      "pour": "Responsables d’un modèle et leurs suppléants",
+      "profils": [
+        "RESPONSABLE_MODELE"
+      ],
+      "sections": [
+        {
+          "titre": "Approuver une version",
+          "etapes": [
+            "Vous êtes prévenu quand une version de votre modèle vous attend (« version à approuver ») : menu « Modélisation » → « Modèles » → le modèle.",
+            "Le bandeau « Version n en attente de votre approbation » résume les contrôles. Vérifiez les contrôles de dépôt (réussis, alertes, contrôles bloquants) et les manettes réglées par l’administrateur.",
+            "« Approuver et activer » : la version devient la seule qui fait foi ; l’ancienne est archivée et reste consultable. « Refuser… » demande un motif, envoyé à l’administrateur.",
+            "Personne n’approuve son propre travail : si vous avez déposé la version, l’approbation revient à votre suppléant (et inversement). Le suppléant peut aussi approuver en votre absence."
+          ],
+          "capture": "modele-fiche.png"
+        },
+        {
+          "titre": "Contrôle bloquant en échec : la dérogation",
+          "etapes": [
+            "Une version dont un contrôle bloquant est en échec ne peut pas être activée telle quelle.",
+            "Sous le contrôle : « Demander une dérogation… », avec un motif écrit obligatoire. L’administrateur est prévenu ; il voit le contrôle et l’écart, jamais les résultats d’une simulation.",
+            "Une fois la dérogation confirmée par l’administrateur, vous pouvez approuver : la version garde pour toujours la mention « activée avec dérogation »."
+          ]
+        },
+        {
+          "titre": "Simulations",
+          "etapes": [
+            "Comme les analystes, vous pouvez lancer des simulations sur la version active de vos modèles, dans les bornes réglées. L’écran de simulation arrive avec le lot suivant."
+          ]
+        }
+      ]
+    },
+    {
+      "cle": "analyste-modele",
+      "titre": "Analyste (modélisation)",
+      "pour": "Personnes qui ont le rôle d’analyste",
+      "profils": [
+        "ANALYSTE_MODELE"
+      ],
+      "sections": [
+        {
+          "titre": "Le référentiel des modèles",
+          "etapes": [
+            "Menu « Modélisation » → « Modèles » : chaque modèle, sa famille, sa version active, son responsable et son dernier contrôle. Une seule version active par modèle : c’est elle qui fait foi.",
+            "La fiche d’un modèle montre ses versions, les contrôles de chaque version et sa gouvernance (responsable, suppléant). « Fiche du modèle » résume la description, les fichiers et la référence du paquet.",
+            "Le rôle d’analyste est attribué par l’administrateur ; votre rang ne donne aucun droit de modélisation."
+          ],
+          "capture": "modeles.png"
+        },
+        {
+          "titre": "Simulations",
+          "etapes": [
+            "Vous lancerez vos simulations sur la version active d’un modèle, avec les manettes proposées et dans leurs bornes ; une valeur hors bornes est refusée. L’écran de simulation arrive avec le lot suivant."
+          ]
         }
       ]
     }
