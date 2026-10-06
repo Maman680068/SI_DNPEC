@@ -13,6 +13,7 @@ import { MessagesIcon } from './MessagesIcon';
 import { NotificationBell } from './NotificationBell';
 import { MenuCreer } from './MenuCreer';
 import { titrePage } from './Sidebar';
+import { useNavigation } from '../../lib/navigation/NavigationProvider';
 
 const ICONES: Record<string, LucideIcon> = { taches: SquareCheck, documents: FileText, courrier: Mail, annuaire: Users, reunions: CalendarDays };
 
@@ -105,7 +106,8 @@ export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
   // Recherche transverse (socle N5) : tâches, documents, courrier, annuaire, réunions, selon les
   // droits de chacun (API) ; fermée aux stagiaires, comme les modules qu'elle interroge.
   const recherche = !estStagiaire(user?.role);
-  const titre = titrePage(pathname, user?.role, user?.rolesFonctionnels);
+  const { navigation } = useNavigation();
+  const titre = titrePage(pathname, user?.role, user?.rolesFonctionnels, navigation?.modelisation);
 
   useEffect(() => {
     if (!recherche) return;

@@ -12,6 +12,8 @@ export interface CompteursNavigation {
   logistique: number;
   utilisateurs: number;
   stages: number;
+  /** Domaine B : versions à approuver, dérogations à confirmer, manettes à régler. */
+  modelisation: number;
 }
 /** Élément « À traiter » du tableau de bord (jamais à zéro). */
 export interface ATraiter {
@@ -30,6 +32,8 @@ export interface Navigation {
   creer: { tache: boolean; reunion: boolean; conge: boolean; message: boolean; document: boolean };
   /** La personne voit d'autres tâches que les siennes (onglet « Mon périmètre »). */
   perimetre: boolean;
+  /** Entrée « Modélisation » (rôle de modélisation ou administrateur), calculée par l'API. */
+  modelisation: boolean;
 }
 
 export const getNavigation = () => apiFetch<Navigation>('/api/v1/navigation');

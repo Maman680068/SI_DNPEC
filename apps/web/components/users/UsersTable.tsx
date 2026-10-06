@@ -10,6 +10,7 @@ import { ManageAccountModal } from './ManageAccountModal';
 import { ChangeRoleModal } from './ChangeRoleModal';
 import { useToast } from '../ui/Toast';
 import { MenuActions, type ActionMenu } from '../ui/MenuActions';
+import { RolesModelisationModal } from './RolesModelisationModal';
 
 const STATUS_BADGE_TONE: Record<UserStatus, 'sage' | 'clay' | 'muted'> = {
   EN_ATTENTE: 'muted',
@@ -68,12 +69,15 @@ export function UsersTable({
   const [assigningChefFor, setAssigningChefFor] = useState<AdminUser | null>(null);
   const [managingAccountFor, setManagingAccountFor] = useState<AdminUser | null>(null);
   const [changingRoleFor, setChangingRoleFor] = useState<AdminUser | null>(null);
+  const [rolesModelisationDe, setRolesModelisationDe] = useState<AdminUser | null>(null);
   const toast = useToast();
 
   /** Actions secondaires d'un compte (menu « Plus d'actions »), mêmes conditions qu'avant. */
   const autresActions = (user: AdminUser): ActionMenu[] => [
     ...(CAN_BECOME_CHEF_ROLES.includes(user.role) ? [{ label: 'Nommer chef de cellule', onSelect: () => setAssigningChefFor(user) }] : []),
     ...(user.status === 'ACTIF' ? [{ label: 'Changer de rôle', onSelect: () => setChangingRoleFor(user) }] : []),
+    // Domaine B (lot B1) : analyste, responsable ou suppléant d'un modèle — jamais pour un stagiaire.
+    ...(user.status === 'ACTIF' && user.role !== 'STAGIAIRE' ? [{ label: 'Rôles de modélisation', onSelect: () => setRolesModelisationDe(user) }] : []),
   ];
 
   if (users.length === 0) {
@@ -181,6 +185,8 @@ export function UsersTable({
           }}
         />
       )}
+
+      {rolesModelisationDe && <RolesModelisationModal userId={rolesModelisationDe.id} onClose={() => setRolesModelisationDe(null)} />}
 
       {managingAccountFor && (
         <ManageAccountModal
