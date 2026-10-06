@@ -15,11 +15,12 @@ ENV PATH=/opt/venv/bin:$PATH
 COPY requirements.txt /tmp/requirements.txt
 # Certificat d'autorité facultatif (proxy d'entreprise) : --secret id=ca,src=<fichier.crt>.
 # « download-extensions » (demandé) puis « build-extensions » : depuis pyomo 6.10, l'interface
-# pynumero utilisée par cyipopt n'est plus téléchargée mais compilée (ASL récupéré par git).
+# pynumero utilisée par cyipopt n'est plus téléchargée mais compilée (ASL récupéré par git). Les autres
+# extensions (appsi…) ne servent pas : seul pynumero est exigé (test -f), un échec des autres est sans effet.
 RUN --mount=type=secret,id=ca,required=false \
     if [ -f /run/secrets/ca ]; then export PIP_CERT=/run/secrets/ca GIT_SSL_CAINFO=/run/secrets/ca SSL_CERT_FILE=/run/secrets/ca; fi \
  && pip install --no-cache-dir -r /tmp/requirements.txt \
- && (pyomo download-extensions || true) && pyomo build-extensions \
+ && (pyomo download-extensions || true) && (pyomo build-extensions || true) \
  && test -f /opt/pyomo/lib/libpynumero_ASL.so
 
 FROM python:3.11-slim-bookworm
