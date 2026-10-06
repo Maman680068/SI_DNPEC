@@ -12,6 +12,7 @@ import { DemandesLogistiqueService } from '../logistique/demandes.service';
 import { ReservationsService } from '../logistique/reservations.service';
 import { StagesService } from '../stages/stages.service';
 import { SupervisionService } from '../socle/supervision.service';
+import { aAccesModelisation, rolesModelisation } from '../modelisation/acces';
 
 const J = 864e5;
 const INSTRUCTIONS_OUVERTES: StatutInstruction[] = [StatutInstruction.EMISE, StatutInstruction.RECUE, StatutInstruction.PRISE_EN_COMPTE];
@@ -62,7 +63,8 @@ export class NavigationService {
 
     if (stagiaire) {
       return {
-        compteurs: { taches: taches.ouvertes, tachesAValider: taches.aValider, messages, instructions: 0, reunions: 0, conges: 0, courrier: 0, logistique: 0, utilisateurs: 0, stages: 0 },
+        compteurs: { taches: taches.ouvertes, tachesAValider: taches.aValider, messages, instructions: 0, reunions: 0, conges: 0, courrier: 0, logistique: 0, utilisateurs: 0, stages: 0, modelisation: 0 },
+        modelisation: false,
         aTraiter,
         perimetre: taches.perimetre,
         creer: { tache: false, reunion: false, conge: false, message: true, document: false },
@@ -101,6 +103,28 @@ export class NavigationService {
     ajouter('reservations-valider', 'Réservations à valider', reservationsAValider, '/logistique?onglet=reservations');
     ajouter('stages', 'Stages : éléments à traiter', stages, '/stages');
 
+    // Domaine B (lot B1) : entrée « Modélisation » pour un rôle de modélisation ou l'administrateur ; versions à
+    // approuver (responsable, suppléant), manettes à régler et dérogations à confirmer (administrateur).
+    const rm = await rolesModelisation(this.prisma, actor);
+    let modelisation = 0;
+    if (aAccesModelisation(rm)) {
+      const gouvernes = [...rm.responsableDe, ...rm.suppleantDe];
+      const enAttente = await this.prisma.versionModele.findMany({ where: { statut: 'EN_ATTENTE' }, select: { modeleId: true, auteurId: true, derogations: true } });
+      const aApprouver = enAttente.filter((v) => gouvernes.includes(v.modeleId) && v.auteurId !== actor.id).length;
+      ajouter('modeles-approuver', 'Versions de modèle à approuver', aApprouver, '/modelisation');
+      modelisation += aApprouver;
+      if (rm.administrateur) {
+        const derogations = enAttente.reduce(
+          (n, v) => n + (Array.isArray(v.derogations) ? (v.derogations as { confirmeeLe: string | null; demandeeParId: string }[]).filter((d) => !d.confirmeeLe && d.demandeeParId !== actor.id).length : 0),
+          0,
+        );
+        const aRegler = await this.prisma.versionModele.count({ where: { statut: 'CONTROLEE' } });
+        ajouter('modeles-derogations', 'Dérogations à confirmer (modèles)', derogations, '/modelisation');
+        ajouter('modeles-regler', 'Modèles : manettes à régler', aRegler, '/modelisation');
+        modelisation += derogations + aRegler;
+      }
+    }
+
     let utilisateurs = 0;
     if (actor.role === SystemRole.ADMIN_SYSTEME) {
       const [comptes, nominations] = await Promise.all([
@@ -128,7 +152,9 @@ export class NavigationService {
         logistique: logistique.aValider + logistique.aTraiter + reservationsAValider,
         utilisateurs,
         stages,
+        modelisation,
       },
+      modelisation: aAccesModelisation(rm),
       aTraiter,
       perimetre: taches.perimetre,
       creer: { tache: true, reunion: true, conge: true, message: true, document: true },

@@ -12,6 +12,7 @@ import { ParametresService } from './parametres.service';
 import { TachesPlanifieesService } from './taches-planifiees.service';
 import { JournalAuditService } from './journal-audit.service';
 import { ecartsFonctionRole } from './ecarts-fonction-role';
+import { espacePaquets, etatServiceCalcul } from '../modelisation/etat-calcul';
 
 export type EtatService = 'NOMINAL' | 'DEGRADE' | 'INDISPONIBLE';
 export type Service = { cle: string; libelle: string; etat: EtatService; detail: string };
@@ -135,6 +136,9 @@ export class SupervisionService {
     } catch {
       res.push({ cle: 'disque', libelle: 'Espace disque des fichiers', etat: 'DEGRADE', detail: 'Espace disque illisible' });
     }
+    // Domaine B (lot B1) : service de calcul « dnpec-calcul » (éveillé, endormi, injoignable) et paquets déposés.
+    res.push({ cle: 'calcul', libelle: 'Service de calcul (modèles)', ...(await etatServiceCalcul(this.prisma)) });
+    res.push({ cle: 'paquets', libelle: 'Paquets de modèles', ...(await espacePaquets(this.prisma)) });
     // Taille de la base, comparée à la capacité de l'offre (BASE_TAILLE_MAX_MO).
     const taille = (await this.prisma.$queryRaw<{ taille: bigint }[]>`SELECT pg_database_size(current_database()) AS taille`)[0]?.taille ?? 0n;
     const maxMo = Number(process.env.BASE_TAILLE_MAX_MO ?? 1024);
@@ -252,6 +256,7 @@ export class SupervisionService {
     if (cle === 'fonction-role' && actor.role === SystemRole.ADMIN_SYSTEME) return { libelle: 'Confirmer', lien: '/users?onglet=nominations' };
     if (cle === 'taches') return { libelle: 'Détail', lien: '#taches-planifiees' };
     if (cle === 'audit') return { libelle: 'Détail', lien: '/journal-audit' };
+    if (cle === 'calcul' && actor.role === SystemRole.ADMIN_SYSTEME) return { libelle: 'Modèles', lien: '/modelisation' };
     return null;
   }
 

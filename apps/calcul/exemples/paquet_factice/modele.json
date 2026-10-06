@@ -1,0 +1,46 @@
+{
+  "format": "dnpec-modele/1",
+  "code": "TEST_DEMONSTRATION",
+  "nom": "TEST — Modèle de démonstration",
+  "version_paquet": "1",
+  "description": "Modèle factice en Python pur, sans solveur, aux valeurs fictives et sans portée économique. Il sert aux tests de la plateforme et à la démonstration.",
+  "famille": "D",
+  "famille_libelle": "Démonstration",
+  "base": "Valeurs fictives",
+  "horizon": { "debut": 2024, "fin": 2028 },
+  "modes": ["statique", "dynamique"],
+  "taille": { "equations": 6 },
+  "moteur": {
+    "langage": "python",
+    "version_min": "3.10",
+    "point_entree": "modele.py",
+    "solveur": "aucun",
+    "dependances": []
+  },
+  "fichiers": [
+    { "chemin": "modele.py", "role": "point d'entrée" },
+    { "chemin": "donnees/base.json", "role": "valeurs fictives de l'année de base" },
+    { "chemin": "reference/reference.json", "role": "résultats de référence" },
+    { "chemin": "LISEZMOI.md", "role": "description du paquet" }
+  ],
+  "reference": { "fichier": "reference/reference.json", "logiciel": "calcul direct", "date": "2026-10-01", "contenu": ["année de base"], "dynamique": null },
+  "manettes": [
+    { "id": "consommation_publique", "libelle": "Consommation publique", "detail": "en bloc", "type": "choc", "unite": "%", "min": -30, "max": 50, "defaut": 0, "actif": true },
+    { "id": "prix_petrole", "libelle": "Prix mondial du pétrole", "detail": "en bloc", "type": "choc", "unite": "%", "min": -50, "max": 100, "defaut": 0, "actif": true },
+    { "id": "exportations_minieres", "libelle": "Exportations minières", "detail": "par produit", "type": "choc", "unite": "%", "indices": [{ "code": "bauxite", "libelle": "Bauxite" }, { "code": "or", "libelle": "Or" }], "min": -50, "max": 100, "defaut": 0, "actif": true },
+    { "id": "croissance_population", "libelle": "Croissance démographique (dynamique)", "detail": "valeur annuelle en %", "type": "hypothese", "unite": "% par an", "min": 0, "max": 5, "defaut": 2.0, "actif": true }
+  ],
+  "compteurs": [
+    { "id": "pib_reel", "libelle": "PIB réel", "unite": "milliards de GNF (fictifs)" },
+    { "id": "consommation", "libelle": "Consommation finale", "unite": "milliards de GNF (fictifs)" },
+    { "id": "etat", "libelle": "Recettes et solde de l'État", "unite": "milliards de GNF (fictifs)" },
+    { "id": "commerce_exterieur", "libelle": "Importations et exportations", "unite": "milliards de GNF (fictifs)" }
+  ],
+  "controles": [
+    { "id": "paquet_complet", "libelle": "Paquet complet", "moment": "depot", "type": "bloquant" },
+    { "id": "equilibre", "libelle": "Équilibre emplois-ressources", "moment": "depot", "type": "bloquant", "seuil": "0,01 %" },
+    { "id": "replication_base", "libelle": "Réplication de l'année de base", "moment": "depot", "type": "bloquant", "seuil": "0,5 %" },
+    { "id": "dynamique", "libelle": "Dynamique comparée à une référence", "moment": "depot", "type": "alerte" }
+  ],
+  "essai": {}
+}
