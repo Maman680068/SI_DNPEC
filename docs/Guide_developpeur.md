@@ -169,7 +169,12 @@ fonctionnalité ajoute sa suite (`tests/e2e/api/`, `tests/e2e/ui/`) et sa ligne 
 - Stages (`stages/`, D6) : job quotidien `StagesRotationService.executer(now)` (appelable avec une
   date simulée) ; attestation finale = acte du Courrier (`ActesService`).
   Réglages (capacités, modèle d'attestation) : DRH **et** administrateur système
-  (`stages/reglages-stages.ts`) ; le contenu des stages reste au DRH. Modèle livré avec
+  (`stages/reglages-stages.ts`) ; le contenu des stages reste au DRH.
+  Compte d'un stagiaire (lot « Accès des stagiaires ») : `POST /stages/nouveau-stagiaire` crée en une
+  transaction le compte — rôle Stagiaire codé en dur, aucun autre rôle possible — et son stage (DRH dans
+  « Nouveau stage » ; administrateur depuis les réglages des stages, qui ne reçoit que l'identifiant du
+  stage), puis fin prévue = fin du stage, email `compteCree`, information des administrateurs ; 409 si
+  l'email existe. Le stagiaire ne fait pas de demande d'accès (« Stagiaire » absent de la liste). Modèle livré avec
   l'application : clé de fichier `integre:<nom>` → `apps/api/assets/`.
 - Paramétrage initial : `apps/api/prisma/parametrage.ts` (workflow manuel
   `db-parametrage.yml`, mot « parametrer »). Création seulement, identité stable, trace

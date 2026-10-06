@@ -131,10 +131,12 @@ export default function StagesPage() {
       {creation && (
         <FenetreNouveauStage
           onClose={() => setCreation(false)}
-          onCreated={(s) => {
+          onCreated={(s, email) => {
             setCreation(false);
-            toast.succes('Stage créé', { detail: 'Ajoutez maintenant les périodes du plan de rotation.' });
-            router.push(`/stages/${s.id}`);
+            toast.succes(email ? 'Compte et stage créés' : 'Stage créé', {
+              detail: email ? `Le stagiaire reçoit à ${email} le lien pour choisir son mot de passe. Ajoutez maintenant les périodes.` : 'Ajoutez maintenant les périodes du plan de rotation.',
+            });
+            if (s) router.push(`/stages/${s.id}`);
           }}
         />
       )}

@@ -8,9 +8,9 @@ import { PERIODE_STATUT_LABEL } from '../../../../lib/stages/types';
 import { Saisie, ZoneDepot } from '../../../../components/ui/Formulaire';
 import { SquelettePage } from '../../../../components/ui/Squelette';
 import { messageErreur, useToast } from '../../../../components/ui/Toast';
-import { ChoixUnite } from '../../../../components/stages/FenetresStage';
+import { ChoixUnite, FenetreNouveauStage } from '../../../../components/stages/FenetresStage';
 import { ErreurChargement, messageChargement } from '../../../../components/ui/ErreurChargement';
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, Plus } from 'lucide-react';
 import { BTN_PRINCIPAL, BTN_SECONDAIRE, EnTetePage } from '../../../../components/ui/Charte';
 
 const date = (iso: string) => new Date(iso).toLocaleDateString('fr-FR', { dateStyle: 'medium', timeZone: 'UTC' });
@@ -28,6 +28,7 @@ export default function ParametresStagesPage() {
   const [maximum, setMaximum] = useState('');
   const toast = useToast();
   const [enCours, setEnCours] = useState(false);
+  const [nouveauStagiaire, setNouveauStagiaire] = useState(false);
 
   const charger = useCallback(() => {
     getModeleAttestation().then(setModele).catch((e) => setErreurChargement(messageChargement(e)));
@@ -81,7 +82,26 @@ export default function ParametresStagesPage() {
           <ChevronLeft aria-hidden size={15} /> Stagiaires
         </Link>
       )}
-      <EnTetePage titre={reglages && !reglages.voitPlanning ? 'Réglages des stages' : 'Planning, capacités et modèle d’attestation'} />
+      <EnTetePage
+        titre={reglages && !reglages.voitPlanning ? 'Réglages des stages' : 'Planning, capacités et modèle d’attestation'}
+        actions={
+          reglages?.peutCreerNouveauStagiaire ? (
+            <button type="button" className={BTN_PRINCIPAL} onClick={() => setNouveauStagiaire(true)}>
+              <Plus aria-hidden size={17} /> Nouveau stagiaire (créer le compte)
+            </button>
+          ) : undefined
+        }
+      />
+      {nouveauStagiaire && (
+        <FenetreNouveauStage
+          seulementNouveau
+          onClose={() => setNouveauStagiaire(false)}
+          onCreated={(_s, email) => {
+            setNouveauStagiaire(false);
+            toast.succes('Compte et stage créés', { detail: `Le stagiaire reçoit à ${email} le lien pour choisir son mot de passe. Le DRH organise ensuite son stage.` });
+          }}
+        />
+      )}
       <ErreurChargement message={erreurChargement} />
       {!reglages && !erreurChargement && <SquelettePage />}
 

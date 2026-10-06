@@ -476,7 +476,8 @@
         {
           "titre": "Stages",
           "etapes": [
-            "Personnel → « Stagiaires » → « Nouveau stage » : stagiaire (tapez son nom puis choisissez-le), établissement, dates ; puis ajoutez les périodes (unité, dates, format d’évaluation).",
+            "Personnel → « Stagiaires » → « Nouveau stage » : « Compte existant » (tapez son nom puis choisissez-le), ou « Nouveau stagiaire (créer le compte) » : prénom, nom, adresse e-mail, téléphone (facultatif). Puis établissement et dates, et « Créer le compte et le stage » (ou « Créer le stage ») ; ajoutez ensuite les périodes (unité, dates, format d’évaluation).",
+            "Un nouveau stagiaire reçoit toujours le rôle Stagiaire et un email « Choisir mon mot de passe » (lien valable 7 jours) ; sa fin prévue est la fin du stage : alertes à J-15 et J-3, puis compte désactivé automatiquement le lendemain sans décision de votre part. Si l’adresse existe déjà, choisissez le compte dans « Compte existant ». Les stagiaires ne font pas de demande d’accès : c’est vous qui créez leur compte.",
             "Chaque responsable d’unité accepte la période et désigne le tuteur ; le changement d’unité se fait tout seul à la date prévue.",
             "« Planning, capacités, modèle » : capacités d’accueil par unité et modèle d’attestation (Word avec des champs {{NOM_COMPLET}}, {{DATE_DEBUT}}…).",
             "En fin de stage : « Clôturer », puis « Préparer l’attestation finale » (registre ATT) : l’acte part à la signature du DN ou de la DNA.",
@@ -590,6 +591,7 @@
         {
           "titre": "Mon stage",
           "etapes": [
+            "Votre compte est créé par le service RH (ne faites pas de demande d’accès) : vous recevez un email « Choisir mon mot de passe » ; le lien est valable 7 jours. Il est désactivé automatiquement le lendemain de la fin de votre stage.",
             "Menu « Mon stage » : votre plan (unités, dates, tuteurs) et les évaluations une fois visées par le chef.",
             "À la fin, l’attestation signée est téléchargeable ici ; cliquez sur « J’ai pris connaissance de mon attestation ».",
             "Rapport de stage : sur votre fiche, « Déposer mon rapport » (après la désignation de votre encadreur principal) : choisissez le fichier, puis « Déposer le rapport ». S’il demande une reprise, le motif s’affiche et vous déposez une nouvelle version."
@@ -619,6 +621,7 @@
           "titre": "Comptes",
           "etapes": [
             "Plus → « Administration » → « Utilisateurs » : « Nouveau compte », approbation des inscriptions, suspension, désactivation (un compte n’est jamais supprimé).",
+            "Stagiaires : « Stages (réglages) » → « Nouveau stagiaire (créer le compte) » crée le compte (rôle Stagiaire seulement) et son stage ; le DRH organise ensuite le stage. Quand le DRH crée un compte stagiaire, vous en êtes informé (aucune action requise).",
             "À la création d’un compte (ou à l’approbation d’une inscription), rattachez-le à son agent : « Agent (dossier RH) » s’il existe déjà, sinon indiquez son matricule s’il est connu ; à défaut, un agent avec un matricule provisoire est créé pour le DRH.",
             "La personne est prévenue par email : inscription approuvée (rôle, unité, bouton « Se connecter »), inscription rejetée (motif facultatif, saisi dans la fenêtre « Rejeter l’inscription »), compte créé par vous (lien pour choisir son mot de passe, valable 7 jours).",
             "Sur un compte : « Gérer », ou le bouton « ⋯ » (« Plus d’actions ») pour « Nommer chef de cellule » et « Changer de rôle » (aperçu des effets, puis confirmation avec un motif) ; mot de passe temporaire, lien de réinitialisation, « Réinitialiser la double authentification ».",

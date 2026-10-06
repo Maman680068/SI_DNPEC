@@ -130,6 +130,7 @@ export interface Planning {
 export interface Capacites {
   peutModifier: boolean;
   voitPlanning: boolean;
+  peutCreerNouveauStagiaire: boolean;
   capacites: { uniteKey: string; maximum: number; libelle: string }[];
 }
 
