@@ -7,7 +7,7 @@
 
 FROM python:3.11-slim-bookworm AS construction
 RUN apt-get update \
- && apt-get install -y --no-install-recommends coinor-libipopt-dev liblapack-dev libblas-dev pkg-config cmake g++ git \
+ && apt-get install -y --no-install-recommends coinor-libipopt-dev liblapack-dev libblas-dev pkg-config cmake build-essential git \
  && rm -rf /var/lib/apt/lists/*
 ENV PYOMO_CONFIG_DIR=/opt/pyomo
 RUN python -m venv /opt/venv
