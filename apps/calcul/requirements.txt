@@ -1,4 +1,4 @@
-# Service de calcul (image Docker). scipy est requis par l'interface pyomo ↔ cyipopt (pynumero).
+# Service de calcul (image Docker). scipy et packaging sont requis par l’interface pyomo ↔ cyipopt (pynumero).
 fastapi==0.142.2
 uvicorn==0.54.0
 python-multipart==0.0.32
@@ -7,3 +7,4 @@ cyipopt==1.7.0
 openpyxl==3.1.5
 numpy==2.4.6
 scipy==1.17.1
+packaging==26.3
