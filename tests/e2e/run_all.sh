@@ -120,6 +120,7 @@ lancer "25. CHROMIUM — C2 ADMINISTRATION" ui/c2_admin.js
 lancer "26. CHROMIUM — C2 CARTE" ui/c2_carte.js
 lancer "27. CHROMIUM — C2 DATES" ui/c2_dates_ui.js
 lancer "28. CHROMIUM — E3 CHANGEMENT DE RÔLE" ui/e3_role_ui.js
+lancer "CHROMIUM — UTILISATEURS : COLONNE ACTIONS (« GÉRER » + MENU « PLUS D’ACTIONS »), CLAVIER, TÉLÉPHONE, AXE" ui/w_menu_actions_ui.js
 lancer "29. CHROMIUM — D2 DÉCISIONS" ui/d2_decisions_ui.js
 lancer "30. CHROMIUM — D3 DOSSIER DU PERSONNEL" ui/d3_dossier_ui.js
 lancer "31. CHROMIUM — F CLOCHE, RETOUR, ERREURS" ui/f_finitions_ui.js

@@ -9,6 +9,7 @@ import { AssignChefModal } from './AssignChefModal';
 import { ManageAccountModal } from './ManageAccountModal';
 import { ChangeRoleModal } from './ChangeRoleModal';
 import { useToast } from '../ui/Toast';
+import { MenuActions, type ActionMenu } from '../ui/MenuActions';
 
 const STATUS_BADGE_TONE: Record<UserStatus, 'sage' | 'clay' | 'muted'> = {
   EN_ATTENTE: 'muted',
@@ -69,6 +70,12 @@ export function UsersTable({
   const [changingRoleFor, setChangingRoleFor] = useState<AdminUser | null>(null);
   const toast = useToast();
 
+  /** Actions secondaires d'un compte (menu « Plus d'actions »), mêmes conditions qu'avant. */
+  const autresActions = (user: AdminUser): ActionMenu[] => [
+    ...(CAN_BECOME_CHEF_ROLES.includes(user.role) ? [{ label: 'Nommer chef de cellule', onSelect: () => setAssigningChefFor(user) }] : []),
+    ...(user.status === 'ACTIF' ? [{ label: 'Changer de rôle', onSelect: () => setChangingRoleFor(user) }] : []),
+  ];
+
   if (users.length === 0) {
     return <div className="rounded-xl border border-line bg-surface"><EtatVide texte="Aucun compte." /></div>;
   }
@@ -80,7 +87,7 @@ export function UsersTable({
        * champ) — on bascule sur des cartes empilées, une par utilisateur. */}
       <div className="space-y-2.5 md:hidden">
         {users.map((user) => (
-          <div key={user.id} className="rounded-xl border border-line bg-surface p-3.5">
+          <div key={user.id} className="rounded-xl border border-line bg-surface p-3.5" data-testid="carte-compte">
             <div className="mb-2 flex items-start justify-between gap-2">
               <div>
                 <div className="text-[13.5px] font-semibold">
@@ -94,20 +101,11 @@ export function UsersTable({
               {ROLE_LABEL[user.role]} · {attachmentLabel(user, getDivisionName, getSectionName, getCelluleName, getUserLabel)}
             </div>
             {canManage && (
-              <div className="flex flex-wrap gap-2">
-                {CAN_BECOME_CHEF_ROLES.includes(user.role) && (
-                  <button type="button" className={BTN_LIGNE} onClick={() => setAssigningChefFor(user)}>
-                    Nommer chef de cellule
-                  </button>
-                )}
-                {user.status === 'ACTIF' && (
-                  <button type="button" className={BTN_LIGNE} onClick={() => setChangingRoleFor(user)}>
-                    Changer de rôle
-                  </button>
-                )}
+              <div className="flex items-center gap-1.5">
                 <button type="button" className={BTN_LIGNE} onClick={() => setManagingAccountFor(user)}>
                   Gérer
                 </button>
+                <MenuActions actions={autresActions(user)} />
               </div>
             )}
           </div>
@@ -129,33 +127,26 @@ export function UsersTable({
           <tbody>
             {users.map((user) => (
               <tr key={user.id} className="border-b border-[#F0F1F6] last:border-0 hover:bg-[#F6F7FC]">
-                <td className="px-4 py-2.5 font-semibold text-ink-900">
+                {/* Une seule ligne par cellule (texte long raccourci, complet au survol) : toutes les lignes ont la même hauteur. */}
+                <td className="max-w-[160px] truncate whitespace-nowrap px-4 py-2.5 font-semibold text-ink-900" title={`${user.firstName} ${user.lastName}`}>
                   {user.firstName} {user.lastName}
                 </td>
-                <td className="px-4 py-2.5 text-text-muted">{user.email}</td>
-                <td className="px-4 py-2.5">{ROLE_LABEL[user.role]}</td>
-                <td className="px-4 py-2.5 text-text-muted">
+                <td className="max-w-[200px] truncate whitespace-nowrap px-4 py-2.5 text-text-muted" title={user.email}>{user.email}</td>
+                <td className="max-w-[170px] truncate whitespace-nowrap px-4 py-2.5" title={ROLE_LABEL[user.role]}>{ROLE_LABEL[user.role]}</td>
+                <td className="max-w-[180px] truncate whitespace-nowrap px-4 py-2.5 text-text-muted" title={attachmentLabel(user, getDivisionName, getSectionName, getCelluleName, getUserLabel)}>
                   {attachmentLabel(user, getDivisionName, getSectionName, getCelluleName, getUserLabel)}
                 </td>
-                <td className="px-4 py-2.5">
+                <td className="whitespace-nowrap px-4 py-2.5">
                   <Pastille ton={PASTILLE[STATUS_BADGE_TONE[user.status]]}>{STATUS_BADGE_LABEL[user.status]}</Pastille>
                 </td>
                 {canManage && (
-                  <td className="px-4 py-2.5">
+                  <td className="w-px whitespace-nowrap px-4 py-2.5">
+                    {/* Un seul bouton visible, les autres actions dans « Plus d'actions » : lignes de même hauteur. */}
                     <div className="flex justify-end gap-1.5">
-                      {CAN_BECOME_CHEF_ROLES.includes(user.role) && (
-                        <button type="button" className={BTN_LIGNE} onClick={() => setAssigningChefFor(user)}>
-                          Nommer chef de cellule
-                        </button>
-                      )}
-                      {user.status === 'ACTIF' && (
-                        <button type="button" className={BTN_LIGNE} onClick={() => setChangingRoleFor(user)}>
-                          Changer de rôle
-                        </button>
-                      )}
                       <button type="button" className={BTN_LIGNE} onClick={() => setManagingAccountFor(user)}>
                         Gérer
                       </button>
+                      <MenuActions actions={autresActions(user)} />
                     </div>
                   </td>
                 )}

@@ -21,8 +21,8 @@ export const BTN_SUCCES =
 export const BTN_DANGER_CONTOUR =
   'inline-flex h-10 items-center justify-center gap-2 rounded-[10px] border border-[#E7B3BB] bg-surface px-3.5 text-[14px] font-bold text-clay disabled:cursor-not-allowed disabled:opacity-50';
 /** Petit bouton d'action sur une ligne de tableau. */
-export const BTN_LIGNE = 'inline-flex h-[30px] items-center justify-center rounded-[7px] border border-line px-3 text-[12.5px] font-bold text-ink hover:bg-bg';
-export const BTN_LIGNE_PRINCIPAL = 'inline-flex h-[30px] items-center justify-center rounded-[7px] border border-ink bg-ink px-3 text-[12.5px] font-bold text-white';
+export const BTN_LIGNE = 'inline-flex h-[30px] flex-none items-center whitespace-nowrap justify-center rounded-[7px] border border-line px-3 text-[12.5px] font-bold text-ink hover:bg-bg';
+export const BTN_LIGNE_PRINCIPAL = 'inline-flex h-[30px] flex-none items-center whitespace-nowrap justify-center rounded-[7px] border border-ink bg-ink px-3 text-[12.5px] font-bold text-white';
 
 /** En-tête de page : titre (Montserrat 800, 24 px), sous-titre, actions à droite. */
 export function EnTetePage({ titre, sousTitre, actions, avantActions }: { titre: string; sousTitre?: ReactNode; actions?: ReactNode; avantActions?: ReactNode }) {

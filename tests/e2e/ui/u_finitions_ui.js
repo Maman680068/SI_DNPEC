@@ -121,12 +121,28 @@ const attendre = (fn, ms = 8000) => new Promise((ok) => { const t0 = Date.now();
 
   console.log('— Administrateur : « À traiter » reprend la supervision');
   p = await loginPage(b, 'admin', BUREAU);
-  const nav = (await call('admin', 'GET', '/api/v1/navigation')).body;
-  const points = nav.aTraiter.filter((x) => x.cle.startsWith('supervision-'));
   const bloc = p.getByTestId('a-traiter');
-  await bloc.waitFor();
-  // La précision (Mo utilisés, délai de réponse) change d'une lecture à l'autre : libellé exact, précision présente.
-  check(`${points.length} point(s) de supervision dans « À traiter », avec leur précision`, (await bloc.locator('[data-testid^="a-traiter-supervision-"]').count()) === points.length && (await Promise.all(points.map(async (x) => (await bloc.getByTestId(`a-traiter-${x.cle}`).innerText()).includes(x.libelle)))).every(Boolean) && (await bloc.locator('[data-testid^="a-traiter-supervision-"]').allInnerTexts()).every((t) => t.split('\n').filter(Boolean).length >= 2));
+  // Page et API lues l'une après l'autre ; les points sont en cache une minute : si un service change
+  // d'état entre les deux lectures, seconde lecture après l'expiration du cache. La précision (Mo
+  // utilisés, délai de réponse) change d'une lecture à l'autre : libellé exact, précision présente.
+  const lirePoints = async () => {
+    await p.goto(`${WEB}/dashboard`);
+    await bloc.waitFor();
+    await p.waitForLoadState('networkidle').catch(() => {});
+    const nav = (await call('admin', 'GET', '/api/v1/navigation')).body;
+    const pts = nav.aTraiter.filter((x) => x.cle.startsWith('supervision-'));
+    const lignesSup = bloc.locator('[data-testid^="a-traiter-supervision-"]');
+    const ok = (await lignesSup.count()) === pts.length
+      && (await Promise.all(pts.map(async (x) => (await bloc.getByTestId(`a-traiter-${x.cle}`).count()) === 1 && (await bloc.getByTestId(`a-traiter-${x.cle}`).innerText()).includes(x.libelle)))).every(Boolean)
+      && (await lignesSup.allInnerTexts()).every((t) => t.split('\n').filter(Boolean).length >= 2);
+    return [pts, ok];
+  };
+  let [points, conforme] = await lirePoints();
+  if (!conforme) {
+    await new Promise((r) => setTimeout(r, 61000));
+    [points, conforme] = await lirePoints();
+  }
+  check(`${points.length} point(s) de supervision dans « À traiter », avec leur précision`, conforme);
   if (points.length) {
     await bloc.locator('[data-testid^="a-traiter-supervision-"]').first().click();
     await p.waitForURL('**/parametrage?onglet=supervision');

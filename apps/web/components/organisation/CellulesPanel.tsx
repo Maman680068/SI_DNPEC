@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { MenuActions } from '../ui/MenuActions';
 import { useOrg } from '../../lib/org/OrgProvider';
 import { createCellule, deleteCellule, reactivateCellule, suspendCellule, updateCellule } from '../../lib/api/org';
 import type { Cellule } from '../../lib/org/types';
@@ -80,30 +81,23 @@ export function CellulesPanel() {
                   {cellule.code} · {cellule.chefId ? `chef : ${getUserLabel(cellule.chefId)}` : 'sans chef'}
                 </div>
               </div>
-              <div className="flex flex-wrap gap-2">
-                {cellule.chefId && (
-                  <Button variant="outline" onClick={() => setRetrait(cellule)}>
-                    Retirer le chef
-                  </Button>
-                )}
-                <Button variant="outline" onClick={() => setEditing(cellule)}>
+              {/* Un bouton visible (« Modifier »), les autres actions dans « Plus d'actions ». */}
+              <div className="flex flex-none items-center gap-2">
+                <Button variant="outline" className="whitespace-nowrap" onClick={() => setEditing(cellule)}>
                   Modifier
                 </Button>
-                <Button
-                  variant="outline"
-                  disabled={pendingDeleteId === cellule.id}
-                  onClick={() => handleToggleActive(cellule)}
-                >
-                  {cellule.isActive ? 'Suspendre' : 'Réactiver'}
-                </Button>
-                <Button
-                  variant="outline"
-                  className="border-clay text-clay hover:bg-clay-soft"
-                  disabled={pendingDeleteId === cellule.id}
-                  onClick={() => handleDelete(cellule)}
-                >
-                  Supprimer
-                </Button>
+                <MenuActions
+                  libelle={`Plus d’actions pour ${cellule.code}`}
+                  actions={[
+                    ...(cellule.chefId ? [{ label: 'Retirer le chef', onSelect: () => setRetrait(cellule) }] : []),
+                    ...(pendingDeleteId === cellule.id
+                      ? []
+                      : [
+                          { label: cellule.isActive ? 'Suspendre' : 'Réactiver', onSelect: () => void handleToggleActive(cellule) },
+                          { label: 'Supprimer', danger: true, onSelect: () => void handleDelete(cellule) },
+                        ]),
+                  ]}
+                />
               </div>
             </Card>
           ))}
