@@ -353,6 +353,10 @@ export function RegisterWizard() {
                       </option>
                     ))}
                   </select>
+                  {/* Lot « Accès des stagiaires » : le stagiaire ne s'inscrit pas, le DRH crée son compte. */}
+                  <p className="mt-1.5 text-[12px] text-text-muted" data-testid="note-stagiaire">
+                    Stagiaire : ne faites pas de demande, le service RH crée votre compte.
+                  </p>
                 </div>
 
                 {showAttachmentSection && orgOptions && (

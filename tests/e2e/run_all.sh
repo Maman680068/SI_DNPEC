@@ -106,6 +106,7 @@ lancer "21a. D6 — RÔLE STAGIAIRE (TOUTES LES ROUTES)" api/d6_role_stagiaire.j
 lancer "21b. D6 — STAGES" api/d6_stages.js
 lancer "21c. D6 — ATTESTATION" api/d6_attestation.js
 lancer "21d. D6 — LISTES DE CHOIX" api/d6_listes.js
+lancer "21e. ACCÈS DES STAGIAIRES — COMPTE CRÉÉ AVEC LE STAGE (DRH, ADMINISTRATEUR), RÔLE STAGIAIRE SEUL, 409/403/400, DÉSACTIVATION À LA FIN" api/v_stagiaire_acces.js
 lancer "21e. D9 — LOGISTIQUE" api/d9_logistique.js
 lancer "21f. D9 — RÉSERVATIONS ET PRIORITÉ" api/d9_reservations.js
 lancer "21g. G3 — DOUBLE AUTHENTIFICATION (API)" api/g3_2fa.js
@@ -125,6 +126,7 @@ lancer "31. CHROMIUM — F CLOCHE, RETOUR, ERREURS" ui/f_finitions_ui.js
 lancer "32. CHROMIUM — MESSAGERIE" ui/f_messagerie_ui.js
 lancer "33. CHROMIUM — D6 RÔLE STAGIAIRE" ui/d6_role_ui.js
 lancer "34. CHROMIUM — D6 STAGES" ui/d6_stages_ui.js
+lancer "34-bis. CHROMIUM — ACCÈS DES STAGIAIRES : NOUVEAU STAGIAIRE (DRH, ADMINISTRATEUR), DEMANDE D’ACCÈS" ui/v_stagiaire_acces_ui.js
 lancer "35. CHROMIUM — D9 LOGISTIQUE" ui/d9_logistique_ui.js
 lancer "36. CHROMIUM — G3 DOUBLE AUTHENTIFICATION" ui/g3_2fa_ui.js
 lancer "37. CHROMIUM — G4 AIDE EN LIGNE" ui/g4_aide_ui.js

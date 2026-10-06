@@ -8,6 +8,7 @@ import {
   changerTuteur,
   creerActeAttestation,
   creerStage,
+  creerStageNouveauStagiaire,
   designerEncadrant,
   getEncadrantsPossibles,
   getRegistresAttestation,
@@ -50,54 +51,108 @@ const motifValide = (motif: string, id: string) => (motif.trim() && motif.trim()
 
 // ---------------------------------------------------------------- stage
 
-export function FenetreNouveauStage({ onClose, onCreated }: { onClose: () => void; onCreated: (s: Stage) => void }) {
+/**
+ * Nouveau stage. Le DRH choisit un compte Stagiaire existant, ou crée le compte du stagiaire avec son
+ * stage (lot « Accès des stagiaires » : rôle Stagiaire seulement, email « Choisir mon mot de passe »).
+ * `seulementNouveau` : l'administrateur, qui ne crée que des nouveaux stagiaires (sans voir les stages).
+ */
+export function FenetreNouveauStage({
+  onClose,
+  onCreated,
+  seulementNouveau = false,
+}: {
+  onClose: () => void;
+  onCreated: (s: Stage | null, email?: string) => void;
+  seulementNouveau?: boolean;
+}) {
+  const [mode, setMode] = useState<'existant' | 'nouveau'>(seulementNouveau ? 'nouveau' : 'existant');
   const [candidats, setCandidats] = useState<Candidat[] | null>(null);
-  const [v, setV] = useState({ stagiaireId: '', etablissement: '', diplomePrepare: '', encadrantAcademique: '', dateDebut: '', dateFin: '' });
-  const { enCours, erreur, lancer } = useAction((s) => s && onCreated(s));
+  const [v, setV] = useState({ stagiaireId: '', prenom: '', nom: '', email: '', telephone: '', etablissement: '', diplomePrepare: '', encadrantAcademique: '', dateDebut: '', dateFin: '' });
+  const [enCours, setEnCours] = useState(false);
+  const [erreur, setErreur] = useState<string | null>(null);
   const [erreurListe, setErreurListe] = useState<string | null>(null);
   const set = (k: keyof typeof v) => (x: string) => setV((o) => ({ ...o, [k]: x }));
   useEffect(() => {
+    if (seulementNouveau) return;
     getStagiairesDisponibles()
       .then(setCandidats)
       .catch((e) => setErreurListe(messageErreur(e, 'Impossible de charger les stagiaires')));
-  }, []);
+  }, [seulementNouveau]);
+  const stage = {
+    etablissement: v.etablissement.trim(),
+    diplomePrepare: v.diplomePrepare.trim() || undefined,
+    encadrantAcademique: v.encadrantAcademique.trim() || undefined,
+    dateDebut: v.dateDebut,
+    dateFin: v.dateFin,
+  };
+  async function envoyer() {
+    setEnCours(true);
+    setErreur(null);
+    try {
+      if (mode === 'existant') {
+        onCreated(await creerStage({ stagiaireId: v.stagiaireId, ...stage }));
+      } else {
+        const r = await creerStageNouveauStagiaire({ prenom: v.prenom.trim(), nom: v.nom.trim(), email: v.email.trim(), telephone: v.telephone.trim() || undefined, ...stage });
+        onCreated('periodes' in r ? r : null, v.email.trim().toLowerCase());
+      }
+    } catch (err) {
+      setErreur(messageErreur(err, 'Création impossible'));
+    } finally {
+      setEnCours(false);
+    }
+  }
+  const nouveau = mode === 'nouveau';
   return (
     <FenetreFormulaire
-      titre="Nouveau stage"
-      sousTitre="Le compte du stagiaire est créé auparavant (administrateur, ou import Excel avec le rôle Stagiaire)."
+      titre={seulementNouveau ? 'Nouveau stagiaire' : 'Nouveau stage'}
+      sousTitre={nouveau ? 'Le compte est créé avec le rôle Stagiaire, en même temps que le stage.' : 'Choisissez un compte Stagiaire existant, ou créez le compte du stagiaire.'}
       onClose={onClose}
-      onSubmit={() =>
-        lancer(
-          () =>
-            creerStage({
-              ...v,
-              etablissement: v.etablissement.trim(),
-              diplomePrepare: v.diplomePrepare.trim() || undefined,
-              encadrantAcademique: v.encadrantAcademique.trim() || undefined,
-            }),
-          'Création impossible',
-        )
-      }
+      onSubmit={envoyer}
       valider={() => ({
         ...finApresDebut(v.dateDebut, v.dateFin, 'ns-fin'),
         ...(v.etablissement.trim() && v.etablissement.trim().length < 2 ? { 'ns-etab': 'Le nom est trop court.' } : {}),
       })}
-      libelleValider="Créer le stage"
+      libelleValider={nouveau ? 'Créer le compte et le stage' : 'Créer le stage'}
       enCours={enCours}
-      erreur={erreurListe ?? erreur}
-      pied="Vous ajoutez ensuite les périodes : chaque unité d’accueil accepte la sienne et désigne le tuteur."
+      erreur={(nouveau ? null : erreurListe) ?? erreur}
+      pied={
+        nouveau
+          ? 'Le stagiaire reçoit un email « Choisir mon mot de passe » (lien valable 7 jours). Son compte est désactivé automatiquement le lendemain de la fin du stage.'
+          : 'Vous ajoutez ensuite les périodes : chaque unité d’accueil accepte la sienne et désigne le tuteur.'
+      }
     >
-      <SelecteurPersonnes
-        id="ns-stagiaire"
-        label="Stagiaire"
-        multiple={false}
-        required
-        messageObligatoire="Choisissez le stagiaire."
-        placeholder={candidats ? (candidats.length ? 'Rechercher un stagiaire…' : 'Aucun compte stagiaire disponible') : 'Chargement des stagiaires…'}
-        options={(candidats ?? []).map((c) => ({ id: c.id, nom: nomComplet(c), detail: c.email }))}
-        valeurs={v.stagiaireId ? [v.stagiaireId] : []}
-        onChange={(ids) => set('stagiaireId')(ids[0] ?? '')}
-      />
+      {!seulementNouveau && (
+        <ChoixSegment<'existant' | 'nouveau'>
+          id="ns-mode"
+          label="Stagiaire"
+          options={[
+            { value: 'existant', label: 'Compte existant' },
+            { value: 'nouveau', label: 'Nouveau stagiaire (créer le compte)' },
+          ]}
+          value={mode}
+          onChange={setMode}
+        />
+      )}
+      {nouveau ? (
+        <Grille2>
+          <Saisie id="ns-prenom" label="Prénom" value={v.prenom} onChange={set('prenom')} required maxLength={100} />
+          <Saisie id="ns-nom" label="Nom" value={v.nom} onChange={set('nom')} required maxLength={100} />
+          <Saisie id="ns-email" label="Adresse e-mail" type="email" value={v.email} onChange={set('email')} required maxLength={200} messageObligatoire="Indiquez l’adresse e-mail du stagiaire." />
+          <Saisie id="ns-tel" label="Téléphone" type="tel" facultatif value={v.telephone} onChange={set('telephone')} maxLength={40} />
+        </Grille2>
+      ) : (
+        <SelecteurPersonnes
+          id="ns-stagiaire"
+          label="Compte du stagiaire"
+          multiple={false}
+          required
+          messageObligatoire="Choisissez le stagiaire."
+          placeholder={candidats ? (candidats.length ? 'Rechercher un stagiaire…' : 'Aucun compte stagiaire disponible') : 'Chargement des stagiaires…'}
+          options={(candidats ?? []).map((c) => ({ id: c.id, nom: nomComplet(c), detail: c.email }))}
+          valeurs={v.stagiaireId ? [v.stagiaireId] : []}
+          onChange={(ids) => set('stagiaireId')(ids[0] ?? '')}
+        />
+      )}
       <Saisie id="ns-etab" label="Établissement d’origine" value={v.etablissement} onChange={set('etablissement')} required maxLength={200} />
       <Grille2>
         <Saisie id="ns-diplome" label="Diplôme préparé" facultatif value={v.diplomePrepare} onChange={set('diplomePrepare')} maxLength={200} />

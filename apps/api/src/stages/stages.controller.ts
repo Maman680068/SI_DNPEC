@@ -13,6 +13,7 @@ import {
   AccepterPeriodeDto,
   CapaciteDto,
   CreerStageDto,
+  NouveauStagiaireDto,
   EvaluationDto,
   FormatEvaluationDto,
   ModifierPeriodeDto,
@@ -95,6 +96,12 @@ export class StagesController {
   @Post()
   creer(@CurrentUser() actor: AuthenticatedUser, @Body() dto: CreerStageDto) {
     return this.stages.creer(actor, dto);
+  }
+
+  // Lot « Accès des stagiaires » : compte (rôle Stagiaire seulement) et stage en une opération.
+  @Post('nouveau-stagiaire')
+  creerAvecNouveauStagiaire(@CurrentUser() actor: AuthenticatedUser, @Body() dto: NouveauStagiaireDto) {
+    return this.stages.creerAvecNouveauStagiaire(actor, dto);
   }
 
   // Encadreur principal et rapport de stage (socle N3, SIG-RF-STG-05/11).
