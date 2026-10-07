@@ -48,7 +48,7 @@ const sansDefilementHorizontal = (p) => p.evaluate(() => document.documentElemen
   // Refonte (étape 8) : rubriques à gauche avec leur nombre de paramètres, lignes de la rubrique choisie à droite,
   // champ avec unité, « Enregistrer » en haut de page.
   const rubriques = await p.getByTestId('rubrique-parametres').allInnerTexts();
-  check('6 paramètres répartis en rubriques (Congés, Personnel et RH, Sécurité)', rubriques.reduce((n, t) => n + Number(t.match(/(\d+)\s*$/)?.[1] ?? 0), 0) === 6 && /^Congés/.test(rubriques[0]) && rubriques.some((t) => /^Sécurité/.test(t)), rubriques.join(' | '));
+  check('8 paramètres répartis en rubriques (Congés, Personnel et RH, Sécurité, Modélisation)', rubriques.reduce((n, t) => n + Number(t.match(/(\d+)\s*$/)?.[1] ?? 0), 0) === 8 && /^Congés/.test(rubriques[0]) && rubriques.some((t) => /^Sécurité/.test(t)) && rubriques.some((t) => /^Modélisation\s*2$/.test(t)), rubriques.join(' | '));
   check('« Enregistrer » inactif tant que rien n’est modifié', await p.getByTestId('enregistrer-parametres').isDisabled());
   await p.getByTestId('rubrique-parametres').filter({ hasText: 'Sécurité' }).click();
   const conservation = p.locator('[data-cle="connexions.conservationMois"]');
@@ -68,7 +68,7 @@ const sansDefilementHorizontal = (p) => p.evaluate(() => document.documentElemen
   const ongletSupervision = await p.getByRole('tab', { name: /Supervision/ }).innerText();
   await p.getByRole('tab', { name: /Supervision/ }).click();
   await p.locator('[data-testid=service]').first().waitFor();
-  check('supervision : 9 services (dont espace disque, taille de la base, quota d’emails, fonction et rôle des comptes), base « fonctionne normalement », emails « à traiter » (sans serveur d’envoi)', (await p.locator('[data-testid=service]').count()) === 9 && (await p.locator('[data-testid=services-normaux] [data-cle=base]').count()) === 1 && (await p.locator('[data-testid=services-a-traiter] [data-cle=email]').count()) === 1);
+  check('supervision : 11 services (dont espace disque, taille de la base, quota d’emails, fonction et rôle des comptes, service de calcul, paquets de modèles), base « fonctionne normalement », emails « à traiter » (sans serveur d’envoi)', (await p.locator('[data-testid=service]').count()) === 11 && (await p.locator('[data-testid=services-normaux] [data-cle=base]').count()) === 1 && (await p.locator('[data-testid=services-a-traiter] [data-cle=email]').count()) === 1);
   const aTraiterApi = (await call('admin', 'GET', '/api/v1/supervision')).body.services.filter((x) => x.etat !== 'NOMINAL').length;
   check(`onglet « Supervision » : compteur ${aTraiterApi} (services à traiter)`, aTraiterApi === 0 ? !/\d/.test(ongletSupervision) : new RegExp(`Supervision\\s*${aTraiterApi}$`).test(ongletSupervision.trim()), ongletSupervision);
   check(`bandeau d’état : « ${aTraiterApi} point(s) » = services à traiter de l’API`, (await p.locator('[data-testid=services-a-traiter] [data-testid=service]').count()) === aTraiterApi && new RegExp(`^${aTraiterApi} points? demande`).test(await p.getByTestId('etat-global').locator('b').innerText()));

@@ -99,7 +99,8 @@ function probleme(lien, { redirectionPermise = false } = {}) {
 
   console.log('— 1. Liens écrits dans le code de l’API');
   const statiques = [];
-  for (const f of fichiers(E.API_SRC, (p) => p.endsWith('.ts'))) {
+  // Le client du service de calcul (lot B1) appelle un autre service (/sante, /executer…) : pas des liens vers le web.
+  for (const f of fichiers(E.API_SRC, (p) => p.endsWith('.ts') && !p.endsWith(path.join('modelisation', 'calcul.client.ts')))) {
     const lignes = fs.readFileSync(f, 'utf8').split('\n');
     lignes.forEach((l, i) => {
       const ou = `${path.relative(E.RACINE, f)}:${i + 1}`;

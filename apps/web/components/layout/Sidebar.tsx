@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   ArrowLeftRight,
+  Boxes,
   Building2,
   CalendarDays,
   ChevronDown,
@@ -97,7 +98,10 @@ const AIDE: NavItem = { icone: CircleHelp, label: 'Aide', href: '/aide' };
  * (gestion complète) et DN/DNA (lecture seule — voir app/(app)/users/page.tsx) ; « Agents » pour le
  * DRH et le gestionnaire RH.
  */
-export function navigationPour(role: string | undefined, rolesFonctionnels: string[] = []): { groupes: NavGroup[]; plus: NavItem[]; aide: NavItem } {
+/** Domaine B (lot B1) : groupe « Modélisation », montré quand l'API l'ouvre (rôle de modélisation ou administrateur). */
+const GROUPE_MODELISATION: NavGroup = { label: 'Modélisation', items: [{ icone: Boxes, label: 'Modèles', href: '/modelisation', compteur: 'modelisation' }] };
+
+export function navigationPour(role: string | undefined, rolesFonctionnels: string[] = [], modelisation = false): { groupes: NavGroup[]; plus: NavItem[]; aide: NavItem } {
   if (estStagiaire(role)) {
     return {
       groupes: NAV_GROUPS.map((g) => ({ ...g, items: g.items.filter((i) => NAVIGATION_STAGIAIRE.includes(i.href)) })).filter((g) => g.items.length > 0),
@@ -134,7 +138,7 @@ export function navigationPour(role: string | undefined, rolesFonctionnels: stri
     // Réglages des stages (capacités, modèle d'attestation), jamais leur contenu.
     plus.push({ icone: GraduationCap, label: 'Stages (réglages)', href: '/stages/parametres' });
   }
-  return { groupes: NAV_GROUPS, plus, aide: AIDE };
+  return { groupes: modelisation ? [NAV_GROUPS[0]!, GROUPE_MODELISATION, ...NAV_GROUPS.slice(1)] : NAV_GROUPS, plus, aide: AIDE };
 }
 
 /** Titre de la page affiché dans la barre du haut : l'entrée du menu la plus précise. */
@@ -142,10 +146,10 @@ const TITRES_HORS_MENU: Record<string, string> = {
   '/recherche': 'Recherche',
   '/compte': 'Mon profil',
 };
-export function titrePage(pathname: string | null, role: string | undefined, rolesFonctionnels: string[] = []): string {
+export function titrePage(pathname: string | null, role: string | undefined, rolesFonctionnels: string[] = [], modelisation = false): string {
   if (!pathname) return '';
   if (TITRES_HORS_MENU[pathname]) return TITRES_HORS_MENU[pathname];
-  const { groupes, plus, aide } = navigationPour(role, rolesFonctionnels);
+  const { groupes, plus, aide } = navigationPour(role, rolesFonctionnels, modelisation);
   const items = [...groupes.flatMap((g) => g.items), ...plus, aide];
   const actif = lienActif(items, pathname);
   return items.find((i) => i.href === actif)?.label ?? '';
@@ -204,7 +208,7 @@ export function Sidebar({ open = false, onClose }: { open?: boolean; onClose?: (
   const { user, logout } = useAuth();
   const { navigation } = useNavigation();
   const pathname = usePathname();
-  const { groupes, plus, aide } = navigationPour(user?.role, user?.rolesFonctionnels);
+  const { groupes, plus, aide } = navigationPour(user?.role, user?.rolesFonctionnels, navigation?.modelisation);
   const actif = lienActif([...groupes.flatMap((g) => g.items), ...plus, aide], pathname);
   const plusActif = plus.some((i) => i.href === actif);
   const [plusOuvert, setPlusOuvert] = useState(false);

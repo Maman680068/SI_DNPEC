@@ -1,4 +1,4 @@
-# Matrice des habilitations — état N6
+# Matrice des habilitations — état N6 et domaine B (lot B1)
 
 Généré par `tests/e2e/api/n1_matrice.js` (annexe 1 du cahier NIMBA v2.2). « ÉCART » : comportement actuel conservé en N1 et vérifié tel quel.
 
@@ -317,6 +317,44 @@ Généré par `tests/e2e/api/n1_matrice.js` (annexe 1 du cahier NIMBA v2.2). « 
 | Tableau de bord par rôle | Assistant DN | lire le sien | L (chacun, jamais plus que ses écrans) | accès | CONFORME |
 | Véhicule de service | Administrateur | lire le parc | L (tous) | accès | CONFORME |
 | Tableau de bord par rôle | Administrateur | lire le sien | L (chacun, jamais plus que ses écrans) | accès | CONFORME |
+| Référentiel des modèles | DN | lire (sans rôle de modélisation) | — (rang sans droit) | refus (403) | CONFORME |
+| Version de modèle | DN | déposer (droit contrôlé avant le paquet) | — | refus (403) | CONFORME |
+| Rôle de modélisation | DN | lire les rôles d’une personne | L (administrateur, DN, DNA) | accès | CONFORME |
+| Rôle de modélisation | DN | attribuer « analyste » | — | refus (403) | CONFORME |
+| Référentiel des modèles | DNA | lire (sans rôle de modélisation) | — (rang sans droit) | refus (403) | CONFORME |
+| Version de modèle | DNA | déposer (droit contrôlé avant le paquet) | — | refus (403) | CONFORME |
+| Rôle de modélisation | DNA | lire les rôles d’une personne | L (administrateur, DN, DNA) | accès | CONFORME |
+| Rôle de modélisation | DNA | attribuer « analyste » | — | refus (403) | CONFORME |
+| Référentiel des modèles | Chef de division | lire (sans rôle de modélisation) | — (rang sans droit) | refus (403) | CONFORME |
+| Version de modèle | Chef de division | déposer (droit contrôlé avant le paquet) | — | refus (403) | CONFORME |
+| Rôle de modélisation | Chef de division | lire les rôles d’une personne | — | refus (403) | CONFORME |
+| Rôle de modélisation | Chef de division | attribuer « analyste » | — | refus (403) | CONFORME |
+| Référentiel des modèles | Chef de section | lire (sans rôle de modélisation) | — (rang sans droit) | refus (403) | CONFORME |
+| Version de modèle | Chef de section | déposer (droit contrôlé avant le paquet) | — | refus (403) | CONFORME |
+| Rôle de modélisation | Chef de section | lire les rôles d’une personne | — | refus (403) | CONFORME |
+| Rôle de modélisation | Chef de section | attribuer « analyste » | — | refus (403) | CONFORME |
+| Référentiel des modèles | Agent | lire (sans rôle de modélisation) | — (rang sans droit) | refus (403) | CONFORME |
+| Version de modèle | Agent | déposer (droit contrôlé avant le paquet) | — | refus (403) | CONFORME |
+| Rôle de modélisation | Agent | lire les rôles d’une personne | — | refus (403) | CONFORME |
+| Rôle de modélisation | Agent | attribuer « analyste » | — | refus (403) | CONFORME |
+| Référentiel des modèles | DRH | lire (sans rôle de modélisation) | — (rang sans droit) | refus (403) | CONFORME |
+| Version de modèle | DRH | déposer (droit contrôlé avant le paquet) | — | refus (403) | CONFORME |
+| Rôle de modélisation | DRH | lire les rôles d’une personne | — | refus (403) | CONFORME |
+| Rôle de modélisation | DRH | attribuer « analyste » | — | refus (403) | CONFORME |
+| Référentiel des modèles | Chef SAF | lire (sans rôle de modélisation) | — (rang sans droit) | refus (403) | CONFORME |
+| Version de modèle | Chef SAF | déposer (droit contrôlé avant le paquet) | — | refus (403) | CONFORME |
+| Rôle de modélisation | Chef SAF | lire les rôles d’une personne | — | refus (403) | CONFORME |
+| Rôle de modélisation | Chef SAF | attribuer « analyste » | — | refus (403) | CONFORME |
+| Référentiel des modèles | Assistant DN | lire (sans rôle de modélisation) | — (rang sans droit) | refus (403) | CONFORME |
+| Version de modèle | Assistant DN | déposer (droit contrôlé avant le paquet) | — | refus (403) | CONFORME |
+| Rôle de modélisation | Assistant DN | lire les rôles d’une personne | — | refus (403) | CONFORME |
+| Rôle de modélisation | Assistant DN | attribuer « analyste » | — | refus (403) | CONFORME |
+| Référentiel des modèles | Administrateur | lire (sans rôle de modélisation) | L (administrateur des modèles) | accès | CONFORME |
+| Version de modèle | Administrateur | déposer (droit contrôlé avant le paquet) | C (administrateur) | accès | CONFORME |
+| Rôle de modélisation | Administrateur | lire les rôles d’une personne | L (administrateur, DN, DNA) | accès | CONFORME |
+| Rôle de modélisation | Administrateur | attribuer « analyste » | C (administrateur) | accès | CONFORME |
+| Exécution d’un modèle | Administrateur | lancer une simulation | — (il ne voit jamais les chiffres) | refus (403) | CONFORME |
+| Exécution d’un modèle | DN | lancer une simulation (sans rôle d’analyste) | — (rang sans droit) | refus (403) | CONFORME |
 
 ## Écarts conservés en N1
 
@@ -328,7 +366,7 @@ Généré par `tests/e2e/api/n1_matrice.js` (annexe 1 du cahier NIMBA v2.2). « 
 ## Objets livrés par un lot ultérieur (non joués en N1)
 
 - Campagne et bulletin de paie, élément de rémunération, ordre de paiement : hors périmètre (D5, finances SAF)
-- Objets du domaine modélisation (annexe 1.3) : hors périmètre (domaine B)
+- Simulations, scénarios, diffusion (annexe 1.3) : domaine B, lots suivants (B1 livre le référentiel des modèles, joué ci-dessous)
 
 Les autres objets déjà en service (tâche, réunion, décision, courrier, document, annonce, stage) restent
 couverts par leurs suites existantes (`a*`, `b*`, `c*`, `d*`) ; ils seront rejoués dans cette matrice lorsqu’ils

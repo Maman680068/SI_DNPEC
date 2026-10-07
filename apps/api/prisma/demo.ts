@@ -8,7 +8,7 @@
  * est annulé, réformé ou désactivé (liste exacte affichée).
  *
  * Marques : unités et contenus « TEST — … », comptes @demo.dnpec.test, registres TEST-ARR /
- * TEST-DEP, catégories TST / TSF, ressources et article d'identifiant « demo-… ».
+ * TEST-DEP, catégories TST / TSF, ressources et article d'identifiant « demo-… », modèle TEST_DEMONSTRATION.
  * Garde-fous : aucune notification vers un compte réel (filtrée ici), aucun email vers le
  * domaine de démonstration (bloqué dans EmailService), aucun fichier écrit dans le stockage
  * (les pièces pointent vers apps/api/assets/demo-document-dnpec.pdf, « integre: »).
@@ -84,10 +84,19 @@ import { DOMAINE_DEMO, DUREE_DEMO_JOURS, ENTITE_AUDIT_DEMO, PREFIXE_DEMO, estAdr
 import { verifierMigrations } from './verifier-migrations';
 import { rolesActifs } from '../src/socle/roles-fonctionnels';
 import { ReprisesN1Service } from '../src/socle/reprise-n1.service';
+import { ModelesService } from '../src/modelisation/modeles.service';
+import { AffectationsModelisationService } from '../src/modelisation/affectations.service';
+import { TravauxCalculService } from '../src/modelisation/travaux.service';
+import { CalculClient } from '../src/modelisation/calcul.client';
+import { cheminIntegre } from '../src/common/storage/fichiers-integres';
+import { readFile } from 'fs/promises';
 
 const T = PREFIXE_DEMO; // « TEST — »
 const IMMATRICULATION_DEMO = 'TEST 0001 DM'; // véhicule de démonstration (N6)
 const FICHIER_DEMO = 'demo-document-dnpec.pdf';
+/** Domaine B (lot B1) : paquet factice livré avec l'application (apps/api/assets, source apps/calcul/exemples). */
+const PAQUET_DEMO = 'paquet-demonstration.zip';
+const CODE_MODELE_DEMO = 'TEST_DEMONSTRATION';
 const J = 24 * 3600 * 1000;
 
 // ---------------------------------------------------------------------------
@@ -856,6 +865,55 @@ async function logistique(ctx: Ctx) {
 // ---------------------------------------------------------------------------
 // Suppression
 // ---------------------------------------------------------------------------
+/**
+ * Domaine B (lot B1) : modèle « TEST — Modèle de démonstration » (paquet factice, valeurs fictives), responsable,
+ * suppléant et deux analystes de démonstration. Le dépôt passe par le vrai service ; il est fait par le compte
+ * technique de la démonstration avec la position d'administrateur des modèles le temps du script (aucun compte
+ * administrateur de démonstration n'existe). Service de calcul configuré (CALCUL_URL) : vérification, envoi,
+ * approbation par le responsable et une simulation ; sinon la version attend en file et l'API la vérifie.
+ */
+async function modelisation(ctx: Ctx) {
+  const { prisma, app, u } = ctx;
+  await bloc(
+    `Modèle « ${T}Modèle de démonstration » (domaine B)`,
+    async () => (await prisma.modele.count({ where: { code: CODE_MODELE_DEMO } })) > 0,
+    async () => {
+      const modeles = app.get(ModelesService);
+      const affectations = app.get(AffectationsModelisationService);
+      const travaux = app.get(TravauxCalculService);
+      const calcul = app.get(CalculClient);
+      const admin: AuthenticatedUser = { ...(await acteur(prisma, u.systeme!.id)), role: SystemRole.ADMIN_SYSTEME };
+      const storage = app.get(StorageService);
+      const save = storage.save;
+      (storage as { save: StorageService['save'] }).save = async (buffer: Buffer) => ({ fileKey: `${PREFIXE_INTEGRE}${PAQUET_DEMO}`, sizeBytes: buffer.length });
+      // Sans service de calcul : la file reste à l'API de production (rien n'est tenté depuis ce script).
+      if (!calcul.configure) (travaux as { traiterFile: () => Promise<number> }).traiterFile = async () => 0;
+      try {
+        const zip = await readFile(cheminIntegre(`${PREFIXE_INTEGRE}${PAQUET_DEMO}`));
+        const v = await modeles.deposer(admin, { buffer: zip, originalname: `${PAQUET_DEMO}`, size: zip.length }, 'true');
+        const motif = 'Démonstration de la plateforme (valeurs fictives)';
+        await affectations.attribuer(admin, { userId: u.chefDivision!.id, role: 'RESPONSABLE', modeleId: v.modele.id, motif });
+        await affectations.attribuer(admin, { userId: u.chefSection1!.id, role: 'SUPPLEANT', modeleId: v.modele.id, motif });
+        for (const a of [u.agent1!, u.agent2!]) await affectations.attribuer(admin, { userId: a.id, role: 'ANALYSTE', motif });
+        if (calcul.configure) {
+          for (let i = 0; i < 40 && (await modeles.detailVersion(admin, v.id)).statut === 'DEPOSEE'; i++) {
+            await travaux.traiterFile();
+            await new Promise((r) => setTimeout(r, 500));
+          }
+          if ((await modeles.detailVersion(admin, v.id)).statut === 'CONTROLEE') {
+            await modeles.envoyer(admin, v.id);
+            await modeles.approuver(await acteur(prisma, u.chefDivision!.id), v.id);
+            await modeles.executer(await acteur(prisma, u.agent1!.id), v.modele.id, { mode: 'dynamique', chocs: [{ manette: 'prix_petrole', valeur: 20, annees: [2026] }] });
+            await travaux.traiterFile();
+          }
+        }
+      } finally {
+        (storage as { save: StorageService['save'] }).save = save;
+      }
+    },
+  );
+}
+
 async function supprimer(prisma: PrismaClient) {
   const demo = await prisma.user.findMany({ where: { email: { endsWith: `@${DOMAINE_DEMO}` } }, select: { id: true, email: true, status: true } });
   const U = demo.map((d) => d.id);
@@ -979,6 +1037,22 @@ async function supprimer(prisma: PrismaClient) {
     conserve('Registres TEST-ARR, TEST-DEP', 'désactivés (les courriers annulés y restent rattachés)');
   }
   n('Habilitations courrier', await prisma.habilitationCourrier.deleteMany({ where: { userId: { in: U } } }));
+  // Domaine B (lot B1) : modèle de démonstration, ses versions (immuables : verrou levé dans cette seule
+  // transaction), ses travaux de calcul et les rôles de modélisation des comptes de démonstration.
+  const M = (await prisma.modele.findMany({ where: { code: CODE_MODELE_DEMO }, select: { id: true } })).map((m) => m.id);
+  const [tr, af, ve, mo] = await prisma.$transaction(async (tx) => {
+    await tx.$executeRawUnsafe(`SET LOCAL dnpec.suppression_demonstration = 'oui'`);
+    return [
+      await tx.travailCalcul.deleteMany({ where: { OR: [{ version: { modeleId: { in: M } } }, { demandeurId: { in: U } }] } }),
+      await tx.affectationModelisation.deleteMany({ where: { OR: [{ modeleId: { in: M } }, { userId: { in: U } }] } }),
+      await tx.versionModele.deleteMany({ where: { modeleId: { in: M } } }),
+      await tx.modele.deleteMany({ where: { id: { in: M } } }),
+    ];
+  });
+  n('Travaux de calcul', tr);
+  n('Rôles de modélisation', af);
+  n('Versions de modèle', ve);
+  n('Modèles', mo);
   // Socle N1 : rôles fonctionnels retirés (recréés par la reprise à la relance) ; agents « Parti »,
   // conservés comme les comptes (la reprise recrée un agent pour tout compte non en attente).
   n('Rôles fonctionnels', await prisma.attributionRole.deleteMany({ where: { userId: { in: U } } }));
@@ -1081,6 +1155,7 @@ async function main() {
         await courrier(ctx);
         await stage(ctx);
         await ressourcesHumaines(ctx);
+        await modelisation(ctx);
         console.log(
           directionReelle
             ? `\nVue Direction : compte RÉEL ${directionReelle.email} (${directionReelle.role}) — aucun DN de démonstration créé.`

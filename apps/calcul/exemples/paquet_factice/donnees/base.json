@@ -1,0 +1,8 @@
+{
+  "consommation_privee": 120.0,
+  "consommation_publique": 30.0,
+  "investissement": 45.0,
+  "exportations": { "bauxite": 60.0, "or": 25.0 },
+  "importations_hors_petrole": 55.0,
+  "importations_petrole": 20.0
+}

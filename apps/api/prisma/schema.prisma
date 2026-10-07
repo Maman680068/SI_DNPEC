@@ -3195,3 +3195,155 @@ model PleinCarburant {
   @@index([vehiculeId, date])
   @@map("pleins_carburant")
 }
+
+// ---------------------------------------------------------------------------------------------
+// Domaine B, lot B1 — référentiel des modèles et dépôt par paquet (format « dnpec-modele/1 »).
+// Tables nouvelles pointant vers les anciennes (comptes par identifiant), jamais l'inverse.
+// Retour arrière : prisma/retour-arriere/b1_down.sql.
+// ---------------------------------------------------------------------------------------------
+
+enum StatutVersionModele {
+  DEPOSEE // paquet reçu, vérification automatique en attente ou en cours
+  CONTROLEE // contrôles de dépôt faits : l'administrateur règle les manettes
+  EN_ATTENTE // envoyée au responsable du modèle (approbation)
+  ACTIVE // seule version qui fait foi (une par modèle)
+  REFUSEE // refusée par le responsable (motif)
+  ARCHIVEE // ancienne version active, remplacée ; reste consultable
+
+  @@map("statut_version_modele")
+}
+
+enum RoleModelisation {
+  ANALYSTE // attribué par l'administrateur, sans modèle
+  RESPONSABLE // d'un modèle, désigné par l'administrateur, le DN ou la DNA
+  SUPPLEANT // du responsable d'un modèle
+
+  @@map("role_modelisation")
+}
+
+enum TypeTravailCalcul {
+  VERIFICATION
+  EXECUTION
+
+  @@map("type_travail_calcul")
+}
+
+enum StatutTravailCalcul {
+  EN_FILE
+  EN_COURS
+  TERMINE
+  ECHEC
+
+  @@map("statut_travail_calcul")
+}
+
+/// Modèle du référentiel ; créé au dépôt de sa première version (code lu dans modele.json).
+model Modele {
+  id             String   @id @default(cuid())
+  code           String   @unique
+  nom            String
+  famille        String
+  familleLibelle String?
+  description    String?
+  creeParId      String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  versions     VersionModele[]
+  affectations AffectationModelisation[]
+
+  @@map("modeles")
+}
+
+/// Version déposée d'un modèle : paquet immuable (empreinte SHA-256, déclencheur en base).
+model VersionModele {
+  id                String              @id @default(cuid())
+  modeleId          String
+  modele            Modele              @relation(fields: [modeleId], references: [id])
+  numero            Int
+  empreinte         String
+  fileKey           String
+  nomFichier        String
+  tailleOctets      Int
+  /// modele.json validé au dépôt (format dnpec-modele/1).
+  fiche             Json
+  statut            StatutVersionModele @default(DEPOSEE)
+  /// Contrôles de dépôt renvoyés par le service de calcul (valeurs techniques).
+  controles         Json?
+  controleLe        DateTime?
+  /// Réglage des manettes par l'administrateur (étape 3) : [{ id, actif, min, max }] — jamais dans le zip.
+  manettes          Json
+  /// Compteurs proposés aux analystes : [{ id, actif }].
+  compteurs         Json
+  /// Dérogations sur des contrôles bloquants en échec : demandées par le responsable, confirmées par l'administrateur.
+  derogations       Json                @default("[]")
+  avecDerogation    Boolean             @default(false)
+  /// Case « Je confirme que les données de ce paquet sont publiées ou autorisées pour cet hébergement ».
+  donneesConfirmees Boolean
+  auteurId          String
+  envoyeParId       String?
+  envoyeLe          DateTime?
+  approbateurId     String?
+  approuveLe        DateTime?
+  refuseParId       String?
+  refuseLe          DateTime?
+  motifRefus        String?
+  activeLe          DateTime?
+  archiveLe         DateTime?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  travaux TravailCalcul[]
+
+  @@unique([modeleId, numero])
+  @@unique([modeleId, empreinte])
+  @@index([statut])
+  @@map("versions_modele")
+}
+
+/// Rôle de modélisation (le rang ne donne aucun droit) : analyste, responsable ou suppléant d'un modèle.
+/// Personnel : jamais emprunté en intérim. Historique conservé (fin datée, motivée).
+model AffectationModelisation {
+  id            String           @id @default(cuid())
+  userId        String
+  role          RoleModelisation
+  modeleId      String?
+  modele        Modele?          @relation(fields: [modeleId], references: [id])
+  attribueParId String
+  motif         String
+  debut         DateTime         @default(now())
+  fin           DateTime?
+  finParId      String?
+  motifFin      String?
+
+  @@index([userId])
+  @@index([modeleId])
+  @@map("affectations_modelisation")
+}
+
+/// File de travaux du service de calcul (vérification d'un paquet, exécution d'un scénario).
+/// Reprise si le service dort ou ne répond pas : nouvel essai à prochaineTentativeLe.
+model TravailCalcul {
+  id                   String              @id @default(cuid())
+  type                 TypeTravailCalcul
+  statut               StatutTravailCalcul @default(EN_FILE)
+  /// Étape affichée : REVEIL (« Réveil du service de calcul… ») puis CALCUL (« Calcul en cours… »).
+  etape                String?
+  versionId            String
+  version              VersionModele       @relation(fields: [versionId], references: [id])
+  demandeurId          String
+  scenario             Json?
+  /// Résultat d'une exécution (chiffres économiques) : lu par le demandeur seul, jamais par l'administrateur.
+  resultat             Json?
+  message              String?
+  tentatives           Int                 @default(0)
+  prochaineTentativeLe DateTime            @default(now())
+  enFileLe             DateTime            @default(now())
+  debuteLe             DateTime?
+  termineLe            DateTime?
+  dureeMs              Int?
+
+  @@index([statut, prochaineTentativeLe])
+  @@index([versionId])
+  @@map("travaux_calcul")
+}

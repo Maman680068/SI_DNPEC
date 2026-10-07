@@ -1,0 +1,6 @@
+# Tests du service et suite de bout en bout (paquet factice en Python pur : ni IPOPT ni pyomo).
+fastapi==0.142.2
+uvicorn==0.54.0
+python-multipart==0.0.32
+httpx==0.28.1
+pytest==9.1.1

@@ -46,7 +46,7 @@ const GRAVES = ['serious', 'critical'];
   await plus.click();
   const menu = p.getByRole('menu');
   await menu.waitFor();
-  check('menu : « Nommer chef de cellule », « Changer de rôle »', (await menu.getByRole('menuitem').allInnerTexts()).join('|') === 'Nommer chef de cellule|Changer de rôle');
+  check('menu : « Nommer chef de cellule », « Changer de rôle », « Rôles de modélisation »', (await menu.getByRole('menuitem').allInnerTexts()).join('|') === 'Nommer chef de cellule|Changer de rôle|Rôles de modélisation');
   check('premier choix mis au point', await menu.getByRole('menuitem').first().evaluate((x) => x === document.activeElement));
   await p.screenshot({ path: `${E.SHOTS}/w_menu_actions_bureau.png` });
   const axe = await new AxeBuilder({ page: p }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();

@@ -66,6 +66,20 @@ async function capture(b, compte, url, fichier, attendre) {
     await call('chefdpe', 'GET', `/api/v1/instructions/${ins.id}`);
     await call('chefdpe', 'POST', `/api/v1/instructions/${ins.id}/prise-en-compte`);
   }
+  // Domaine B (lot B1) : un modèle actif (approuvé avec dérogation par les suites) et un dépôt vérifié pas encore
+  // envoyé (pour la fenêtre de dépôt) ; à défaut, dépôt du paquet factice (service de calcul local requis).
+  const modeleActif = await prisma.modele.findFirst({ where: { versions: { some: { statut: 'ACTIVE' } }, affectations: { some: { fin: null, role: 'RESPONSABLE' } } }, orderBy: { createdAt: 'desc' }, include: { affectations: { where: { fin: null, role: 'RESPONSABLE' } } } });
+  let depot = await prisma.versionModele.findFirst({ where: { statut: 'CONTROLEE' }, orderBy: { createdAt: 'desc' } });
+  if (!depot) {
+    const zip = path.join(E.OUT, 'tmp', 'paquet-aide.zip');
+    require('child_process').execFileSync(process.env.CALCUL_PYTHON || 'python3', [path.join(E.RACINE, 'apps/calcul/exemples/construire_paquet.py'), path.join(E.RACINE, 'apps/calcul/exemples/paquet_factice'), zip, '--fiche', JSON.stringify({ code: 'TEST_AIDE', nom: 'TEST — Modèle de l’aide' })]);
+    const fd = new FormData();
+    fd.append('donneesConfirmees', 'true');
+    fd.append('paquet', new Blob([require('fs').readFileSync(zip)], { type: 'application/zip' }), 'TEST_modele-aide.zip');
+    const { login } = require('../lib');
+    const v = await (await fetch('http://localhost:3000/api/v1/modeles/versions', { method: 'POST', headers: { Authorization: 'Bearer ' + (await login('admin')) }, body: fd })).json();
+    for (let i = 0; i < 120 && (depot = await prisma.versionModele.findUnique({ where: { id: v.id } }))?.statut === 'DEPOSEE'; i++) await new Promise((r) => setTimeout(r, 500));
+  }
   const b = await browser();
   const titre = (t) => async (p) => p.getByRole('heading', { name: t }).first().waitFor();
   await capture(b, null, '/login', 'connexion.png', async (p) => p.getByLabel('Adresse e-mail').waitFor());
@@ -103,6 +117,18 @@ async function capture(b, compte, url, fichier, attendre) {
   await capture(b, 'drh', '/rh?onglet=effectifs', 'rh-effectifs.png', async (p) => p.locator('[data-testid=effectifs]').waitFor());
   await capture(b, 'drh', '/rh?onglet=carriere', 'rh-carriere.png', async (p) => p.locator('[data-testid=familles-actes]').waitFor());
   await capture(b, 'agentsaf', '/logistique?onglet=vehicules', 'vehicules.png', async (p) => p.locator('[data-testid=vehicule]').first().waitFor());
+  await capture(b, 'admin', '/modelisation', 'modeles.png', async (p) => p.getByTestId('ligne-modele').first().waitFor());
+  if (depot?.statut === 'CONTROLEE')
+    await capture(b, 'admin', `/modelisation/${depot.modeleId}`, 'modeles-depot.png', async (p) => {
+      await p.getByRole('button', { name: 'Reprendre le dépôt' }).click();
+      await p.getByTestId('tableau-manettes').waitFor();
+      await p.getByRole('button', { name: 'Retour' }).click();
+      await p.getByTestId('fenetre-depot').getByTestId('controles').waitFor();
+    });
+  if (modeleActif) {
+    const resp = await prisma.user.findUnique({ where: { id: modeleActif.affectations[0].userId } });
+    await capture(b, resp.email.replace('@test.local', ''), `/modelisation/${modeleActif.id}`, 'modele-fiche.png', async (p) => p.getByTestId('versions').waitFor());
+  }
   if (stagiaire) await capture(b, stagiaire.email.replace('@test.local', ''), '/stages', 'mon-stage.png', async (p) => p.waitForURL('**/stages/**'));
   await b.close(); await prisma.$disconnect();
 })().catch((e) => { console.error(e); process.exit(1); });
