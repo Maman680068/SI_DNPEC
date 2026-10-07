@@ -39,8 +39,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <ToastProvider>
         <DefilementVisible />
         {/* Refonte de l'interface : menu fixe à gauche (son propre défilement), barre du haut
-         * toujours visible ; seule la page défile. La bande tricolore reste sur les pages publiques. */}
-        <div className="contraste-aa flex h-screen overflow-hidden bg-bg">
+         * toujours visible ; seule la page défile. La bande tricolore reste sur les pages publiques.
+         * `relative` (ici et sur <main>) : un élément en position absolue (texte « sr-only » des lecteurs
+         * d'écran, menu…) sans ancêtre positionné se placerait par rapport à la page entière, échapperait
+         * à overflow-hidden et ferait défiler la fenêtre, menu compris (contrôlé par x_mise_en_page_ui). */}
+        <div className="contraste-aa relative flex h-screen overflow-hidden bg-bg">
           <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
           <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
             <Topbar onMenuClick={() => setSidebarOpen(true)} />
@@ -62,7 +65,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 function InterimScopedContent({ children }: { children: React.ReactNode }) {
   const { interim } = useInterim();
   return (
-    <main key={interim?.titulaireId ?? 'self'} className="flex-1 overflow-y-auto overflow-x-hidden p-4 pb-16 md:px-7 md:pb-8 md:pt-6">
+    <main key={interim?.titulaireId ?? 'self'} className="relative flex-1 overflow-y-auto overflow-x-hidden p-4 pb-16 md:px-7 md:pb-8 md:pt-6">
       {children}
     </main>
   );
