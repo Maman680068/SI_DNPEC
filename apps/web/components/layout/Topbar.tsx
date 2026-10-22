@@ -37,7 +37,8 @@ function surligner(texte: string, q: string): ReactNode {
  * curseur), intérim, messagerie, notifications et menu « Créer ». Collante : elle est hors de la zone
  * qui défile.
  */
-export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
+export function Topbar({ onMenuClick, variante }: { onMenuClick?: () => void; variante?: 'bandeau' }) {
+  const bandeau = variante === 'bandeau';
   const { user } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
@@ -123,7 +124,7 @@ export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
   }, [recherche]);
 
   return (
-    <header className="z-30 flex h-[62px] flex-shrink-0 items-center gap-2.5 border-b border-line bg-surface px-4 md:gap-3.5 md:px-7">
+    <header className={bandeau ? 'flex h-[62px] items-center gap-3.5' : 'z-30 flex h-[62px] flex-shrink-0 items-center gap-2.5 border-b border-line bg-surface px-4 md:gap-3.5 md:px-7'}>
       <button
         onClick={onMenuClick}
         aria-label="Ouvrir le menu"
@@ -131,13 +132,15 @@ export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
       >
         <Menu aria-hidden size={20} />
       </button>
-      <div className="min-w-0 truncate text-[13.5px] font-semibold text-text md:w-[180px] md:flex-none" data-testid="titre-page">
-        {titre}
-      </div>
+      {!bandeau && (
+        <div className="min-w-0 truncate text-[13.5px] font-semibold text-text md:w-[180px] md:flex-none" data-testid="titre-page">
+          {titre}
+        </div>
+      )}
       <form
         ref={zone}
         role="search"
-        className="relative mx-auto hidden h-[38px] min-w-0 max-w-[520px] flex-1 items-center gap-2.5 rounded-[10px] border border-line bg-bg px-3 text-text-faint focus-within:border-ink md:flex"
+        className={`relative mx-auto hidden h-[38px] min-w-0 max-w-[520px] flex-1 items-center gap-2.5 rounded-[10px] border px-3 md:flex ${bandeau ? 'recherche-bandeau border-white/15 bg-white/[.08] text-[#9AA2C8] focus-within:border-white/40' : 'border-line bg-bg text-text-faint focus-within:border-ink'}`}
         onSubmit={(e) => {
           e.preventDefault();
           if (q.trim().length >= 3) voirTout();

@@ -157,7 +157,7 @@ export function titrePage(pathname: string | null, role: string | undefined, rol
 
 /** Entrée active : le lien le plus précis qui contient la page (Courrier et Courrier (administration)
  * ne s'allument jamais ensemble). */
-function lienActif(items: NavItem[], pathname: string | null): string | undefined {
+export function lienActif(items: NavItem[], pathname: string | null): string | undefined {
   return items
     .map((i) => i.href)
     .filter((h) => pathname === h || pathname?.startsWith(`${h}/`))
@@ -204,7 +204,7 @@ function Entree({ item, actif, compteurs }: { item: NavItem; actif: boolean; com
   );
 }
 
-export function Sidebar({ open = false, onClose }: { open?: boolean; onClose?: () => void }) {
+export function Sidebar({ open = false, onClose, telephoneSeulement = false }: { open?: boolean; onClose?: () => void; telephoneSeulement?: boolean }) {
   const { user, logout } = useAuth();
   const { navigation } = useNavigation();
   const pathname = usePathname();
@@ -253,7 +253,7 @@ export function Sidebar({ open = false, onClose }: { open?: boolean; onClose?: (
        * est toujours visible dans le flux normal (voir md:static). */}
       {open && <div className="fixed inset-0 z-40 bg-[rgba(18,28,77,0.45)] md:hidden" onClick={onClose} />}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex w-[240px] flex-shrink-0 flex-col bg-ink-900 text-[#C9CEE6] transition-transform duration-200 md:static md:z-auto md:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 flex w-[240px] flex-shrink-0 flex-col bg-ink-900 text-[#C9CEE6] transition-transform duration-200 ${telephoneSeulement ? 'md:hidden' : 'md:static md:z-auto md:translate-x-0'} ${
           open ? 'translate-x-0' : '-translate-x-full'
         }`}
       >

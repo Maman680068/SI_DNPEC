@@ -98,3 +98,11 @@
     @apply bg-flag-green;
   }
 }
+
+/* Menu en haut (aperçu) : icônes de la barre du haut posées sur le bandeau ink-900. */
+.bandeau-sombre .text-ink { color: #ffffff; }
+.bandeau-sombre .hover\:bg-bg:hover { background-color: rgba(255, 255, 255, 0.08); }
+.bandeau-sombre .border-white { border-color: #121c4d; }
+.bandeau-sombre .recherche-bandeau input { color: #ffffff; }
+.bandeau-sombre .recherche-bandeau input::placeholder { color: #9aa2c8; }
+.bandeau-sombre .recherche-bandeau kbd { background: transparent; border-color: rgba(255, 255, 255, 0.2); color: #b9bfdd; }

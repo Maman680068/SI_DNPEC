@@ -9,6 +9,7 @@ import { InterimProvider, useInterim } from '../../lib/interim/InterimProvider';
 import { InterimBanner } from '../../components/interim/InterimBanner';
 import { Sidebar } from '../../components/layout/Sidebar';
 import { Topbar } from '../../components/layout/Topbar';
+import { MenuHaut } from '../../components/layout/MenuHaut';
 import { ReauthProvider } from '../../lib/securite/ReauthProvider';
 import { NavigationProvider } from '../../lib/navigation/NavigationProvider';
 import { SqueletteApplication } from '../../components/ui/Squelette';
@@ -43,10 +44,16 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
          * `relative` (ici et sur <main>) : un élément en position absolue (texte « sr-only » des lecteurs
          * d'écran, menu…) sans ancêtre positionné se placerait par rapport à la page entière, échapperait
          * à overflow-hidden et ferait défiler la fenêtre, menu compris (contrôlé par x_mise_en_page_ui). */}
-        <div className="contraste-aa relative flex h-screen overflow-hidden bg-bg">
-          <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-          <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+        {/* Menu en haut (écran large) ; sur téléphone, barre du haut et tiroir du menu, inchangés. */}
+        <div className="contraste-aa relative flex h-screen flex-col overflow-hidden bg-bg">
+          <Sidebar telephoneSeulement open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+          <div className="hidden md:block">
+            <MenuHaut />
+          </div>
+          <div className="md:hidden">
             <Topbar onMenuClick={() => setSidebarOpen(true)} />
+          </div>
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
             <InterimBanner />
             <InterimScopedContent>{children}</InterimScopedContent>
           </div>
