@@ -64,6 +64,8 @@ const NAV_GROUPS: NavGroup[] = [
       // que son courrier personnel ; il en a aussi le paramétrage (Plus).
       { icone: Mail, label: 'Courrier', href: '/courrier', compteur: 'courrier' },
       { icone: Users, label: 'Annuaire', href: '/annuaire' },
+      // Boîte à suggestions : avec les échanges (fermée au stagiaire, NAVIGATION_STAGIAIRE).
+      { icone: Lightbulb, label: 'Boîte à suggestions', href: '/suggestions' },
     ],
   },
   {
@@ -93,7 +95,7 @@ const AIDE: NavItem = { icone: CircleHelp, label: 'Aide', href: '/aide' };
 
 /**
  * Entrées du menu selon le rôle (mêmes règles qu'avant la refonte) : les groupes principaux, puis
- * le groupe repliable « Plus » (dossier du personnel, RH, organisation, stagiaires, suggestions,
+ * le groupe repliable « Plus » (dossier du personnel, RH, organisation, stagiaires,
  * journal d'audit, administration…), puis l'aide. "Utilisateurs" n'apparaît que pour ADMIN_SYSTEME
  * (gestion complète) et DN/DNA (lecture seule — voir app/(app)/users/page.tsx) ; « Agents » pour le
  * DRH et le gestionnaire RH.
@@ -126,7 +128,6 @@ export function navigationPour(role: string | undefined, rolesFonctionnels: stri
   // Stages (D6) : DRH, Direction, chefs ; un tuteur y arrive par ses notifications et le tableau de bord.
   if (voitStages) plus.push({ icone: GraduationCap, label: 'Stagiaires', href: '/stages', compteur: 'stages' });
   if (SUPPLEANCE_NAV_ROLES.includes(role ?? '')) plus.push({ icone: ArrowLeftRight, label: 'Suppléances', href: '/suppleances' });
-  plus.push({ icone: Lightbulb, label: 'Boîte à suggestions', href: '/suggestions' });
   // Socle N2 : journal d'audit pour tous, dans sa portée ; paramétrage et supervision (administrateur ;
   // DN et DNA en lecture).
   plus.push({ icone: ScrollText, label: 'Journal d’audit', href: '/journal-audit' });

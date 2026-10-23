@@ -5,7 +5,7 @@
 // Finitions (étape 9) : filtres repliés derrière « Filtres (N) » sur téléphone, squelette de chargement,
 // nouvelle suggestion en fenêtre de formulaire (validation dans la fenêtre), statut en un clic,
 // messages de confirmation.
-const { browser, loginPage, check, bilan, WEB } = require('./helpers');
+const { browser, loginPage, check, bilan, WEB, entreesMenu } = require('./helpers');
 const { call, ids } = require('../lib');
 const E = require('../config');
 
@@ -22,8 +22,19 @@ const attendre = (p, fn, arg) => p.waitForFunction(fn, arg, { timeout: 8000 }).t
   const dpe = divisions.find((d) => d.id === ids.DPE);
   const chefdpe = annuaire.find((x) => x.id === ids.chefdpe);
 
-  console.log('— Annuaire (agent, bureau)');
+  console.log('— Menu : « Boîte à suggestions » dans « Échanges », après « Annuaire »');
   let p = await loginPage(b, 'agent1', BUREAU);
+  for (const [k, vue] of [['agent1', BUREAU], ['dn', BUREAU], ['agent1', TELEPHONE]]) {
+    const q = k === 'agent1' && vue === BUREAU ? p : await loginPage(b, k, vue);
+    const e = await entreesMenu(q);
+    const echanges = e.filter((x) => x.groupe === 'Échanges').map((x) => x.href);
+    const telephone = vue === TELEPHONE;
+    const ordre = telephone ? e.map((x) => x.href) : echanges;
+    check(`${k} (${telephone ? 'téléphone' : 'bureau'}) : suggestions juste après l’annuaire${telephone ? '' : ' dans « Échanges »'}, une seule fois`, e.filter((x) => x.href === '/suggestions').length === 1 && ordre.indexOf('/suggestions') === ordre.indexOf('/annuaire') + 1, ordre.join(' '));
+    if (q !== p) await q.context().close();
+  }
+
+  console.log('— Annuaire (agent, bureau)');
   // Squelette pendant le chargement (réponse de l'annuaire retardée).
   await p.route('**/users/directory', async (r) => { await new Promise((x) => setTimeout(x, 800)); await r.continue(); });
   await p.goto(`${WEB}/annuaire`);
