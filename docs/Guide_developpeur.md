@@ -122,7 +122,8 @@ fonctionnalité ajoute sa suite (`tests/e2e/api/`, `tests/e2e/ui/`) et sa ligne 
 - Socle N5 (pilotage, collaboration) : plan de travail (`plan-travail/`, routes `api/v1`) objectif →
   activité (responsable, indicateur) → tâche (`Task.activiteId`), géré par unité (chef de l'unité, chef de
   division pour ses sections, DN/DNA), lu par son unité et au-dessus (assistant : `getVisibilityActor`),
-  **avancement calculé** (moyenne des tâches principales). Alertes d'échéance (`EcheancesTachesService`,
+  **avancement calculé** (moyenne des tâches principales), comparé au temps écoulé (`etatAvancement` :
+  EN_RETARD, EN_DECALAGE sous le temps écoulé, CONFORME ; panneau du tableau de bord). Alertes d'échéance (`EcheancesTachesService`,
   7 h) : veille → assignés, retard → `chefsLesPlusProches` (`socle/chefs-proches.ts`, aussi utilisé pour
   les avis de congé), une seule fois (`alerteVeilleAt`, `alerteRetardAt`). Notifications :
   `notify(..., { urgent })` ; emails immédiats = `NOTIFICATIONS_IMMEDIATES` (liste fermée) ou `urgent`,

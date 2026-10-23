@@ -26,7 +26,6 @@ import { KanbanBoard } from '../../../components/tasks/KanbanBoard';
 import { CalendarView } from '../../../components/tasks/CalendarView';
 import { FenetreTache } from '../../../components/tasks/FenetreTache';
 import { BroadcastTaskModal } from '../../../components/tasks/BroadcastTaskModal';
-import { BarreAvancement } from '../../../components/tasks/ElementsTache';
 import { BlocsRole } from '../../../components/dashboard/BlocsRole';
 import { ListeTachesTableau, PiedPanneau } from '../../../components/dashboard/ListeTachesTableau';
 import { Agenda, DerniereAnnonce, MesConges, StagiaireEncadre } from '../../../components/dashboard/ColonneDroite';
@@ -116,6 +115,51 @@ function Panneau({ titre, droite, children, testid }: { titre: string; droite?: 
       </div>
       {children}
     </section>
+  );
+}
+
+/** Couleur de la barre d'une activité (état calculé par l'API) : rouge en retard, or en dessous du temps
+ * écoulé, vert sinon. */
+const TON_ACTIVITE: Record<Activite['etatAvancement'], { barre: string; texte: string; libelle: string }> = {
+  EN_RETARD: { barre: 'bg-clay', texte: 'text-clay', libelle: 'en retard' },
+  EN_DECALAGE: { barre: 'bg-gold', texte: 'text-ambre', libelle: 'en dessous du temps écoulé' },
+  CONFORME: { barre: 'bg-sage', texte: 'text-sage', libelle: 'dans les temps' },
+};
+
+/** Plan de travail — avancement des activités dont la personne est responsable ou auxquelles ses tâches contribuent. */
+function PanneauPlan({ activites }: { activites: Activite[] }) {
+  return (
+    <Panneau titre="Plan de travail — avancement des activités" testid="avancement-activites" droite={<span className="ml-auto text-[12.5px] text-text-muted">Calculé à partir des tâches rattachées</span>}>
+      <ul>
+        {activites.map((a, i) => {
+          const ton = TON_ACTIVITE[a.etatAvancement];
+          return (
+            <li key={a.id} className={i ? 'border-t border-line' : ''} data-testid="ligne-activite" data-etat={a.etatAvancement}>
+              <Link href={`/plan-travail?activite=${a.id}`} className="block px-[18px] py-3 hover:bg-bg">
+                <div className="flex items-baseline gap-3">
+                  <span className="min-w-0 flex-1 truncate text-[13.5px] font-semibold">
+                    {a.libelle}
+                  </span>
+                  {a.uniteSigle && <span className="flex-none rounded-md bg-ink-50 px-1.5 py-0.5 text-[11.5px] font-semibold text-ink">{a.uniteSigle}</span>}
+                  <span className={`w-12 flex-none text-right text-[13.5px] font-bold ${ton.texte}`}>{a.avancement} %</span>
+                </div>
+                <div
+                  className="mt-2 h-[7px] w-full overflow-hidden rounded-full bg-line"
+                  role="progressbar"
+                  aria-valuenow={a.avancement}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-label={`Avancement de « ${a.libelle} »`}
+                  aria-valuetext={`${a.avancement} %, ${ton.libelle} (temps écoulé : ${a.tempsEcoule} %)`}
+                >
+                  <i className={`block h-full rounded-full ${ton.barre}`} style={{ width: `${Math.max(0, Math.min(100, a.avancement))}%` }} />
+                </div>
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+    </Panneau>
   );
 }
 
@@ -407,6 +451,7 @@ export default function DashboardPage() {
       <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-[18px] lg:grid-cols-[minmax(0,1fr)_330px]">
         <div className="flex min-w-0 flex-col gap-[18px]">
           {(encadrement || (profil !== null && profil !== 'AGENT' && profil !== 'STAGIAIRE') || aTraiter.length > 0) && blocATraiter}
+          {activites.length > 0 && <PanneauPlan activites={activites} />}
           {encadrement && (
             <Panneau titre="Suivi de l’équipe" testid="suivi-equipe" droite={<div className="ml-auto"><ViewToggle value={vue} onChange={setVue} /></div>}>
               {!equipe ? (
@@ -431,36 +476,6 @@ export default function DashboardPage() {
           {annonce && <DerniereAnnonce annonce={annonce} />}
         </aside>
       </div>
-
-      {activites.length > 0 && (
-        <section aria-label="Mes activités du plan de travail" data-testid="mes-activites" className="mt-[18px] rounded-xl border border-line bg-surface">
-          <div className="flex flex-wrap items-center gap-3 border-b border-line px-[18px] py-3.5">
-            <h2 className="font-heading text-[16px] font-bold text-ink-900">Mes activités du plan de travail</h2>
-            <span className="ml-auto text-[13px] text-text-muted">Avancement calculé à partir des tâches rattachées</span>
-          </div>
-          {activites.map((a, i) => (
-            <Link
-              key={a.id}
-              href={`/plan-travail?activite=${a.id}`}
-              className={`grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-[18px] gap-y-1.5 px-[18px] py-3 hover:bg-bg md:grid-cols-[minmax(0,1fr)_260px_90px] ${i ? 'border-t border-[#F0F1F6]' : ''}`}
-            >
-              <div className="min-w-0">
-                <b className="block truncate font-semibold">{a.libelle}</b>
-                <small className="block truncate text-[12.5px] text-text-muted">Indicateur : {a.indicateur}</small>
-              </div>
-              <div className="col-span-2 flex items-center gap-[7px] text-[12px] text-text-muted md:order-none md:col-span-1">
-                <BarreAvancement valeur={a.avancement} />
-                <span className="w-10 text-right">{a.avancement} %</span>
-              </div>
-              <span
-                className={`row-start-1 inline-flex h-[22px] w-fit items-center justify-self-end rounded-md px-2 text-[12px] font-semibold md:row-auto md:justify-self-start ${a.enRetard ? 'bg-clay-50 text-clay' : 'bg-ink-50 text-ink'}`}
-              >
-                {a.enRetard ? 'en retard' : `fin ${new Date(a.dateFin).toLocaleDateString('fr-FR', { month: 'short', timeZone: 'UTC' })}`}
-              </span>
-            </Link>
-          ))}
-        </section>
-      )}
 
       <FenetreTache
         taskId={selectedTaskId}

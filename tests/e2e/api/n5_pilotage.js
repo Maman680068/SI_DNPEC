@@ -94,6 +94,17 @@ async function signerActe(acteId, soumettant) {
   const o1 = planAg.objectifs.find((o) => o.id === obj.body.id);
   check('agent1 lit le plan de sa section et de sa division', !!o1 && planAg.objectifs.some((o) => o.id === objDiv.body.id) && !planAg.peutCreer);
   check('avancement de l’objectif = moyenne de ses activités', o1.avancement === attendu);
+  // Tableau de bord (avancement des activités) : état comparé au temps écoulé, calculé par l'API.
+  const actAo = (await call('chefssr', 'POST', `/api/v1/plan-travail/objectifs/${obj.body.id}/activites`, { ...A, libelle: `En cours ${S}`, dateDebut: jour(-10), dateFin: jour(10) })).body;
+  const actFutur = (await call('chefssr', 'POST', `/api/v1/plan-travail/objectifs/${obj.body.id}/activites`, { ...A, libelle: `À venir ${S}`, dateDebut: jour(5), dateFin: jour(30) })).body;
+  const plan2 = (await call('agent1', 'GET', `/api/v1/plan-travail?annee=${annee}`)).body.objectifs.find((o) => o.id === obj.body.id);
+  const etat = (id) => plan2.activites.find((a) => a.id === id);
+  check('activité échue sous 100 % : EN_RETARD, temps écoulé 100 %', etat(act.body.id).etatAvancement === (attendu < 100 ? 'EN_RETARD' : 'CONFORME') && etat(act.body.id).tempsEcoule === 100, JSON.stringify(etat(act.body.id)));
+  check('activité à mi-parcours sans avancement : EN_DECALAGE (avancement sous le temps écoulé)', etat(actAo.id).etatAvancement === 'EN_DECALAGE' && etat(actAo.id).tempsEcoule >= 45 && etat(actAo.id).tempsEcoule <= 55, JSON.stringify(etat(actAo.id)));
+  check('activité pas encore commencée : CONFORME, temps écoulé 0 %', etat(actFutur.id).etatAvancement === 'CONFORME' && etat(actFutur.id).tempsEcoule === 0);
+  check('sigle de l’unité sur l’objectif et ses activités', plan2.uniteSigle === uSSR.code && plan2.activites.every((a) => a.uniteSigle === uSSR.code), plan2.uniteSigle);
+  await call('chefssr', 'DELETE', `/api/v1/plan-travail/activites/${actAo.id}`);
+  await call('chefssr', 'DELETE', `/api/v1/plan-travail/activites/${actFutur.id}`);
   check('agent1 ne voit pas le plan d’une autre division', !planAg.objectifs.some((o) => o.libelle === `Objectif DEE ${S}`));
   expect('plan d’une autre unité demandé explicitement', await call('agentdee', 'GET', `/api/v1/plan-travail?uniteId=${uSSR.id}`), 403);
   check('activités proposées pour une tâche', (await call('agent1', 'GET', '/api/v1/plan-travail/activites-disponibles')).body.some((a) => a.id === act.body.id));

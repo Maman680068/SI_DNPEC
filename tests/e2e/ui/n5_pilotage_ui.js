@@ -91,6 +91,16 @@ async function choisirPersonne(d, label, nom) {
 
   console.log('— Agent (téléphone) : plan en lecture, « Mes tâches » en calendrier');
   p = await loginPage(b, 'agent1', TELEPHONE);
+  // Tableau de bord : panneau « Plan de travail — avancement des activités », juste après « À traiter ».
+  const panneauPlan = p.getByTestId('avancement-activites');
+  await panneauPlan.waitFor();
+  const ligne = panneauPlan.locator('[data-testid=ligne-activite]', { hasText: `Note mensuelle ${S}` });
+  const apiAct = (await call('agent1', 'GET', `/api/v1/plan-travail?annee=${new Date().getFullYear()}`)).body.objectifs.flatMap((o) => o.activites).find((a) => a.libelle === `Note mensuelle ${S}`);
+  check('tableau de bord : l’activité, son sigle d’unité et son pourcentage', (await ligne.count()) === 1 && (await ligne.innerText()).includes(`${apiAct.avancement} %`) && (await ligne.innerText()).includes(apiAct.uniteSigle));
+  check(`barre de la couleur de l’état calculé par l’API (${apiAct.etatAvancement})`, (await ligne.getAttribute('data-etat')) === apiAct.etatAvancement && (await ligne.locator('[role=progressbar] i').getAttribute('class')).includes(apiAct.etatAvancement === 'EN_RETARD' ? 'bg-clay' : apiAct.etatAvancement === 'EN_DECALAGE' ? 'bg-gold' : 'bg-sage'));
+  check('ligne : lien vers l’activité dans le Plan de travail', (await ligne.locator('a').getAttribute('href')) === `/plan-travail?activite=${apiAct.id}`);
+  check('panneau placé juste après « À traiter » (ou en tête)', await p.evaluate(() => { const x = document.querySelector('[data-testid=avancement-activites]'); const prec = x.previousElementSibling; return !prec || prec.getAttribute('data-testid') === 'a-traiter'; }));
+  check('l’ancienne section « Mes activités du plan de travail » a disparu', (await p.getByTestId('mes-activites').count()) === 0);
   await p.goto(`${WEB}/plan-travail`);
   await p.locator('[data-testid=objectif]', { hasText: `Conjoncture ${S}` }).waitFor();
   check('agent : pas de « Nouvel objectif » ni « Activité »', (await p.getByRole('button', { name: 'Nouvel objectif' }).count()) === 0 && (await p.getByRole('button', { name: 'Activité', exact: true }).count()) === 0);

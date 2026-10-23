@@ -150,6 +150,7 @@
           "etapes": [
             "Onglet « Mon travail » → « Plan de travail » : les objectifs de l’année de votre unité et des unités au-dessus, leurs activités (responsable, période, indicateur) et leur avancement, calculé à partir des tâches.",
             "En créant une tâche, choisissez l’« Activité du plan de travail » à laquelle elle contribue.",
+            "Tableau de bord : le panneau « Plan de travail — avancement des activités » montre vos activités, avec une barre rouge si l’activité est en retard, or si l’avancement est en dessous du temps écoulé, verte sinon. Le bouton « Rapport d’activité » du Plan de travail ouvre directement le rapport dans « Documents générés ».",
             "Mes tâches : boutons « Liste », « Kanban » ou « Calendrier » pour changer de vue (le dernier choix est retenu). La veille d’une échéance, vous êtes prévenu ; en cas de retard, votre chef l’est.",
             "Messagerie → « Fils de discussion » : « Nouveau fil » (objet, destinataires choisis en tapant leur nom, message) puis « Démarrer le fil » ; « Joindre un objet » renvoie vers une tâche, un document, un courrier ou une réunion — seuls ceux qui y ont droit peuvent l’ouvrir.",
             "Sous chaque message : « Lu par … le … » pour chaque destinataire."

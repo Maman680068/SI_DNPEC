@@ -126,17 +126,19 @@ export class PlanTravailService {
     });
     const avancements = await this.avancements(objectifs.flatMap((o) => o.activites.map((a) => a.id)));
     const libelle = (id: string) => toutes.find((u) => u.id === id)?.libelle ?? '';
+    const sigle = (id: string) => toutes.find((u) => u.id === id)?.code ?? '';
     return {
       annee,
       unites: toutes.filter((u) => visibles.has(u.id) && !u.dateFermeture).map((u) => ({ id: u.id, libelle: u.libelle, type: u.type, gere: gerees.has(u.id) })),
       peutCreer: gerees.size > 0,
       objectifs: objectifs.map((o) => {
-        const acts = o.activites.map((a) => this.vueActivite(a, avancements, gerees.has(o.uniteId)));
+        const acts = o.activites.map((a) => ({ ...this.vueActivite(a, avancements, gerees.has(o.uniteId)), uniteSigle: sigle(o.uniteId) }));
         return {
           id: o.id,
           annee: o.annee,
           uniteId: o.uniteId,
           unite: libelle(o.uniteId),
+          uniteSigle: sigle(o.uniteId),
           libelle: o.libelle,
           description: o.description,
           avancement: acts.length ? Math.round(acts.reduce((s, a) => s + a.avancement, 0) / acts.length) : 0,
@@ -292,9 +294,22 @@ export class PlanTravailService {
     return new Map(g.map((x) => [x.activiteId!, { moyenne: Math.round(x._avg.progressPercent ?? 0), nombre: x._count._all }]));
   }
 
+  /**
+   * Avancement comparé au temps (tableau de bord) : EN_RETARD si l'échéance est passée sans 100 % ;
+   * EN_DECALAGE si l'avancement est en dessous de la part du temps écoulée entre le début et la fin ;
+   * CONFORME sinon. Calculé ici, jamais par l'écran.
+   */
+  private etatAvancement(a: { dateDebut: Date; dateFin: Date }, avancement: number, enRetard: boolean, auj: Date) {
+    const duree = a.dateFin.getTime() - a.dateDebut.getTime();
+    const ecoule = duree <= 0 ? (auj >= a.dateFin ? 100 : 0) : Math.round((100 * (auj.getTime() - a.dateDebut.getTime())) / duree);
+    const tempsEcoule = Math.max(0, Math.min(100, ecoule));
+    return { tempsEcoule, etatAvancement: enRetard ? 'EN_RETARD' : avancement < tempsEcoule ? 'EN_DECALAGE' : 'CONFORME' } as const;
+  }
+
   private vueActivite(a: ActiviteChargee, av: Map<string, { moyenne: number; nombre: number }>, gere: boolean) {
     const x = av.get(a.id) ?? { moyenne: 0, nombre: 0 };
     const auj = new Date(new Date().toISOString().slice(0, 10));
+    const enRetard = a.dateFin < auj && x.moyenne < 100;
     return {
       id: a.id,
       objectifId: a.objectifId,
@@ -306,7 +321,8 @@ export class PlanTravailService {
       cible: a.cible,
       avancement: x.moyenne,
       nombreTaches: x.nombre,
-      enRetard: a.dateFin < auj && x.moyenne < 100,
+      enRetard,
+      ...this.etatAvancement(a, x.moyenne, enRetard, auj),
       droits: { modifier: gere, supprimer: gere && x.nombre === 0 },
     };
   }
