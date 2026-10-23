@@ -103,6 +103,9 @@ fonctionnalité ajoute sa suite (`tests/e2e/api/`, `tests/e2e/ui/`) et sa ligne 
   cellule/section → division → DN/DNA) dans `conges.delaiAvisHeures` heures ouvrées
   (`socle/heures-ouvrees.ts`), rappel 12 h avant, avis tacite ensuite (job `executer(now)` toutes les
   15 min, tâche `avis-conges`), **décision du DRH** (`estDrh`) ; demande d'un DRH décidée par DN/DNA.
+  Demande en attente au-delà du solde restant de son type : `soldeInsuffisant` / `soldeRestant` calculés à la
+  lecture (demandeur, chef qui donne l'avis, décideur ; null si aucun solde ouvert pour ce type, type masqué ou
+  demande close) — la création n'est pas refusée, le DRH tranche.
   Motif médical : demandeur, chef qui donne l'avis et DRH (motif derrière `PreuveIdentiteService`,
   lecture tracée) ; DN/DNA et reste de la cascade : « Absence — motif protégé ». Certificat médical :
   agent et DRH seuls. Jours fériés (`JoursFeriesService`, `api/v1/jours-feries`, admin + DRH) exclus

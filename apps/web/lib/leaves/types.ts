@@ -37,6 +37,9 @@ export interface LeaveRequest {
   /** Certificat médical : demandeur et DRH seulement. */
   certificat: { nom: string; deposeLe: string } | null;
   droits: { peutDonnerAvis: boolean; peutDecider: boolean; peutAnnuler: boolean; deposerCertificat?: boolean; lireCertificat?: boolean };
+  /** Demande en attente au-delà du solde restant de son type (calculé par l'API ; null si non renseigné pour ce lecteur). */
+  soldeInsuffisant?: boolean | null;
+  soldeRestant?: number | null;
 }
 
 export interface JourFerie {

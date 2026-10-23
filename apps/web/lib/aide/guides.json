@@ -491,6 +491,7 @@
           "titre": "Congés et absences",
           "etapes": [
             "Congés & absences → « À traiter » : les demandes dont l’avis du chef est rendu (ou réputé favorable après le délai). « Valider » ou « Rejeter avec un motif ».",
+            "Une pastille rouge « solde insuffisant » signale une demande qui dépasse le solde restant de ce type de congé ; la demande reste à décider (le chef la voit aussi au moment de son avis).",
             "Vous voyez le type d’un congé maladie ; « Afficher le motif » et le certificat médical joint par l’agent vous demandent votre mot de passe. Chaque lecture est tracée. Le chef qui donne l’avis voit aussi le motif, jamais le certificat.",
             "Onglet « Suivi de l’équipe » : toutes les demandes de la Direction. Une demande que vous déposez vous-même est décidée par le DN ou la DNA.",
             "Le délai d’avis du chef (48 heures ouvrées par défaut) se règle dans « Paramétrage et supervision » par l’administrateur.",

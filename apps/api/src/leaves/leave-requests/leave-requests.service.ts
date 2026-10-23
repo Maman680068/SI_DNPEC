@@ -67,7 +67,16 @@ type LeaveRequestView = Omit<LeaveRequestWithUser, 'leaveTypeId' | 'leaveType' |
   avisPar: { id: string; nom: string } | null;
   certificat: { nom: string; deposeLe: Date } | null;
   droits: { peutDonnerAvis: boolean; peutDecider: boolean; peutAnnuler: boolean; deposerCertificat: boolean; lireCertificat: boolean };
+  /** Demande en attente qui dépasse le solde restant de son type pour l'année (calculé à la lecture).
+   * Renseigné pour le demandeur, le chef qui donne l'avis et le décideur seulement, et quand un solde
+   * est ouvert pour ce type ; null sinon (aucun solde ouvert, demande close, autre lecteur, type masqué). */
+  soldeInsuffisant: boolean | null;
+  soldeRestant: number | null;
 };
+
+/** Soldes lus une fois pour une liste : clé `${userId}|${leaveTypeId}|${annee}` → jours restants. */
+type SoldesRestants = Map<string, number>;
+const cleSolde = (userId: string, leaveTypeId: string, annee: number) => `${userId}|${leaveTypeId}|${annee}`;
 
 /** Code du congé annuel : seul solde montré au chef et au DRH dans la fenêtre d'avis ou de décision. */
 export const CODE_CONGE_ANNUEL = 'CONGE_ANNUEL';
@@ -180,7 +189,18 @@ export class LeaveRequestsService {
     return (await this.avisantsPour(actor, r.user)).some((id) => this.cascade.isActingFor(actor, id));
   }
 
-  private async vue(actor: AuthenticatedUser, r: LeaveRequestWithUser, noms?: Map<string, string>): Promise<LeaveRequestView> {
+  /** Jours restants des soldes des demandes en attente (une requête pour toute la liste). */
+  private async soldesRestants(rs: LeaveRequestWithUser[]): Promise<SoldesRestants> {
+    const attente = rs.filter((r) => r.status === LeaveRequestStatus.EN_ATTENTE);
+    if (!attente.length) return new Map();
+    const l = await this.prisma.leaveBalance.findMany({
+      where: { OR: attente.map((r) => ({ userId: r.userId, leaveTypeId: r.leaveTypeId, year: r.startDate.getFullYear() })) },
+      select: { userId: true, leaveTypeId: true, year: true, totalDays: true, usedDays: true },
+    });
+    return new Map(l.map((b) => [cleSolde(b.userId, b.leaveTypeId, b.year), b.totalDays - b.usedDays]));
+  }
+
+  private async vue(actor: AuthenticatedUser, r: LeaveRequestWithUser, noms?: Map<string, string>, soldes?: SoldesRestants): Promise<LeaveRequestView> {
     const medical = this.medicalPrivacy.isSensitiveCode(r.leaveType.code);
     const soi = r.userId === actor.id;
     const drh = estDrh(actor);
@@ -195,6 +215,16 @@ export class LeaveRequestsService {
     // Certificat médical : demandeur et DRH seulement (jamais le chef, le DN ni la DNA).
     const lireCertificat = medical && (soi || drh);
     const { certificatFileName, certificatDeposeLe, ...reste } = r;
+    const peutDonnerAvis = enAttente && !r.avisEtat && (await this.peutDonnerAvis(actor, r));
+    const peutDecider = enAttente && !!r.avisEtat && (await this.peutDecider(actor, r));
+    // Solde insuffisant : pour qui doit en tenir compte (demandeur, chef qui donne l'avis, décideur,
+    // y compris avant l'avis), jamais pour le reste de la cascade, jamais sur un type masqué.
+    let soldeRestant: number | null = null;
+    if (enAttente && !masquerType && (soi || peutDonnerAvis || (await this.peutDecider(actor, r)))) {
+      const annee = r.startDate.getFullYear();
+      const memo = soldes ?? (await this.soldesRestants([r]));
+      soldeRestant = memo.get(cleSolde(r.userId, r.leaveTypeId, annee)) ?? null;
+    }
     return {
       ...reste,
       ...(masquerType ? { leaveTypeId: null, leaveType: this.medicalPrivacy.maskedLeaveType(), reason: null, avisMotif: null, decisionComment: null } : {}),
@@ -203,9 +233,11 @@ export class LeaveRequestsService {
       motifVerrouille,
       avisPar: r.avisParId && nomAvis ? { id: r.avisParId, nom: nomAvis } : null,
       certificat: lireCertificat && certificatFileName && certificatDeposeLe ? { nom: certificatFileName, deposeLe: certificatDeposeLe } : null,
+      soldeInsuffisant: soldeRestant === null ? null : r.daysCount > soldeRestant,
+      soldeRestant,
       droits: {
-        peutDonnerAvis: enAttente && !r.avisEtat && (await this.peutDonnerAvis(actor, r)),
-        peutDecider: enAttente && !!r.avisEtat && (await this.peutDecider(actor, r)),
+        peutDonnerAvis,
+        peutDecider,
         peutAnnuler: (r.status === LeaveRequestStatus.EN_ATTENTE || r.status === LeaveRequestStatus.APPROUVEE) && (soi || this.cascade.hasDirectAuthorityOver(actor, r.user)),
         deposerCertificat: medical && soi && r.status !== LeaveRequestStatus.ANNULEE && r.status !== LeaveRequestStatus.REJETEE,
         lireCertificat: lireCertificat && !!certificatFileName,
@@ -294,7 +326,8 @@ export class LeaveRequestsService {
     });
     const ids = [...new Set(requests.map((r) => r.avisParId).filter((x): x is string => !!x))];
     const noms = new Map((await this.prisma.user.findMany({ where: { id: { in: ids } }, select: { id: true, firstName: true, lastName: true } })).map((u) => [u.id, `${u.firstName} ${u.lastName}`]));
-    const vues = await Promise.all(requests.map((r) => this.vue(actor, r, noms)));
+    const soldes = await this.soldesRestants(requests);
+    const vues = await Promise.all(requests.map((r) => this.vue(actor, r, noms, soldes)));
     // Revue de sécurité 2026-10 : un filtre sur le type ne révèle jamais un type masqué (une ligne
     // « motif protégé » n'apparaît pas sous le filtre « Congé maladie ») ; le motif d'un tiers ne
     // se lit que dans le détail, où sa lecture est tracée.

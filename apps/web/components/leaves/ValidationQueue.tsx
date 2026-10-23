@@ -34,6 +34,13 @@ export function ValidationQueue({ requests, onSelect, suivi = false }: { request
                 <span className="block truncate text-[12.5px] text-text-muted">
                   {r.leaveType.name} · {jours(r.daysCount)}
                 </span>
+                {r.soldeInsuffisant && (
+                  <span className="mt-1 block">
+                    <Pastille ton="rouge" testid="solde-insuffisant">
+                      solde insuffisant
+                    </Pastille>
+                  </span>
+                )}
               </div>
             </div>
             <span>{periode(r.startDate, r.endDate)}</span>

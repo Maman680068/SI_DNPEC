@@ -147,7 +147,19 @@ export function FenetreConge({
           lignes={[
             ['Du', dateLongue(request.startDate)],
             ['Au', dateLongue(request.endDate)],
-            ['Durée', duree],
+            [
+              'Durée',
+              request.soldeInsuffisant ? (
+                <span className="flex flex-wrap items-center gap-2">
+                  {duree}
+                  <Pastille ton="rouge" testid="solde-insuffisant">
+                    solde insuffisant ({jours(request.soldeRestant ?? 0)} restant{(request.soldeRestant ?? 0) > 1 ? 's' : ''})
+                  </Pastille>
+                </span>
+              ) : (
+                duree
+              ),
+            ],
             ['Reprise', dateLongue(lendemain(request.endDate)).replace(/ \d{4}$/, '')],
           ]}
         />
