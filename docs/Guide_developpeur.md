@@ -335,4 +335,10 @@ Exploitation (sauvegardes, mise à jour PR → CI verte → migration → fusion
 
 ## Reste à faire
 
-- **Module non construit** : D5 (rémunération), hors périmètre (§5 du cahier des charges).
+- **D5 (rémunération, SAF, paie)** : exclusion levée ; conception à valider, avec ses questions,
+  `docs/conception_D5_remuneration.md` — aucun code avant validation.
+- **Comptes externes** (lecteurs FMI, Banque mondiale) : lecture des seuls documents « Diffusable » (statut N4),
+  sans accès aux autres modules.
+- **Consommation du moteur de calcul** par les écrans (avec les simulations, lot B2).
+- Pages « toutes les versions » et « bases de référence » des modèles (lot B3).
+- Bloc « Dernières simulations » sur le tableau de bord (lot B2).
