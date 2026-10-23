@@ -112,7 +112,7 @@ function probleme(lien, { redirectionPermise = false } = {}) {
         statiques.push({ lien: brut.replace(/\$\{[^}]*\}/g, VAR), ou });
       }
       // Adresse complète d'un email : `${…webAppUrl…}/chemin…`.
-      for (const m of l.matchAll(/\$\{[^}]*(?:webAppUrl|WEB_APP_URL)[^}]*\}(\/[^`'\s]*)/g)) {
+      for (const m of l.matchAll(/\$\{[^}]*(?:webAppUrl|WEB_APP_URL|\bweb\b)[^}]*\}(\/[^`'\s]*)/g)) {
         statiques.push({ lien: m[1].replace(/\$\{[^}]*\}/g, VAR), ou });
       }
     });
