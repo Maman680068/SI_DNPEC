@@ -7,6 +7,9 @@ export interface Personne {
 export interface Activite {
   id: string;
   objectifId: string;
+  /** Référence courte « A-07 » (numéro dans l'année du plan, mis en forme par l'API). */
+  numero: number;
+  reference: string;
   libelle: string;
   responsable: Personne;
   dateDebut: string;

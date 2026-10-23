@@ -9,6 +9,7 @@ import { startTask, submitTask } from '../../lib/api/tasks';
 import type { Task } from '../../lib/tasks/types';
 import { GROUPES_ECHEANCE, PUCE_ECHEANCE, STATUT_LIBELLE, actionDirecte, dateEcheance, groupeEcheance, tonEcheance } from '../../lib/tasks/affichage';
 import { Avancement, Avatars, PointStatut } from '../tasks/ElementsTache';
+import { referenceTache } from '../../lib/references';
 
 /** Unité d'une tâche (section, cellule, sinon division). */
 export function useUniteTache() {
@@ -83,6 +84,7 @@ export function ListeTachesTableau({
                 <button type="button" onClick={() => onOuvrir(t.id)} className="min-w-0 text-left">
                   <span className="block truncate text-[14px] font-semibold hover:underline">{t.title}</span>
                   <span className="flex items-center gap-2.5 text-[12.5px] text-text-muted">
+                    <span className="flex-none font-semibold" data-testid="reference-tache">{referenceTache(t.numero)}</span>
                     <span className="truncate">
                       {t.activiteLibelle && !unite(t) ? `Plan de travail : ${t.activiteLibelle}` : unite(t)}
                       {t.status === 'SOUMISE_VALIDATION' ? ` · ${STATUT_LIBELLE[t.status].toLowerCase()}` : ''}

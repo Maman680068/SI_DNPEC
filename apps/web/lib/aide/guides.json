@@ -61,6 +61,7 @@
           "etapes": [
             "Barre du haut (Ctrl K) : dès 3 caractères, les résultats s’affichent pendant la frappe, groupés par tâches, documents, courrier, annuaire et réunions ; ↑ ↓ pour choisir, Entrée pour ouvrir, Échap pour fermer, « Voir les N résultats » pour la page complète. Seul ce que vous avez le droit de voir apparaît.",
             "« Voir tout dans le module » ouvre l’écran concerné avec ses propres filtres.",
+            "Chaque tâche a une référence courte (« T-418 ») et chaque activité du plan de travail aussi (« A-07 ») : tapez-la dans la recherche (« T-418 », « t418 » ou « 418 ») pour retrouver l’élément, s’il est dans votre périmètre.",
             "La cloche affiche toujours vos notifications immédiatement. Par email, vous recevez chaque jour un « Résumé quotidien » ; les alertes urgentes (sécurité, décision sur une demande, acte à signer, instruction de la Direction, tâche en retard, réunion) partent tout de suite.",
             "Votre nom en haut à droite → « Mon profil », section « Notifications » : l’interrupteur « Résumé quotidien par email » (désactivé : tout immédiatement) et l’heure du résumé, enregistrés aussitôt."
           ],

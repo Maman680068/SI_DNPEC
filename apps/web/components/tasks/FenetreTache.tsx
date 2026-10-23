@@ -32,6 +32,7 @@ import { ZoneDepot } from '../ui/Formulaire';
 import { SqueletteListe } from '../ui/Squelette';
 import { messageErreur, useToast } from '../ui/Toast';
 import { phrasePrevenus } from './CreateTaskModal';
+import { referenceTache } from '../../lib/references';
 
 const CONFIDENTIALITY_LABEL: Record<Task['confidentiality'], string> = {
   PUBLIC_INTERNE: 'Public interne',
@@ -215,7 +216,7 @@ export function FenetreTache({
   }
 
   const currentStepIndex = task ? STATUS_STEPS.findIndex((s) => s.status === task.status) : -1;
-  const filAriane = task ? [getDivisionName(task.divisionId), getSectionName(task.sectionId) ?? getCelluleName(task.celluleId)] : [];
+  const filAriane = task ? [getDivisionName(task.divisionId), getSectionName(task.sectionId) ?? getCelluleName(task.celluleId), referenceTache(task.numero)] : [];
 
   const etapes = task && (
     <ol aria-label="Étapes du statut" className="mt-3.5 flex flex-wrap items-center gap-y-2">

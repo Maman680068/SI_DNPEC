@@ -299,6 +299,7 @@ function LigneActivite({ a, annee, onOuvrir }: { a: Activite; annee: number; onO
     <div role="row" data-testid="activite" className={`grid grid-cols-1 items-center gap-x-3.5 gap-y-2 border-b border-[#F0F1F6] px-4 py-3 last:border-b-0 sm:px-[18px] lg:min-h-[58px] lg:py-2 ${GRILLE}`}>
       <span role="cell" className="min-w-0">
         <button type="button" onClick={onOuvrir} className="block max-w-full truncate text-left text-[13.5px] font-semibold text-text hover:text-ink hover:underline">
+          <span className="mr-1.5 text-text-muted" data-testid="reference-activite">{a.reference}</span>
           {a.libelle}
         </button>
         <span className="block truncate text-[12.5px] text-text-muted">
@@ -606,7 +607,7 @@ function FicheActivite({
         onClose={onClose}
         largeur={1100}
         testid="fiche-activite"
-        filAriane={a ? ['Plan de travail', String(a.objectif.annee), a.objectif.libelle] : ['Plan de travail']}
+        filAriane={a ? ['Plan de travail', String(a.objectif.annee), a.objectif.libelle, a.reference] : ['Plan de travail']}
         entete={
           a && (
             <div className="mt-2.5 flex flex-wrap gap-2">

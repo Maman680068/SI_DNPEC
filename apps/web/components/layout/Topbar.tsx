@@ -3,7 +3,7 @@
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { CalendarDays, FileText, Mail, Menu, Search, SquareCheck, Users, type LucideIcon } from 'lucide-react';
+import { CalendarDays, FileText, Mail, Menu, Search, SquareCheck, Target, Users, type LucideIcon } from 'lucide-react';
 import { rechercher } from '../../lib/api/pilotage';
 import type { Recherche } from '../../lib/pilotage/types';
 import { useAuth } from '../../lib/auth/AuthProvider';
@@ -16,7 +16,7 @@ import { titrePage } from './Sidebar';
 import { useNavigation } from '../../lib/navigation/NavigationProvider';
 import { SurBandeauProvider } from '../../lib/navigation/bandeau';
 
-const ICONES: Record<string, LucideIcon> = { taches: SquareCheck, documents: FileText, courrier: Mail, annuaire: Users, reunions: CalendarDays };
+const ICONES: Record<string, LucideIcon> = { taches: SquareCheck, activites: Target, documents: FileText, courrier: Mail, annuaire: Users, reunions: CalendarDays };
 
 /** Passage du libellé qui correspond à la saisie, surligné (sans accents ni casse). */
 function surligner(texte: string, q: string): ReactNode {

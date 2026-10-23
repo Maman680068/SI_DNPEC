@@ -16,6 +16,8 @@ export interface TaskAssignee {
 
 export interface Task {
   id: string;
+  /** Référence courte « T-418 » (lib/references). */
+  numero: number;
   title: string;
   description: string | null;
   status: TaskStatus;
@@ -44,6 +46,7 @@ export interface Task {
   assignees: TaskAssignee[];
   /** Liste GET /tasks (refonte de l'interface) : ce qu'affiche une ligne de « Mes tâches ». */
   activiteLibelle?: string | null;
+  activiteNumero?: number | null;
   nbCommentaires?: number;
   nbPiecesJointes?: number;
   nbSousTaches?: number;

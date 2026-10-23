@@ -133,6 +133,12 @@ fonctionnalité ajoute sa suite (`tests/e2e/api/`, `tests/e2e/ui/`) et sa ligne 
   la requête de son module (jamais plus que l'écran ; pli personnel exclu). Instructions de la Direction
   (`instructions/`) : DN/DNA émettent, invisibles pour l'agent concerné avant l'exécution (acte signé),
   relance à 7 jours (`relance-instructions`).
+- Références courtes (migration additive `20261023080000_references_courtes`, retour arrière
+  `prisma/retour-arriere/ref_down.sql`, phase 39o) : `Task.numero` (séquence globale, « T-418 ») et
+  `Activite.numero` unique par `Activite.annee` (année de l'objectif, recopiée ; « A-07 », deux chiffres au
+  moins), attribué sous verrou consultatif dans `PlanTravailService.creerActivite`. Mise en forme :
+  `common/references/references.ts` (API) et `lib/references.ts` (web). La recherche transverse lit une
+  référence (`lireReference` : « T-418 », « t418 », « 418 », « A-07 ») dans le périmètre de chaque module.
 - Performance (2026-10, `docs/Performance_2026-10.md`) : une liste ne renvoie jamais tout un périmètre à
   un écran qui n'en montre qu'une partie (`GET /tasks?suivi=true&limite=` pour le tableau de bord,
   `assigneeId`/`createdById` pour « Mes tâches ») ; un droit calculé par ligne lit ses données une fois pour

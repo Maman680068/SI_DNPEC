@@ -188,7 +188,7 @@ async function choisirPersonne(d, label, nom) {
   const taches = p.locator('[data-testid=categorie-taches]');
   await taches.getByText(`Collecte ${S}`).waitFor();
   check('résultats par catégorie : la tâche trouvée, lien vers sa fiche', (await taches.getByRole('link', { name: new RegExp(`Collecte ${S}`) }).getAttribute('href')).startsWith('/tasks/'));
-  check('5 catégories affichées', (await p.locator('[data-testid^=categorie-]').count()) === 5);
+  check('6 catégories affichées (dont « Plan de travail »)', (await p.locator('[data-testid^=categorie-]').count()) === 6);
   await p.screenshot({ path: `${E.SHOTS}/n5_recherche_bureau.png` });
 
   console.log('— Fil de discussion : deux destinataires, objet joint');

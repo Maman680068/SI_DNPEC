@@ -138,6 +138,7 @@ function PanneauPlan({ activites }: { activites: Activite[] }) {
               <Link href={`/plan-travail?activite=${a.id}`} className="block px-[18px] py-3 hover:bg-bg">
                 <div className="flex items-baseline gap-3">
                   <span className="min-w-0 flex-1 truncate text-[13.5px] font-semibold">
+                    <span className="mr-1.5 text-text-muted" data-testid="reference-activite">{a.reference}</span>
                     {a.libelle}
                   </span>
                   {a.uniteSigle && <span className="flex-none rounded-md bg-ink-50 px-1.5 py-0.5 text-[11.5px] font-semibold text-ink">{a.uniteSigle}</span>}

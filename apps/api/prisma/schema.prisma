@@ -703,6 +703,8 @@ model Project {
 
 model Task {
   id              String              @id @default(cuid())
+  // Référence courte « T-418 » : séquence globale, stable (lot « références courtes »).
+  numero          Int                 @unique @default(autoincrement())
   title           String
   description     String?
   status          TaskStatus          @default(A_FAIRE)
@@ -2898,6 +2900,10 @@ model Activite {
   id            String   @id @default(cuid())
   objectifId    String
   objectif      Objectif @relation(fields: [objectifId], references: [id], onDelete: Cascade)
+  // Référence courte « A-07 » : numéro stable, unique dans l'année du plan (année de l'objectif,
+  // recopiée : l'objectif d'une activité et l'année d'un objectif ne changent jamais).
+  annee         Int
+  numero        Int
   libelle       String
   responsableId String
   responsable   User     @relation("ActiviteResponsable", fields: [responsableId], references: [id])
@@ -2910,6 +2916,7 @@ model Activite {
   updatedAt     DateTime @updatedAt
   taches        Task[]
 
+  @@unique([annee, numero])
   @@index([objectifId])
   @@index([responsableId])
   @@map("activites")

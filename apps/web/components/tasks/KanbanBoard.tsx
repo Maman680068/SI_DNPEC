@@ -6,6 +6,7 @@ import { KANBAN_COLUMNS } from '../../lib/tasks/types';
 import { PRIORITE_LIBELLE, PUCE_ECHEANCE, dateEcheance, tonEcheance } from '../../lib/tasks/affichage';
 import { useOrg } from '../../lib/org/OrgProvider';
 import { Avatars, BarreAvancement } from './ElementsTache';
+import { referenceTache } from '../../lib/references';
 
 const POINT_COLONNE: Record<TaskStatus, string> = {
   A_FAIRE: 'bg-[#8A90A3]',
@@ -50,7 +51,10 @@ function Carte({ task, onClick }: { task: Task; onClick: () => void }) {
       className="mb-[9px] block w-full rounded-[10px] border border-[#E6E8F0] bg-surface px-3 py-[11px] text-left shadow-[0_1px_2px_rgba(18,28,77,0.07)] hover:border-ink/30"
     >
       <span className="mb-1.5 flex items-center justify-between gap-2">
-        <span className={`rounded-[5px] px-[7px] py-0.5 text-[11px] font-bold ${ETIQUETTE_PRIORITE[task.priority]}`}>{PRIORITE_LIBELLE[task.priority]}</span>
+        <span className="flex items-center gap-1.5">
+          <span className={`rounded-[5px] px-[7px] py-0.5 text-[11px] font-bold ${ETIQUETTE_PRIORITE[task.priority]}`}>{PRIORITE_LIBELLE[task.priority]}</span>
+          <span className="text-[11.5px] font-semibold text-text-muted" data-testid="reference-tache">{referenceTache(task.numero)}</span>
+        </span>
         {task.dueDate && <span className={`rounded-[5px] px-[7px] py-0.5 text-[12px] font-semibold ${PUCE_ECHEANCE[ton]}`}>{dateEcheance(task)}</span>}
       </span>
       <b className="block text-[13.5px] font-semibold leading-[1.35]">{task.title}</b>

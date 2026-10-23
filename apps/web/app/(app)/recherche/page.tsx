@@ -12,6 +12,7 @@ import { SqueletteCartes, SquelettePage } from '../../../components/ui/Squelette
 /** Lien « voir tout » : l'écran du module, avec son propre filtre de recherche. */
 const ECRAN: Record<string, (q: string) => string> = {
   taches: () => '/tasks',
+  activites: () => '/plan-travail',
   documents: (q) => `/documents?q=${encodeURIComponent(q)}`,
   courrier: () => '/courrier',
   annuaire: (q) => `/annuaire?q=${encodeURIComponent(q)}`,

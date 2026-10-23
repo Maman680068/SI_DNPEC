@@ -29,6 +29,7 @@ import { useUniteTache } from '../dashboard/ListeTachesTableau';
 import { ErreurChargement, messageChargement } from '../ui/ErreurChargement';
 import { BTN_SECONDAIRE, EtatVide, FiltreSelect, Filtres } from '../ui/Charte';
 import { SqueletteListe } from '../ui/Squelette';
+import { referenceTache } from '../../lib/references';
 
 /** Onglets (adresse : `?onglet=`) ; « À valider » et « Mon périmètre » selon ce que l'API ouvre. */
 type Onglet = 'assignees' | 'creees' | 'a-valider' | 'perimetre' | 'terminees';
@@ -145,7 +146,7 @@ export function MyTasksView({ initialTaskId = null }: { initialTaskId?: string |
     }
     if (priorite !== 'toutes' && t.priority !== priorite) return false;
     if (activite === 'aucune' ? !!t.activiteLibelle : activite !== 'toutes' && t.activiteLibelle !== activite) return false;
-    if (q && !`${t.title} ${t.description ?? ''} ${unite(t)} ${t.activiteLibelle ?? ''}`.toLowerCase().includes(q)) return false;
+    if (q && !`${referenceTache(t.numero)} ${t.title} ${t.description ?? ''} ${unite(t)} ${t.activiteLibelle ?? ''}`.toLowerCase().includes(q)) return false;
     return true;
   });
 
@@ -356,6 +357,7 @@ export function MyTasksView({ initialTaskId = null }: { initialTaskId?: string |
                         <span role="cell" className="min-w-0">
                           <b className="block truncate font-semibold">{t.title}</b>
                           <small className="flex items-center gap-2.5 text-[12px] text-text-muted">
+                            <span className="flex-none font-semibold" data-testid="reference-tache">{referenceTache(t.numero)}</span>
                             <span className="truncate">{unite(t)}</span>
                             {!!t.nbSousTaches && (
                               <span className="flex flex-none items-center gap-1">
