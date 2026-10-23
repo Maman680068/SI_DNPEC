@@ -184,7 +184,9 @@ fonctionnalité ajoute sa suite (`tests/e2e/api/`, `tests/e2e/ui/`) et sa ligne 
   jamais un stagiaire, jamais empruntés en intérim (`modelisation/acces.ts`). Administrateur des modèles =
   `ADMIN_SYSTEME` : dépose, règle les manettes, confirme une dérogation, **ne valide ni n'active rien, ne voit
   jamais les chiffres** d'une simulation. Version **immuable** (déclencheur), une seule active, approbateur ≠
-  auteur (contrainte) ; dérogation à deux (responsable demande, administrateur confirme). Service de calcul
+  auteur (contrainte) ; dérogation à deux (responsable demande, administrateur confirme). Liste : colonnes
+  « Base de référence » (déclarée dans le paquet de la version active) et « Contrôles » (Conforme, Alerte,
+  Avec dérogation, Sans version active), calculées par l'API, sans aucune valeur chiffrée. Service de calcul
   `apps/calcul` (Python, Docker, IPOPT ; service Render gratuit `dnpec-calcul`, `CALCUL_URL` +
   `CALCUL_SECRET`), appelé seulement par la **file de travaux en base** (`TravauxCalculService` : réveil du
   service, essais `calcul.tentativesMax` / `calcul.delaiRelanceSecondes`). Exécution interne `POST

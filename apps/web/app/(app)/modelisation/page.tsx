@@ -12,7 +12,9 @@ import { FenetreDepot } from '../../../components/modelisation/FenetreDepot';
 import { TON_VERSION } from '../../../components/modelisation/ListeControles';
 import { useNavigation } from '../../../lib/navigation/NavigationProvider';
 
-const GRILLE = 'lg:grid-cols-[minmax(0,2.2fr)_minmax(0,1.2fr)_110px_minmax(0,1fr)_minmax(0,1.3fr)_120px]';
+const GRILLE = 'lg:grid-cols-[minmax(0,2fr)_minmax(0,1.1fr)_100px_minmax(0,1fr)_130px_minmax(0,1fr)_minmax(0,1.2fr)_120px]';
+/** Ton de la colonne « Contrôles » (état de la version active, calculé par l'API). */
+const TON_CONTROLES: Record<string, 'vert' | 'ambre' | 'rouge' | 'gris'> = { CONFORME: 'vert', ALERTE: 'ambre', AVEC_DEROGATION: 'rouge', SANS_VERSION_ACTIVE: 'gris' };
 const ETAPES = [
   ['Préparer le paquet', 'Le modèle (code Python), ses données et ses résultats de référence, réunis dans un fichier .zip.'],
   ['Déposer', '« Déposer un modèle » : la plateforme lit le paquet et lance seule tous les contrôles.'],
@@ -64,7 +66,7 @@ export default function ModelesPage() {
           label="Modèles"
           testid="liste-modeles"
           grille={GRILLE}
-          colonnes={['Modèle', 'Famille', 'Version active', 'Responsable', 'État', 'Dernier contrôle']}
+          colonnes={['Modèle', 'Famille', 'Version active', 'Base de référence', 'Contrôles', 'Responsable', 'État', 'Dernier contrôle']}
           vide={<EtatVide texte="Aucun modèle au référentiel." />}
         >
           {donnees.modeles.map((m) => (
@@ -75,6 +77,10 @@ export default function ModelesPage() {
               </div>
               <span>{m.famille}</span>
               <span>{m.versionActive ? `v${m.versionActive.numero}${m.versionActive.avecDerogation ? ' (dérogation)' : ''}` : '—'}</span>
+              <span className={m.baseReference ? '' : 'text-text-muted'} data-testid="base-reference">{m.baseReference ?? '—'}</span>
+              <span data-testid="controles-modele">
+                <Pastille ton={TON_CONTROLES[m.controles.code] ?? 'gris'}>{m.controles.libelle}</Pastille>
+              </span>
               <span className={m.responsable ? '' : 'text-text-muted'}>{m.responsable ?? 'À désigner'}</span>
               <span className="flex flex-wrap gap-1.5">
                 {m.etat && (

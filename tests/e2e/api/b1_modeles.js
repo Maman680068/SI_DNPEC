@@ -124,6 +124,8 @@ const SQL = (q) => prisma.$executeRawUnsafe(q).then(() => 'ok', (e) => String(e.
   const dep = await prisma.auditLog.findFirst({ where: { entityId: v1, metadata: { path: ['event'], equals: 'depot_version' } } });
   check('… mention de la case « données publiées ou autorisées » dans l’audit', /publiées ou autorisées/.test(JSON.stringify(dep?.metadata)));
   expect('même modèle redéposé pendant qu’une version est en cours', await deposer('admin', zipA), 409);
+  const l0 = (await call('admin', 'GET', '/api/v1/modeles')).body.modeles.find((m) => m.id === modeleA);
+  check('liste : colonne « Contrôles » = « Sans version active », pas de base de référence avant activation', l0.controles?.code === 'SANS_VERSION_ACTIVE' && l0.controles.libelle === 'Sans version active' && l0.baseReference === null);
 
   console.log('— Manettes et compteurs (étape 3)');
   expect('analyste : régler les manettes', await call('chefdpe', 'PUT', `/api/v1/modeles/versions/${v1}/reglages`, reglagesDe(v1c)), 403);
@@ -156,6 +158,10 @@ const SQL = (q) => prisma.$executeRawUnsafe(q).then(() => 'ok', (e) => String(e.
   check('audit : approbation et activation tracées', (await audit('approbation', v1)) === 1 && (await audit('activation', v1)) === 1);
   const liste1 = (await call('chefdpe', 'GET', '/api/v1/modeles')).body.modeles.find((m) => m.id === modeleA);
   check('liste : version active 1, responsable affiché', liste1.versionActive?.numero === 1 && /CHEFSSR/.test(liste1.responsable || ''));
+  const ficheV1 = (await prisma.versionModele.findUnique({ where: { id: v1 } })).fiche;
+  check(`liste : base de référence de la version active (paquet : « ${ficheV1.base} ») et contrôles « Alerte » (1 alerte)`, liste1.baseReference === (ficheV1.base ?? null) && !!liste1.baseReference && liste1.controles.code === 'ALERTE' && liste1.controles.libelle === 'Alerte');
+  const lAdmin = (await call('admin', 'GET', '/api/v1/modeles')).body;
+  check('administrateur : colonnes calculées, sans aucun chiffre de contrôle ni de simulation', lAdmin.modeles.find((m) => m.id === modeleA)?.controles.code === 'ALERTE' && !/"valeur"|"resultats"|"simulations"/.test(JSON.stringify(lAdmin)));
   expect('approuver une seconde fois', await call('chefssr', 'POST', `/api/v1/modeles/versions/${v1}/approbation`), 409);
 
   console.log('— Immutabilité en base (déclencheurs)');
@@ -220,6 +226,7 @@ const SQL = (q) => prisma.$executeRawUnsafe(q).then(() => 'ok', (e) => String(e.
   check('version 1 archivée et consultable, une seule version active', ap2.body.versions[1].statut === 'ARCHIVEE' && (await prisma.versionModele.count({ where: { modeleId: modeleA, statut: 'ACTIVE' } })) === 1);
   check('mention « avec dérogation » définitive (SQL : refus)', /définitive/.test(await SQL(`UPDATE versions_modele SET "avecDerogation" = false WHERE id = '${v2}'`)));
   check('deux versions actives en SQL : refus (index unique)', /23505|already exists/.test(await SQL(`INSERT INTO versions_modele (id, "modeleId", numero, empreinte, "fileKey", "nomFichier", "tailleOctets", fiche, manettes, compteurs, "donneesConfirmees", "auteurId", "approbateurId", statut, "updatedAt") VALUES ('b1-sql-${S}', '${modeleA}', 99, repeat('c', 64), 'k', 'f', 1, '{}', '[]', '[]', true, 'a', 'b', 'ACTIVE', now())`)));
+  check('liste : version 2 active, colonne « Contrôles » = « Avec dérogation »', (await call('admin', 'GET', '/api/v1/modeles')).body.modeles.find((m) => m.id === modeleA)?.controles.libelle === 'Avec dérogation');
   check('audit : demande et confirmation de dérogation tracées', (await audit('derogation_demandee', v2)) === 1 && (await audit('derogation_confirmee', v2)) === 1);
 
   console.log('— Personne n’approuve son propre travail (administrateur responsable du modèle)');

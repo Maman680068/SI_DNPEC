@@ -10,6 +10,10 @@ export interface ModeleListe {
   sousTitre: string;
   demonstration: boolean;
   versionActive: { numero: number; avecDerogation: boolean } | null;
+  /** Base de référence déclarée dans le paquet de la version active. */
+  baseReference: string | null;
+  /** État des contrôles de la version active (libellé seulement, calculé par l'API). */
+  controles: { code: 'CONFORME' | 'ALERTE' | 'AVEC_DEROGATION' | 'SANS_VERSION_ACTIVE'; libelle: string };
   responsable: string | null;
   etat: { code: StatutVersion; libelle: string; ton: TonEtat; numero: number } | null;
   dernierControle: { numero: number; le: string } | null;
