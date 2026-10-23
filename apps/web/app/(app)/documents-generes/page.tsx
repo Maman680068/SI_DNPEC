@@ -44,7 +44,8 @@ export default function DocumentsGeneresPage() {
     getCatalogue()
       .then((c) => {
         setCatalogue(c);
-        if (c.attestationTravail.peutCreer) setOnglet((o) => (o === 'rapport' ? 'attestations' : o));
+        // Onglet demandé par l'adresse (?onglet=, ex. bouton « Rapport d'activité » du Plan de travail) : gardé.
+        if (c.attestationTravail.peutCreer && !new URLSearchParams(window.location.search).get('onglet')) setOnglet((o) => (o === 'rapport' ? 'attestations' : o));
       })
       .catch((e) => setErreur(messageChargement(e)));
     getAttestations().then(setAttestations).catch((e) => setErreur(messageChargement(e)));
@@ -426,12 +427,19 @@ function FenetreOrdre({ catalogue, onClose, onFait }: { catalogue: Catalogue; on
 
 // ------------------------------------------------------------------ rapport d'activité
 
+/** Date AAAA-MM-JJ lue dans l'adresse de la page (lien profond), sinon null. */
+function dateAdresse(nom: string): string | null {
+  const v = typeof window === 'undefined' ? null : new URLSearchParams(window.location.search).get(nom);
+  return v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null;
+}
+
 function Rapport({ catalogue }: { catalogue: Catalogue }) {
   const perimetres = catalogue.rapportActivite.perimetres;
   const [choix, setChoix] = useState(0);
   const auj = new Date();
-  const [debut, setDebut] = useState(`${auj.getFullYear()}-${String(auj.getMonth() + 1).padStart(2, '0')}-01`);
-  const [fin, setFin] = useState(`${auj.getFullYear()}-${String(auj.getMonth() + 1).padStart(2, '0')}-${String(auj.getDate()).padStart(2, '0')}`);
+  // Période : celle de l'adresse (?debut=&fin=, lien du Plan de travail), sinon le mois en cours.
+  const [debut, setDebut] = useState(() => dateAdresse('debut') ?? `${auj.getFullYear()}-${String(auj.getMonth() + 1).padStart(2, '0')}-01`);
+  const [fin, setFin] = useState(() => dateAdresse('fin') ?? `${auj.getFullYear()}-${String(auj.getMonth() + 1).padStart(2, '0')}-${String(auj.getDate()).padStart(2, '0')}`);
   const p = perimetres[choix] ?? perimetres[0]!;
   const demande: Demande = { type: 'RAPPORT_ACTIVITE', perimetre: p.perimetre, cibleId: p.cibleId ?? undefined, debut, fin };
   return (

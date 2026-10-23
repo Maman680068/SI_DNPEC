@@ -2,7 +2,9 @@
 
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
-import { Plus } from 'lucide-react';
+import Link from 'next/link';
+import { FileText, Plus } from 'lucide-react';
+import { getCatalogue } from '../../../lib/api/generateur';
 import { apiFetch } from '../../../lib/api/client';
 import {
   creerActivite,
@@ -88,6 +90,14 @@ function Frise({ a, annee }: { a: Activite; annee: number }) {
  * datées → tâches ; avancement calculé (jamais saisi). Bande de synthèse, un panneau par objectif avec
  * anneau d'avancement et frise annuelle des activités ; fiche d'une activité par ?activite=.
  */
+/** Formulaire du rapport d'activité de « Documents générés », ouvert sur la période de l'année du plan
+ * (jusqu'à aujourd'hui pour l'année en cours). */
+function lienRapport(annee: number): string {
+  const auj = new Date();
+  const fin = annee === auj.getFullYear() ? `${annee}-${String(auj.getMonth() + 1).padStart(2, '0')}-${String(auj.getDate()).padStart(2, '0')}` : `${annee}-12-31`;
+  return `/documents-generes?onglet=rapport&debut=${annee}-01-01&fin=${fin}`;
+}
+
 export default function PlanTravailPage() {
   const annee0 = new Date().getFullYear();
   const [annee, setAnnee] = useState(annee0);
@@ -98,6 +108,13 @@ export default function PlanTravailPage() {
   const [activitePour, setActivitePour] = useState<Objectif | null>(null);
   const [activiteOuverte, setActiviteOuverte] = useState<string | null>(null);
   const [aSupprimer, setASupprimer] = useState<Objectif | null>(null);
+  // Rapport d'activité : bouton montré seulement si l'API ouvre au moins un périmètre de rapport.
+  const [rapportPossible, setRapportPossible] = useState(false);
+  useEffect(() => {
+    getCatalogue()
+      .then((c) => setRapportPossible(c.rapportActivite.perimetres.length > 0))
+      .catch(() => setRapportPossible(false));
+  }, []);
 
   const charger = useCallback(() => {
     getPlan(annee, uniteId || undefined)
@@ -163,7 +180,19 @@ export default function PlanTravailPage() {
             </Filtres>
           </div>
         }
-        actions={boutonObjectif || undefined}
+        actions={
+          (rapportPossible || boutonObjectif) && (
+            <>
+              {rapportPossible && (
+                <Link href={lienRapport(annee)} className={BTN_SECONDAIRE} data-testid="bouton-rapport-activite">
+                  <FileText aria-hidden size={16} />
+                  Rapport d’activité
+                </Link>
+              )}
+              {boutonObjectif}
+            </>
+          )
+        }
       />
       <ErreurChargement message={erreur} />
 

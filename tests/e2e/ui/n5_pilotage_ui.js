@@ -107,6 +107,13 @@ async function choisirPersonne(d, label, nom) {
   check('téléphone : sans défilement horizontal (plan)', await sansDefilementHorizontal(p));
   check('téléphone : unité et année repliées derrière « Filtres »', (await p.getByTestId('bouton-filtres').isVisible()) && !(await p.getByLabel('Unité', { exact: true }).isVisible()));
   await p.screenshot({ path: `${E.SHOTS}/n5_plan_mobile.png`, fullPage: true });
+  // Bouton « Rapport d'activité » : ouvre le formulaire existant de « Documents générés » (lien profond).
+  const perimetresRapport = (await call('agent1', 'GET', '/api/v1/documents-generes/catalogue')).body.rapportActivite.perimetres;
+  check('bouton « Rapport d’activité » présent (l’API ouvre un périmètre de rapport)', perimetresRapport.length > 0 && (await p.getByTestId('bouton-rapport-activite').count()) === 1);
+  await p.getByTestId('bouton-rapport-activite').click();
+  await p.waitForURL('**/documents-generes?onglet=rapport**');
+  await p.getByRole('region', { name: 'Rapport d’activité' }).waitFor();
+  check('« Documents générés » ouvert sur le formulaire du rapport, période depuis le 1er janvier', (await p.getByRole('tab', { name: 'Rapport d’activité' }).getAttribute('aria-selected')) === 'true' && new URL(p.url()).searchParams.get('debut') === `${new Date().getFullYear()}-01-01`);
   await p.goto(`${WEB}/tasks`);
   await p.getByRole('button', { name: 'Calendrier' }).click();
   await p.getByRole('button', { name: /Aujourd|‹|›|Mois/ }).first().waitFor({ timeout: 5000 }).catch(() => {});
