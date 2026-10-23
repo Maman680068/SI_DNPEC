@@ -662,6 +662,7 @@
           "etapes": [
             "Onglet « Administration » → « Paramétrage et supervision », onglet « Paramètres » : longueur minimale du mot de passe, conservation des journaux de connexion, expiration de session, alerte avant une fin de stage ou de contrat. choisissez la rubrique, saisissez la nouvelle valeur puis « Enregistrer » (en haut de page) : la valeur reste dans ses bornes et s’applique aussitôt ; chaque changement est tracé.",
             "Onglet « Supervision » : état de la base, du stockage des fichiers, des emails, des tâches planifiées et du journal d’audit (nominal, dégradé, indisponible), sessions ouvertes, connexions, comptes à surveiller, accès refusés. Vous êtes prévenu (notification et email) dès qu’un service se dégrade.",
+            "Onglet « Indicateurs de succès » : pour chaque indicateur (connexions hebdomadaires, décisions converties en tâche, délai de décision des congés, imputations traitées à temps, tâches terminées dans les délais), la cible, la valeur mesurée, « Atteint » oui ou non et la période. Les valeurs sont calculées à partir des données ; vous ajustez les cibles (le DN et la DNA les lisent).",
             "Après chaque essai de restauration d’une sauvegarde : « Déclarer un test » (date, résultat). Un test tous les 6 mois est recommandé.",
             "Onglet « Administration » → « Journal d’audit » : toutes les actions, filtrables ; « Vérifier l’intégrité » contrôle que personne n’a altéré le journal."
           ],

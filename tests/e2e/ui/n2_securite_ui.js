@@ -104,8 +104,29 @@ const sansDefilementHorizontal = (p) => p.evaluate(() => document.documentElemen
   await p.context().close();
   await call('admin', 'PATCH', '/api/v1/parametres/connexions.conservationMois', { valeur: 12 });
 
+  console.log('— Indicateurs de succès (administrateur : cibles modifiables)');
+  p = await loginPage(b, 'admin');
+  await p.goto(`${WEB}/parametrage?onglet=indicateurs`);
+  const tabInd = p.getByTestId('indicateurs-succes');
+  await tabInd.locator('[data-testid=indicateur]').first().waitFor();
+  const apiInd = (await call('admin', 'GET', '/api/v1/indicateurs-succes')).body;
+  check('onglet « Indicateurs de succès » : 5 lignes (indicateur, cible, valeur, atteint, période)', (await tabInd.locator('[data-testid=indicateur]').count()) === 5 && (await p.getByRole('tab', { name: 'Indicateurs de succès' }).getAttribute('aria-selected')) === 'true');
+  const ligneT = tabInd.locator('[data-testid=indicateur]', { hasText: 'Tâches terminées dans les délais' });
+  const apiT = apiInd.indicateurs.find((i) => i.cle === 'tachesDansLesDelais');
+  check('valeur et « Atteint » = API', (await ligneT.getByTestId('valeur').innerText()).startsWith(apiT.valeur === null ? 'Non mesurable' : `${apiT.valeur.toLocaleString('fr-FR')} %`) && (await ligneT.getByTestId('atteint').innerText()).trim() === (apiT.atteint === null ? '—' : apiT.atteint ? 'Oui' : 'Non'));
+  await ligneT.getByLabel(/^Cible — Tâches terminées dans les délais/).fill('65');
+  await ligneT.getByRole('button', { name: 'Enregistrer' }).click();
+  await p.getByTestId('toast').getByText('Cible enregistrée').waitFor();
+  check('cible enregistrée (65 %), relue par l’API', (await call('dn', 'GET', '/api/v1/indicateurs-succes')).body.indicateurs.find((i) => i.cle === 'tachesDansLesDelais').cible === 65);
+  await p.screenshot({ path: `${E.SHOTS}/n2_indicateurs_bureau.png`, fullPage: true });
+  await call('admin', 'PATCH', '/api/v1/parametres/indicateurs.cibleTachesPct', { valeur: 75 });
+  await p.context().close();
+
   console.log('— DN : lecture seule');
   p = await loginPage(b, 'dn');
+  await p.goto(`${WEB}/parametrage?onglet=indicateurs`);
+  await p.getByTestId('indicateurs-succes').locator('[data-testid=indicateur]').first().waitFor();
+  check('DN : indicateurs lisibles, aucune cible modifiable', (await p.getByTestId('indicateurs-succes').locator('[data-testid=indicateur]').count()) === 5 && (await p.getByTestId('indicateurs-succes').locator('input').count()) === 0 && (await p.getByTestId('cible').count()) === 5);
   await p.goto(`${WEB}/parametrage`);
   await p.locator('[data-testid=parametre]').first().waitFor();
   check('DN : paramètres lisibles (valeur et unité), ni champ de saisie ni « Enregistrer »', (await p.locator('[data-testid=parametre] [data-testid=valeur]').count()) >= 1 && (await p.getByTestId('champ-valeur').count()) === 0 && (await p.getByTestId('enregistrer-parametres').count()) === 0 && (await p.getByRole('button', { name: 'Enregistrer' }).count()) === 0);

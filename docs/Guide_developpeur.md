@@ -239,6 +239,11 @@ fonctionnalité ajoute sa suite (`tests/e2e/api/`, `tests/e2e/ui/`) et sa ligne 
   quotas des routes publiques par `LoginAttemptService.consommer` ; type servi d'un fichier déposé =
   `typeServi()` (`common/storage/type-servi.ts`) ; aucun texte libre ni type protégé dans une notification ou
   le journal d'audit ; en-têtes de sécurité du web dans `apps/web/next.config.ts` (CSP).
+- Indicateurs de succès (`docs/conception_indicateurs_succes.md`, `socle/indicateurs-succes.service.ts`,
+  `GET api/v1/indicateurs-succes`) : onglet de « Paramétrage et supervision », lu par l'administrateur, le DN et
+  la DNA (403 journalisé sinon), **calculé à la lecture, rien de stocké** ; cibles = paramètres bornés de
+  rubrique `indicateurs` (`PARAMETRES`, hors onglet « Paramètres »), créés par le paramétrage initial,
+  modifiés par `PATCH api/v1/parametres/:cle` (administrateur).
 - Exploitation (2026-10, `docs/Plan_reprise_incident.md`) : supervision = `SupervisionService.services()`
   (léger : appelé toutes les 10 min et par la sonde publique) — disque (`statfs`), taille de la base ; la chaîne
   d'audit complète est vérifiée la nuit (`JournalAuditService.verifierNuit`, résultat gardé dans le paramètre

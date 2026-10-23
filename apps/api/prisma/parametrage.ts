@@ -29,6 +29,7 @@ import {
 } from '@prisma/client';
 import { MODELE_ATTESTATION_INTEGRE, PREFIXE_INTEGRE } from '../src/stages/reglages-stages';
 import { verifierMigrations } from './verifier-migrations';
+import { PARAMETRES } from '../src/socle/parametres.service';
 
 const prisma = new PrismaClient();
 const GABARIT = '{seq:4}/MEFB/DNPEC/{code}/{annee}';
@@ -190,6 +191,19 @@ async function articles() {
   }
 }
 
+/** Cibles des indicateurs de succès (paramètres bornés, rubrique « indicateurs ») : valeur par défaut, sans
+ * auteur ; modifiables à l'écran (Paramétrage et supervision → Indicateurs de succès). */
+async function ciblesIndicateurs() {
+  for (const p of PARAMETRES.filter((x) => x.rubrique === 'indicateurs')) {
+    await creerSiAbsent(
+      `parametre:${p.cle}`,
+      `${p.libelle} : ${p.defaut} ${p.unite}`,
+      async () => !!(await prisma.parametre.findUnique({ where: { cle: p.cle } })),
+      (tx) => tx.parametre.create({ data: { cle: p.cle, valeur: p.defaut, modifieParId: null } }),
+    );
+  }
+}
+
 async function main() {
   console.log('Paramétrage initial — création seulement, rien n’est modifié ni supprimé.');
   await verifierMigrations(prisma);
@@ -199,6 +213,7 @@ async function main() {
   await modeleAttestation();
   await ressources();
   await articles();
+  await ciblesIndicateurs();
   const cree = journal.filter((l) => l.etat === 'créé');
   console.log('\nCRÉÉ :');
   for (const l of cree) console.log(`  + ${l.quoi}`);

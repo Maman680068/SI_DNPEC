@@ -12,6 +12,7 @@ import { AttribuerRoleDto, ListerAttributionsDto, RetirerRoleDto } from './dto/a
 import { FiltresAuditDto, ModifierParametreDto, TestRestaurationDto } from './dto/securite.dto';
 import { ParametresService } from './parametres.service';
 import { SupervisionService } from './supervision.service';
+import { IndicateursSuccesService } from './indicateurs-succes.service';
 import { JournalAuditService } from './journal-audit.service';
 
 /**
@@ -29,6 +30,7 @@ export class SocleController {
     private readonly supervision: SupervisionService,
     private readonly journalAudit: JournalAuditService,
     private readonly sauvegarde: SauvegardeFichiersService,
+    private readonly indicateurs: IndicateursSuccesService,
   ) {}
 
   // Paramétrage et supervision (lot N2, §13.6, SOC-SUP)
@@ -40,6 +42,12 @@ export class SocleController {
   @Patch('parametres/:cle')
   modifierParametre(@CurrentUser() u: AuthenticatedUser, @Param('cle') cle: string, @Body() dto: ModifierParametreDto) {
     return this.parametres.modifier(u, cle, dto.valeur);
+  }
+
+  /** Indicateurs de succès : calculés à la lecture (administrateur, DN, DNA) ; cibles par `PATCH parametres/:cle`. */
+  @Get('indicateurs-succes')
+  indicateursSucces(@CurrentUser() u: AuthenticatedUser) {
+    return this.indicateurs.lire(u);
   }
 
   @Get('supervision')

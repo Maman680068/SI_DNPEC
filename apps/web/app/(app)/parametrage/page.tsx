@@ -13,8 +13,9 @@ import { BTN_LIGNE, BTN_SECONDAIRE, EnTetePage, EtatVide, FiltreSelect, Onglets,
 import { ChampDate, ChoixSegment, FenetreFormulaire, Grille2, ZoneTexte } from '../../../components/ui/Formulaire';
 import { messageErreur, useToast } from '../../../components/ui/Toast';
 import { Parametres } from '../../../components/parametrage/Parametres';
+import { IndicateursSucces } from '../../../components/parametrage/IndicateursSucces';
 
-type Onglet = 'parametres' | 'supervision' | 'journal';
+type Onglet = 'parametres' | 'supervision' | 'indicateurs' | 'journal';
 const date = (d: string) => new Date(d).toLocaleDateString('fr-FR', { timeZone: 'UTC' });
 const dateHeure = (d: string) => new Date(d).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' });
 const releve = (d: string) => `${new Date(d).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })} à ${new Date(d).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`;
@@ -24,7 +25,8 @@ const releve = (d: string) => `${new Date(d).toLocaleDateString('fr-FR', { day: 
  * l'administrateur modifie les paramètres (bornés par le serveur, « Enregistrer » en en-tête) ; le DN
  * et la DNA consultent. Onglet Paramètres : `components/parametrage/Parametres.tsx`.
  * Supervision : bandeau d'état, « À traiter » / « Fonctionne normalement », sauvegardes regroupées.
- * Aucun élément protégé. Ouverture directe de la supervision : ?onglet=supervision (lien des alertes).
+ * Indicateurs de succès (calculés à la lecture, cibles bornées) : `components/parametrage/IndicateursSucces.tsx`.
+ * Aucun élément protégé. Ouverture directe : ?onglet=supervision (lien des alertes), ?onglet=indicateurs.
  */
 export default function ParametragePage() {
   const router = useRouter();
@@ -32,7 +34,8 @@ export default function ParametragePage() {
   const [actions, setActions] = useState<ReactNode>(null);
   const [aTraiter, setATraiter] = useState<number | null>(null);
   useEffect(() => {
-    if (new URLSearchParams(window.location.search).get('onglet') === 'supervision') setOnglet('supervision');
+    const o = new URLSearchParams(window.location.search).get('onglet');
+    if (o === 'supervision' || o === 'indicateurs') setOnglet(o);
     // Compteur de l'onglet Supervision : services à traiter (même lecture que l'onglet ; sans compteur si refusée).
     getSupervision()
       .then((s) => setATraiter(s.services.filter((x) => x.etat !== 'NOMINAL').length))
@@ -50,10 +53,11 @@ export default function ParametragePage() {
         onglets={[
           { cle: 'parametres', label: 'Paramètres' },
           { cle: 'supervision', label: 'Supervision', n: aTraiter, chaud: true },
+          { cle: 'indicateurs', label: 'Indicateurs de succès' },
           { cle: 'journal', label: 'Journal d’audit' },
         ]}
       />
-      {onglet === 'parametres' ? <Parametres onActions={poserActions} /> : <SupervisionVue />}
+      {onglet === 'parametres' ? <Parametres onActions={poserActions} /> : onglet === 'indicateurs' ? <IndicateursSucces /> : <SupervisionVue />}
     </div>
   );
 }
