@@ -9,7 +9,7 @@ import { Avatars, BarreAvancement } from './ElementsTache';
 import { referenceTache } from '../../lib/references';
 
 const POINT_COLONNE: Record<TaskStatus, string> = {
-  A_FAIRE: 'bg-[#8A90A3]',
+  A_FAIRE: 'bg-text-faint',
   EN_COURS: 'bg-ink',
   SOUMISE_VALIDATION: 'bg-gold',
   TERMINEE: 'bg-sage',
@@ -26,7 +26,7 @@ const VIDE: Record<TaskStatus, string> = {
 const ETIQUETTE_PRIORITE: Record<Task['priority'], string> = {
   URGENT: 'bg-clay-50 text-clay',
   NORMAL: 'bg-ink-50 text-ink',
-  FAIBLE: 'bg-[#F0F1F5] text-[#5C6270]',
+  FAIBLE: 'bg-fond-gris text-text-muted',
 };
 
 /** « Chez Fatoumata Camara, cheffe de section » : qui valide une tâche soumise (le créateur s'il n'y est
@@ -48,7 +48,7 @@ function Carte({ task, onClick }: { task: Task; onClick: () => void }) {
       type="button"
       onClick={onClick}
       data-testid="carte-tache"
-      className="mb-[9px] block w-full rounded-[10px] border border-[#E6E8F0] bg-surface px-3 py-[11px] text-left shadow-[0_1px_2px_rgba(18,28,77,0.07)] hover:border-ink/30"
+      className="mb-[9px] block w-full rounded-[10px] border border-line-doux bg-surface px-3 py-[11px] text-left shadow-[0_1px_2px_rgba(18,28,77,0.07)] hover:border-ink/30"
     >
       <span className="mb-1.5 flex items-center justify-between gap-2">
         <span className="flex items-center gap-1.5">
@@ -101,14 +101,14 @@ export function KanbanBoard({ tasks, onSelect, onAjouter }: { tasks: Task[]; onS
       {KANBAN_COLUMNS.map((colonne) => {
         const liste = tasks.filter((t) => t.status === colonne.status);
         return (
-          <section key={colonne.status} aria-label={colonne.label} data-testid={`colonne-${colonne.status}`} className="rounded-xl bg-[#EBEDF4] p-2.5 sm:min-h-[320px]">
+          <section key={colonne.status} aria-label={colonne.label} data-testid={`colonne-${colonne.status}`} className="rounded-xl bg-fond-gris p-2.5 sm:min-h-[320px]">
             <h3 className="flex items-center gap-2 px-1 pb-2.5 pt-1 text-[13.5px] font-bold text-ink-900">
               <i aria-hidden className={`h-[9px] w-[9px] rounded-full ${POINT_COLONNE[colonne.status]}`} />
               {colonne.label}
               <span className="ml-auto rounded-[10px] bg-surface px-2 py-px text-[12px] font-bold text-text-muted">{liste.length}</span>
             </h3>
             {liste.length === 0 ? (
-              <p className="rounded-[10px] border-[1.5px] border-dashed border-[#C9CDDD] bg-white/50 px-3 py-[18px] text-center text-[13px] text-text-muted">{VIDE[colonne.status]}</p>
+              <p className="rounded-[10px] border-[1.5px] border-dashed border-line-fort bg-surface/50 px-3 py-[18px] text-center text-[13px] text-text-muted">{VIDE[colonne.status]}</p>
             ) : (
               liste.map((t) => (
                 <div key={t.id}>
@@ -118,7 +118,7 @@ export function KanbanBoard({ tasks, onSelect, onAjouter }: { tasks: Task[]; onS
               ))
             )}
             {colonne.status === 'A_FAIRE' && onAjouter && (
-              <button type="button" onClick={onAjouter} className="flex w-full items-center gap-1.5 rounded-lg p-2 text-[13px] font-semibold text-text-muted hover:bg-white/60 hover:text-ink">
+              <button type="button" onClick={onAjouter} className="flex w-full items-center gap-1.5 rounded-lg p-2 text-[13px] font-semibold text-text-muted hover:bg-surface/60 hover:text-ink">
                 <Plus aria-hidden size={16} /> Ajouter une tâche
               </button>
             )}

@@ -146,7 +146,7 @@ export function OngletCarriere({ userId, voirFamilles }: { userId?: string; voir
         ) : (
           <div role="table" aria-label="Mouvements de carrière" data-testid="mouvements">
             <div role="rowgroup">
-              <div role="row" className={`hidden h-[38px] items-center gap-3 border-b border-line bg-[#F7F8FB] px-4 text-[12px] font-semibold text-text-muted lg:grid ${GRILLE}`}>
+              <div role="row" className={`hidden h-[38px] items-center gap-3 border-b border-line bg-fond-doux px-4 text-[12px] font-semibold text-text-muted lg:grid ${GRILLE}`}>
                 <span role="columnheader">Mouvement</span>
                 <span role="columnheader">Effet</span>
                 <span role="columnheader">Statut</span>
@@ -185,7 +185,7 @@ export function OngletCarriere({ userId, voirFamilles }: { userId?: string; voir
           <p className="border-b border-line px-[18px] py-2.5 text-[12.5px] text-text-muted">Chaque famille a sa séquence (celle de son registre du Courrier, continue et jamais réutilisée) et son signataire.</p>
           <ul>
             {f.familles.map((x) => (
-              <li key={x.code} className="flex flex-wrap items-center justify-between gap-2 border-b border-[#F0F1F6] px-[18px] py-2.5 text-[13.5px] last:border-b-0">
+              <li key={x.code} className="flex flex-wrap items-center justify-between gap-2 border-b border-line-doux px-[18px] py-2.5 text-[13.5px] last:border-b-0">
                 <span><strong className="text-ink-900">{x.libelle}</strong> <span className="text-text-muted">· signataire : {x.signataire}</span></span>
                 {f.droits.gerer ? (
                   <select
@@ -280,7 +280,7 @@ export function OngletCarriere({ userId, voirFamilles }: { userId?: string; voir
           }
         >
           <SectionFenetre titre="Changements au dossier">
-            <ul className="divide-y divide-[#F0F1F6] rounded-[10px] border border-line text-[13.5px]">
+            <ul className="divide-y divide-line-doux rounded-[10px] border border-line text-[13.5px]">
               {Object.keys({ ...detail.avant, ...detail.apres }).map((c) => (
                 <li key={c} className="grid grid-cols-1 gap-1 px-3.5 py-2.5 sm:grid-cols-[140px_minmax(0,1fr)]">
                   <span className="text-text-muted">{LIBELLE_CHAMP[c] ?? c}</span>

@@ -37,7 +37,7 @@ function Barres({ lignes, label, limite = 8 }: { lignes: Repartition[]; label: s
         {visibles.map((l) => (
           <li key={l.libelle} className="grid grid-cols-[minmax(0,1fr)_minmax(60px,120px)_32px] items-center gap-2.5 py-[5px] text-[13px]">
             <span className="min-w-0 break-words">{l.libelle}</span>
-            <span aria-hidden className="block h-[5px] overflow-hidden rounded-[3px] bg-[#E8EAF2]">
+            <span aria-hidden className="block h-[5px] overflow-hidden rounded-[3px] bg-fond-gris">
               <span className="block h-full rounded-[3px] bg-ink" style={{ width: `${Math.round((l.nombre / max) * 100)}%` }} />
             </span>
             <b className="text-right font-semibold text-ink-900">{nombre(l.nombre)}</b>
@@ -83,7 +83,7 @@ function BlocAlertes({ alertes, matriculesProvisoires, onVoir }: { alertes: Aler
       ) : (
         <ul>
           {groupes.map((g) => (
-            <li key={g.type} className="flex items-center gap-2.5 border-t border-[#F0F1F6] py-[9px] text-[13px] first:border-t-0">
+            <li key={g.type} className="flex items-center gap-2.5 border-t border-line-doux py-[9px] text-[13px] first:border-t-0">
               <span aria-hidden className={`h-[9px] w-[9px] flex-none rounded-full ${POINT[g.priorite]}`} />
               <span className="min-w-0 flex-1">{LIBELLE_GROUPE[g.type](g.n)}</span>
               <button type="button" onClick={() => onVoir(g.type)} className="rounded text-[12.5px] font-semibold text-text-muted hover:text-ink hover:underline" aria-label={`Voir : ${LIBELLE_GROUPE[g.type](g.n)}`}>
@@ -92,7 +92,7 @@ function BlocAlertes({ alertes, matriculesProvisoires, onVoir }: { alertes: Aler
             </li>
           ))}
           {matriculesProvisoires > 0 && (
-            <li className="flex items-center gap-2.5 border-t border-[#F0F1F6] py-[9px] text-[13px] first:border-t-0">
+            <li className="flex items-center gap-2.5 border-t border-line-doux py-[9px] text-[13px] first:border-t-0">
               <span aria-hidden className={`h-[9px] w-[9px] flex-none rounded-full ${POINT.INFO}`} />
               <span className="min-w-0 flex-1">
                 {matriculesProvisoires} matricule{matriculesProvisoires > 1 ? 's' : ''} provisoire{matriculesProvisoires > 1 ? 's' : ''}

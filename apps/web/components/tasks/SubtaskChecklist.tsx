@@ -68,7 +68,7 @@ export function SubtaskChecklist({
         Sous-tâches <span className="font-semibold text-text-faint">{done}/{subtasks.length}</span>
       </h3>
       {subtasks.map((subtask) => (
-        <div key={subtask.id} className="flex items-center gap-2.5 border-b border-[#F0F1F6] py-[7px] text-[13.5px]">
+        <div key={subtask.id} className="flex items-center gap-2.5 border-b border-line-doux py-[7px] text-[13.5px]">
           <button
             onClick={() => handleToggle(subtask)}
             disabled={busyId === subtask.id}
@@ -76,7 +76,7 @@ export function SubtaskChecklist({
             role="checkbox"
             aria-checked={subtask.status === 'TERMINEE'}
             className={`grid h-[17px] w-[17px] flex-shrink-0 place-items-center rounded-[5px] border-[1.6px] disabled:opacity-60 ${
-              subtask.status === 'TERMINEE' ? 'border-sage bg-sage text-white' : 'border-[#B9BFD2] bg-surface'
+              subtask.status === 'TERMINEE' ? 'border-sage bg-sage text-white' : 'border-line-fort bg-surface'
             }`}
           >
             {subtask.status === 'TERMINEE' && <Check aria-hidden size={12} strokeWidth={3} />}

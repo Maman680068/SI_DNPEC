@@ -16,6 +16,7 @@ import { SqueletteApplication } from '../../components/ui/Squelette';
 import { ToastProvider } from '../../components/ui/Toast';
 import { DefilementVisible } from '../../components/layout/DefilementVisible';
 import { useEcranLarge } from '../../lib/navigation/bandeau';
+import { ThemeProvider } from '../../lib/theme';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -48,7 +49,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
          * `relative` (ici et sur <main>) : un élément en position absolue (texte « sr-only » des lecteurs
          * d'écran, menu…) sans ancêtre positionné se placerait par rapport à la page entière, échapperait
          * à overflow-hidden et ferait défiler la fenêtre, menu compris (contrôlé par x_mise_en_page_ui). */}
-        <div className="contraste-aa relative flex h-screen flex-col overflow-hidden bg-bg">
+        <ThemeProvider>
+        {(theme) => (
+        <div className="contraste-aa relative flex h-screen flex-col overflow-hidden bg-bg text-text" data-theme={theme}>
           {large ? (
             <MenuHaut />
           ) : (
@@ -62,6 +65,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <InterimScopedContent>{children}</InterimScopedContent>
           </div>
         </div>
+        )}
+        </ThemeProvider>
         </ToastProvider>
         </NavigationProvider>
        </ReauthProvider>

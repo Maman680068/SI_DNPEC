@@ -19,7 +19,7 @@ export const BTN_SECONDAIRE =
 export const BTN_SUCCES =
   'inline-flex h-[42px] items-center justify-center gap-2 rounded-[10px] bg-sage px-3.5 text-[14px] font-bold text-white disabled:cursor-not-allowed disabled:opacity-50';
 export const BTN_DANGER_CONTOUR =
-  'inline-flex h-10 items-center justify-center gap-2 rounded-[10px] border border-[#E7B3BB] bg-surface px-3.5 text-[14px] font-bold text-clay disabled:cursor-not-allowed disabled:opacity-50';
+  'inline-flex h-10 items-center justify-center gap-2 rounded-[10px] border border-clay-bord bg-surface px-3.5 text-[14px] font-bold text-clay disabled:cursor-not-allowed disabled:opacity-50';
 /** Petit bouton d'action sur une ligne de tableau. */
 export const BTN_LIGNE = 'inline-flex h-[30px] flex-none items-center whitespace-nowrap justify-center rounded-[7px] border border-line px-3 text-[12.5px] font-bold text-ink hover:bg-bg';
 export const BTN_LIGNE_PRINCIPAL = 'inline-flex h-[30px] flex-none items-center whitespace-nowrap justify-center rounded-[7px] border border-ink bg-ink px-3 text-[12.5px] font-bold text-white';
@@ -61,7 +61,7 @@ export function Onglets<T extends string>({ onglets, actif, onChange, label }: {
           >
             {o.label}
             {o.n !== undefined && o.n !== null && (o.n > 0 || on) && (
-              <span className={`rounded-[10px] px-[7px] py-px text-[11.5px] font-bold ${on ? 'bg-ink text-white' : o.chaud && o.n > 0 ? 'bg-gold text-ink-900' : 'bg-[#ECEEF5] text-text-muted'}`}>{o.n}</span>
+              <span className={`rounded-[10px] px-[7px] py-px text-[11.5px] font-bold ${on ? 'bg-ink text-white' : o.chaud && o.n > 0 ? 'bg-gold text-sur-or' : 'bg-fond-gris text-text-muted'}`}>{o.n}</span>
             )}
           </button>
         );
@@ -108,7 +108,7 @@ export function BandeCompteurs({ items, variante = 'empile', label }: { items: C
       );
     const classe =
       variante === 'cartes'
-        ? `flex items-center gap-3 rounded-xl border bg-surface px-3.5 py-3 text-left ${c.actif ? 'border-ink shadow-[inset_0_0_0_1px_theme(colors.ink.DEFAULT)]' : 'border-line'} ${c.href || c.onClick ? 'hover:bg-bg' : ''}`
+        ? `flex items-center gap-3 rounded-xl border bg-surface px-3.5 py-3 text-left ${c.actif ? 'border-ink shadow-[inset_0_0_0_1px_rgb(var(--c-ink))]' : 'border-line'} ${c.href || c.onClick ? 'hover:bg-bg' : ''}`
         : `block px-[18px] py-3.5 text-left ${i ? 'border-t border-line sm:border-l sm:border-t-0' : ''} ${c.href || c.onClick ? 'hover:bg-bg' : ''}`;
     if (c.href)
       return (
@@ -233,12 +233,12 @@ export function Filtres({ actifs = 0, children, onEffacer }: { actifs?: number; 
 
 export type TonPastille = 'gris' | 'encre' | 'ambre' | 'vert' | 'rouge' | 'bleu';
 const PASTILLE: Record<TonPastille, string> = {
-  gris: 'bg-[#F0F1F5] text-[#4B5263]',
+  gris: 'bg-fond-gris text-text-fort',
   encre: 'bg-ink-50 text-ink',
   ambre: 'bg-gold-50 text-ambre',
   vert: 'bg-sage-50 text-sage',
   rouge: 'bg-clay-50 text-clay',
-  bleu: 'bg-[#E6F0FA] text-[#1D5FA0]',
+  bleu: 'bg-bleu-50 text-bleu',
 };
 /** Pastille de statut avec point (maquette : `.pill`). */
 export function Pastille({ ton, children, testid }: { ton: TonPastille; children: ReactNode; testid?: string }) {
@@ -252,7 +252,7 @@ export function Pastille({ ton, children, testid }: { ton: TonPastille; children
 
 /** Marque « Final » (document). */
 export function MarqueFinal() {
-  return <span className="rounded-[5px] border border-[#A9D5B7] px-1.5 py-px text-[11px] font-bold text-sage">Final</span>;
+  return <span className="rounded-[5px] border border-sage-bord px-1.5 py-px text-[11px] font-bold text-sage">Final</span>;
 }
 
 /** Vignette de type de fichier (PDF rouge, tableur vert, texte bleu, autre gris). */
@@ -289,7 +289,7 @@ export function Tableau({ label, colonnes, grille, children, pied, vide, testid 
       ) : (
         <div role="table" aria-label={label}>
           <div role="rowgroup">
-            <div role="row" className={`hidden h-[38px] items-center gap-3 border-b border-line bg-[#F7F8FB] px-4 text-[12px] font-semibold text-text-muted lg:grid ${grille}`}>
+            <div role="row" className={`hidden h-[38px] items-center gap-3 border-b border-line bg-fond-doux px-4 text-[12px] font-semibold text-text-muted lg:grid ${grille}`}>
               {colonnes.map((c, i) => (
                 <span key={i} role="columnheader">
                   {c}
@@ -314,7 +314,7 @@ export function LigneTableau({ grille, children, onClick, label, actif, testid }
       tabIndex={onClick ? 0 : undefined}
       onClick={onClick}
       onKeyDown={onClick ? (e) => (e.key === 'Enter' || e.key === ' ') && e.target === e.currentTarget && (e.preventDefault(), onClick()) : undefined}
-      className={`grid grid-cols-1 items-center gap-x-3 gap-y-1 border-b border-[#F0F1F6] px-4 py-2.5 text-[13.5px] last:border-b-0 lg:min-h-[54px] lg:py-1.5 ${grille} ${onClick ? 'cursor-pointer hover:bg-[#F6F7FC] focus:bg-[#F6F7FC] focus:outline-none' : ''} ${actif ? 'bg-[#F6F7FC]' : ''}`}
+      className={`grid grid-cols-1 items-center gap-x-3 gap-y-1 border-b border-line-doux px-4 py-2.5 text-[13.5px] last:border-b-0 lg:min-h-[54px] lg:py-1.5 ${grille} ${onClick ? 'cursor-pointer hover:bg-survol focus:bg-survol focus:outline-none' : ''} ${actif ? 'bg-survol' : ''}`}
     >
       {Children.map(children, (c) => (
         <span role="cell" className="min-w-0">
@@ -332,9 +332,9 @@ export function Etapes({ etapes, label = 'Étapes du circuit' }: { etapes: { lab
     <ol aria-label={label} className="mt-3.5 flex flex-wrap items-center gap-y-2">
       {etapes.map((e, i) => (
         <li key={i} className="flex items-center" aria-current={e.etat === 'courant' ? 'step' : undefined}>
-          {i > 0 && <span aria-hidden className={`mx-2.5 h-0.5 w-6 sm:w-14 ${e.etat !== 'avenir' ? 'bg-sage' : 'bg-[#E1E4EE]'}`} />}
+          {i > 0 && <span aria-hidden className={`mx-2.5 h-0.5 w-6 sm:w-14 ${e.etat !== 'avenir' ? 'bg-sage' : 'bg-fond-gris'}`} />}
           <span className={`flex items-center gap-[7px] text-[12.5px] font-semibold ${e.etat === 'fait' ? 'text-sage' : e.etat === 'courant' ? 'text-ink-900' : 'text-text-muted'}`}>
-            <b className={`grid h-[22px] w-[22px] flex-none place-items-center rounded-full text-[11px] ${e.etat === 'fait' ? 'bg-sage text-white' : e.etat === 'courant' ? 'bg-gold text-ink-900' : 'bg-[#ECEEF5] text-text-muted'}`}>
+            <b className={`grid h-[22px] w-[22px] flex-none place-items-center rounded-full text-[11px] ${e.etat === 'fait' ? 'bg-sage text-white' : e.etat === 'courant' ? 'bg-gold text-sur-or' : 'bg-fond-gris text-text-muted'}`}>
               {e.etat === 'fait' ? <Check aria-hidden size={12} strokeWidth={3} /> : i + 1}
             </b>
             {e.label}
@@ -352,8 +352,8 @@ export function Circuit({ etapes, label }: { etapes: { label: string; detail?: R
     <ol aria-label={label} className="my-4 grid gap-y-3 sm:grid-cols-4">
       {etapes.map((e, i) => (
         <li key={i} className="relative pt-[30px] text-[12.5px] text-text-muted" aria-current={e.etat === 'courant' ? 'step' : undefined}>
-          <span aria-hidden className={`absolute top-[10px] h-[3px] ${i === 0 ? 'left-3' : 'left-0'} ${i === etapes.length - 1 ? 'w-3' : 'right-0'} ${e.etat === 'fait' ? 'bg-sage' : 'bg-[#E3E6EF]'}`} />
-          <i aria-hidden className={`absolute left-0 top-0.5 h-[19px] w-[19px] rounded-full border-[3px] ${e.etat === 'fait' ? 'border-sage bg-sage' : e.etat === 'courant' ? 'border-gold bg-surface shadow-[0_0_0_4px_theme(colors.gold.50)]' : 'border-[#CDD1DF] bg-surface'}`} />
+          <span aria-hidden className={`absolute top-[10px] h-[3px] ${i === 0 ? 'left-3' : 'left-0'} ${i === etapes.length - 1 ? 'w-3' : 'right-0'} ${e.etat === 'fait' ? 'bg-sage' : 'bg-fond-gris'}`} />
+          <i aria-hidden className={`absolute left-0 top-0.5 h-[19px] w-[19px] rounded-full border-[3px] ${e.etat === 'fait' ? 'border-sage bg-sage' : e.etat === 'courant' ? 'border-gold bg-surface shadow-[0_0_0_4px_rgb(var(--c-or-50))]' : 'border-line-fort bg-surface'}`} />
           <b className={`block text-[13px] ${e.etat === 'courant' ? 'text-ambre' : 'text-text'}`}>
             {e.label}
             {e.etat === 'fait' && <span className="sr-only"> (fait)</span>}
@@ -381,7 +381,7 @@ export function Anneau({ valeur, taille = 62, couleur = 'var(--couleur-sage)', l
 
 /** Bandeau d'information (ambre par défaut) avec action à droite. */
 export function Bandeau({ children, action, icone, ton = 'ambre', testid }: { children: ReactNode; action?: ReactNode; icone?: ReactNode; ton?: 'ambre' | 'vert' | 'rouge'; testid?: string }) {
-  const couleurs = ton === 'ambre' ? 'border-[#F2D58A] bg-gold-50' : ton === 'vert' ? 'border-[#A9D5B7] bg-sage-50' : 'border-[#E7B3BB] bg-clay-50';
+  const couleurs = ton === 'ambre' ? 'border-gold-bord bg-gold-50' : ton === 'vert' ? 'border-sage-bord bg-sage-50' : 'border-clay-bord bg-clay-50';
   return (
     <div role="status" data-testid={testid} className={`mb-3.5 flex flex-wrap items-center gap-3 rounded-[10px] border px-3.5 py-2.5 text-[13.5px] ${couleurs}`}>
       {icone}

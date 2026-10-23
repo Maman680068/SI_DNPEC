@@ -243,7 +243,7 @@ export function MeetingDetailDrawer({
           {points.length ? (
             <ol>
               {points.map((p, i) => (
-                <li key={i} className="flex gap-2.5 border-b border-[#F0F1F6] py-[7px] text-[13.5px]">
+                <li key={i} className="flex gap-2.5 border-b border-line-doux py-[7px] text-[13.5px]">
                   <span className="flex-none text-text-muted">{i + 1}.</span>
                   <span className="min-w-0">{p}</span>
                 </li>
@@ -265,7 +265,7 @@ export function MeetingDetailDrawer({
             !isOrganizer && <p className="mb-2 text-[13px] text-text-muted">Aucun compte rendu rédigé.</p>
           )}
           {isOrganizer && meeting.status === 'PLANIFIEE' && (
-            <button type="button" onClick={() => setModifier(true)} className="mb-2.5 flex w-full items-center gap-2 rounded-[9px] border-[1.5px] border-dashed border-[#C3C8DA] px-3.5 py-2 text-[13px] font-semibold text-text-muted hover:border-ink hover:text-ink">
+            <button type="button" onClick={() => setModifier(true)} className="mb-2.5 flex w-full items-center gap-2 rounded-[9px] border-[1.5px] border-dashed border-line-fort px-3.5 py-2 text-[13px] font-semibold text-text-muted hover:border-ink hover:text-ink">
               <Plus aria-hidden size={15} />
               {meeting.minutesText ? 'Modifier le compte rendu' : 'Rédiger ou déposer le compte rendu'}
             </button>

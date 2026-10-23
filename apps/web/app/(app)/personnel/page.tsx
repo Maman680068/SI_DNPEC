@@ -53,7 +53,7 @@ function Ligne({ grille, onOuvrir, children }: { grille: string; onOuvrir: () =>
       onClick={(e) => {
         if (!(e.target as HTMLElement).closest('a,button')) onOuvrir();
       }}
-      className={`grid cursor-pointer grid-cols-1 items-center gap-x-3 gap-y-1 border-b border-[#F0F1F6] px-4 py-2.5 text-[13.5px] last:border-b-0 hover:bg-[#F6F7FC] lg:min-h-[56px] lg:py-1.5 ${grille}`}
+      className={`grid cursor-pointer grid-cols-1 items-center gap-x-3 gap-y-1 border-b border-line-doux px-4 py-2.5 text-[13.5px] last:border-b-0 hover:bg-survol lg:min-h-[56px] lg:py-1.5 ${grille}`}
     >
       {children.map((c, i) => (
         <span key={i} role="cell" className="min-w-0">
@@ -81,7 +81,7 @@ function Completude({ valeur }: { valeur: number }) {
   const couleur = valeur >= 80 ? 'bg-sage' : valeur >= 50 ? 'bg-gold' : 'bg-clay';
   return (
     <span className="flex items-center gap-2 text-[12px] text-text-muted" data-testid="completude">
-      <span aria-hidden className="h-1.5 min-w-[60px] flex-1 overflow-hidden rounded-full bg-[#E8EAF2]">
+      <span aria-hidden className="h-1.5 min-w-[60px] flex-1 overflow-hidden rounded-full bg-fond-gris">
         <span className={`block h-full rounded-full ${couleur}`} style={{ width: `${valeur}%` }} />
       </span>
       <span>

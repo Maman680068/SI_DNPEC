@@ -35,7 +35,7 @@ const dateFr = (iso: string) => new Date(iso).toLocaleDateString('fr-FR', { day:
 
 function LigneInfo({ libelle, valeur, action }: { libelle: string; valeur: string; action?: React.ReactNode }) {
   return (
-    <div className="flex items-center justify-between gap-3 border-b border-[#EEF0F5] py-[7px] text-[13px] last:border-b-0">
+    <div className="flex items-center justify-between gap-3 border-b border-line-doux py-[7px] text-[13px] last:border-b-0">
       <dt className="text-text-muted">{libelle}</dt>
       <dd className="flex items-center gap-2 text-right font-bold text-ink-900">
         {valeur}
@@ -159,12 +159,12 @@ export default function FicheModelePage() {
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
         <section className="rounded-xl border border-line bg-surface px-[18px] py-4" aria-label="Versions">
           <h2 className="mb-2 font-heading text-[15.5px] font-bold text-ink-900">Versions</h2>
-          <ul className="divide-y divide-[#EEF0F5]" data-testid="versions">
+          <ul className="divide-y divide-line-doux" data-testid="versions">
             {fiche.versions.map((x) => (
               <li key={x.id}>
                 <button
                   type="button"
-                  className={`grid w-full grid-cols-[42px_minmax(0,1fr)] items-center gap-x-3 gap-y-1 rounded-lg px-1 py-2 text-left sm:grid-cols-[42px_minmax(0,1fr)_auto_110px] ${v?.id === x.id ? 'bg-[#F6F7FC]' : 'hover:bg-[#F9FAFC]'}`}
+                  className={`grid w-full grid-cols-[42px_minmax(0,1fr)] items-center gap-x-3 gap-y-1 rounded-lg px-1 py-2 text-left sm:grid-cols-[42px_minmax(0,1fr)_auto_110px] ${v?.id === x.id ? 'bg-survol' : 'hover:bg-fond-doux'}`}
                   aria-current={v?.id === x.id ? 'true' : undefined}
                   onClick={() => getVersion(x.id).then(setVue).catch((e) => toast.erreur(messageErreur(e)))}
                   data-testid="version"
@@ -187,7 +187,7 @@ export default function FicheModelePage() {
               </li>
             ))}
           </ul>
-          <p className="mt-2 border-t border-[#EEF0F5] pt-2.5 text-[13px] text-text-muted">
+          <p className="mt-2 border-t border-line-doux pt-2.5 text-[13px] text-text-muted">
             Une version déposée ne se modifie plus. Pour corriger, on dépose une nouvelle version ; l’ancienne reste consultable.
           </p>
           {v && (
@@ -214,7 +214,7 @@ export default function FicheModelePage() {
                     const d = v.derogations.find((x) => x.controleId === c.id);
                     if (d)
                       return (
-                        <div className="mt-1.5 rounded-lg border border-line bg-[#FBFBFD] px-3 py-2 text-[12.5px]" data-testid="derogation">
+                        <div className="mt-1.5 rounded-lg border border-line bg-fond-doux px-3 py-2 text-[12.5px]" data-testid="derogation">
                           <div>
                             <strong>Dérogation demandée</strong> par {d.demandeePar} le {dateFr(d.demandeeLe)} : {d.motif}
                           </div>

@@ -150,7 +150,7 @@ export function ManageAccountModal({
       pied="Chaque action est inscrite au journal d’audit."
     >
       {error && (
-        <div role="alert" className="mb-4 rounded-[9px] border border-[#F0C5CC] bg-clay-50 px-3 py-2.5 text-[13px] font-semibold text-clay">
+        <div role="alert" className="mb-4 rounded-[9px] border border-clay-bord bg-clay-50 px-3 py-2.5 text-[13px] font-semibold text-clay">
           {error}
         </div>
       )}

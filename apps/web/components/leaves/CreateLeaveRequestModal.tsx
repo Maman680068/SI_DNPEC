@@ -124,7 +124,7 @@ export function CreateLeaveRequestModal({
           role="status"
           aria-live="polite"
           data-testid="simulation-conge"
-          className={`mb-3.5 flex flex-col gap-1.5 rounded-[10px] bg-sage-50 px-3.5 py-2.5 text-[13px] text-[#145C33] sm:flex-row sm:items-center sm:gap-4 ${calcul ? 'opacity-60' : ''}`}
+          className={`mb-3.5 flex flex-col gap-1.5 rounded-[10px] bg-sage-50 px-3.5 py-2.5 text-[13px] text-sage-fonce sm:flex-row sm:items-center sm:gap-4 ${calcul ? 'opacity-60' : ''}`}
         >
           <b className="whitespace-nowrap font-heading text-[18px] font-extrabold">
             {s.jours} jour{s.jours > 1 ? 's' : ''}

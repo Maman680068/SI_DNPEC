@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { ChevronDown, ChevronLeft, ChevronRight, CircleHelp, LogOut } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, CircleHelp, LogOut, Moon, Sun } from 'lucide-react';
+import { useTheme, type Theme } from '../../lib/theme';
 import { useAuth } from '../../lib/auth/AuthProvider';
 import { useNavigation } from '../../lib/navigation/NavigationProvider';
 import type { CompteursNavigation } from '../../lib/api/navigation';
@@ -26,7 +27,7 @@ function somme(items: NavItem[], c?: CompteursNavigation): number {
 
 function Pastille({ n, dore, claire, id }: { n: number; dore?: boolean; claire?: boolean; id?: string }) {
   if (!n) return null;
-  const ton = dore ? 'bg-gold text-ink-900' : claire ? 'bg-ink-50 text-ink' : 'bg-white/[.14] text-white';
+  const ton = dore ? 'bg-gold text-sur-or' : claire ? 'bg-ink-50 text-ink' : 'bg-white/[.14] text-white';
   return (
     <span id={id} aria-hidden data-testid="pastille-menu" className={`grid h-5 min-w-[22px] place-items-center rounded-[10px] px-1.5 text-[11.5px] font-bold ${ton}`}>
       {n > 99 ? '99+' : n}
@@ -73,8 +74,8 @@ function RangeeDefilante({ label, sombre, cle, children }: { label: string; somb
   }, [cle, mesurer]);
   const defiler = (sens: number) => rangee.current?.scrollBy({ left: sens * rangee.current.clientWidth * 0.6, behavior: 'smooth' });
   const fleche = sombre
-    ? 'bg-ink-900 text-[#D3D7EC] hover:text-white shadow-[0_0_12px_8px_theme(colors.ink.900)]'
-    : 'bg-surface text-text-muted hover:text-ink shadow-[0_0_12px_8px_theme(colors.surface)]';
+    ? 'bg-bandeau text-[#D3D7EC] hover:text-white shadow-[0_0_12px_8px_rgb(var(--c-bandeau))]'
+    : 'bg-surface text-text-muted hover:text-ink shadow-[0_0_12px_8px_rgb(var(--c-surface))]';
   return (
     <div className="relative">
       <nav aria-label={label} ref={rangee} onScroll={mesurer} onKeyDown={clavierRangee} className="sans-barre flex gap-1 overflow-x-auto px-4">
@@ -94,7 +95,37 @@ function RangeeDefilante({ label, sombre, cle, children }: { label: string; somb
   );
 }
 
-/** Menu du compte : profil, sécurité, préférences, déconnexion. Liste de liens dépliable (les liens
+/** Choix du thème (clair, sombre) : deux boutons à bascule, gardé dans le navigateur (lib/theme). */
+export function ChoixTheme({ entree = false }: { entree?: boolean }) {
+  const { theme, choisir } = useTheme();
+  const options: [Theme, string, typeof Sun][] = [
+    ['clair', 'Clair', Sun],
+    ['sombre', 'Sombre', Moon],
+  ];
+  return (
+    <div role="group" aria-label="Thème" className="flex items-center gap-2" data-testid="choix-theme">
+      <span className="text-[12.5px] text-text-muted">Thème :</span>
+      <span className="inline-flex rounded-lg border border-line p-0.5">
+        {options.map(([t, libelle, Icone]) => (
+          <button
+            key={t}
+            type="button"
+            {...(entree ? { 'data-entree-compte': '' } : {})}
+            aria-pressed={theme === t}
+            onClick={() => choisir(t)}
+            className={`flex h-7 items-center gap-1.5 rounded-md px-2.5 text-[12.5px] font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-ink ${
+              theme === t ? 'bg-ink-50 text-ink' : 'text-text-muted hover:text-ink'
+            }`}
+          >
+            <Icone aria-hidden size={14} /> {libelle}
+          </button>
+        ))}
+      </span>
+    </div>
+  );
+}
+
+/** Menu du compte : profil, sécurité, préférences, thème, déconnexion. Liste de liens dépliable (les liens
  * restent des liens) ; clavier : focus sur la première entrée à l'ouverture, flèches, Échap. */
 function MenuCompte() {
   const { user, logout } = useAuth();
@@ -137,7 +168,7 @@ function MenuCompte() {
         aria-label="Mon compte"
         className="flex items-center gap-2.5 rounded-[10px] py-1 pl-1 pr-2 hover:bg-white/[.08] focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold"
       >
-        <span className="grid h-[34px] w-[34px] flex-none place-items-center rounded-full bg-gold text-[12.5px] font-bold text-ink-900">
+        <span className="grid h-[34px] w-[34px] flex-none place-items-center rounded-full bg-gold text-[12.5px] font-bold text-sur-or">
           {initiales(user.firstName, user.lastName)}
         </span>
         <span className="hidden min-w-0 text-left xl:block">
@@ -169,6 +200,9 @@ function MenuCompte() {
           <Link data-entree-compte href="/compte?section=notifications" className={entree}>
             Préférences de notification
           </Link>
+          <div className="border-t border-line px-3.5 py-2">
+            <ChoixTheme entree />
+          </div>
           <button data-entree-compte type="button" onClick={() => logout()} className={`${entree} border-t border-line`}>
             <LogOut aria-hidden size={16} /> Se déconnecter
           </button>
@@ -192,7 +226,7 @@ export function MenuHaut() {
 
   return (
     <div className="z-30 flex-shrink-0" data-testid="menu-haut">
-      <div className="bg-ink-900 text-[#C9CEE6]">
+      <div className="bg-bandeau text-[#C9CEE6]">
         {/* Rangée du haut : identité, recherche, messagerie, notifications, « Créer », aide et compte. */}
         <div className="flex items-center gap-3 pl-6 pr-5">
           <Link href="/dashboard" className={`flex flex-none items-center gap-[11px] rounded-[10px] py-3 ${focusClair}`}>

@@ -178,7 +178,7 @@ function Pastille({ n, dore, id }: { n: number; dore?: boolean; id?: string }) {
       id={id}
       aria-hidden
       data-testid="pastille-menu"
-      className={`ml-auto grid h-5 min-w-[22px] place-items-center rounded-[10px] px-1.5 text-[11.5px] font-bold ${dore ? 'bg-gold text-ink-900' : 'bg-white/[.12] text-white'}`}
+      className={`ml-auto grid h-5 min-w-[22px] place-items-center rounded-[10px] px-1.5 text-[11.5px] font-bold ${dore ? 'bg-gold text-sur-or' : 'bg-white/[.12] text-white'}`}
     >
       {n > 99 ? '99+' : n}
     </span>
@@ -195,7 +195,7 @@ function Entree({ item, actif, compteurs }: { item: NavItem; actif: boolean; com
       aria-current={actif ? 'page' : undefined}
       aria-describedby={n ? idPastille : undefined}
       className={`flex h-[35px] items-center gap-[11px] rounded-lg px-2.5 text-[14px] font-medium ${
-        actif ? 'bg-white/[.09] text-white shadow-[inset_3px_0_0_theme(colors.gold.DEFAULT)]' : 'text-[#D3D7EC] hover:bg-white/[.05] hover:text-white'
+        actif ? 'bg-white/[.09] text-white shadow-[inset_3px_0_0_rgb(var(--c-or))]' : 'text-[#D3D7EC] hover:bg-white/[.05] hover:text-white'
       }`}
     >
       <Icone aria-hidden size={18} strokeWidth={1.8} className="flex-none" />
@@ -254,7 +254,7 @@ export function Sidebar({ open = false, onClose }: { open?: boolean; onClose?: (
       {open && <div className="fixed inset-0 z-40 bg-[rgba(18,28,77,0.45)]" onClick={onClose} />}
       <aside
         data-testid="tiroir-menu"
-        className={`fixed inset-y-0 left-0 z-50 flex w-[240px] flex-shrink-0 flex-col bg-ink-900 text-[#C9CEE6] transition-transform duration-200 ${
+        className={`fixed inset-y-0 left-0 z-50 flex w-[240px] flex-shrink-0 flex-col bg-bandeau text-[#C9CEE6] transition-transform duration-200 ${
           open ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
@@ -316,7 +316,7 @@ export function Sidebar({ open = false, onClose }: { open?: boolean; onClose?: (
               aria-label="Mon compte"
               className="flex min-w-0 flex-1 items-center gap-2.5 text-left"
             >
-              <span className="grid h-[34px] w-[34px] flex-none place-items-center rounded-full bg-gold text-[12.5px] font-bold text-ink-900">
+              <span className="grid h-[34px] w-[34px] flex-none place-items-center rounded-full bg-gold text-[12.5px] font-bold text-sur-or">
                 {initials(user.firstName, user.lastName)}
               </span>
               <span className="min-w-0">

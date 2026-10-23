@@ -171,12 +171,12 @@ export function FilsDiscussion({
                   data-testid="fil"
                   aria-current={ouvert === f.id ? 'true' : undefined}
                   onClick={() => setOuvert(f.id)}
-                  className={`w-full border-b border-[#F0F1F6] px-3.5 py-[11px] text-left ${ouvert === f.id ? 'bg-ink-50' : 'hover:bg-[#F6F7FC]'}`}
+                  className={`w-full border-b border-line-doux px-3.5 py-[11px] text-left ${ouvert === f.id ? 'bg-ink-50' : 'hover:bg-survol'}`}
                 >
                   <div className="flex items-center justify-between gap-2">
                     <span className="truncate text-[13.5px] font-semibold">{f.objet}</span>
                     {f.nonLus > 0 && (
-                      <span className="flex-none rounded-[10px] bg-gold px-[7px] py-px text-[11.5px] font-bold text-ink-900">
+                      <span className="flex-none rounded-[10px] bg-gold px-[7px] py-px text-[11.5px] font-bold text-sur-or">
                         {f.nonLus}
                         <span className="sr-only"> non lu{f.nonLus > 1 ? 's' : ''}</span>
                       </span>
@@ -259,7 +259,7 @@ function FilOuvert({
           </div>
         </div>
       </div>
-      <ol className="flex-1 space-y-3 overflow-y-auto bg-[#FAFBFD] px-4 py-4 sm:px-[22px]">
+      <ol className="flex-1 space-y-3 overflow-y-auto bg-fond-doux px-4 py-4 sm:px-[22px]">
         {fil.messages.map((m) => (
           <li key={m.id} data-testid="message-fil" className="rounded-[12px] border border-line bg-surface p-3">
             <div className="mb-1 flex flex-wrap items-center justify-between gap-2 text-[12px] text-text-muted">

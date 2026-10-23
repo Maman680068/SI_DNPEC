@@ -77,7 +77,7 @@ function Frise({ a, annee }: { a: Activite; annee: number }) {
       role="img"
       aria-label={`Du ${date(a.dateDebut)} au ${date(a.dateFin)}, ${etatActivite(a)}`}
       className="relative h-[22px] rounded-[5px]"
-      style={{ background: 'repeating-linear-gradient(90deg,#F2F3F8 0 calc(100%/12 - 1px),#E4E6EF calc(100%/12 - 1px) calc(100%/12))' }}
+      style={{ background: 'repeating-linear-gradient(90deg,rgb(var(--c-fond-doux)) 0 calc(100%/12 - 1px),rgb(var(--c-trait)) calc(100%/12 - 1px) calc(100%/12))' }}
     >
       {droite > gauche && <i className={`absolute top-1 h-3.5 rounded-[4px] ${couleurActivite(a)}`} style={{ left: `${gauche}%`, width: `${Math.max(droite - gauche, 0.8)}%` }} />}
       {maintenant >= debutAn && maintenant < finAn && <span aria-hidden className="absolute -bottom-[3px] -top-[3px] w-0.5 bg-gold" style={{ left: `${part(maintenant)}%` }} />}
@@ -216,7 +216,7 @@ export default function PlanTravailPage() {
         {plan.objectifs.map((o) => (
           <section key={o.id} data-testid="objectif" aria-label={o.libelle} className="overflow-hidden rounded-xl border border-line bg-surface">
             <div className="flex flex-wrap items-center gap-3.5 border-b border-line px-4 py-3.5 sm:px-[18px]">
-              <Anneau valeur={o.avancement} taille={52} couleur={o.avancement >= 50 ? 'var(--couleur-sage)' : '#F0B429'} label={`Avancement de l’objectif : ${o.avancement} %`} />
+              <Anneau valeur={o.avancement} taille={52} couleur={o.avancement >= 50 ? 'var(--couleur-sage)' : 'rgb(var(--c-or))'} label={`Avancement de l’objectif : ${o.avancement} %`} />
               <div className="min-w-0 flex-1">
                 <h2 className="font-heading text-[15.5px] font-bold text-ink-900">{o.libelle}</h2>
                 <span className="mt-0.5 block text-[12.5px] text-text-muted">{[o.description, o.unite].filter(Boolean).join(' · ')}</span>
@@ -256,7 +256,7 @@ export default function PlanTravailPage() {
             ) : (
               <div role="table" aria-label={`Activités — ${o.libelle}`}>
                 <div role="rowgroup">
-                  <div role="row" className={`hidden h-8 items-center gap-3.5 border-b border-[#F0F1F6] bg-[#FAFBFD] px-[18px] text-[11.5px] font-semibold text-text-muted lg:grid ${GRILLE}`}>
+                  <div role="row" className={`hidden h-8 items-center gap-3.5 border-b border-line-doux bg-fond-doux px-[18px] text-[11.5px] font-semibold text-text-muted lg:grid ${GRILLE}`}>
                     <span role="columnheader">Activité et indicateur</span>
                     <span role="columnheader">Responsable</span>
                     <span role="columnheader" className="grid grid-cols-12 text-center">
@@ -325,7 +325,7 @@ export default function PlanTravailPage() {
 function LigneActivite({ a, annee, onOuvrir }: { a: Activite; annee: number; onOuvrir: () => void }) {
   const { getUserInitials } = useOrg();
   return (
-    <div role="row" data-testid="activite" className={`grid grid-cols-1 items-center gap-x-3.5 gap-y-2 border-b border-[#F0F1F6] px-4 py-3 last:border-b-0 sm:px-[18px] lg:min-h-[58px] lg:py-2 ${GRILLE}`}>
+    <div role="row" data-testid="activite" className={`grid grid-cols-1 items-center gap-x-3.5 gap-y-2 border-b border-line-doux px-4 py-3 last:border-b-0 sm:px-[18px] lg:min-h-[58px] lg:py-2 ${GRILLE}`}>
       <span role="cell" className="min-w-0">
         <button type="button" onClick={onOuvrir} className="block max-w-full truncate text-left text-[13.5px] font-semibold text-text hover:text-ink hover:underline">
           <span className="mr-1.5 text-text-muted" data-testid="reference-activite">{a.reference}</span>
@@ -611,7 +611,7 @@ function FicheActivite({
       </SectionFenetre>
       <SectionFenetre titre="Informations" className="mb-0">
         <div className="mb-3 flex items-center gap-3">
-          <Anneau valeur={a.avancement} taille={52} couleur={a.avancement >= 100 ? 'var(--couleur-sage)' : a.enRetard ? '#CE1126' : '#1B2A6B'} label={`Avancement : ${a.avancement} %`} />
+          <Anneau valeur={a.avancement} taille={52} couleur={a.avancement >= 100 ? 'var(--couleur-sage)' : a.enRetard ? 'rgb(var(--c-clay))' : 'rgb(var(--c-ink))'} label={`Avancement : ${a.avancement} %`} />
           <span className="text-[12.5px] text-text-muted">Calculé sur les tâches rattachées, jamais saisi.</span>
         </div>
         <CleValeur

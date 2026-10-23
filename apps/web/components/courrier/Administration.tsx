@@ -439,7 +439,7 @@ export function PanneauCompteurs() {
       ) : (
         <div className="overflow-x-auto rounded-xl border border-line bg-surface">
           <table className="w-full text-left text-[13px]">
-            <thead className="bg-[#F7F8FB] text-[12px] text-text-muted">
+            <thead className="bg-fond-doux text-[12px] text-text-muted">
               <tr>
                 <th className="px-4 py-2 font-semibold">Unité</th>
                 <th className="px-4 py-2 font-semibold">Année</th>
@@ -505,7 +505,7 @@ function FenetreReprise({ registre, unites, onClose, onFait }: { registre: Regis
         onFait();
       }}
     >
-      <p className="mb-3.5 rounded-[10px] border border-[#E7B3BB] bg-clay-50 px-3 py-2 text-[12.5px] text-clay">
+      <p className="mb-3.5 rounded-[10px] border border-clay-bord bg-clay-50 px-3 py-2 text-[12.5px] text-clay">
         À n’utiliser qu’au démarrage, pour reprendre la numérotation papier : indiquez le dernier numéro déjà attribué à la main. Refusé dès qu’une entrée a
         été numérotée par le système pour ce registre, cette unité et cette année.
       </p>

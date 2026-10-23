@@ -33,7 +33,7 @@ export function BlocEvaluation({ stage, periode, onChange, onRenvoyer }: { stage
     enregistrerEvaluation(stage.id, periode.id, { ...(periode.formatEvaluation === 'GRILLE' ? { criteres } : {}), appreciation });
 
   return (
-    <div className="mt-3 rounded-[10px] border border-line bg-[#FAFBFD] px-3.5 py-3" data-testid={`evaluation-${periode.ordre}`}>
+    <div className="mt-3 rounded-[10px] border border-line bg-fond-doux px-3.5 py-3" data-testid={`evaluation-${periode.ordre}`}>
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <span className="text-[12.5px] font-bold">Évaluation — {FORMAT_LABEL[periode.formatEvaluation]}</span>
         {ev && <Pastille ton={ev.statut === 'VISEE' ? 'vert' : ev.statut === 'RENVOYEE' ? 'rouge' : 'ambre'}>{EVALUATION_STATUT_LABEL[ev.statut]}</Pastille>}

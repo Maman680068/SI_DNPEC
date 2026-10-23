@@ -181,7 +181,7 @@ export function Topbar({ onMenuClick, variante }: { onMenuClick?: () => void; va
                   {!resultats ? (
                     <div className="space-y-2.5 px-4 py-3" role="status" aria-label="Recherche en cours">
                       {[60, 45, 52].map((l) => (
-                        <span key={l} aria-hidden className="block h-3 animate-pulse rounded bg-[#ECEEF4]" style={{ width: `${l}%` }} />
+                        <span key={l} aria-hidden className="block h-3 animate-pulse rounded bg-fond-gris" style={{ width: `${l}%` }} />
                       ))}
                     </div>
                   ) : total === 0 ? (
@@ -212,7 +212,7 @@ export function Topbar({ onMenuClick, variante }: { onMenuClick?: () => void; va
                                   router.push(r.lien);
                                 }}
                                 onMouseEnter={() => setActif(i)}
-                                className={`flex cursor-pointer items-center gap-3 px-4 py-2 text-[13.5px] ${i === actif ? 'bg-[#F0F2F9]' : ''}`}
+                                className={`flex cursor-pointer items-center gap-3 px-4 py-2 text-[13.5px] ${i === actif ? 'bg-survol' : ''}`}
                               >
                                 <span aria-hidden className="grid h-7 w-7 flex-none place-items-center rounded-[8px] bg-ink-50 text-ink">
                                   <Icone size={15} />
@@ -227,7 +227,7 @@ export function Topbar({ onMenuClick, variante }: { onMenuClick?: () => void; va
                     })
                   )}
                 </div>
-                <div className="flex items-center gap-3 border-t border-line bg-[#FBFBFD] px-4 py-2 text-[12px] text-text-muted">
+                <div className="flex items-center gap-3 border-t border-line bg-fond-doux px-4 py-2 text-[12px] text-text-muted">
                   <span aria-hidden>↑ ↓ naviguer · Entrée ouvrir · Échap fermer</span>
                   <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={voirTout} className="ml-auto font-bold text-ink hover:underline">
                     {total > 0 ? `Voir les ${total}${plus ? '+' : ''} résultats` : 'Ouvrir la recherche'}

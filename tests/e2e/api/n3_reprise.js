@@ -22,10 +22,11 @@ const COLONNES_N3 = ['avisEtat', 'avisParId', 'avisMotif', 'avisLe', 'avisEchean
 
 const tables = async () =>
   (await prisma.$queryRawUnsafe(`SELECT table_name AS t FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE' AND table_name NOT IN ('_prisma_migrations', 'journal_connexions', 'executions_taches', 'etat_supervision') ORDER BY 1`)).map((r) => r.t);
+// Colonnes du lot « références courtes » (postérieur) : retirées de l'empreinte des tâches et des activités.
 async function empreinte(liste) {
   const res = {};
   const moins = COLONNES_N3.map((c) => ` - '${c}'`).join('');
-  for (const t of liste) res[t] = (await prisma.$queryRawUnsafe(`SELECT md5((to_jsonb(x)${moins}${t === 'documents' ? " - 'celluleId'" : ''})::text) AS h FROM "${t}" x`)).map((l) => l.h).sort();
+  for (const t of liste) res[t] = (await prisma.$queryRawUnsafe(`SELECT md5((to_jsonb(x)${moins}${t === 'documents' ? " - 'celluleId'" : ''}${t === 'tasks' ? " - 'numero'" : ''}${t === 'activites' ? " - 'numero' - 'annee'" : ''})::text) AS h FROM "${t}" x`)).map((l) => l.h).sort();
   return res;
 }
 function comparer(avant, maintenant) {

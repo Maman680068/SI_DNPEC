@@ -19,7 +19,7 @@ export function BlocsRole({ blocs }: { blocs: BlocTableau[] }) {
         <h2 className="font-heading text-[16px] font-bold text-ink-900">Suivi de mon rôle</h2>
       </div>
       {visibles.map((b, i) => (
-        <article key={b.cle} data-testid={`bloc-${b.cle}`} className={`grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1 px-[18px] py-2.5 md:grid-cols-[minmax(0,240px)_48px_minmax(0,1fr)_auto] ${i ? 'border-t border-[#F0F1F6]' : ''}`}>
+        <article key={b.cle} data-testid={`bloc-${b.cle}`} className={`grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1 px-[18px] py-2.5 md:grid-cols-[minmax(0,240px)_48px_minmax(0,1fr)_auto] ${i ? 'border-t border-line-doux' : ''}`}>
           <h3 className="truncate text-[13.5px] font-semibold">{b.titre}</h3>
           <span className="font-heading text-[18px] font-extrabold leading-none text-ink md:order-none">{b.valeur}</span>
           <p className="col-span-2 min-w-0 truncate text-[12.5px] text-text-muted md:col-span-1">

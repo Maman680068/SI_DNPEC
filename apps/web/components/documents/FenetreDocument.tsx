@@ -16,8 +16,8 @@ import { messageErreur, useToast } from '../ui/Toast';
 import { useEnvoi } from '../courrier/formulaire';
 
 const BANDEAU_APERCU: Record<StatutDiffusion, { texte: string; classe: string }> = {
-  BROUILLON: { texte: 'BROUILLON — non validé', classe: 'bg-[#F0F1F5] text-[#4B5263]' },
-  VALIDE: { texte: 'VALIDÉ', classe: 'bg-[#E6F0FA] text-[#1D5FA0]' },
+  BROUILLON: { texte: 'BROUILLON — non validé', classe: 'bg-fond-gris text-text-fort' },
+  VALIDE: { texte: 'VALIDÉ', classe: 'bg-bleu-50 text-bleu' },
   DIFFUSABLE: { texte: 'DIFFUSABLE', classe: 'bg-sage-50 text-sage' },
 };
 
@@ -28,12 +28,12 @@ const BANDEAU_APERCU: Record<StatutDiffusion, { texte: string; classe: string }>
 function Apercu({ statut, nomFichier }: { statut: StatutDiffusion; nomFichier: string }) {
   const bandeau = BANDEAU_APERCU[statut];
   return (
-    <div className="relative flex h-[200px] items-end justify-center overflow-hidden rounded-xl border border-line bg-[#F2F3F7]" data-testid="apercu-statut">
-      <div aria-hidden className="h-[178px] w-[150px] rounded-t-[4px] bg-white shadow-[0_2px_10px_rgba(18,28,77,0.12)]">
+    <div className="relative flex h-[200px] items-end justify-center overflow-hidden rounded-xl border border-line bg-survol" data-testid="apercu-statut">
+      <div aria-hidden data-apercu-papier className="h-[178px] w-[150px] rounded-t-[4px] bg-white shadow-[0_2px_10px_rgba(18,28,77,0.12)]">
         <div className={`px-1.5 py-[3px] text-center text-[8.5px] font-extrabold tracking-wide ${bandeau.classe}`}>{bandeau.texte}</div>
         <div className="space-y-[7px] px-3.5 pt-3.5">
           {[70, 100, 100, 85, 100, 60, 100, 80].map((l, i) => (
-            <i key={i} className="block h-1 rounded-sm bg-[#DDE0EA]" style={{ width: `${l}%` }} />
+            <i key={i} className="block h-1 rounded-sm bg-fond-gris" style={{ width: `${l}%` }} />
           ))}
         </div>
       </div>
@@ -166,7 +166,7 @@ export function FenetreDocument({
             ]}
           />
         </div>
-        {doc.description && <p className="mt-3 whitespace-pre-line rounded-md bg-bg p-3 text-[13px] leading-relaxed text-[#3A4152]">{doc.description}</p>}
+        {doc.description && <p className="mt-3 whitespace-pre-line rounded-md bg-bg p-3 text-[13px] leading-relaxed text-text-fort">{doc.description}</p>}
       </SectionFenetre>
 
       {droits.modifier && !doc.metadonneesCompletes && (
@@ -183,7 +183,7 @@ export function FenetreDocument({
         {versions === null ? (
           <Chargement erreur={error} className="text-[13px] text-text-muted" />
         ) : (
-          <ul className="divide-y divide-[#F0F1F6]">
+          <ul className="divide-y divide-line-doux">
             {versions.map((version) => (
               <li key={version.id} className="flex items-center gap-3 py-2.5">
                 <span className="grid h-[26px] min-w-[34px] flex-none place-items-center rounded-[7px] bg-ink-50 px-1.5 text-[12px] font-bold text-ink">v{version.versionNumber}</span>

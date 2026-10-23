@@ -70,7 +70,7 @@ const tonDe = (e: EtatService): Ton => (e === 'NOMINAL' ? 'ok' : e === 'DEGRADE'
 /** Ligne de la supervision : point de couleur (doublé d'un texte pour les lecteurs d'écran), titre, détail, action. */
 function Point({ ton, titre, detail, action, testid, cle, etat }: { ton: Ton; titre: string; detail: ReactNode; action?: ReactNode; testid?: string; cle?: string; etat?: string }) {
   return (
-    <li data-testid={testid} data-cle={cle} className="grid grid-cols-[12px_minmax(0,1fr)] items-start gap-3 border-b border-[#F0F1F6] px-4 py-[11px] text-[13.5px] last:border-b-0 sm:grid-cols-[12px_minmax(0,1fr)_auto]">
+    <li data-testid={testid} data-cle={cle} className="grid grid-cols-[12px_minmax(0,1fr)] items-start gap-3 border-b border-line-doux px-4 py-[11px] text-[13.5px] last:border-b-0 sm:grid-cols-[12px_minmax(0,1fr)_auto]">
       <span aria-hidden className={`mt-[5px] h-2.5 w-2.5 rounded-full ${POINT[ton]}`} />
       <span className="min-w-0">
         <b className="block font-semibold text-text">
@@ -170,7 +170,7 @@ function SupervisionVue() {
         role="status"
         data-testid="etat-global"
         data-etat={s.etatGlobal}
-        className={`flex flex-wrap items-center gap-3.5 rounded-xl border px-[18px] py-3.5 ${aTraiter.length === 0 ? 'border-[#A9D5B7] bg-sage-50' : grave ? 'border-[#E7B3BB] bg-clay-50' : 'border-[#F2D58A] bg-gold-50'}`}
+        className={`flex flex-wrap items-center gap-3.5 rounded-xl border px-[18px] py-3.5 ${aTraiter.length === 0 ? 'border-sage-bord bg-sage-50' : grave ? 'border-clay-bord bg-clay-50' : 'border-gold-bord bg-gold-50'}`}
       >
         {aTraiter.length === 0 ? <CircleCheck aria-hidden size={20} className="text-sage" /> : <CircleAlert aria-hidden size={20} className={grave ? 'text-clay' : 'text-ambre'} />}
         <div className="min-w-0 flex-1">
@@ -239,7 +239,7 @@ function SupervisionVue() {
         <div id="taches-planifiees" />
         <ul>
           {s.taches.map((t) => (
-            <li key={t.tache} className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-[#F0F1F6] px-4 py-2.5 text-[13px] last:border-b-0">
+            <li key={t.tache} className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-line-doux px-4 py-2.5 text-[13px] last:border-b-0">
               <span className="min-w-0 flex-1 font-semibold">{t.libelle}</span>
               <span className="text-[12.5px] text-text-muted">{t.derniere ? dateHeure(t.derniere.debut) : 'Pas encore exécutée'}</span>
               {t.derniere && <Pastille ton={t.derniere.statut === 'ECHEC' ? 'rouge' : t.derniere.statut === 'SUCCES' ? 'vert' : 'gris'}>{t.derniere.statut === 'SUCCES' ? 'Réussie' : t.derniere.statut === 'ECHEC' ? 'Échec' : 'En cours'}</Pastille>}
@@ -255,7 +255,7 @@ function SupervisionVue() {
         ) : (
           <ul>
             {s.comptesASurveiller.map((c) => (
-              <li key={c.id + c.motif} className="border-b border-[#F0F1F6] px-4 py-2.5 text-[13px] last:border-b-0">
+              <li key={c.id + c.motif} className="border-b border-line-doux px-4 py-2.5 text-[13px] last:border-b-0">
                 <strong className="font-semibold">{c.nom}</strong> <span className="text-text-muted">({c.email})</span> — {c.motif}
               </li>
             ))}
@@ -296,7 +296,7 @@ function SupervisionVue() {
         <p className="border-b border-line px-4 py-2.5 text-[13px]">{refus.length === 0 ? 'Aucun refus sur la période.' : refus.map((r) => `${LIBELLE_ETAPE[r.etape] ?? r.etape} : ${r.nombre}`).join(' · ')}</p>
         <ul>
           {s.accesRefuses.derniers.map((r) => (
-            <li key={r.id} className="grid gap-x-3 gap-y-0.5 border-b border-[#F0F1F6] px-4 py-2 text-[12.5px] last:border-b-0 lg:grid-cols-[130px_minmax(0,1fr)_minmax(0,1.4fr)_minmax(0,0.8fr)_minmax(0,1.4fr)]">
+            <li key={r.id} className="grid gap-x-3 gap-y-0.5 border-b border-line-doux px-4 py-2 text-[12.5px] last:border-b-0 lg:grid-cols-[130px_minmax(0,1fr)_minmax(0,1.4fr)_minmax(0,0.8fr)_minmax(0,1.4fr)]">
               <span className="whitespace-nowrap text-text-muted">{dateHeure(r.date)}</span>
               <span>{r.compte}</span>
               <span className="break-all font-mono text-[11.5px] text-text-muted">

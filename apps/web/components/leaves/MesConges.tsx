@@ -216,7 +216,7 @@ function DemandeEnCours({ request: r, premiere, highlight, onChange, onOpen }: {
         Du {periodeLongue(r.startDate, r.endDate)} · déposée le {dateCourte(r.createdAt)}
       </div>
       <Circuit label={`Circuit de la demande : ${typeEnPhrase(r.leaveType.name)}`} etapes={etapes.map((e) => ({ ...e, detail: e.detail ? <span className="block">{e.detail}</span> : undefined }))} />
-      <div className="flex flex-wrap items-center gap-2.5 rounded-[9px] bg-[#F7F8FB] px-3 py-2.5 text-[13px] text-[#3A4152]" data-testid="etape-conge">
+      <div className="flex flex-wrap items-center gap-2.5 rounded-[9px] bg-fond-doux px-3 py-2.5 text-[13px] text-text-fort" data-testid="etape-conge">
         <CircleHelp aria-hidden size={16} className="flex-none text-text-muted" />
         <span className="min-w-0 flex-1">
           {r.etape === 'AVIS_ATTENDU' && r.avisEcheance
@@ -429,11 +429,11 @@ function CalendrierConges({
       </table>
       <div className="mt-2.5 flex flex-wrap gap-3.5 text-[12px] text-text-muted" aria-hidden>
         <span className="flex items-center gap-[5px]">
-          <i className="inline-block h-2.5 w-2.5 rounded-[3px] border border-[#E9C46A] bg-gold-50" />
+          <i className="inline-block h-2.5 w-2.5 rounded-[3px] border border-gold-bord bg-gold-50" />
           Mon congé
         </span>
         <span className="flex items-center gap-[5px]">
-          <i className="inline-block h-2.5 w-2.5 rounded-[3px] border border-[#E7A1AB] bg-clay-50" />
+          <i className="inline-block h-2.5 w-2.5 rounded-[3px] border border-clay-bord bg-clay-50" />
           Jour férié
         </span>
       </div>
@@ -472,7 +472,7 @@ function ProchainsFeries({ feries, chargerFeries, onVoirFeries }: { feries: Reco
       ) : (
         <ul className="mt-1.5">
           {prochains.map((f) => (
-            <li key={f.id} className="flex justify-between gap-3 border-t border-[#F0F1F6] py-2 text-[13px] first:border-t-0">
+            <li key={f.id} className="flex justify-between gap-3 border-t border-line-doux py-2 text-[13px] first:border-t-0">
               <span className="min-w-0">{f.libelle}</span>
               <b className="flex-none font-semibold">{dateCourte(f.date)}</b>
             </li>

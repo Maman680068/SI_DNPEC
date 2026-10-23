@@ -28,6 +28,7 @@
             "La cloche (en haut à droite) affiche vos notifications, groupées par jour, avec une icône par type ; « Non lues » et « À traiter » filtrent la liste, « Tout marquer comme lu » vide le compteur. Cliquez sur l’une d’elles pour ouvrir directement l’élément concerné.",
             "Onglet « Personnel et RH » (« Administration » pour la Direction et l’administrateur) → « Organisation » : l’organigramme de la DNPEC (Direction, divisions, sections, cellules), avec le responsable et l’effectif de chaque unité.",
             "L’enveloppe ✉ ouvre la messagerie ; une pastille rouge indique des messages non lus.",
+            "Thème clair ou sombre : votre nom en haut à droite → « Thème », ou « Mon profil » → « Affichage ». Le choix est gardé dans ce navigateur ; le thème clair reste celui par défaut.",
             "Un lien reçu par e-mail ouvre directement la bonne page, même s’il faut d’abord se reconnecter.",
             "Après chaque action (tâche validée, courrier imputé, demande envoyée…), un message bref s’affiche en bas à droite ; « Annuler » y figure quand l’action peut être défaite. Une erreur s’affiche au même endroit, en rouge.",
             "Dans les formulaires, un champ oublié est signalé en rouge sous le champ avant tout envoi ; les dates se choisissent dans un calendrier (raccourcis « Aujourd’hui », « Dans 1 semaine », « Fin du mois ») et les fichiers se glissent dans la zone de dépôt.",

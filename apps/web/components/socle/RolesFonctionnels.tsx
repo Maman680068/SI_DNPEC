@@ -61,7 +61,7 @@ export function RolesFonctionnels() {
       </div>
       <div className="relative overflow-x-auto rounded-xl border border-line bg-surface">
         <table className="w-full min-w-[680px] text-left text-[13px]">
-          <thead className="border-b border-line bg-[#F7F8FB] text-[12px] font-semibold text-text-muted">
+          <thead className="border-b border-line bg-fond-doux text-[12px] font-semibold text-text-muted">
             <tr>
               <th scope="col" className="px-3 py-2">Personne</th>
               <th scope="col" className="px-3 py-2">Rôle</th>

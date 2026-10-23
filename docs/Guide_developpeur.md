@@ -258,7 +258,14 @@ fonctionnalité ajoute sa suite (`tests/e2e/api/`, `tests/e2e/ui/`) et sa ligne 
 ### Web (`apps/web`)
 - `app/(app)/<route>/page.tsx` (client components), `components/<module>/*` (Modal, Drawer,
   List, Card), `lib/api/<module>.ts` (`apiFetch`), `lib/<module>/types.ts`.
-- Tokens Tailwind (`ink`, `gold`, `sage`, `clay`, `line`, `text-muted`...) issus de la maquette ;
+- Tokens Tailwind (`ink`, `gold`, `sage`, `clay`, `line`, `text-muted`, `fond-doux`, `survol`, `fond-gris`,
+  `line-doux`/`line-fort`, `bandeau`, `sur-or`...) issus de la maquette, **tous en variables** `--c-*` (canaux
+  RVB, `app/globals.css`) : maquette sur l'accueil et la connexion (`:root`), charte AA dans l'application
+  (`.contraste-aa`), **thème sombre** (`.contraste-aa[data-theme="sombre"]`, tons bleu nuit ; fonds pleins sous
+  un texte blanc gardés foncés). Choix « Thème : clair / sombre » (menu du compte, « Mon profil » →
+  Affichage), gardé dans le navigateur (`lib/theme.tsx`, `try/catch`), clair par défaut. **Aucune couleur
+  codée en dur** dans un écran (`bg-[#…]`) : un nouveau ton passe par une variable des deux thèmes. Audit
+  `n6_accessibilite_ui` dans les deux thèmes, `t_theme_ui` (aucun fond blanc oublié, captures) ;
   navigation dans `components/layout/Sidebar.tsx` ; ouverture profonde via `?id=`.
 - Cadre (refonte de l'interface) : **menu en haut** sur écran large (`components/layout/MenuHaut.tsx`) —
   bandeau `ink-900` (logo, `Topbar variante="bandeau"` : recherche Ctrl K, intérim, messagerie, notifications,

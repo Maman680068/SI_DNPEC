@@ -212,7 +212,7 @@ export function MyTasksView({ initialTaskId = null }: { initialTaskId?: string |
             >
               {o.label}
               {o.n !== null && (
-                <span className={`rounded-[10px] px-[7px] py-px text-[11.5px] font-bold ${actif ? 'bg-ink text-white' : o.chaud && o.n > 0 ? 'bg-gold text-ink-900' : 'bg-[#ECEEF5] text-text-muted'}`}>{o.n}</span>
+                <span className={`rounded-[10px] px-[7px] py-px text-[11.5px] font-bold ${actif ? 'bg-ink text-white' : o.chaud && o.n > 0 ? 'bg-gold text-sur-or' : 'bg-fond-gris text-text-muted'}`}>{o.n}</span>
               )}
             </button>
           );
@@ -316,7 +316,7 @@ export function MyTasksView({ initialTaskId = null }: { initialTaskId?: string |
           {filtrees.length > 0 && (
           <div role="table" aria-label="Tâches" className="overflow-x-auto">
             <div role="rowgroup">
-              <div role="row" className="hidden h-[38px] grid-cols-[24px_minmax(0,1fr)_124px_84px_92px_120px_74px_176px] items-center gap-3 border-b border-line bg-[#F7F8FB] px-4 text-[12px] font-semibold text-text-muted lg:grid">
+              <div role="row" className="hidden h-[38px] grid-cols-[24px_minmax(0,1fr)_124px_84px_92px_120px_74px_176px] items-center gap-3 border-b border-line bg-fond-doux px-4 text-[12px] font-semibold text-text-muted lg:grid">
                 <span role="columnheader">
                   <span className="sr-only">Indicateur</span>
                 </span>
@@ -333,7 +333,7 @@ export function MyTasksView({ initialTaskId = null }: { initialTaskId?: string |
               .filter((g) => g.taches.length > 0)
               .map((g) => (
                 <div role="rowgroup" key={g.cle} aria-label={g.libelle}>
-                  <div role="row" className={`flex items-center gap-2 border-b border-[#F0F1F6] bg-[#FBFBFD] px-4 py-[9px] text-[13px] font-bold ${g.retard ? 'text-clay' : 'text-ink-900'}`}>
+                  <div role="row" className={`flex items-center gap-2 border-b border-line-doux bg-fond-doux px-4 py-[9px] text-[13px] font-bold ${g.retard ? 'text-clay' : 'text-ink-900'}`}>
                     <span role="cell">
                       {g.libelle} <span className="font-semibold text-text-faint">{g.taches.length}</span>
                     </span>
@@ -349,7 +349,7 @@ export function MyTasksView({ initialTaskId = null }: { initialTaskId?: string |
                         onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), setSelectedTaskId(t.id))}
                         aria-label={`${t.title}, ${STATUT_LIBELLE[t.status]}, échéance ${dateEcheance(t)}`}
                         data-testid="ligne-tache"
-                        className={`grid cursor-pointer grid-cols-[24px_minmax(0,1fr)_auto] items-center gap-3 border-b border-[#F0F1F6] px-4 py-2.5 hover:bg-[#F6F7FC] focus:bg-[#F6F7FC] focus:outline-none lg:h-[54px] lg:grid-cols-[24px_minmax(0,1fr)_124px_84px_92px_120px_74px_176px] lg:py-0 ${selectedTaskId === t.id ? 'bg-[#F6F7FC]' : ''}`}
+                        className={`grid cursor-pointer grid-cols-[24px_minmax(0,1fr)_auto] items-center gap-3 border-b border-line-doux px-4 py-2.5 hover:bg-survol focus:bg-survol focus:outline-none lg:h-[54px] lg:grid-cols-[24px_minmax(0,1fr)_124px_84px_92px_120px_74px_176px] lg:py-0 ${selectedTaskId === t.id ? 'bg-survol' : ''}`}
                       >
                         <span role="cell" className="flex justify-center">
                           <PointStatut tache={t} />

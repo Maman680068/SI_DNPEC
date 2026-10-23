@@ -127,7 +127,7 @@ export default function ReunionsPage() {
                 </div>
               </div>
               {liste.length === 0 ? (
-                <div className="border-t border-[#F0F1F6]">
+                <div className="border-t border-line-doux">
                   <EtatVide texte={periode === 'avenir' ? 'Aucune réunion à venir.' : 'Aucune réunion passée.'} action={periode === 'avenir' ? boutonNouvelle : undefined} />
                 </div>
               ) : (

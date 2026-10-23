@@ -158,7 +158,7 @@ function DecisionItem({ decision, onChanged }: { decision: Decision; onChanged: 
 
   const petit = 'inline-flex h-[28px] items-center rounded-[7px] border border-line px-2.5 text-[12px] font-bold text-ink hover:bg-bg disabled:opacity-50';
   return (
-    <li className="border-b border-[#F0F1F6] py-2" data-testid="decision">
+    <li className="border-b border-line-doux py-2" data-testid="decision">
       <div className="flex flex-wrap items-start gap-x-2.5 gap-y-1.5">
         <Pastille ton={close ? 'vert' : action ? 'encre' : 'gris'}>{close ? 'Clôturée' : action ? 'Tâche créée' : 'À convertir'}</Pastille>
         {<p className="min-w-0 flex-1 whitespace-pre-wrap pt-0.5 text-[13.5px] leading-snug">{decision.content}</p>}

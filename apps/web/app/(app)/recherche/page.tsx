@@ -99,8 +99,8 @@ function Resultats() {
               ) : (
                 <ul>
                   {c.resultats.map((x) => (
-                    <li key={x.id} className="border-b border-[#F0F1F6] last:border-b-0">
-                      <Link href={x.lien} className="block px-[18px] py-2.5 hover:bg-[#F6F7FC]">
+                    <li key={x.id} className="border-b border-line-doux last:border-b-0">
+                      <Link href={x.lien} className="block px-[18px] py-2.5 hover:bg-survol">
                         <span className="text-[13.5px] font-semibold text-ink-900">{x.libelle}</span>
                         {x.detail && (
                           <span className="block text-[12px] text-text-muted">{x.detail}</span>

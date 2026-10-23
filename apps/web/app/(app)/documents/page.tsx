@@ -218,7 +218,7 @@ export default function DocumentsPage() {
         const f = e.dataTransfer.files?.[0];
         if (f) deposer(f);
       }}
-      className={`my-1 flex min-h-[62px] w-full items-center justify-center gap-2.5 rounded-[10px] border-[1.5px] border-dashed px-4 py-3 text-center text-[13.5px] font-semibold ${survol ? 'border-ink bg-ink-50 text-ink' : 'border-[#C3C8DA] text-text-muted hover:bg-bg'}`}
+      className={`my-1 flex min-h-[62px] w-full items-center justify-center gap-2.5 rounded-[10px] border-[1.5px] border-dashed px-4 py-3 text-center text-[13.5px] font-semibold ${survol ? 'border-ink bg-ink-50 text-ink' : 'border-line-fort text-text-muted hover:bg-bg'}`}
     >
       <Plus aria-hidden size={18} className="flex-none" />
       <span>Glissez des fichiers ici pour les déposer dans « {destination} »</span>
@@ -266,7 +266,7 @@ export default function DocumentsPage() {
             </button>
           }
         >
-          <b className="text-[#6B4600]">
+          <b className="text-ambre-fonce">
             {aValider.length} document{aValider.length > 1 ? 's attendent' : ' attend'} votre validation
           </b>{' '}
           : « {premier.titre} »{premier.marqueFinalPar ? `, marqué Final par ${premier.marqueFinalPar}` : ', marqué Final'}

@@ -191,7 +191,7 @@ export default function StagePage() {
             ) : (
               <ol>
                 {stage.periodes.map((p) => (
-                  <li key={p.id} className={`border-b border-[#F0F1F6] px-[18px] py-3.5 last:border-b-0 ${p.statut === 'ANNULEE' ? 'opacity-60' : ''}`} data-testid={`periode-${p.ordre}`}>
+                  <li key={p.id} className={`border-b border-line-doux px-[18px] py-3.5 last:border-b-0 ${p.statut === 'ANNULEE' ? 'opacity-60' : ''}`} data-testid={`periode-${p.ordre}`}>
                     <div className="mb-1 flex flex-wrap items-start justify-between gap-2">
                       <div className="flex min-w-0 items-start gap-2.5">
                         <b className="grid h-[22px] w-[22px] flex-none place-items-center rounded-full bg-ink-50 text-[11px] text-ink">{p.ordre}</b>

@@ -52,7 +52,7 @@ function SqueletteBande() {
 /** Lignes grises d'un panneau en cours de chargement (à la place de « Chargement des tâches… »). */
 function SqueletteTaches() {
   return (
-    <div role="status" aria-label="Chargement en cours" data-testid="squelette" className="divide-y divide-[#F0F1F6]">
+    <div role="status" aria-label="Chargement en cours" data-testid="squelette" className="divide-y divide-line-doux">
       {['w-[62%]', 'w-[48%]', 'w-[70%]'].map((l, i) => (
         <div key={i} aria-hidden className="flex items-center gap-4 px-[18px] py-3.5">
           <div className="min-w-0 flex-1 space-y-2">
@@ -367,7 +367,7 @@ export default function DashboardPage() {
       ) : (
         <ul>
           {aTraiter.map((x, i) => (
-            <li key={x.cle} className={i ? 'border-t border-[#F0F1F6]' : ''}>
+            <li key={x.cle} className={i ? 'border-t border-line-doux' : ''}>
               <Link href={x.lien} className="flex items-center gap-3 px-[18px] py-2.5 text-[13.5px] hover:bg-bg" data-testid={`a-traiter-${x.cle}`}>
                 {x.gravite ? (
                   <span aria-hidden className={`grid h-6 min-w-[26px] place-items-center rounded-xl px-1.5 ${x.gravite === 'INDISPONIBLE' ? 'bg-clay-50 text-clay' : 'bg-gold-50 text-ambre'}`}>

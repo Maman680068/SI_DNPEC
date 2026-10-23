@@ -274,7 +274,7 @@ export function TiroirArrivee({
           ) : (
             <>
               {a.niveau === 'METADONNEES' && (
-                <div className="mb-4 flex items-start gap-2 rounded-md border border-[#E7B3BB] bg-clay-50 px-3.5 py-2.5 text-[12.5px] text-clay" data-testid="contenu-protege">
+                <div className="mb-4 flex items-start gap-2 rounded-md border border-clay-bord bg-clay-50 px-3.5 py-2.5 text-[12.5px] text-clay" data-testid="contenu-protege">
                   <Lock aria-hidden size={14} className="mt-0.5 flex-none" />
                   <span>
                     <strong>Contenu protégé.</strong> Courrier confidentiel : vous en voyez l’enregistrement, pas le contenu (scans, imputations).
@@ -291,7 +291,7 @@ export function TiroirArrivee({
                   {contenu && a.pieces.length > 0 ? (
                     <Pieces pieces={a.pieces} personnes={a.personnes} telecharger={(pid, nom) => telechargerPieceArrivee(a.id, pid, nom)} />
                   ) : (
-                    <div className="flex min-h-[120px] items-center justify-center gap-2.5 rounded-[10px] border border-line bg-[#F7F8FB] px-3 text-center text-[13px] font-semibold text-text-muted sm:h-[150px]">
+                    <div className="flex min-h-[120px] items-center justify-center gap-2.5 rounded-[10px] border border-line bg-fond-doux px-3 text-center text-[13px] font-semibold text-text-muted sm:h-[150px]">
                       <FileText aria-hidden size={18} />
                       {!contenu ? (
                         'Scan non visible'

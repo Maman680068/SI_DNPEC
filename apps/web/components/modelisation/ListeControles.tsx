@@ -18,7 +18,7 @@ function Rond({ c }: { c: Controle }) {
     );
   if (c.type === 'alerte')
     return (
-      <span aria-hidden className="grid h-[26px] w-[26px] flex-none place-items-center rounded-full bg-gold text-[14px] font-extrabold text-ink-900">
+      <span aria-hidden className="grid h-[26px] w-[26px] flex-none place-items-center rounded-full bg-gold text-[14px] font-extrabold text-sur-or">
         !
       </span>
     );
@@ -37,7 +37,7 @@ const etat = (c: Controle) => (c.ok ? 'réussi' : c.type === 'alerte' ? 'alerte'
  */
 export function ListeControles({ controles, apres }: { controles: Controle[]; apres?: (c: Controle) => ReactNode }) {
   return (
-    <ul className="divide-y divide-[#EEF0F5]" data-testid="controles">
+    <ul className="divide-y divide-line-doux" data-testid="controles">
       {controles.map((c) => (
         <li key={c.id} className="flex items-start gap-3 py-2.5" data-testid="controle" data-etat={c.ok ? 'ok' : c.type}>
           <Rond c={c} />

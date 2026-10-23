@@ -50,7 +50,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             role={toast.ton === 'erreur' ? 'alert' : 'status'}
             data-testid="toast"
             data-ton={toast.ton}
-            className={`pointer-events-auto flex w-full items-center gap-3 rounded-xl px-3.5 py-3 text-[13.5px] text-white shadow-[0_16px_36px_rgba(18,28,77,0.35)] sm:w-[380px] ${toast.ton === 'erreur' ? 'bg-clay' : 'bg-ink-900'}`}
+            className={`pointer-events-auto flex w-full items-center gap-3 rounded-xl px-3.5 py-3 text-[13.5px] text-white shadow-[0_16px_36px_rgba(18,28,77,0.35)] sm:w-[380px] ${toast.ton === 'erreur' ? 'bg-clay' : 'bg-bandeau'}`}
           >
             <span aria-hidden className={`grid h-[30px] w-[30px] flex-none place-items-center rounded-full ${toast.ton === 'erreur' ? 'bg-white/20' : 'bg-sage'}`}>
               {toast.ton === 'erreur' ? <AlertTriangle size={16} /> : <Check size={16} strokeWidth={3} />}

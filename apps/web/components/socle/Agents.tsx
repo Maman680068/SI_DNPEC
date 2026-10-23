@@ -142,7 +142,7 @@ export function AgentPanneau({ agent, onClose, onChange }: { agent: AgentDetail;
         testid="fiche-agent"
       >
         {agent.dateFinPrevue && agent.statut !== 'PARTI' && (
-          <div data-testid="fin-prevue" className={`mb-4 rounded-[10px] border px-3.5 py-3 text-[13px] ${agent.finProche ? 'border-[#E7B3BB] bg-clay-50 text-clay' : 'border-line bg-[#FAFBFD] text-text'}`}>
+          <div data-testid="fin-prevue" className={`mb-4 rounded-[10px] border px-3.5 py-3 text-[13px] ${agent.finProche ? 'border-clay-bord bg-clay-50 text-clay' : 'border-line bg-fond-doux text-text'}`}>
             <strong>{stage ? 'Fin de stage' : 'Fin de contrat'} le {date(agent.dateFinPrevue)}</strong>
             {agent.joursAvantFin !== null && agent.joursAvantFin >= 0 && <> (dans {agent.joursAvantFin} jour{agent.joursAvantFin > 1 ? 's' : ''})</>}
             <div className="mt-1 text-[12.5px]">
@@ -153,7 +153,7 @@ export function AgentPanneau({ agent, onClose, onChange }: { agent: AgentDetail;
           </div>
         )}
         {agent.statut === 'PARTI' && agent.dateDepart && (
-          <div className="mb-4 rounded-[10px] border border-line bg-[#FAFBFD] px-3.5 py-3 text-[13px]">
+          <div className="mb-4 rounded-[10px] border border-line bg-fond-doux px-3.5 py-3 text-[13px]">
             Parti le {date(agent.dateDepart)}
             {agent.motifDepart && <> — {agent.motifDepart}</>}. Le dossier est conservé.
           </div>
@@ -163,7 +163,7 @@ export function AgentPanneau({ agent, onClose, onChange }: { agent: AgentDetail;
           {agent.mouvements.length === 0 ? (
             <p className="text-[13px] text-text-muted">Aucun mouvement enregistré.</p>
           ) : (
-            <ul className="divide-y divide-[#F0F1F6] rounded-[10px] border border-line">
+            <ul className="divide-y divide-line-doux rounded-[10px] border border-line">
               {agent.mouvements.map((m) => (
                 <li key={m.id} className="px-3.5 py-2.5 text-[13px]">
                   <div className="flex flex-wrap items-baseline justify-between gap-2">

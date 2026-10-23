@@ -78,7 +78,7 @@ export function ListeTachesTableau({
               <div
                 key={t.id}
                 data-testid="ligne-priorite"
-                className={`grid grid-cols-[16px_minmax(0,1fr)_auto] items-center gap-3.5 px-[18px] py-[9px] md:grid-cols-[16px_minmax(0,1fr)_110px_70px_58px_96px] ${i ? 'border-t border-[#F0F1F6]' : ''}`}
+                className={`grid grid-cols-[16px_minmax(0,1fr)_auto] items-center gap-3.5 px-[18px] py-[9px] md:grid-cols-[16px_minmax(0,1fr)_110px_70px_58px_96px] ${i ? 'border-t border-line-doux' : ''}`}
               >
                 <PointStatut tache={t} />
                 <button type="button" onClick={() => onOuvrir(t.id)} className="min-w-0 text-left">
@@ -127,7 +127,7 @@ export function ListeTachesTableau({
             );
           })}
           {maxParGroupe !== undefined && g.taches.length > maxParGroupe && (
-            <Link href={lienSuite ?? '/tasks'} className="block border-t border-[#F0F1F6] px-[18px] py-2 text-[12.5px] font-semibold text-ink hover:underline">
+            <Link href={lienSuite ?? '/tasks'} className="block border-t border-line-doux px-[18px] py-2 text-[12.5px] font-semibold text-ink hover:underline">
               + {g.taches.length - maxParGroupe} autre{g.taches.length - maxParGroupe > 1 ? 's' : ''} tâche{g.taches.length - maxParGroupe > 1 ? 's' : ''} « {g.libelle.toLowerCase()} »
             </Link>
           )}

@@ -135,7 +135,7 @@ export function MessageThread({
         )}
       </div>
 
-      <div ref={fil} className="flex flex-1 flex-col gap-2.5 overflow-y-auto bg-[#FAFBFD] px-4 py-4 sm:px-[22px]" data-testid="echange">
+      <div ref={fil} className="flex flex-1 flex-col gap-2.5 overflow-y-auto bg-fond-doux px-4 py-4 sm:px-[22px]" data-testid="echange">
         {messages === null ? (
           error ? <p className="text-[13px] text-clay">{error}</p> : <Chargement erreur={null} />
         ) : messages.length === 0 ? (
