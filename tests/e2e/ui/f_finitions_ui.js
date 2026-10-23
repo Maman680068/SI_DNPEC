@@ -1,7 +1,7 @@
 // Lot F — cloche de notifications, retour à la page visée après (re)connexion, erreurs de chargement.
 const E = require('../config');
 const { chromium } = require('playwright');
-const { browser, loginPage, check, bilan, WEB } = require('./helpers');
+const { browser, loginPage, check, bilan, WEB, seDeconnecter } = require('./helpers');
 const { call, ids } = require('../lib');
 const SHOTS = E.SHOTS;
 const S = Date.now().toString(36).slice(-5);
@@ -66,7 +66,7 @@ async function saisir(page, key) {
   check('reconnexion : retour au dossier visé', true);
 
   console.log('— Déconnexion volontaire : pas de retour automatique');
-  await q.getByTitle('Se déconnecter').click();
+  await seDeconnecter(q);
   await q.waitForURL(WEB + '/');
   await q.goto(`${WEB}/login`);
   await saisir(q, 'agent1');

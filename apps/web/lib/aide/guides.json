@@ -23,10 +23,10 @@
         {
           "titre": "Se repérer",
           "etapes": [
-            "Le menu de gauche regroupe vos modules en « Mon travail », « Échanges », « Ressources » et « Plus » (à déplier) : vous ne voyez que ceux qui vous concernent, et une pastille indique ce qui vous attend.",
-            "Sur téléphone, le menu s’ouvre avec le bouton ☰ en haut à gauche.",
+            "Le menu en haut de l’écran regroupe vos modules en onglets : « Mon travail », « Échanges », « Ressources », puis « Personnel et RH » (ou « Administration »). Cliquez sur un onglet : ses entrées s’affichent juste en dessous. Vous ne voyez que ce qui vous concerne, et une pastille indique ce qui vous attend.",
+            "Sur téléphone, le menu s’ouvre avec le bouton ☰ en haut à gauche ; les groupes y sont présentés les uns sous les autres.",
             "La cloche (en haut à droite) affiche vos notifications, groupées par jour, avec une icône par type ; « Non lues » et « À traiter » filtrent la liste, « Tout marquer comme lu » vide le compteur. Cliquez sur l’une d’elles pour ouvrir directement l’élément concerné.",
-            "Personnel → « Organisation » : l’organigramme de la DNPEC (Direction, divisions, sections, cellules), avec le responsable et l’effectif de chaque unité.",
+            "Onglet « Personnel et RH » (« Administration » pour la Direction et l’administrateur) → « Organisation » : l’organigramme de la DNPEC (Direction, divisions, sections, cellules), avec le responsable et l’effectif de chaque unité.",
             "L’enveloppe ✉ ouvre la messagerie ; une pastille rouge indique des messages non lus.",
             "Un lien reçu par e-mail ouvre directement la bonne page, même s’il faut d’abord se reconnecter.",
             "Après chaque action (tâche validée, courrier imputé, demande envoyée…), un message bref s’affiche en bas à droite ; « Annuler » y figure quand l’action peut être défaite. Une erreur s’affiche au même endroit, en rouge.",
@@ -38,13 +38,13 @@
         {
           "titre": "Sécuriser son compte",
           "etapes": [
-            "Cliquez sur votre nom en bas du menu, puis sur « Mon profil » : identité, unité, chef direct, complétude de votre dossier, sécurité, notifications et aide sur une seule page.",
+            "Cliquez sur votre nom en haut à droite (sur téléphone : en bas du menu), puis sur « Mon profil » : identité, unité, chef direct, complétude de votre dossier, sécurité, notifications et aide sur une seule page.",
             "Section « Sécurité » : « Activer » sur la ligne Double authentification, scannez le QR code avec une application (Google Authenticator, Microsoft Authenticator, FreeOTP…), saisissez le code affiché et cliquez sur « Confirmer l’activation ».",
             "Pour la désactiver : « Désactiver », saisissez un code actuel de l’application et confirmez. « Changer » le mot de passe vous envoie par email un lien pour en choisir un nouveau ; « Sessions ouvertes » liste les appareils connectés, « Déconnecter » ferme l’un d’eux.",
             "Éléments protégés (informations personnelles de votre dossier, diplômes, pièces) : cliquez sur « Afficher les données protégées » et confirmez votre mot de passe (et le code de l’application si la double authentification est active). La confirmation vaut 10 minutes.",
             "Menu « Journal d’audit » : la liste de vos propres actions dans l’application (un responsable voit celles de son périmètre). Personne ne peut modifier ni effacer ce journal.",
             "Téléphone perdu ou changé : demandez à l’administrateur système de réinitialiser votre double authentification.",
-            "Pour vous déconnecter, cliquez sur ⏻ en bas du menu."
+            "Pour vous déconnecter : votre nom en haut à droite → « Se déconnecter » (sur téléphone : ⏻ en bas du menu)."
           ],
           "capture": "securite.png"
         },
@@ -62,7 +62,7 @@
             "Barre du haut (Ctrl K) : dès 3 caractères, les résultats s’affichent pendant la frappe, groupés par tâches, documents, courrier, annuaire et réunions ; ↑ ↓ pour choisir, Entrée pour ouvrir, Échap pour fermer, « Voir les N résultats » pour la page complète. Seul ce que vous avez le droit de voir apparaît.",
             "« Voir tout dans le module » ouvre l’écran concerné avec ses propres filtres.",
             "La cloche affiche toujours vos notifications immédiatement. Par email, vous recevez chaque jour un « Résumé quotidien » ; les alertes urgentes (sécurité, décision sur une demande, acte à signer, instruction de la Direction, tâche en retard, réunion) partent tout de suite.",
-            "Votre nom en bas du menu → « Mon profil », section « Notifications » : l’interrupteur « Résumé quotidien par email » (désactivé : tout immédiatement) et l’heure du résumé, enregistrés aussitôt."
+            "Votre nom en haut à droite → « Mon profil », section « Notifications » : l’interrupteur « Résumé quotidien par email » (désactivé : tout immédiatement) et l’heure du résumé, enregistrés aussitôt."
           ],
           "capture": "recherche.png"
         },
@@ -98,7 +98,7 @@
         {
           "titre": "Congés et absences",
           "etapes": [
-            "Menu Personnel → « Congés & absences » → « Demander un congé ».",
+            "Onglet « Ressources » → « Congés & absences » → « Demander un congé ».",
             "Choisissez le type et les dates (calendrier ou saisie jj/mm/aaaa) : le nombre de jours, la date de reprise et votre solde après la demande s’affichent pendant la saisie. Ajoutez si besoin un motif, puis « Envoyer la demande » : votre chef donne son avis (48 heures ouvrées ; sans réponse, l’avis est réputé favorable), puis le DRH décide.",
             "Chaque demande affiche son étape (« Avis du chef attendu », « Décision du DRH attendue »…). Vous êtes prévenu de la décision ; la bande de soldes en haut de « Mes congés » indique les jours restants.",
             "Congé maladie : votre chef (celui qui donne l’avis) et le DRH en voient la nature et le motif ; la Direction et le reste de la hiérarchie voient « Absence — motif protégé ». « Joindre le certificat médical » : seuls vous et le DRH pourrez le lire.",
@@ -128,7 +128,7 @@
         {
           "titre": "Mon dossier du personnel",
           "etapes": [
-            "Menu Personnel → « Dossier du personnel » : vos informations administratives et personnelles.",
+            "Onglet « Personnel et RH » → « Dossier du personnel » : vos informations administratives et personnelles.",
             "Vérifiez-les puis cliquez sur « Confirmer mes informations » ; si quelque chose est faux, « Signaler une erreur » prévient le DRH.",
             "Vos informations personnelles ne sont visibles que de vous et du DRH — jamais de votre chef ni de la Direction."
           ],
@@ -140,7 +140,7 @@
             "Archives & documents → onglet « Espace de [votre unité] » (division, ou cellule rattachée à la Direction) → « Déposer un document » : déposez-y vos documents ; seuls les membres de votre unité les voient tant qu’ils ne sont pas publiés.",
             "Depuis une tâche ou une réunion : « Déposer un document » ; le document est lié à son origine et reste dans la GED de votre division.",
             "« Marquer comme final » quand le document est achevé : votre chef de division peut alors le valider.",
-            "Personnel → « Documents générés » → « Rapport d’activité » : votre rapport sur une période, construit depuis vos tâches (aperçu, PDF, Word, dépôt en GED).",
+            "Onglet « Ressources » → « Documents générés » → « Rapport d’activité » : votre rapport sur une période, construit depuis vos tâches (aperçu, PDF, Word, dépôt en GED).",
             "Vos attestations de travail et ordres de mission signés s’y trouvent aussi ; une réimpression porte la mention « DUPLICATA »."
           ],
           "capture": "documents-generes.png"
@@ -148,7 +148,7 @@
         {
           "titre": "Plan de travail et fils de discussion",
           "etapes": [
-            "Général → « Plan de travail » : les objectifs de l’année de votre unité et des unités au-dessus, leurs activités (responsable, période, indicateur) et leur avancement, calculé à partir des tâches.",
+            "Onglet « Mon travail » → « Plan de travail » : les objectifs de l’année de votre unité et des unités au-dessus, leurs activités (responsable, période, indicateur) et leur avancement, calculé à partir des tâches.",
             "En créant une tâche, choisissez l’« Activité du plan de travail » à laquelle elle contribue.",
             "Mes tâches : boutons « Liste », « Kanban » ou « Calendrier » pour changer de vue (le dernier choix est retenu). La veille d’une échéance, vous êtes prévenu ; en cas de retard, votre chef l’est.",
             "Messagerie → « Fils de discussion » : « Nouveau fil » (objet, destinataires choisis en tapant leur nom, message) puis « Démarrer le fil » ; « Joindre un objet » renvoie vers une tâche, un document, un courrier ou une réunion — seuls ceux qui y ont droit peuvent l’ouvrir.",
@@ -159,7 +159,7 @@
         {
           "titre": "Ma carrière et ma fiche de poste",
           "etapes": [
-            "Personnel → « Ressources humaines » → « Carrière et actes » : vos nominations, avancements, promotions et mutations, une fois l’acte signé par le DN ou la DNA, avec son numéro.",
+            "Onglet « Personnel et RH » (« Administration » pour la Direction et l’administrateur) → « Ressources humaines » → « Carrière et actes » : vos nominations, avancements, promotions et mutations, une fois l’acte signé par le DN ou la DNA, avec son numéro.",
             "Onglet « Fiches de poste » : missions, activités et compétences attendues pour chaque fonction de la DNPEC."
           ]
         }
@@ -204,7 +204,7 @@
         {
           "titre": "Absence : désigner un suppléant",
           "etapes": [
-            "Menu Personnel → « Suppléances » → « Désigner un suppléant » : un chef de rang comparable, pour une période.",
+            "Onglet « Personnel et RH » (« Administration » pour la Direction) → « Suppléances » → « Désigner un suppléant » : un chef de rang comparable, pour une période.",
             "Pendant la période, votre suppléant choisit « Agir en intérim pour… » en haut de l’écran ; tout ce qu’il fait est tracé « au nom de » vous."
           ],
           "capture": "suppleances.png"
@@ -221,7 +221,7 @@
         {
           "titre": "Plan de travail de la section",
           "etapes": [
-            "Général → « Plan de travail » → « Nouvel objectif » : l’objectif de l’année pour votre section, puis « Créer l’objectif ».",
+            "Onglet « Mon travail » → « Plan de travail » → « Nouvel objectif » : l’objectif de l’année pour votre section, puis « Créer l’objectif ».",
             "« Ajouter une activité » : libellé, responsable (un membre de la section), début, fin, indicateur et cible, puis « Créer l’activité ».",
             "Cliquez sur une activité : ses tâches en Kanban ou en Calendrier, « Nouvelle tâche » pour en rattacher une. L’avancement se calcule tout seul ; « En retard » s’affiche si la fin est passée avant 100 %.",
             "Vous êtes prévenu quand une tâche d’un agent de la section dépasse son échéance. Le rapport d’activité (Documents générés) reprend les activités du plan."
@@ -231,7 +231,7 @@
         {
           "titre": "Besoins de formation",
           "etapes": [
-            "Personnel → « Ressources humaines » → « Formation » → « Exprimer un besoin » : intitulé, priorité, origine (entretien, plan de travail…) et nombre d’agents concernés.",
+            "Onglet « Personnel et RH » (« Administration » pour la Direction et l’administrateur) → « Ressources humaines » → « Formation » → « Exprimer un besoin » : intitulé, priorité, origine (entretien, plan de travail…) et nombre d’agents concernés.",
             "Le DRH consolide les besoins de toutes les unités et décide : « Retenu » dans le plan de formation, « Réalisé » ou « Écarté ». Vous voyez les besoins de votre unité et leur statut."
           ]
         }
@@ -290,7 +290,7 @@
         {
           "titre": "Plan de travail",
           "etapes": [
-            "Général → « Plan de travail » : le chef de division gère le plan de sa division et de ses sections ; le chef de cellule celui de sa cellule.",
+            "Onglet « Mon travail » → « Plan de travail » : le chef de division gère le plan de sa division et de ses sections ; le chef de cellule celui de sa cellule.",
             "Filtre « Unité » pour ne voir qu’une section ; filtre « Année » pour les plans passés ou à venir.",
             "Les tâches en retard de vos agents directs vous sont signalées une fois, le lendemain de l’échéance."
           ],
@@ -299,7 +299,7 @@
         {
           "titre": "Besoins de formation",
           "etapes": [
-            "Personnel → « Ressources humaines » → « Formation » → « Exprimer un besoin » : intitulé, priorité, origine (entretien, plan de travail…) et nombre d’agents concernés.",
+            "Onglet « Personnel et RH » (« Administration » pour la Direction et l’administrateur) → « Ressources humaines » → « Formation » → « Exprimer un besoin » : intitulé, priorité, origine (entretien, plan de travail…) et nombre d’agents concernés.",
             "Le DRH consolide les besoins de toutes les unités et décide : « Retenu » dans le plan de formation, « Réalisé » ou « Écarté ». Vous voyez les besoins de votre unité et leur statut."
           ]
         }
@@ -334,7 +334,7 @@
         {
           "titre": "Suppléance et priorité",
           "etapes": [
-            "Personnel → « Suppléances » : désignez qui agit en votre nom pendant une absence.",
+            "Onglet « Personnel et RH » (« Administration » pour la Direction et l’administrateur) → « Suppléances » : désignez qui agit en votre nom pendant une absence.",
             "Réservations : vous avez la priorité sur toute la DNPEC, sauf entre le DN et la DNA, qui sont pairs."
           ],
           "capture": "suppleances.png"
@@ -342,8 +342,8 @@
         {
           "titre": "Paramétrage, supervision et journal d’audit",
           "etapes": [
-            "Plus → « Administration » → « Paramétrage et supervision » : vous consultez les paramètres et l’état des services (lecture seule ; l’administrateur système les modifie).",
-            "Plus → « Administration » → « Journal d’audit » : toutes les actions de la Direction, sans jamais le contenu des éléments protégés."
+            "Onglet « Administration » → « Paramétrage et supervision » : vous consultez les paramètres et l’état des services (lecture seule ; l’administrateur système les modifie).",
+            "Onglet « Administration » → « Journal d’audit » : toutes les actions de la Direction, sans jamais le contenu des éléments protégés."
           ],
           "capture": "parametres.png"
         },
@@ -358,7 +358,7 @@
         {
           "titre": "Instructions de la Direction",
           "etapes": [
-            "Général → « Instructions » → « Nouvelle instruction » : objet, texte, destinataire, échéance ; « Agent concerné » pour une instruction RH (l’agent ne la voit qu’une fois exécutée), puis « Émettre l’instruction ». « Exporter » télécharge la liste en Excel ; les instructions closes sont dans l’onglet « Archivées ».",
+            "Onglet « Mon travail » → « Instructions » → « Nouvelle instruction » : objet, texte, destinataire, échéance ; « Agent concerné » pour une instruction RH (l’agent ne la voit qu’une fois exécutée), puis « Émettre l’instruction ». « Exporter » télécharge la liste en Excel ; les instructions closes sont dans l’onglet « Archivées ».",
             "Suivi : Émise → Reçue (à l’ouverture par le destinataire) → Prise en compte → Exécutée ou Rejetée (avec un motif). Vous êtes prévenu à chaque étape.",
             "Sans réponse, le destinataire est relancé tous les 7 jours et vous en êtes informé.",
             "Une instruction RH s’exécute par un acte signé du Courrier (par exemple une attestation préparée par le DRH).",
@@ -369,7 +369,7 @@
         {
           "titre": "Effectifs et actes RH",
           "etapes": [
-            "Personnel → « Ressources humaines » → « Effectifs » : agents actifs par unité, statut et catégorie, calculés à partir des dossiers.",
+            "Onglet « Personnel et RH » (« Administration » pour la Direction et l’administrateur) → « Ressources humaines » → « Effectifs » : agents actifs par unité, statut et catégorie, calculés à partir des dossiers.",
             "Les mouvements de carrière préparés par le DRH arrivent dans le Courrier comme des actes à viser et signer : le dossier de l’agent n’est modifié qu’à votre signature, et vous êtes prévenu de son application.",
             "Onglet « Carrière et actes » : chaque famille d’actes (arrêté d’affectation, décision de nomination, d’avancement…) a sa séquence de numéros (son registre du Courrier) et son signataire."
           ]
@@ -403,7 +403,7 @@
         {
           "titre": "Plan de travail et recherche",
           "etapes": [
-            "Général → « Plan de travail » : vous lisez les mêmes plans que votre supérieur, sans pouvoir les modifier.",
+            "Onglet « Mon travail » → « Plan de travail » : vous lisez les mêmes plans que votre supérieur, sans pouvoir les modifier.",
             "La barre de recherche du haut ne montre que ce que vous avez le droit de voir."
           ],
           "capture": "plan-travail.png"
@@ -448,7 +448,7 @@
         {
           "titre": "Organigramme",
           "etapes": [
-            "Personnel → « Organisation » : sur une unité, le bouton « ⋯ » (« Plus d’actions ») propose « Ajouter une sous-unité » (division, section, cellule ou instance), « Modifier » (code ou libellé) et « Fermer ».",
+            "Onglet « Personnel et RH » (« Administration » pour la Direction et l’administrateur) → « Organisation » : sur une unité, le bouton « ⋯ » (« Plus d’actions ») propose « Ajouter une sous-unité » (division, section, cellule ou instance), « Modifier » (code ou libellé) et « Fermer ».",
             "« Fermer » demande un motif ; une unité ne se ferme que lorsqu’aucun agent ni aucune sous-unité ouverte n’y est plus rattaché. Son historique reste consultable (« Voir » sur l’unité, case « Afficher les unités fermées »).",
             "Le responsable de chaque unité est déduit des nominations (changement de rôle, chef de cellule) ; « Pas de responsable désigné » signale un poste à pourvoir."
           ],
@@ -457,7 +457,7 @@
         {
           "titre": "Agents et fins de contrat ou de stage",
           "etapes": [
-            "Personnel → « Agents » : chaque personne a sa fiche agent (matricule, unité, statut), distincte de son compte de connexion. L’encadré « Reprise : points à traiter » liste ce qu’il reste à compléter, dont les matricules provisoires (P-000001…) à remplacer par « Modifier ».",
+            "Onglet « Personnel et RH » (« Administration » pour la Direction et l’administrateur) → « Agents » : chaque personne a sa fiche agent (matricule, unité, statut), distincte de son compte de connexion. L’encadré « Reprise : points à traiter » liste ce qu’il reste à compléter, dont les matricules provisoires (P-000001…) à remplacer par « Modifier ».",
             "Quinze jours puis trois jours avant la fin d’un stage ou d’un contrat, vous recevez une notification et un email : ouvrez la fiche et choisissez « Prolonger le stage » (ou « Prolonger le contrat » : nouvelle date et motif) ou « Confirmer la fin ».",
             "Sans décision, l’agent passe « Parti » le lendemain de la date de fin et son compte est désactivé ; vous en êtes prévenu le jour même. Le dossier, l’évaluation et l’attestation sont conservés ; « Réactiver » reste possible.",
             "« Suspendre » bloque la connexion aussitôt ; « Enregistrer le départ » désactive le compte, transfère ses tâches en cours au responsable de l’unité et retire ses suppléances et rôles."
@@ -467,7 +467,7 @@
         {
           "titre": "Dossier du personnel",
           "etapes": [
-            "Personnel → « Dossier du personnel » : tous les dossiers ; ouvrez-en un pour le compléter.",
+            "Onglet « Personnel et RH » (« Administration » pour la Direction et l’administrateur) → « Dossier du personnel » : tous les dossiers ; ouvrez-en un pour le compléter.",
             "« Importer (Excel) » : création ou mise à jour en masse ; le rapport liste ce qui a été créé et les erreurs.",
             "Les signalements d’erreur des agents vous arrivent par notification."
           ],
@@ -476,7 +476,7 @@
         {
           "titre": "Stages",
           "etapes": [
-            "Personnel → « Stagiaires » → « Nouveau stage » : « Compte existant » (tapez son nom puis choisissez-le), ou « Nouveau stagiaire (créer le compte) » : prénom, nom, adresse e-mail, téléphone (facultatif). Puis établissement et dates, et « Créer le compte et le stage » (ou « Créer le stage ») ; ajoutez ensuite les périodes (unité, dates, format d’évaluation).",
+            "Onglet « Personnel et RH » (« Administration » pour la Direction et l’administrateur) → « Stagiaires » → « Nouveau stage » : « Compte existant » (tapez son nom puis choisissez-le), ou « Nouveau stagiaire (créer le compte) » : prénom, nom, adresse e-mail, téléphone (facultatif). Puis établissement et dates, et « Créer le compte et le stage » (ou « Créer le stage ») ; ajoutez ensuite les périodes (unité, dates, format d’évaluation).",
             "Un nouveau stagiaire reçoit toujours le rôle Stagiaire et un email « Choisir mon mot de passe » (lien valable 7 jours) ; sa fin prévue est la fin du stage : alertes à J-15 et J-3, puis compte désactivé automatiquement le lendemain sans décision de votre part. Si l’adresse existe déjà, choisissez le compte dans « Compte existant ». Les stagiaires ne font pas de demande d’accès : c’est vous qui créez leur compte.",
             "Chaque responsable d’unité accepte la période et désigne le tuteur ; le changement d’unité se fait tout seul à la date prévue.",
             "« Planning, capacités, modèle » : capacités d’accueil par unité et modèle d’attestation (Word avec des champs {{NOM_COMPLET}}, {{DATE_DEBUT}}…).",
@@ -499,17 +499,17 @@
         {
           "titre": "Attestations de travail",
           "etapes": [
-            "Personnel → « Documents générés » → « Attestations de travail » : « Nouvelle attestation de travail » (en haut à droite), choisissez l’agent, puis « Créer l’attestation ».",
+            "Onglet « Ressources » → « Documents générés » → « Attestations de travail » : « Nouvelle attestation de travail » (en haut à droite), choisissez l’agent, puis « Créer l’attestation ».",
             "« Aperçu » montre exactement le document imprimé (mention « PROJET — non signé ») ; « Voir » sur la ligne ouvre la fenêtre de l’attestation : « PDF » ou « Word » pour la télécharger.",
             "Dans la même fenêtre, « Préparer l’acte » : l’attestation part dans le module Courrier (visa, signature du DN ou de la DNA, numéro). Une fois signée, l’agent la retrouve dans son écran ; « Transmettre » la lui envoie par la messagerie.",
-            "Instruction RH de la Direction : Général → « Instructions » → « Prendre en compte », préparez puis faites signer l’acte, enfin « Marquer exécutée » en choisissant l’acte signé."
+            "Instruction RH de la Direction : Onglet « Mon travail » → « Instructions » → « Prendre en compte », préparez puis faites signer l’acte, enfin « Marquer exécutée » en choisissant l’acte signé."
           ],
           "capture": "documents-generes.png"
         },
         {
           "titre": "Effectifs et alertes RH",
           "etapes": [
-            "Personnel → « Ressources humaines » → « Effectifs » : indicateurs (agents en fonction, ancienneté moyenne, part des femmes, départs prévus), répartition par unité et par statut et catégorie, alertes RH regroupées ; « Exporter » produit un fichier Excel sans aucun nom.",
+            "Onglet « Personnel et RH » (« Administration » pour la Direction et l’administrateur) → « Ressources humaines » → « Effectifs » : indicateurs (agents en fonction, ancienneté moyenne, part des femmes, départs prévus), répartition par unité et par statut et catégorie, alertes RH regroupées ; « Exporter » produit un fichier Excel sans aucun nom.",
             "Onglet « Alertes » : fins de contrat et de stage proches, avancements d’échelon à instruire (ancienneté réglée dans Paramétrage), dossiers incomplets selon la liste des pièces requises. Une alerte disparaît d’elle-même quand sa cause est réglée.",
             "Onglet « Pièces requises » : la liste des pièces attendues dans chaque dossier ; en déposant une pièce dans un dossier, choisissez la pièce requise qu’elle remplit."
           ],
@@ -620,7 +620,7 @@
         {
           "titre": "Comptes",
           "etapes": [
-            "Plus → « Administration » → « Utilisateurs » : « Nouveau compte », approbation des inscriptions, suspension, désactivation (un compte n’est jamais supprimé).",
+            "Onglet « Administration » → « Utilisateurs » : « Nouveau compte », approbation des inscriptions, suspension, désactivation (un compte n’est jamais supprimé).",
             "Stagiaires : « Stages (réglages) » → « Nouveau stagiaire (créer le compte) » crée le compte (rôle Stagiaire seulement) et son stage ; le DRH organise ensuite le stage. Quand le DRH crée un compte stagiaire, vous en êtes informé (aucune action requise).",
             "À la création d’un compte (ou à l’approbation d’une inscription), rattachez-le à son agent : « Agent (dossier RH) » s’il existe déjà, sinon indiquez son matricule s’il est connu ; à défaut, un agent avec un matricule provisoire est créé pour le DRH.",
             "La personne est prévenue par email : inscription approuvée (rôle, unité, bouton « Se connecter »), inscription rejetée (motif facultatif, saisi dans la fenêtre « Rejeter l’inscription »), compte créé par vous (lien pour choisir son mot de passe, valable 7 jours).",
@@ -648,7 +648,7 @@
         {
           "titre": "Rôles fonctionnels",
           "etapes": [
-            "Plus → « Administration » → « Utilisateurs » → onglet « Rôles fonctionnels » : « Attribuer un rôle » (personne, rôle, dates et motif facultatifs) ; « Retirer » demande un motif. La personne est prévenue.",
+            "Onglet « Administration » → « Utilisateurs » → onglet « Rôles fonctionnels » : « Attribuer un rôle » (personne, rôle, dates et motif facultatifs) ; « Retirer » demande un motif. La personne est prévenue.",
             "Un rôle (DRH, Gestionnaire RH, Chef du SAF, Validateur…) donne une capacité, jamais une visibilité plus large que celle de la personne ; pendant un intérim, le suppléant n’hérite jamais des rôles du titulaire.",
             "Agent du courrier et Gestionnaire logistique s’attribuent depuis Courrier et Logistique (administration) : ils apparaissent ici, « géré dans son module »."
           ],
@@ -657,10 +657,10 @@
         {
           "titre": "Paramétrage et supervision",
           "etapes": [
-            "Plus → « Administration » → « Paramétrage et supervision », onglet « Paramètres » : longueur minimale du mot de passe, conservation des journaux de connexion, expiration de session, alerte avant une fin de stage ou de contrat. choisissez la rubrique, saisissez la nouvelle valeur puis « Enregistrer » (en haut de page) : la valeur reste dans ses bornes et s’applique aussitôt ; chaque changement est tracé.",
+            "Onglet « Administration » → « Paramétrage et supervision », onglet « Paramètres » : longueur minimale du mot de passe, conservation des journaux de connexion, expiration de session, alerte avant une fin de stage ou de contrat. choisissez la rubrique, saisissez la nouvelle valeur puis « Enregistrer » (en haut de page) : la valeur reste dans ses bornes et s’applique aussitôt ; chaque changement est tracé.",
             "Onglet « Supervision » : état de la base, du stockage des fichiers, des emails, des tâches planifiées et du journal d’audit (nominal, dégradé, indisponible), sessions ouvertes, connexions, comptes à surveiller, accès refusés. Vous êtes prévenu (notification et email) dès qu’un service se dégrade.",
             "Après chaque essai de restauration d’une sauvegarde : « Déclarer un test » (date, résultat). Un test tous les 6 mois est recommandé.",
-            "Plus → « Administration » → « Journal d’audit » : toutes les actions, filtrables ; « Vérifier l’intégrité » contrôle que personne n’a altéré le journal."
+            "Onglet « Administration » → « Journal d’audit » : toutes les actions, filtrables ; « Vérifier l’intégrité » contrôle que personne n’a altéré le journal."
           ],
           "capture": "supervision.png"
         },

@@ -14,6 +14,7 @@ import { NotificationBell } from './NotificationBell';
 import { MenuCreer } from './MenuCreer';
 import { titrePage } from './Sidebar';
 import { useNavigation } from '../../lib/navigation/NavigationProvider';
+import { SurBandeauProvider } from '../../lib/navigation/bandeau';
 
 const ICONES: Record<string, LucideIcon> = { taches: SquareCheck, documents: FileText, courrier: Mail, annuaire: Users, reunions: CalendarDays };
 
@@ -35,7 +36,8 @@ function surligner(texte: string, q: string): ReactNode {
 /**
  * Barre du haut (refonte de l'interface) : titre de la page, recherche globale (Ctrl K y place le
  * curseur), intérim, messagerie, notifications et menu « Créer ». Collante : elle est hors de la zone
- * qui défile.
+ * qui défile. Variante « bandeau » : posée dans le menu en haut (écran large, fond ink-900), sans
+ * titre de page ; ses icônes prennent alors leurs classes « sur bandeau » (`lib/navigation/bandeau`).
  */
 export function Topbar({ onMenuClick, variante }: { onMenuClick?: () => void; variante?: 'bandeau' }) {
   const bandeau = variante === 'bandeau';
@@ -124,6 +126,7 @@ export function Topbar({ onMenuClick, variante }: { onMenuClick?: () => void; va
   }, [recherche]);
 
   return (
+    <SurBandeauProvider value={bandeau}>
     <header className={bandeau ? 'flex h-[62px] items-center gap-3.5' : 'z-30 flex h-[62px] flex-shrink-0 items-center gap-2.5 border-b border-line bg-surface px-4 md:gap-3.5 md:px-7'}>
       <button
         onClick={onMenuClick}
@@ -140,7 +143,7 @@ export function Topbar({ onMenuClick, variante }: { onMenuClick?: () => void; va
       <form
         ref={zone}
         role="search"
-        className={`relative mx-auto hidden h-[38px] min-w-0 max-w-[520px] flex-1 items-center gap-2.5 rounded-[10px] border px-3 md:flex ${bandeau ? 'recherche-bandeau border-white/15 bg-white/[.08] text-[#9AA2C8] focus-within:border-white/40' : 'border-line bg-bg text-text-faint focus-within:border-ink'}`}
+        className={`relative mx-auto hidden h-[38px] min-w-0 max-w-[520px] flex-1 items-center gap-2.5 rounded-[10px] border px-3 md:flex ${bandeau ? 'border-white/20 bg-white/[.08] text-[#B9BFDD] focus-within:border-white/50' : 'border-line bg-bg text-text-faint focus-within:border-ink'}`}
         onSubmit={(e) => {
           e.preventDefault();
           if (q.trim().length >= 3) voirTout();
@@ -169,9 +172,9 @@ export function Topbar({ onMenuClick, variante }: { onMenuClick?: () => void; va
               onKeyDown={clavier}
               placeholder="Rechercher une tâche, un document, une personne…"
               minLength={3}
-              className="h-full min-w-0 flex-1 bg-transparent text-[13.5px] text-text placeholder:text-text-faint focus:outline-none"
+              className={`h-full min-w-0 flex-1 bg-transparent text-[13.5px] focus:outline-none ${bandeau ? 'text-white placeholder:text-[#B9BFDD]' : 'text-text placeholder:text-text-faint'}`}
             />
-            <kbd className="flex-none rounded-[5px] border border-line bg-surface px-1.5 py-0.5 font-sans text-[11px] font-semibold text-text-muted">{ouvert && q.trim().length >= 3 ? 'Échap' : 'Ctrl K'}</kbd>
+            <kbd className={`flex-none rounded-[5px] border px-1.5 py-0.5 font-sans text-[11px] font-semibold ${bandeau ? 'border-white/25 text-[#C9CEE6]' : 'border-line bg-surface text-text-muted'}`}>{ouvert && q.trim().length >= 3 ? 'Échap' : 'Ctrl K'}</kbd>
             {ouvert && q.trim().length >= 3 && (
               <div className="absolute left-0 right-0 top-full z-50 mt-1.5 overflow-hidden rounded-xl border border-line bg-surface text-text shadow-[0_16px_40px_rgba(18,28,77,0.22)]" data-testid="suggestions-recherche">
                 <div id={idListe} role="listbox" aria-label="Résultats de la recherche" className="max-h-[60vh] overflow-y-auto py-1">
@@ -249,5 +252,6 @@ export function Topbar({ onMenuClick, variante }: { onMenuClick?: () => void; va
         </div>
       </div>
     </header>
+    </SurBandeauProvider>
   );
 }

@@ -7,6 +7,7 @@ import { CalendarDays, FileText, MessageSquare, Plus, SquareCheck, Sun, type Luc
 import { useNavigation } from '../../lib/navigation/NavigationProvider';
 import type { Navigation } from '../../lib/api/navigation';
 import { EVENEMENT_CREER, LIENS_CREATION } from '../../lib/navigation/creer';
+import { useSurBandeau } from '../../lib/navigation/bandeau';
 
 /** Entrées du menu « Créer » : chacune ouvre la fenêtre de création de son écran (paramètre lu par la page). */
 const ENTREES: { cle: keyof Navigation['creer']; label: string; href: string; icone: LucideIcon }[] = [
@@ -23,6 +24,7 @@ export function MenuCreer() {
   const pathname = usePathname();
   const [ouvert, setOuvert] = useState(false);
   const racine = useRef<HTMLDivElement>(null);
+  const surBandeau = useSurBandeau();
   const entrees = navigation ? ENTREES.filter((e) => navigation.creer[e.cle]) : [];
 
   useEffect(() => setOuvert(false), [pathname]);
@@ -49,7 +51,7 @@ export function MenuCreer() {
         aria-haspopup="menu"
         aria-expanded={ouvert}
         aria-label="Créer"
-        className="flex h-[38px] items-center gap-2 rounded-[10px] bg-gold px-2.5 text-[14px] font-bold text-ink-900 hover:brightness-95 sm:px-3.5"
+        className={`flex h-[38px] items-center gap-2 rounded-[10px] bg-gold px-2.5 text-[14px] font-bold text-sur-or hover:brightness-95 sm:px-3.5 ${surBandeau ? 'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white' : ''}`}
       >
         <Plus aria-hidden size={18} strokeWidth={2} />
         <span className="hidden sm:inline">Créer</span>

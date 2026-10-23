@@ -243,8 +243,16 @@ fonctionnalité ajoute sa suite (`tests/e2e/api/`, `tests/e2e/ui/`) et sa ligne 
   List, Card), `lib/api/<module>.ts` (`apiFetch`), `lib/<module>/types.ts`.
 - Tokens Tailwind (`ink`, `gold`, `sage`, `clay`, `line`, `text-muted`...) issus de la maquette ;
   navigation dans `components/layout/Sidebar.tsx` ; ouverture profonde via `?id=`.
-- Cadre (refonte de l'interface, étapes 1 et 2) : menu 240 px `ink-900` (icônes `lucide-react`, groupes
-  Mon travail / Échanges / Ressources / Plus repliable / Aide), barre du haut (`Topbar`, Ctrl K, menu « Créer »).
+- Cadre (refonte de l'interface) : **menu en haut** sur écran large (`components/layout/MenuHaut.tsx`) —
+  bandeau `ink-900` (logo, `Topbar variante="bandeau"` : recherche Ctrl K, intérim, messagerie, notifications,
+  « Créer » ; Aide ; menu du compte), rangée d'onglets, un par groupe (Mon travail / [Modélisation] / Échanges /
+  Ressources / « Personnel et RH » ou « Administration »), pastille = somme des compteurs du groupe, groupe de
+  la page souligné en or ; puis bande blanche des sous-onglets du groupe ouvert. Rangées défilantes au clavier
+  (flèches, Début, Fin) et à la souris (flèches de défilement), `aria-current`. Sur téléphone (< md) : barre du
+  haut et tiroir du menu (`Sidebar`, 240 px, groupe « Plus » repliable), inchangés. Un seul des deux est rendu
+  (`useEcranLarge`, `lib/navigation/bandeau.tsx`) ; les icônes de la barre du haut choisissent leurs classes
+  par `useSurBandeau()`. Entrées et règles par rôle : `navigationPour` (`Sidebar.tsx`), communes aux deux.
+  Tests UI : aides `entreesMenu`, `cliquerMenu`, `ouvrirPlus`, `seDeconnecter` (`tests/e2e/ui/helpers.js`).
   Pastilles, « À traiter » du tableau de bord, entrées de « Créer » et onglet « Mon périmètre » viennent de
   `GET api/v1/navigation` (`tableau-de-bord/navigation.service.ts`, lu par `NavigationProvider`) : chaque
   compteur passe par le service de son module. Une page ouverte par « Créer » lit son paramètre avec

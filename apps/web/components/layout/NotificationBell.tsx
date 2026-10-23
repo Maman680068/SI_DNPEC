@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { getNombreNonLues, getNotifications, marquerLue, marquerToutLu } from '../../lib/api/notifications';
 import type { NotificationItem } from '../../lib/notifications/types';
+import { bordPastille, classesIcone, useSurBandeau } from '../../lib/navigation/bandeau';
 
 const INTERVALLE_MS = 60_000;
 
@@ -93,6 +94,7 @@ export function NotificationBell() {
   const [erreur, setErreur] = useState<string | null>(null);
   const [filtre, setFiltre] = useState<Filtre>('toutes');
   const racine = useRef<HTMLDivElement>(null);
+  const surBandeau = useSurBandeau();
   const requete = useRef(0);
 
   const compter = useCallback(() => {
@@ -184,11 +186,11 @@ export function NotificationBell() {
         onClick={basculer}
         aria-label={nonLues > 0 ? `Notifications : ${nonLues} non lue${nonLues > 1 ? 's' : ''}` : 'Notifications'}
         aria-expanded={ouvert}
-        className="relative grid h-[38px] w-[38px] place-items-center rounded-[10px] text-ink hover:bg-bg"
+        className={`relative grid h-[38px] w-[38px] place-items-center rounded-[10px] ${classesIcone(surBandeau)}`}
       >
         <Bell aria-hidden size={20} strokeWidth={1.8} />
         {nonLues > 0 && (
-          <span data-testid="compteur-notifications" className="absolute right-1 top-[5px] grid h-[17px] min-w-[17px] place-items-center rounded-[9px] border-2 border-white bg-clay px-1 text-[10.5px] font-bold leading-none text-white">
+          <span data-testid="compteur-notifications" className={`absolute right-1 top-[5px] grid h-[17px] min-w-[17px] place-items-center rounded-[9px] border-2 ${bordPastille(surBandeau)} bg-clay px-1 text-[10.5px] font-bold leading-none text-white`}>
             {nonLues > 99 ? '99+' : nonLues}
           </span>
         )}

@@ -3,7 +3,7 @@
 // par code, réinitialisation par l'administrateur depuis Utilisateurs ; mobile sans défilement.
 const E = require('../config');
 const { authenticator } = require('otplib');
-const { browser, check, bilan, WEB } = require('./helpers');
+const { browser, check, bilan, WEB, seDeconnecter } = require('./helpers');
 const { call } = require('../lib');
 const S = Date.now().toString(36).slice(-5);
 const EMAIL = `g3ui${S}@test.local`;
@@ -61,7 +61,7 @@ async function confirmerIdentite(p) {
   check('activée : état « Activée »', true);
 
   console.log('— Déconnexion, lien profond, connexion avec le code : retour à la page visée');
-  await p.getByTitle('Se déconnecter').click();
+  await seDeconnecter(p);
   await p.waitForURL((url) => !url.pathname.startsWith('/compte'));
   await p.goto(`${WEB}/logistique?onglet=reservations`);
   await p.waitForURL('**/login**');

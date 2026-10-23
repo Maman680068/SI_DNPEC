@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../../lib/auth/AuthProvider';
 import { useInterim } from '../../lib/interim/InterimProvider';
 import { ROLE_LABEL } from '../../lib/users/types';
+import { useSurBandeau } from '../../lib/navigation/bandeau';
 
 function formatDay(iso: string): string {
   return new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
@@ -20,6 +21,7 @@ export function InterimSwitcher() {
   const { interim, available, startInterim, stopInterim } = useInterim();
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const surBandeau = useSurBandeau();
 
   useEffect(() => {
     if (!open) return;
@@ -39,7 +41,11 @@ export function InterimSwitcher() {
         aria-haspopup="menu"
         aria-expanded={open}
         className={`flex h-9 items-center gap-2 rounded-md border px-2.5 text-[12.5px] font-semibold ${
-          interim ? 'border-gold bg-gold-soft text-ink' : 'border-line text-text-muted hover:bg-bg'
+          interim
+            ? 'border-gold bg-gold-soft text-ink-900'
+            : surBandeau
+              ? 'border-white/25 text-[#D3D7EC] hover:bg-white/[.08] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold'
+              : 'border-line text-text-muted hover:bg-bg'
         }`}
       >
         <span aria-hidden>⇄</span>

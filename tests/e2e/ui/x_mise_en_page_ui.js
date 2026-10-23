@@ -1,13 +1,15 @@
-// Correctif d'affichage — mise en page commune : le menu de gauche est fixe et fait toujours toute la hauteur
-// de l'écran ; seule la zone de contenu défile ; la fenêtre ne défile jamais au-delà du contenu.
+// Correctif d'affichage — mise en page commune : le menu (en haut sur écran large, tiroir sur téléphone) reste
+// en place ; seule la zone de contenu défile ; la fenêtre ne défile jamais au-delà du contenu.
 // Cause corrigée : un élément en position absolue (texte « sr-only » des lecteurs d'écran…) sans ancêtre
 // positionné échappait à overflow-hidden et allongeait la page (Paramétrage → Supervision après le lot B1).
 // Chaque page du menu administrateur et du lot B1 (Modélisation), bureau 1440 px et téléphone 390 px :
-//   1. contenu défilé jusqu'en bas : la fenêtre ne défile pas, le menu reste de 0 à la hauteur de l'écran ;
+//   1. contenu défilé jusqu'en bas : la fenêtre ne défile pas ; bureau : le menu en haut reste collé en haut
+//      de l'écran et le contenu descend jusqu'en bas ; téléphone : la barre du haut reste en haut ;
 //   2. même chose avec un élément absolu ajouté tout en bas du contenu (garantie de la mise en page,
 //      indépendante des données de la page) ;
-//   3. téléphone : le menu ouvert occupe toute la hauteur.
-const { browser, loginPage, check, bilan, ouvrirPlus, WEB } = require('./helpers');
+//   3. téléphone : le menu ouvert occupe toute la hauteur ;
+//   4. bureau étroit (1024 px) : les onglets qui dépassent défilent dans leur rangée, jamais la page.
+const { browser, loginPage, check, bilan, entreesMenu, WEB } = require('./helpers');
 const fs = require('fs');
 const path = require('path');
 const { call, upload } = require('../lib');
@@ -25,11 +27,12 @@ const mesurer = (p, injecter) => p.evaluate((injecter) => {
   }
   if (main) main.scrollTop = main.scrollHeight;
   window.scrollTo(0, document.scrollingElement.scrollHeight);
-  const aside = document.querySelector('aside').getBoundingClientRect();
+  // Bureau : menu en haut, collé en haut ; téléphone : barre du haut. Le contenu va jusqu'en bas de l'écran.
+  const menu = (document.querySelector('[data-testid=menu-haut]') ?? document.querySelector('header')).getBoundingClientRect();
   const r = {
     depasse: document.scrollingElement.scrollHeight - window.innerHeight,
     fenetre: Math.round(window.scrollY),
-    menu: [Math.round(aside.top), Math.round(aside.bottom)],
+    menu: [Math.round(menu.top), Math.round(main.getBoundingClientRect().bottom)],
     hauteur: window.innerHeight,
   };
   document.getElementById('sonde-absolue')?.remove();
@@ -52,8 +55,7 @@ const mesurer = (p, injecter) => p.evaluate((injecter) => {
     console.log(`— ${nom} (${vue.width} px)`);
     const p = await loginPage(b, 'admin', vue);
     if (!pages) {
-      await ouvrirPlus(p);
-      pages = [...new Set(await p.locator('aside a[href^="/"]').evaluateAll((as) => as.map((a) => a.getAttribute('href'))))];
+      pages = [...new Set((await entreesMenu(p)).map((e) => e.href))];
       for (const u of ['/modelisation', modele && `/modelisation/${modele.id}`, '/parametrage?onglet=supervision']) if (u && !pages.includes(u)) pages.push(u);
       check(`pages du menu administrateur et du lot B1 trouvées (${pages.length})`, pages.length >= 20 && pages.includes('/users') && pages.includes('/modelisation') && pages.some((u) => u.startsWith('/modelisation/')), pages.join(' '));
     }
@@ -69,14 +71,27 @@ const mesurer = (p, injecter) => p.evaluate((injecter) => {
         if (!bon) fautes.push(`${url}${injecter ? ' (élément absolu en bas)' : ''} ${JSON.stringify(m)}`);
       }
     }
-    check(`${nom} : sur chaque page, la fenêtre ne défile jamais au-delà du contenu et le menu fait toute la hauteur (${pages.length} pages, avec et sans élément absolu en bas)`, fautes.length === 0, fautes.slice(0, 5).join(' | '));
+    check(`${nom} : sur chaque page, la fenêtre ne défile jamais au-delà du contenu, le menu reste en haut et le contenu va jusqu'en bas (${pages.length} pages, avec et sans élément absolu en bas)`, fautes.length === 0, fautes.slice(0, 5).join(' | '));
     if (vue.width < 768) {
       await p.goto(WEB + '/parametrage?onglet=supervision');
       await p.locator('[data-testid=service]').first().waitFor();
       await p.getByRole('button', { name: 'Ouvrir le menu' }).click();
       await p.waitForTimeout(400);
-      const r = await p.evaluate(() => { const a = document.querySelector('aside').getBoundingClientRect(); return [Math.round(a.left), Math.round(a.top), Math.round(a.bottom), innerHeight]; });
+      const r = await p.evaluate(() => { const a = document.querySelector('[data-testid=tiroir-menu]').getBoundingClientRect(); return [Math.round(a.left), Math.round(a.top), Math.round(a.bottom), innerHeight]; });
       check('téléphone : menu ouvert de haut en bas de l’écran', r[0] === 0 && r[1] === 0 && r[2] === r[3], JSON.stringify(r));
+    }
+    if (vue.width >= 768) {
+      // Bureau étroit : la rangée d'onglets la plus longue (Administration) défile dans sa rangée.
+      await p.setViewportSize({ width: 1024, height: 768 });
+      await p.goto(WEB + '/users');
+      await p.locator('[data-testid=sous-onglets]').waitFor();
+      const r = await p.evaluate(() => {
+        const nav = document.querySelector('[data-testid=sous-onglets] nav');
+        const actif = nav.querySelector('[aria-current=page]').getBoundingClientRect();
+        return { deborde: nav.scrollWidth > nav.clientWidth, page: document.scrollingElement.scrollWidth - innerWidth, actifVisible: actif.left >= 0 && actif.right <= innerWidth };
+      });
+      check('bureau 1024 px : sous-onglets trop longs défilés dans leur rangée, page sans défilement horizontal, onglet actif visible', r.deborde && r.page <= 0 && r.actifVisible, JSON.stringify(r));
+      await p.screenshot({ path: `${E.SHOTS}/x_menu_haut_1024.png` });
     }
     await p.context().close();
   }

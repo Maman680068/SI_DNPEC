@@ -1,7 +1,7 @@
 // C2 — administration du courrier dans Chromium (étape 9 : fenêtres au nouveau modèle, gabarit vérifié dans la
 // fenêtre, sélecteur de personnes, messages de confirmation).
 const E = require('../config');
-const { browser, loginPage, check, bilan, WEB } = require('./helpers');
+const { browser, loginPage, check, bilan, WEB, cliquerMenu } = require('./helpers');
 const { call, ids } = require('../lib');
 const reg = require(E.etat('registres.json'));
 const SHOTS = E.SHOTS;
@@ -20,8 +20,7 @@ const an = new Date().getFullYear();
 
   const p = await loginPage(b, 'admin');
   p.on('dialog', (d) => d.accept());
-  await p.getByRole('button', { name: /^(Personnel et RH|Administration)$/ }).click();
-  await p.locator('aside a[href="/courrier/administration"]').click();
+  await cliquerMenu(p, '/courrier/administration');
   await p.waitForURL('**/courrier/administration');
   await p.locator('[data-testid=registre]').first().waitFor();
   await p.screenshot({ path: `${SHOTS}/c2_administration_desktop.png` });

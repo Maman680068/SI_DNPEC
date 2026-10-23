@@ -1,19 +1,21 @@
 // C2 — page /courrier (refonte de l'interface, étape 5) : lien de navigation, en-tête, bande de compteurs du
 // registre, onglets à compteur, rubriques de « À faire », tableaux de registre, filtres compacts, mobile.
-const { browser, loginPage, check, bilan, WEB } = require('./helpers');
+const { browser, loginPage, check, bilan, WEB, entreesMenu, cliquerMenu } = require('./helpers');
 const { call, ids } = require('../lib');
 (async () => {
   const b = await browser();
   const admin = await loginPage(b, 'admin');
   check('témoin : le lien « Tableau de bord » est trouvé', (await admin.getByRole('link', { name: /^\S*\s*Tableau de bord$/ }).count()) === 1);
-  // Refonte de l'interface : l'administration est dans le groupe repliable « Plus ».
-  await admin.getByRole('button', { name: /^(Personnel et RH|Administration)$/ }).click();
-  check('ADMIN_SYSTEME : lien « Courrier » (son courrier personnel) et Administration → Courrier', (await admin.locator('aside a[href="/courrier"]').count()) === 1 && (await admin.locator('aside a[href="/courrier/administration"]').count()) === 1);
+  // Menu en haut : « Courrier » dans le groupe Échanges, « Courrier (administration) » dans le groupe Administration.
+  const entrees = await entreesMenu(admin);
+  check('ADMIN_SYSTEME : lien « Courrier » (son courrier personnel) et Administration → Courrier', entrees.filter((e) => e.href === '/courrier' && e.groupe === 'Échanges').length === 1 && entrees.filter((e) => e.href === '/courrier/administration' && e.groupe === 'Administration').length === 1, JSON.stringify(entrees.filter((e) => e.href.startsWith('/courrier'))));
   await admin.goto(WEB + '/courrier/administration');
   await admin.locator('[data-testid=registre]').first().waitFor();
-  const allumes = await admin.locator('aside a[aria-current=page]').evaluateAll((els) => els.map((e) => e.getAttribute('href')));
-  check('barre latérale : seule l’entrée Administration → Courrier est active', allumes.join() === '/courrier/administration', allumes.join());
-  await admin.locator('aside a[href="/courrier"]').click();
+  const allumes = await admin.locator('[data-testid=menu-haut] a[aria-current=page]').evaluateAll((els) => els.map((e) => e.getAttribute('href')));
+  const groupe = await admin.locator('[data-testid=onglet-groupe][aria-current=true]').innerText();
+  check('menu en haut : seule l’entrée Administration → Courrier est active, groupe Administration souligné', allumes.join() === '/courrier/administration' && /^Administration/.test(groupe), `${allumes.join()} / ${groupe}`);
+  await admin.locator('[data-testid=onglet-groupe]', { hasText: 'Échanges' }).click();
+  await admin.locator('[data-testid=sous-onglets] a[href="/courrier"]').click();
   await admin.getByRole('heading', { name: 'Mon courrier' }).waitFor();
   // Onglets : libellé suivi de son compteur éventuel (« Mes actes 2 »).
   const onglets = (await admin.getByRole('tab').allInnerTexts()).map((t) => t.replace(/\s*\d+$/, '').trim());
@@ -31,8 +33,7 @@ const { call, ids } = require('../lib');
   check('« Mes actes » : exactement ses actes (API)', (await admin.locator('[data-testid=ligne-acte]').count()) === apiAct.length && apiAct.every((a) => a.redacteurId === ids.admin || a.beneficiaireId === ids.admin));
 
   const p = await loginPage(b, 'dn');
-  await p.getByRole('link', { name: /^\S*\s*Courrier$/ }).click();
-  await p.waitForURL('**/courrier');
+  await cliquerMenu(p, '/courrier');
   await p.getByRole('heading', { name: 'Courrier et actes' }).waitFor();
   await p.locator('[data-rubrique]').first().waitFor();
   check('en-tête : « Exporter » présent ; DN sans habilitation : pas de « Enregistrer un courrier »', (await p.getByRole('button', { name: 'Exporter', exact: true }).count()) === 1 && (await p.getByRole('button', { name: 'Enregistrer un courrier' }).count()) === 0);

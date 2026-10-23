@@ -204,7 +204,7 @@ function Entree({ item, actif, compteurs }: { item: NavItem; actif: boolean; com
   );
 }
 
-export function Sidebar({ open = false, onClose, telephoneSeulement = false }: { open?: boolean; onClose?: () => void; telephoneSeulement?: boolean }) {
+export function Sidebar({ open = false, onClose }: { open?: boolean; onClose?: () => void }) {
   const { user, logout } = useAuth();
   const { navigation } = useNavigation();
   const pathname = usePathname();
@@ -249,11 +249,11 @@ export function Sidebar({ open = false, onClose, telephoneSeulement = false }: {
 
   return (
     <>
-      {/* Fond assombri derrière le tiroir mobile — absent en desktop, où le menu
-       * est toujours visible dans le flux normal (voir md:static). */}
-      {open && <div className="fixed inset-0 z-40 bg-[rgba(18,28,77,0.45)] md:hidden" onClick={onClose} />}
+      {/* Tiroir du menu (téléphone seulement : sur écran large, le menu est en haut, MenuHaut). */}
+      {open && <div className="fixed inset-0 z-40 bg-[rgba(18,28,77,0.45)]" onClick={onClose} />}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex w-[240px] flex-shrink-0 flex-col bg-ink-900 text-[#C9CEE6] transition-transform duration-200 ${telephoneSeulement ? 'md:hidden' : 'md:static md:z-auto md:translate-x-0'} ${
+        data-testid="tiroir-menu"
+        className={`fixed inset-y-0 left-0 z-50 flex w-[240px] flex-shrink-0 flex-col bg-ink-900 text-[#C9CEE6] transition-transform duration-200 ${
           open ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
@@ -263,7 +263,7 @@ export function Sidebar({ open = false, onClose, telephoneSeulement = false }: {
             <div className="font-heading text-[15px] font-bold tracking-[.01em] text-white">DNPEC</div>
             <div className="text-[12px] text-[#9AA2C8]">Espace de travail</div>
           </div>
-          <button onClick={onClose} aria-label="Fermer le menu" className="ml-auto flex h-8 w-8 items-center justify-center rounded-md text-[#C9CEE6] md:hidden">
+          <button onClick={onClose} aria-label="Fermer le menu" className="ml-auto flex h-8 w-8 items-center justify-center rounded-md text-[#C9CEE6]">
             <X aria-hidden size={18} />
           </button>
         </div>
