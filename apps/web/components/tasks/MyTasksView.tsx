@@ -355,7 +355,7 @@ export function MyTasksView({ initialTaskId = null }: { initialTaskId?: string |
                           <PointStatut tache={t} />
                         </span>
                         <span role="cell" className="min-w-0">
-                          <b className="block truncate font-semibold">{t.title}</b>
+                          <b className="line-clamp-2 break-words font-semibold sm:line-clamp-none sm:truncate">{t.title}</b>
                           <small className="flex items-center gap-2.5 text-[12px] text-text-muted">
                             <span className="flex-none font-semibold" data-testid="reference-tache">{referenceTache(t.numero)}</span>
                             <span className="truncate">{unite(t)}</span>
