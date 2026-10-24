@@ -38,7 +38,7 @@ export function CompteursCourrier({
       {visibles.map((r) => {
         const on = actif === r.cle;
         const cls = `inline-flex h-8 items-center rounded-full border px-3 text-[12.5px] font-semibold ${
-          on ? 'border-ink bg-ink text-white' : r.cle === 'enRetard' ? 'border-[#E7B3BB] bg-clay-50 text-clay' : 'border-line bg-surface text-ink hover:bg-bg'
+          on ? 'border-ink bg-ink text-white' : r.cle === 'enRetard' ? 'border-clay-bord bg-clay-50 text-clay' : 'border-line bg-surface text-ink hover:bg-bg'
         }`;
         return onChoisir ? (
           <button key={r.cle} type="button" onClick={() => onChoisir(r.cle)} className={cls} aria-pressed={on}>

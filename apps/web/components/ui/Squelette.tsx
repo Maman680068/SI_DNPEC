@@ -1,11 +1,14 @@
 'use client';
 
+import { useEffect, useState } from 'react';
+import { lireTheme, type Theme } from '../../lib/theme';
+
 /**
  * Squelettes de chargement (refonte, étape 9, maquette `apres-toast-squelette`) : des lignes grises
  * qui ont la forme de la page, à la place de « Chargement… ». Annoncés une seule fois aux lecteurs
  * d'écran (« Chargement en cours ») ; les blocs eux-mêmes sont décoratifs.
  */
-const BARRE = 'animate-pulse rounded-md bg-gradient-to-r from-[#ECEEF4] via-[#F6F7FB] to-[#ECEEF4]';
+const BARRE = 'animate-pulse rounded-md bg-gradient-to-r from-fond-gris via-fond-doux to-fond-gris';
 
 export function Barre({ className = '' }: { className?: string }) {
   return <span aria-hidden className={`block ${BARRE} ${className}`} />;
@@ -18,13 +21,13 @@ export function SqueletteListe({ lignes = 6, colonnes = 4, testid = 'squelette' 
   return (
     <div role="status" aria-label="Chargement en cours" data-testid={testid} className="overflow-hidden rounded-xl border border-line bg-surface">
       <span className="sr-only">Chargement en cours</span>
-      <div aria-hidden className="hidden h-[38px] items-center gap-6 border-b border-line bg-[#F7F8FB] px-4 lg:flex">
+      <div aria-hidden className="hidden h-[38px] items-center gap-6 border-b border-line bg-fond-doux px-4 lg:flex">
         {Array.from({ length: colonnes }, (_, i) => (
           <Barre key={i} className={`h-2.5 ${i === 0 ? 'w-[120px]' : 'w-[70px]'}`} />
         ))}
       </div>
       {Array.from({ length: lignes }, (_, i) => (
-        <div key={i} aria-hidden className="flex h-[54px] items-center gap-6 border-b border-[#F0F1F6] px-4 last:border-b-0">
+        <div key={i} aria-hidden className="flex h-[54px] items-center gap-6 border-b border-line-doux px-4 last:border-b-0">
           <div className="min-w-0 flex-1 space-y-2">
             <Barre className={`h-3 ${LARGEURS[i % LARGEURS.length]}`} />
             <Barre className="h-2 w-[30%]" />
@@ -74,29 +77,42 @@ export function SquelettePage({ testid = 'squelette-page' }: { testid?: string }
 }
 
 /**
- * Écran de démarrage de l'application (session en cours de vérification) : le cadre — menu bleu
- * nuit, barre du haut — puis une page en squelette, à la place de « Chargement… » seul.
+ * Écran de démarrage de l'application (session en cours de vérification) : le cadre — bandeau du menu
+ * en haut (barre du haut sur téléphone) — puis une page en squelette, à la place de « Chargement… » seul,
+ * dans le thème choisi.
  */
 export function SqueletteApplication() {
+  // Thème lu après le montage : le rendu serveur ne connaît pas le choix gardé dans le navigateur.
+  const [theme, setTheme] = useState<Theme>('clair');
+  useEffect(() => setTheme(lireTheme()), []);
   return (
-    <div className="contraste-aa flex min-h-screen bg-bg" role="status" aria-label="Chargement en cours" data-testid="squelette-application">
+    <div className="contraste-aa flex min-h-screen flex-col bg-bg" data-theme={theme} role="status" aria-label="Chargement en cours" data-testid="squelette-application">
       <span className="sr-only">Chargement en cours</span>
-      <div aria-hidden className="hidden w-[240px] flex-none flex-col gap-3 bg-ink-900 px-5 py-5 lg:flex">
-        <div className="mb-4 flex items-center gap-3">
+      {/* Écran large : bandeau du menu en haut (logo, recherche, onglets) ; téléphone : barre du haut. */}
+      <div aria-hidden className="hidden flex-none bg-bandeau px-6 md:block">
+        <div className="flex h-[62px] items-center gap-4">
           <span className="h-9 w-9 rounded-full bg-white/15" />
           <span className="h-3 w-[90px] rounded bg-white/15" />
+          <span className="mx-auto h-9 w-[420px] rounded-[10px] bg-white/10" />
+          <span className="h-9 w-[92px] rounded-[10px] bg-white/15" />
         </div>
-        {Array.from({ length: 11 }, (_, i) => (
-          <span key={i} className={`h-3 rounded bg-white/10 ${i % 3 === 0 ? 'mt-3 w-[60px]' : 'w-[140px]'}`} />
-        ))}
+        <div className="flex gap-6 pb-4 pt-1">
+          {[90, 80, 90, 150].map((l, i) => (
+            <span key={i} className="h-3 rounded bg-white/10" style={{ width: l }} />
+          ))}
+        </div>
       </div>
       <div aria-hidden className="flex min-w-0 flex-1 flex-col">
-        <div className="flex h-[62px] items-center gap-4 border-b border-line bg-surface px-4 lg:px-7">
+        <div className="flex h-[62px] items-center gap-4 border-b border-line bg-surface px-4 md:hidden">
           <Barre className="h-3 w-[100px]" />
-          <Barre className="mx-auto hidden h-9 w-[420px] rounded-[10px] md:block" />
-          <Barre className="ml-auto h-9 w-[92px] rounded-[10px] md:ml-0" />
+          <Barre className="ml-auto h-9 w-[92px] rounded-[10px]" />
         </div>
-        <div className="p-4 lg:px-7 lg:py-6">
+        <div className="hidden h-[44px] items-center gap-5 border-b border-line bg-surface px-7 md:flex">
+          {['w-[110px]', 'w-[90px]', 'w-[120px]', 'w-[100px]'].map((l) => (
+            <Barre key={l} className={`h-3 ${l}`} />
+          ))}
+        </div>
+        <div className="p-4 md:px-7 md:py-6">
           <SquelettePage testid="squelette-page-demarrage" />
         </div>
       </div>

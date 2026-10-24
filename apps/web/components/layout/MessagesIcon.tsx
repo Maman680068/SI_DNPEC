@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { MessageSquare } from 'lucide-react';
 import { EVENEMENT_MESSAGES_LUS, getNombreMessagesNonLus } from '../../lib/api/communication';
+import { bordPastille, classesIcone, useSurBandeau } from '../../lib/navigation/bandeau';
 
 const INTERVALLE_MS = 60_000;
 
@@ -13,6 +14,7 @@ const INTERVALLE_MS = 60_000;
 export function MessagesIcon() {
   const pathname = usePathname();
   const [nonLus, setNonLus] = useState(0);
+  const surBandeau = useSurBandeau();
 
   const compter = useCallback(() => {
     getNombreMessagesNonLus()
@@ -42,11 +44,11 @@ export function MessagesIcon() {
     <Link
       href="/communication"
       aria-label={nonLus > 0 ? `Messagerie : ${nonLus} message${nonLus > 1 ? 's' : ''} non lu${nonLus > 1 ? 's' : ''}` : 'Messagerie'}
-      className="relative grid h-[38px] w-[38px] place-items-center rounded-[10px] text-ink hover:bg-bg"
+      className={`relative grid h-[38px] w-[38px] place-items-center rounded-[10px] ${classesIcone(surBandeau)}`}
     >
       <MessageSquare aria-hidden size={20} strokeWidth={1.8} />
       {nonLus > 0 && (
-        <span data-testid="compteur-messages" className="absolute right-1 top-[5px] grid h-[17px] min-w-[17px] place-items-center rounded-[9px] border-2 border-white bg-clay px-1 text-[10.5px] font-bold leading-none text-white">
+        <span data-testid="compteur-messages" className={`absolute right-1 top-[5px] grid h-[17px] min-w-[17px] place-items-center rounded-[9px] border-2 ${bordPastille(surBandeau)} bg-clay px-1 text-[10.5px] font-bold leading-none text-white`}>
           {nonLus > 99 ? '99+' : nonLus}
         </span>
       )}

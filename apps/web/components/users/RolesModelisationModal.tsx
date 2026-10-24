@@ -86,7 +86,7 @@ export function RolesModelisationModal({ userId, onClose }: { userId: string; on
             {ouvertes.length === 0 ? (
               <EtatVide texte="Aucun rôle de modélisation." />
             ) : (
-              <ul className="mb-4 divide-y divide-[#EEF0F5] rounded-[10px] border border-line" data-testid="roles-en-cours">
+              <ul className="mb-4 divide-y divide-line-doux rounded-[10px] border border-line" data-testid="roles-en-cours">
                 {ouvertes.map((a) => (
                   <li key={a.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2.5 text-[13.5px]">
                     <Pastille ton="encre">{a.libelle}</Pastille>
@@ -104,7 +104,7 @@ export function RolesModelisationModal({ userId, onClose }: { userId: string; on
               </ul>
             )}
             {d.compte.ineligible ? (
-              <p className="rounded-[10px] border border-line bg-[#FBFBFD] px-3 py-2.5 text-[13px] text-text-muted" data-testid="non-eligible">
+              <p className="rounded-[10px] border border-line bg-fond-doux px-3 py-2.5 text-[13px] text-text-muted" data-testid="non-eligible">
                 {d.compte.ineligible}
               </p>
             ) : (

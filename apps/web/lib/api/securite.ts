@@ -1,9 +1,10 @@
 import { apiFetch } from './client';
-import type { ListeParametres, PageAudit, Supervision, VerificationAudit } from '../securite/types';
+import type { IndicateursSucces, ListeParametres, PageAudit, Supervision, VerificationAudit } from '../securite/types';
 
 export const listerParametres = () => apiFetch<ListeParametres>('/api/v1/parametres');
 export const modifierParametre = (cle: string, valeur: number) =>
   apiFetch<ListeParametres>(`/api/v1/parametres/${encodeURIComponent(cle)}`, { method: 'PATCH', body: JSON.stringify({ valeur }) });
+export const getIndicateursSucces = () => apiFetch<IndicateursSucces>('/api/v1/indicateurs-succes');
 export const getSupervision = () => apiFetch<Supervision>('/api/v1/supervision');
 export const getInventaireFichiers = () => apiFetch<{ fichiers: number; octets: number }>('/api/v1/supervision/sauvegarde-fichiers');
 export const declarerTestRestauration = (t: { date: string; resultat: 'REUSSI' | 'ECHEC'; commentaire?: string }) =>

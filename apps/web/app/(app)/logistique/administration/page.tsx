@@ -100,7 +100,7 @@ export default function AdministrationLogistiquePage() {
         ) : (
           <ul>
             {actives.map((h) => (
-              <li key={h.id} className="flex flex-wrap items-center justify-between gap-2 border-b border-[#F0F1F6] px-[18px] py-2.5 text-[13.5px] last:border-b-0">
+              <li key={h.id} className="flex flex-wrap items-center justify-between gap-2 border-b border-line-doux px-[18px] py-2.5 text-[13.5px] last:border-b-0">
                 <span className="flex flex-wrap items-center gap-2">
                   <strong className="font-semibold">
                     {h.user.firstName} {h.user.lastName}
@@ -144,7 +144,7 @@ export default function AdministrationLogistiquePage() {
         {categories && (
           <div role="table" aria-label="Catégories de la logistique">
             <div role="rowgroup">
-              <div role="row" className={`hidden h-[38px] items-center gap-3 border-b border-line bg-[#F7F8FB] px-4 text-[12px] font-semibold text-text-muted lg:grid ${GRILLE}`}>
+              <div role="row" className={`hidden h-[38px] items-center gap-3 border-b border-line bg-fond-doux px-4 text-[12px] font-semibold text-text-muted lg:grid ${GRILLE}`}>
                 {['Code', 'Libellé', 'Nature', 'Réglages'].map((c) => (
                   <span key={c} role="columnheader">
                     {c}

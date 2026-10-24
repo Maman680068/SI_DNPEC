@@ -10,6 +10,8 @@ import { ArriveesService } from '../courrier/arrivees.service';
 import { ActesService } from '../courrier/actes.service';
 import { ArriveeFiltresDto } from '../courrier/dto/arrivee.dto';
 import { ActeFiltresDto } from '../courrier/dto/acte.dto';
+import { PlanTravailService } from '../plan-travail/plan-travail.service';
+import { referenceTache } from '../common/references/references';
 
 const PAR_CATEGORIE = 5;
 
@@ -23,7 +25,8 @@ export interface Resultat {
 /**
  * Recherche transverse (socle N5, A2.8) : chaque catégorie passe par la requête de son module, avec
  * les mêmes règles de visibilité que son écran — aucun droit propre à la recherche, administrateur
- * compris. Aucun objet protégé (pli personnel ; dossier du personnel, congés et instructions ne sont
+ * compris. Une tâche ou une activité se trouve aussi par sa référence courte (« T-418 », « A-07 »).
+ * Aucun objet protégé (pli personnel ; dossier du personnel, congés et instructions ne sont
  * pas cherchés). 5 résultats par catégorie, avec le total trouvé.
  */
 @Injectable()
@@ -35,14 +38,16 @@ export class RechercheService {
     private readonly meetings: MeetingsService,
     private readonly arrivees: ArriveesService,
     private readonly actes: ActesService,
+    private readonly plan: PlanTravailService,
   ) {}
 
   async rechercher(actor: AuthenticatedUser, texte: string) {
     const q = texte.trim();
     const n = PAR_CATEGORIE + 1; // un de plus : « d'autres résultats » sans tout compter
     const dateFr = (d: Date | null) => (d ? d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }) : null);
-    const [taches, documents, reunions, arrivees, actes, annuaire] = await Promise.all([
-      this.tasks.rechercher(actor, q, n).then((l) => l.map((t) => ({ id: t.id, libelle: t.title, detail: t.dueDate ? `Échéance ${dateFr(t.dueDate)}` : null, lien: `/tasks/${t.id}` }))),
+    const [taches, activites, documents, reunions, arrivees, actes, annuaire] = await Promise.all([
+      this.tasks.rechercher(actor, q, n).then((l) => l.map((t) => ({ id: t.id, libelle: `${referenceTache(t.numero)} — ${t.title}`, detail: t.dueDate ? `Échéance ${dateFr(t.dueDate)}` : null, lien: `/tasks/${t.id}` }))),
+      this.plan.rechercher(actor, q, n).then((l) => l.map((a) => ({ id: a.id, libelle: `${a.reference} — ${a.libelle}`, detail: `Plan ${a.annee}${a.uniteSigle ? ` · ${a.uniteSigle}` : ''}`, lien: a.lien }))),
       this.documents.findAllVisibleTo(actor, Object.assign(new DocumentFiltersDto(), { q })).then((l) => l.slice(0, n).map((d) => ({ id: d.id, libelle: d.title, detail: dateFr(d.createdAt), lien: `/documents?id=${d.id}` }))),
       this.meetings.rechercher(actor, q, n).then((l) => l.map((m) => ({ id: m.id, libelle: m.title, detail: dateFr(m.startAt), lien: `/reunions?id=${m.id}` }))),
       this.arrivees.lister(actor, Object.assign(new ArriveeFiltresDto(), { q })).then((l) =>
@@ -56,6 +61,7 @@ export class RechercheService {
       q,
       categories: [
         categorie('taches', 'Tâches', taches),
+        categorie('activites', 'Plan de travail', activites),
         categorie('documents', 'Documents', documents),
         categorie('courrier', 'Courrier', [...arrivees, ...actes]),
         categorie('annuaire', 'Annuaire', annuaire),

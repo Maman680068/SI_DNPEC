@@ -128,7 +128,7 @@ export default function AgentsPage() {
       )}
 
       {points.length > 0 && (
-        <section aria-label="Reprise : points à traiter" className="mb-3.5 rounded-[10px] border border-[#F2D58A] bg-gold-50 px-3.5 py-2.5">
+        <section aria-label="Reprise : points à traiter" className="mb-3.5 rounded-[10px] border border-gold-bord bg-gold-50 px-3.5 py-2.5">
           <h2 className="mb-1 text-[13.5px] font-bold text-ink-900">Reprise : points à traiter</h2>
           <ul className="list-disc space-y-0.5 pl-5 text-[13px] text-text">
             {points.map((p) => (

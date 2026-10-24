@@ -9,6 +9,7 @@ import { startTask, submitTask } from '../../lib/api/tasks';
 import type { Task } from '../../lib/tasks/types';
 import { GROUPES_ECHEANCE, PUCE_ECHEANCE, STATUT_LIBELLE, actionDirecte, dateEcheance, groupeEcheance, tonEcheance } from '../../lib/tasks/affichage';
 import { Avancement, Avatars, PointStatut } from '../tasks/ElementsTache';
+import { referenceTache } from '../../lib/references';
 
 /** Unité d'une tâche (section, cellule, sinon division). */
 export function useUniteTache() {
@@ -77,12 +78,13 @@ export function ListeTachesTableau({
               <div
                 key={t.id}
                 data-testid="ligne-priorite"
-                className={`grid grid-cols-[16px_minmax(0,1fr)_auto] items-center gap-3.5 px-[18px] py-[9px] md:grid-cols-[16px_minmax(0,1fr)_110px_70px_58px_96px] ${i ? 'border-t border-[#F0F1F6]' : ''}`}
+                className={`grid grid-cols-[16px_minmax(0,1fr)_auto] items-center gap-3.5 px-[18px] py-[9px] md:grid-cols-[16px_minmax(0,1fr)_110px_70px_58px_96px] ${i ? 'border-t border-line-doux' : ''}`}
               >
                 <PointStatut tache={t} />
                 <button type="button" onClick={() => onOuvrir(t.id)} className="min-w-0 text-left">
                   <span className="block truncate text-[14px] font-semibold hover:underline">{t.title}</span>
                   <span className="flex items-center gap-2.5 text-[12.5px] text-text-muted">
+                    <span className="flex-none font-semibold" data-testid="reference-tache">{referenceTache(t.numero)}</span>
                     <span className="truncate">
                       {t.activiteLibelle && !unite(t) ? `Plan de travail : ${t.activiteLibelle}` : unite(t)}
                       {t.status === 'SOUMISE_VALIDATION' ? ` · ${STATUT_LIBELLE[t.status].toLowerCase()}` : ''}
@@ -125,7 +127,7 @@ export function ListeTachesTableau({
             );
           })}
           {maxParGroupe !== undefined && g.taches.length > maxParGroupe && (
-            <Link href={lienSuite ?? '/tasks'} className="block border-t border-[#F0F1F6] px-[18px] py-2 text-[12.5px] font-semibold text-ink hover:underline">
+            <Link href={lienSuite ?? '/tasks'} className="block border-t border-line-doux px-[18px] py-2 text-[12.5px] font-semibold text-ink hover:underline">
               + {g.taches.length - maxParGroupe} autre{g.taches.length - maxParGroupe > 1 ? 's' : ''} tâche{g.taches.length - maxParGroupe > 1 ? 's' : ''} « {g.libelle.toLowerCase()} »
             </Link>
           )}

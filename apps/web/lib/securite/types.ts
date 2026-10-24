@@ -97,3 +97,23 @@ export const ACTIONS_AUDIT: Record<string, string> = {
   CONNEXION: 'Connexion',
   DECONNEXION: 'Déconnexion',
 };
+
+/** Indicateurs de succès (calculés à la lecture par l'API ; seules les cibles sont des paramètres). */
+export interface IndicateurSucces {
+  cle: string;
+  libelle: string;
+  valeur: number | null;
+  unite: string;
+  cible: number;
+  cleCible: string;
+  sens: 'MIN' | 'MAX';
+  atteint: boolean | null;
+  periode: string;
+  base: number;
+}
+export interface IndicateursSucces {
+  droits: { peutModifier: boolean };
+  calculeLe: string;
+  indicateurs: IndicateurSucces[];
+  cibles: Parametre[];
+}

@@ -178,7 +178,7 @@ function LigneParametre({ p, peutModifier, saisie, refus, onSaisie }: { p: Param
   const id = `parametre-${p.cle.replace(/\W/g, '-')}`;
   const change = saisie !== undefined && saisie !== String(p.valeur);
   return (
-    <li data-testid="parametre" data-cle={p.cle} className="grid grid-cols-1 items-center gap-x-4 gap-y-2 border-b border-[#F0F1F6] px-[18px] py-3.5 sm:grid-cols-[minmax(0,1fr)_180px] lg:grid-cols-[minmax(0,1fr)_180px_130px]">
+    <li data-testid="parametre" data-cle={p.cle} className="grid grid-cols-1 items-center gap-x-4 gap-y-2 border-b border-line-doux px-[18px] py-3.5 sm:grid-cols-[minmax(0,1fr)_180px] lg:grid-cols-[minmax(0,1fr)_180px_130px]">
       <div className="min-w-0">
         <label htmlFor={peutModifier ? id : undefined} className="block text-[14px] font-semibold text-text">
           {p.libelle}

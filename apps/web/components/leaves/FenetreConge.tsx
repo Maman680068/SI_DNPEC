@@ -147,7 +147,19 @@ export function FenetreConge({
           lignes={[
             ['Du', dateLongue(request.startDate)],
             ['Au', dateLongue(request.endDate)],
-            ['Durée', duree],
+            [
+              'Durée',
+              request.soldeInsuffisant ? (
+                <span className="flex flex-wrap items-center gap-2">
+                  {duree}
+                  <Pastille ton="rouge" testid="solde-insuffisant">
+                    solde insuffisant ({jours(request.soldeRestant ?? 0)} restant{(request.soldeRestant ?? 0) > 1 ? 's' : ''})
+                  </Pastille>
+                </span>
+              ) : (
+                duree
+              ),
+            ],
             ['Reprise', dateLongue(lendemain(request.endDate)).replace(/ \d{4}$/, '')],
           ]}
         />
@@ -155,7 +167,7 @@ export function FenetreConge({
 
       <SectionFenetre titre="Motif">
         {request.motifVerrouille ? (
-          <div className="flex flex-wrap items-center gap-2.5 rounded-[10px] border-[1.5px] border-dashed border-[#E1C26B] bg-[#FFFBEF] px-3 py-[11px] text-[13px]">
+          <div className="flex flex-wrap items-center gap-2.5 rounded-[10px] border-[1.5px] border-dashed border-gold-bord bg-gold-50 px-3 py-[11px] text-[13px]">
             <Lock aria-hidden size={16} className="flex-none text-ambre" />
             <span className="min-w-0 flex-1">Motif médical protégé. Il s’affiche après confirmation de votre mot de passe.</span>
             <button type="button" className={`${BTN_SECONDAIRE} !h-8 !text-[13px]`} onClick={afficherMotif}>
@@ -199,7 +211,7 @@ export function FenetreConge({
           ) : (
             <ul data-testid="absents-conge">
               {contexte.absents.map((a) => (
-                <li key={a.demandeId} className="flex flex-wrap items-center gap-2.5 border-t border-[#F0F1F6] py-2 text-[13px] first:border-t-0">
+                <li key={a.demandeId} className="flex flex-wrap items-center gap-2.5 border-t border-line-doux py-2 text-[13px] first:border-t-0">
                   <Initiales texte={initialesNom(a.nom)} taille={26} />
                   <span className="min-w-0 flex-1">{a.nom}</span>
                   <span className="text-text-muted">
@@ -219,7 +231,7 @@ export function FenetreConge({
           ) : (
             <ul data-testid="taches-conge">
               {contexte.taches.map((t) => (
-                <li key={t.id} className="flex items-center gap-2.5 border-t border-[#F0F1F6] py-2 text-[13px] first:border-t-0">
+                <li key={t.id} className="flex items-center gap-2.5 border-t border-line-doux py-2 text-[13px] first:border-t-0">
                   <CheckSquare aria-hidden size={16} className="flex-none text-text-muted" />
                   <Link href={`/tasks/${t.id}`} className="min-w-0 flex-1 truncate text-text hover:underline">
                     {t.titre}

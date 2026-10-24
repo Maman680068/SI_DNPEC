@@ -55,7 +55,7 @@ function ControleDates({ dateReception, dateCourrier, valeur, onChange }: { date
   const anomalies = anomaliesDates(dateReception, dateCourrier);
   if (anomalies.length === 0) return null;
   return (
-    <div className="mb-3.5 rounded-[10px] border border-[#F2D58A] bg-gold-50 px-3.5 pb-1 pt-3 text-[12.5px] text-ink" data-testid="controle-dates">
+    <div className="mb-3.5 rounded-[10px] border border-gold-bord bg-gold-50 px-3.5 pb-1 pt-3 text-[12.5px] text-ink" data-testid="controle-dates">
       <p className="mb-2.5">
         <strong>Date inhabituelle :</strong> {anomalies.join(' ; ')}. Vérifiez la saisie, ou confirmez-la en indiquant le motif (il sera conservé et tracé).
       </p>
@@ -679,7 +679,7 @@ export function FormulaireImputer({
         </>
       )}
       {erreur && (
-        <p role="alert" data-testid="erreur-formulaire" className="mb-3 rounded-[9px] border border-[#F0C5CC] bg-clay-50 px-3 py-2.5 text-[13px] font-semibold text-clay">
+        <p role="alert" data-testid="erreur-formulaire" className="mb-3 rounded-[9px] border border-clay-bord bg-clay-50 px-3 py-2.5 text-[13px] font-semibold text-clay">
           {erreur}
         </p>
       )}

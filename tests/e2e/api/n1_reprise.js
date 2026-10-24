@@ -38,7 +38,7 @@ const DEUX_CHEFS = 'SCE';
 async function empreinte(tables) {
   const res = {};
   for (const t of tables) {
-    const lignes = await prisma.$queryRawUnsafe(`SELECT md5((to_jsonb(x) - 'agentId'${MOINS_N3}${t === 'documents' ? " - 'celluleId'" : ''})::text) AS h FROM "${t}" x`);
+    const lignes = await prisma.$queryRawUnsafe(`SELECT md5((to_jsonb(x) - 'agentId'${MOINS_N3}${t === 'documents' ? " - 'celluleId'" : ''}${t === 'tasks' ? " - 'numero'" : ''}${t === 'activites' ? " - 'numero' - 'annee'" : ''})::text) AS h FROM "${t}" x`);
     res[t] = lignes.map((l) => l.h).sort();
   }
   return res;

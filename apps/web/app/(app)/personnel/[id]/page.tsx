@@ -146,7 +146,7 @@ export default function DossierPage() {
       <ErreurChargement message={erreur} />
 
       {droits.confirmer && (
-        <div role="status" className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-[10px] border border-[#F2D58A] bg-gold-50 px-3.5 py-2.5" data-testid="bandeau-a-verifier">
+        <div role="status" className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-[10px] border border-gold-bord bg-gold-50 px-3.5 py-2.5" data-testid="bandeau-a-verifier">
           <p className="text-[13px] text-ink">Des informations de votre dossier sont « à vérifier ». Relisez-les, puis confirmez-les ou signalez une erreur.</p>
           <button type="button"
             className={BTN_PRINCIPAL}
@@ -332,7 +332,7 @@ export default function DossierPage() {
           </Section>
         </>
       ) : dossier.niveau2Verrouille ? (
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-[10px] border border-[#F2D58A] bg-gold-50 px-3.5 py-2.5" data-testid="niveau-2-verrouille">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-[10px] border border-gold-bord bg-gold-50 px-3.5 py-2.5" data-testid="niveau-2-verrouille">
           <p className="flex items-start gap-2 text-[13px] text-ink">
             <Lock aria-hidden size={16} className="mt-0.5 flex-none" />
             Informations personnelles, diplômes, pièces et historique de carrière : éléments protégés. Confirmez votre identité pour les afficher.

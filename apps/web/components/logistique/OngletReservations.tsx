@@ -252,7 +252,7 @@ function FenetreReserver({ ressource, prioritaire, debut, fin, onClose, onDone }
       }}
     >
       {prioritaire && (
-        <div className="mb-3.5 rounded-[10px] border border-[#E7B3BB] bg-clay-50 px-3.5 py-2.5 text-[12.5px] text-clay">
+        <div className="mb-3.5 rounded-[10px] border border-clay-bord bg-clay-50 px-3.5 py-2.5 text-[12.5px] text-clay">
           Ces réservations seront annulées pour priorité, et leurs titulaires prévenus avec votre nom :
           <ul className="mt-1 list-disc pl-5">
             {ressource.conflits.map((c) => (

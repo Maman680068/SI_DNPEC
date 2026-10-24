@@ -82,7 +82,7 @@ export function CommentThread({
           <div className="grid h-7 w-7 flex-shrink-0 place-items-center rounded-full bg-ink-50 text-[10.5px] font-bold text-ink">
             {getUserInitials(comment.authorId)}
           </div>
-          <div className="min-w-0 flex-1 rounded-[10px] bg-[#F4F5F9] px-[11px] py-2 text-[13px] leading-[1.45]">
+          <div className="min-w-0 flex-1 rounded-[10px] bg-survol px-[11px] py-2 text-[13px] leading-[1.45]">
             <div>
               <b className="text-[12.5px]">{getUserLabel(comment.authorId)}</b>
               <small className="ml-1.5 text-[11.5px] text-text-faint">{formatWhen(comment.createdAt)}</small>

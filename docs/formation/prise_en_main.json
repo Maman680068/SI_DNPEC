@@ -7,10 +7,10 @@
       "pour": "Personnel des divisions, sections et cellules",
       "capture": "taches.png",
       "gestes": [
-        "Se connecter : adresse du SI DNPEC, e-mail et mot de passe, « Se connecter ». Sécuriser son compte : cadenas 🔒 en bas du menu → « Activer la double authentification ».",
+        "Se connecter : adresse du SI DNPEC, e-mail et mot de passe, « Se connecter ». Sécuriser son compte : votre nom en haut à droite → « Sécurité du compte » → « Activer la double authentification ».",
         "Mes tâches : passer une tâche « en cours », commenter, joindre un fichier, puis « Soumettre pour validation ». Vues « Kanban » et « Calendrier ».",
-        "Congés : Personnel → « Congés & absences » → « Nouvelle demande de congé ». Le chef donne son avis, le DRH décide ; « Mon solde » indique les jours restants.",
-        "Mon dossier : Personnel → « Dossier du personnel » → vérifier puis « Confirmer mes informations » (ou « Signaler une erreur »).",
+        "Congés : Onglet « Ressources » → « Congés & absences » → « Nouvelle demande de congé ». Le chef donne son avis, le DRH décide ; « Mon solde » indique les jours restants.",
+        "Mon dossier : Onglet « Personnel et RH » (« Administration » pour la Direction et l’administrateur) → « Dossier du personnel » → vérifier puis « Confirmer mes informations » (ou « Signaler une erreur »).",
         "Documents : « Archives & documents » → « Mon espace division » (ou « Mon espace cellule ») ; au dépôt, type, date et période couverte."
       ],
       "retenir": [
@@ -25,11 +25,11 @@
       "pour": "Chefs de section",
       "capture": "plan-travail.png",
       "gestes": [
-        "Plan de travail : Général → « Plan de travail » → « + Nouvel objectif », puis « + Activité » (responsable, dates, indicateur, cible).",
+        "Plan de travail : Onglet « Mon travail » → « Plan de travail » → « + Nouvel objectif », puis « + Activité » (responsable, dates, indicateur, cible).",
         "Tâches : « + Nouvelle tâche » → « Assigner à » ; valider ou renvoyer les tâches soumises.",
         "Congés : Congés & absences → onglet « À traiter » → « Examiner » → « Avis favorable » ou « Avis défavorable » (motif). Sans avis dans le délai, il est réputé favorable.",
         "Courrier et logistique : traiter le courrier imputé (« À faire ») ; Logistique → « À valider » pour les demandes de vos agents.",
-        "Absence : Personnel → « Suppléances » → « Désigner un suppléant »."
+        "Absence : Onglet « Personnel et RH » (« Administration » pour la Direction et l’administrateur) → « Suppléances » → « Désigner un suppléant »."
       ],
       "retenir": [
         "L’avancement du plan se calcule à partir des tâches, jamais saisi.",
@@ -62,10 +62,10 @@
       "capture": "instructions.png",
       "gestes": [
         "Courrier → « À faire » : imputer le courrier de la Direction, signer notes, décisions, ordres de mission, attestations et actes de carrière.",
-        "Instructions : Général → « Instructions » → « + Nouvelle instruction » (objet, texte, destinataire, échéance) ; suivi jusqu’à « Exécutée ».",
+        "Instructions : Onglet « Mon travail » → « Instructions » → « + Nouvelle instruction » (objet, texte, destinataire, échéance) ; suivi jusqu’à « Exécutée ».",
         "Ressources humaines → « Effectifs » : agents par unité, statut et catégorie.",
         "Documents : rendre « Diffusable » un document validé ; Documents générés → rapport d’activité de la Direction.",
-        "Suppléance : Personnel → « Suppléances » pour désigner qui agit en votre nom."
+        "Suppléance : Onglet « Personnel et RH » (« Administration » pour la Direction et l’administrateur) → « Suppléances » pour désigner qui agit en votre nom."
       ],
       "retenir": [
         "La visibilité s’arrête où commence le contenu protégé (congé maladie, pli personnel, informations personnelles).",
@@ -82,8 +82,8 @@
         "Congés : « À traiter » → « Approuver » ou « Refuser » (motif). Motif médical et certificat après votre mot de passe.",
         "Ressources humaines → « Alertes » : fins de contrat et de stage, avancements à instruire, dossiers incomplets.",
         "Carrière : « + Nouveau mouvement » → « Préparer le mouvement » → « Préparer l’acte » (le Courrier fait viser et signer).",
-        "Agents et dossiers : Personnel → « Agents » (matricules, fins prévues), « Dossier du personnel » (import Excel possible).",
-        "Stages : Personnel → « Stagiaires » → « + Nouveau stage », périodes, encadreur principal."
+        "Agents et dossiers : Onglet « Personnel et RH » (« Administration » pour la Direction et l’administrateur) → « Agents » (matricules, fins prévues), « Dossier du personnel » (import Excel possible).",
+        "Stages : Onglet « Personnel et RH » (« Administration » pour la Direction et l’administrateur) → « Stagiaires » → « + Nouveau stage », périodes, encadreur principal."
       ],
       "retenir": [
         "Avant le premier mouvement : relier chaque famille d’actes à son registre du Courrier.",

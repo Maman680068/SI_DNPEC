@@ -53,9 +53,9 @@ export const COULEUR_RELATION: Record<Relation, string> = {
   organisateur: 'border-ink bg-ink-50',
   confirme: 'border-sage bg-sage-50',
   attente: 'border-gold bg-gold-50',
-  decline: 'border-[#CDD1DF] bg-[#F4F5F9]',
-  perimetre: 'border-[#7D8BC4] bg-[#F4F6FC]',
-  annulee: 'border-[#CDD1DF] bg-[#F4F5F9]',
+  decline: 'border-line-fort bg-survol',
+  perimetre: 'border-line-fort bg-survol',
+  annulee: 'border-line-fort bg-survol',
 };
 
 export const LIBELLE_RELATION: Record<Relation, string> = {

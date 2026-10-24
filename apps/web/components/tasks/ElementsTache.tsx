@@ -11,12 +11,12 @@ export function PointStatut({ tache }: { tache: Task }) {
   const retard = estEnRetard(tache);
   const style =
     tache.status === 'EN_COURS'
-      ? { borderColor: '#1B2A6B', background: 'conic-gradient(#1B2A6B 0 50%, transparent 50%)' }
+      ? { borderColor: 'rgb(var(--c-ink))', background: 'conic-gradient(rgb(var(--c-ink)) 0 50%, transparent 50%)' }
       : tache.status === 'SOUMISE_VALIDATION'
-        ? { borderColor: '#B07A00', background: 'conic-gradient(#B07A00 0 90%, transparent 90%)' }
+        ? { borderColor: 'rgb(var(--c-ambre-vif))', background: 'conic-gradient(rgb(var(--c-ambre-vif)) 0 90%, transparent 90%)' }
         : tache.status === 'TERMINEE'
           ? { borderColor: 'var(--couleur-sage)', background: 'var(--couleur-sage)' }
-          : { borderColor: retard ? '#CE1126' : '#666E80' };
+          : { borderColor: retard ? 'rgb(var(--c-clay))' : 'rgb(var(--c-texte-faint))' };
   return <span aria-hidden className="block h-3.5 w-3.5 flex-none rounded-full border-2" style={style} />;
 }
 
@@ -40,7 +40,7 @@ export function Priorite({ priority }: { priority: Task['priority'] }) {
 
 export function BarreAvancement({ valeur, couleur }: { valeur: number; couleur?: string }) {
   return (
-    <div className="h-[5px] flex-1 overflow-hidden rounded-[3px] bg-[#E8EAF2]" role="progressbar" aria-valuenow={valeur} aria-valuemin={0} aria-valuemax={100} aria-label="Avancement">
+    <div className="h-[5px] flex-1 overflow-hidden rounded-[3px] bg-fond-gris" role="progressbar" aria-valuenow={valeur} aria-valuemin={0} aria-valuemax={100} aria-label="Avancement">
       <i className="block h-full rounded-[3px]" style={{ width: `${Math.max(0, Math.min(100, valeur))}%`, background: couleur ?? 'var(--couleur-sage)' }} />
     </div>
   );
@@ -67,7 +67,7 @@ export function Avatars({ tache, max = 3 }: { tache: Task; max?: number }) {
           {getUserInitials(id)}
         </span>
       ))}
-      {ids.length > max && <span className="-ml-1.5 grid h-6 w-6 place-items-center rounded-full border-2 border-white bg-[#F0F1F5] text-[10px] font-bold text-text-muted">+{ids.length - max}</span>}
+      {ids.length > max && <span className="-ml-1.5 grid h-6 w-6 place-items-center rounded-full border-2 border-white bg-fond-gris text-[10px] font-bold text-text-muted">+{ids.length - max}</span>}
     </div>
   );
 }

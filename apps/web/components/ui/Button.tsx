@@ -4,7 +4,7 @@ type Variant = 'solid' | 'gold' | 'outline';
 
 const VARIANT_CLASSES: Record<Variant, string> = {
   solid: 'bg-ink text-white border-ink hover:bg-ink-dark',
-  gold: 'bg-gold text-ink border-gold hover:brightness-95',
+  gold: 'bg-gold text-sur-or border-gold hover:brightness-95',
   outline: 'bg-surface text-text border-line hover:bg-bg',
 };
 

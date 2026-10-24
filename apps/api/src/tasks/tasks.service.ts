@@ -30,12 +30,14 @@ import { TaskFiltersDto } from './dto/task-filters.dto';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { BroadcastMode, BroadcastTaskDto } from './dto/broadcast-task.dto';
 import { CreateSavedFilterDto } from './dto/create-saved-filter.dto';
+import { lireReference } from '../common/references/references';
 
 /** Vue de suivi (GET /tasks?suivi=true) : tâches closes encore montrées pendant ce nombre de jours. */
 const SUIVI_CLOSES_JOURS = 30;
 
 const TASK_SELECT = {
   id: true,
+  numero: true,
   title: true,
   description: true,
   status: true,
@@ -73,7 +75,7 @@ type TaskWithAssignees = Prisma.TaskGetPayload<{ select: typeof TASK_SELECT }>;
 /** Liste des tâches (GET /tasks) : la tâche, plus ce qu'affiche une ligne de « Mes tâches » (refonte de l'interface). */
 const TASK_LIST_SELECT = {
   ...TASK_SELECT,
-  activite: { select: { libelle: true } },
+  activite: { select: { libelle: true, numero: true } },
   _count: {
     select: {
       comments: true,
@@ -261,6 +263,7 @@ export class TasksService {
     const liste = taches.map(({ subTasks, _count, activite, ...t }) => ({
       ...t,
       activiteLibelle: activite?.libelle ?? null,
+      activiteNumero: activite?.numero ?? null,
       nbCommentaires: _count.comments,
       nbPiecesJointes: _count.attachments,
       nbSousTaches: _count.subTasks,
@@ -296,9 +299,13 @@ export class TasksService {
 
   /** Recherche transverse (socle N5) : mêmes règles de visibilité que l'écran des tâches. */
   rechercher(actor: AuthenticatedUser, q: string, take: number) {
+    // Référence courte (« T-418 », « t418 », « 418 ») : la tâche de ce numéro, toujours dans le périmètre.
+    const ref = lireReference(q);
+    const parNumero = ref && ref.lettre !== 'A' ? [{ numero: ref.numero }] : [];
     return this.prisma.task.findMany({
-      where: this.scopedWhere(actor, { title: { contains: q, mode: 'insensitive' } }),
-      select: { id: true, title: true, status: true, dueDate: true },
+      // AND (jamais OR à la racine) : scopedWhere porte déjà le OR de la visibilité, qu'il ne faut pas écraser.
+      where: this.scopedWhere(actor, { AND: [{ OR: [{ title: { contains: q, mode: 'insensitive' } }, ...parNumero] }] }),
+      select: { id: true, numero: true, title: true, status: true, dueDate: true },
       orderBy: { updatedAt: 'desc' },
       take,
     });

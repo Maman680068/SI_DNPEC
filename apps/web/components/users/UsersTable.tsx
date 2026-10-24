@@ -119,7 +119,7 @@ export function UsersTable({
       <div className="hidden overflow-x-auto rounded-xl border border-line bg-surface md:block">
         <table className="w-full text-left text-[13px]">
           <thead>
-            <tr className="h-[38px] border-b border-line bg-[#F7F8FB] text-[12px] font-semibold text-text-muted">
+            <tr className="h-[38px] border-b border-line bg-fond-doux text-[12px] font-semibold text-text-muted">
               <th scope="col" className="px-4 py-2">Nom</th>
               <th scope="col" className="px-4 py-2">Email</th>
               <th scope="col" className="px-4 py-2">Rôle</th>
@@ -130,7 +130,7 @@ export function UsersTable({
           </thead>
           <tbody>
             {users.map((user) => (
-              <tr key={user.id} className="border-b border-[#F0F1F6] last:border-0 hover:bg-[#F6F7FC]">
+              <tr key={user.id} className="border-b border-line-doux last:border-0 hover:bg-survol">
                 {/* Une seule ligne par cellule (texte long raccourci, complet au survol) : toutes les lignes ont la même hauteur. */}
                 <td className="max-w-[160px] truncate whitespace-nowrap px-4 py-2.5 font-semibold text-ink-900" title={`${user.firstName} ${user.lastName}`}>
                   {user.firstName} {user.lastName}

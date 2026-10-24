@@ -21,15 +21,15 @@ export function DecisionsASuivre({ donnees, erreur, onOuvrir }: { donnees: Donne
         )}
       </div>
       {erreur ? (
-        <p className="border-t border-[#F0F1F6] px-4 py-3 text-[13px] text-clay">{erreur}</p>
+        <p className="border-t border-line-doux px-4 py-3 text-[13px] text-clay">{erreur}</p>
       ) : !donnees ? (
-        <div role="status" aria-label="Chargement en cours" data-testid="squelette" className="space-y-3 border-t border-[#F0F1F6] px-4 py-4">
+        <div role="status" aria-label="Chargement en cours" data-testid="squelette" className="space-y-3 border-t border-line-doux px-4 py-4">
           <Barre className="h-3 w-[75%]" />
           <Barre className="h-3 w-[60%]" />
           <Barre className="h-3 w-[68%]" />
         </div>
       ) : donnees.decisions.length === 0 ? (
-        <p className="border-t border-[#F0F1F6] px-4 py-3 text-[13px] text-text-muted">Aucune décision à suivre : elles se consignent dans la fenêtre d’une réunion.</p>
+        <p className="border-t border-line-doux px-4 py-3 text-[13px] text-text-muted">Aucune décision à suivre : elles se consignent dans la fenêtre d’une réunion.</p>
       ) : (
         <ul className="max-h-[560px] overflow-y-auto" tabIndex={0} aria-label="Liste des décisions à suivre">
           {donnees.decisions.map((d) => {
@@ -41,8 +41,8 @@ export function DecisionsASuivre({ donnees, erreur, onOuvrir }: { donnees: Donne
                 ? `devenue une tâche · ${STATUT_LIBELLE[d.action.status].toLowerCase()}${d.action.dueDate ? ` · échéance ${dateCourte(d.action.dueDate)}` : ''}`
                 : 'à convertir en action';
             return (
-              <li key={d.id} data-testid="decision-a-suivre" className="border-t border-[#F0F1F6]">
-                <button type="button" onClick={() => onOuvrir(d.meetingId)} className="relative block w-full px-4 py-2.5 text-left text-[13px] hover:bg-[#F6F7FC]">
+              <li key={d.id} data-testid="decision-a-suivre" className="border-t border-line-doux">
+                <button type="button" onClick={() => onOuvrir(d.meetingId)} className="relative block w-full px-4 py-2.5 text-left text-[13px] hover:bg-survol">
                   <b className={`block font-semibold ${close ? 'text-text-muted' : 'text-text'}`}>{d.content}</b>
                   <span className={`block text-[12.5px] ${d.enRetard ? 'font-semibold text-clay' : 'text-text-muted'}`}>
                     {origine} · {d.enRetard ? `en retard · ${suivi}` : suivi}

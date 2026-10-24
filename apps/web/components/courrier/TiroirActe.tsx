@@ -179,17 +179,17 @@ function lignesCircuit(a: Acte): Ligne[] {
 
 const ROND: Record<EtatLigne, string> = {
   fait: 'border-sage bg-sage',
-  courant: 'border-gold bg-surface shadow-[0_0_0_4px_theme(colors.gold.50)]',
-  saute: 'border-[#CDD1DF] bg-[#ECEEF5]',
+  courant: 'border-gold bg-surface shadow-[0_0_0_4px_rgb(var(--c-or-50))]',
+  saute: 'border-line-fort bg-fond-gris',
   renvoye: 'border-clay bg-clay',
-  avenir: 'border-[#CDD1DF] bg-surface',
+  avenir: 'border-line-fort bg-surface',
 };
 const ETAT_LU: Record<EtatLigne, string> = { fait: 'fait', courant: 'en cours', saute: 'sans objet', renvoye: 'renvoyé', avenir: 'à venir' };
 
 /** Circuit de visa vertical (maquette : `.tl2`) : rond d'état, titre, détail (date, commentaire). */
 function CircuitVertical({ lignes, label }: { lignes: Ligne[]; label: string }) {
   return (
-    <ol aria-label={label} className="relative pl-[26px] before:absolute before:bottom-1.5 before:left-[9px] before:top-1.5 before:w-0.5 before:bg-[#E3E6EF]">
+    <ol aria-label={label} className="relative pl-[26px] before:absolute before:bottom-1.5 before:left-[9px] before:top-1.5 before:w-0.5 before:bg-fond-gris">
       {lignes.map((e) => (
         <li key={e.id} className="relative pb-3.5 last:pb-0" data-etape={e.etat} data-cle={e.cle} aria-current={e.etat === 'courant' ? 'step' : undefined}>
           <i aria-hidden className={`absolute -left-[26px] top-px h-5 w-5 rounded-full border-[3px] ${ROND[e.etat]}`} />
@@ -490,12 +490,12 @@ export function TiroirActe({
       ) : (
         <>
           {a.statut === 'RENVOYE' && a.motifRenvoi && (
-            <div className="mb-4 rounded-md border border-[#E7B3BB] bg-clay-50 px-3.5 py-2.5 text-[12.5px] text-clay" data-testid="bandeau-renvoi">
+            <div className="mb-4 rounded-md border border-clay-bord bg-clay-50 px-3.5 py-2.5 text-[12.5px] text-clay" data-testid="bandeau-renvoi">
               <strong>Renvoyé au rédacteur :</strong> {a.motifRenvoi}
             </div>
           )}
           {a.circuitObsolete && (
-            <div className="mb-4 rounded-md border border-[#F2D58A] bg-gold-50 px-3.5 py-2.5 text-[12.5px] text-ink" data-testid="bandeau-obsolete">
+            <div className="mb-4 rounded-md border border-gold-bord bg-gold-50 px-3.5 py-2.5 text-[12.5px] text-ink" data-testid="bandeau-obsolete">
               <strong>Circuit à recalculer.</strong> Le viseur attendu n’occupe plus ce poste : l’acte doit être resoumis.
             </div>
           )}
@@ -525,7 +525,7 @@ export function TiroirActe({
 
           {a.corps && (
             <SectionFenetre titre="Texte">
-              <div className="max-h-[260px] overflow-y-auto whitespace-pre-wrap rounded-[10px] border border-line bg-[#F7F8FB] px-3 py-2.5 text-[13.5px] leading-[1.55] text-[#3A4152]">{a.corps}</div>
+              <div className="max-h-[260px] overflow-y-auto whitespace-pre-wrap rounded-[10px] border border-line bg-fond-doux px-3 py-2.5 text-[13.5px] leading-[1.55] text-text-fort">{a.corps}</div>
             </SectionFenetre>
           )}
 

@@ -44,7 +44,7 @@ export function ConversationList({
               aria-current={isSelected ? 'true' : undefined}
               aria-label={`${nom}${unread ? ' (non lu)' : ''}`}
               onClick={() => onSelect(conversation.otherUserId)}
-              className={`flex w-full items-center gap-[11px] border-b border-[#F0F1F6] px-3.5 py-[11px] text-left ${isSelected ? 'bg-ink-50' : 'hover:bg-[#F6F7FC]'}`}
+              className={`flex w-full items-center gap-[11px] border-b border-line-doux px-3.5 py-[11px] text-left ${isSelected ? 'bg-ink-50' : 'hover:bg-survol'}`}
             >
               <Initiales texte={getUserInitials(conversation.otherUserId)} taille={36} />
               <span className="min-w-0 flex-1">

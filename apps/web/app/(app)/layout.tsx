@@ -9,16 +9,20 @@ import { InterimProvider, useInterim } from '../../lib/interim/InterimProvider';
 import { InterimBanner } from '../../components/interim/InterimBanner';
 import { Sidebar } from '../../components/layout/Sidebar';
 import { Topbar } from '../../components/layout/Topbar';
+import { MenuHaut } from '../../components/layout/MenuHaut';
 import { ReauthProvider } from '../../lib/securite/ReauthProvider';
 import { NavigationProvider } from '../../lib/navigation/NavigationProvider';
 import { SqueletteApplication } from '../../components/ui/Squelette';
 import { ToastProvider } from '../../components/ui/Toast';
 import { DefilementVisible } from '../../components/layout/DefilementVisible';
+import { useEcranLarge } from '../../lib/navigation/bandeau';
+import { ThemeProvider } from '../../lib/theme';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { status } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const large = useEcranLarge();
 
   // Session absente ou expirée (ex. lien d'email) : la page visée est
   // mémorisée et rouverte après la connexion (lib/auth/suite).
@@ -38,19 +42,31 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <NavigationProvider>
         <ToastProvider>
         <DefilementVisible />
-        {/* Refonte de l'interface : menu fixe à gauche (son propre défilement), barre du haut
-         * toujours visible ; seule la page défile. La bande tricolore reste sur les pages publiques.
+        {/* Menu en haut sur écran large (bandeau, onglets par groupe, sous-onglets) ; sur téléphone,
+         * barre du haut et tiroir du menu, inchangés. Un seul des deux est rendu (`useEcranLarge`) :
+         * jamais deux fois les mêmes liens dans la page. Le menu reste en place ; seule la page défile.
+         * La bande tricolore reste sur les pages publiques.
          * `relative` (ici et sur <main>) : un élément en position absolue (texte « sr-only » des lecteurs
          * d'écran, menu…) sans ancêtre positionné se placerait par rapport à la page entière, échapperait
          * à overflow-hidden et ferait défiler la fenêtre, menu compris (contrôlé par x_mise_en_page_ui). */}
-        <div className="contraste-aa relative flex h-screen overflow-hidden bg-bg">
-          <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-          <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-            <Topbar onMenuClick={() => setSidebarOpen(true)} />
+        <ThemeProvider>
+        {(theme) => (
+        <div className="contraste-aa relative flex h-screen flex-col overflow-hidden bg-bg text-text" data-theme={theme}>
+          {large ? (
+            <MenuHaut />
+          ) : (
+            <>
+              <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+              <Topbar onMenuClick={() => setSidebarOpen(true)} />
+            </>
+          )}
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
             <InterimBanner />
             <InterimScopedContent>{children}</InterimScopedContent>
           </div>
         </div>
+        )}
+        </ThemeProvider>
         </ToastProvider>
         </NavigationProvider>
        </ReauthProvider>

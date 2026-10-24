@@ -142,6 +142,15 @@ export class ModelesService {
     return { reussis: c.filter((x) => x.ok).length, alertes: c.filter((x) => !x.ok && x.type === 'alerte').length, echecs: c.filter((x) => !x.ok && x.type === 'bloquant').length };
   }
 
+  /** Colonne « Contrôles » de la liste : Sans version active, Avec dérogation (dérogation confirmée),
+   * Alerte (au moins une alerte), Conforme. */
+  private static etatControles(active: { avecDerogation: boolean; controles: Prisma.JsonValue } | undefined): { code: 'SANS_VERSION_ACTIVE' | 'AVEC_DEROGATION' | 'ALERTE' | 'CONFORME'; libelle: string } {
+    if (!active) return { code: 'SANS_VERSION_ACTIVE', libelle: 'Sans version active' };
+    if (active.avecDerogation) return { code: 'AVEC_DEROGATION', libelle: 'Avec dérogation' };
+    if (ModelesService.controles(active).some((c) => !c.ok && c.type === 'alerte')) return { code: 'ALERTE', libelle: 'Alerte' };
+    return { code: 'CONFORME', libelle: 'Conforme' };
+  }
+
   private async administrateurs(sauf?: string): Promise<string[]> {
     return (await this.prisma.user.findMany({ where: { role: SystemRole.ADMIN_SYSTEME, status: UserStatus.ACTIF, ...(sauf ? { id: { not: sauf } } : {}) }, select: { id: true } })).map((u) => u.id);
   }
@@ -166,7 +175,7 @@ export class ModelesService {
         nom: true,
         famille: true,
         familleLibelle: true,
-        versions: { orderBy: { numero: 'desc' }, select: { numero: true, statut: true, controleLe: true, createdAt: true, fiche: true, avecDerogation: true } },
+        versions: { orderBy: { numero: 'desc' }, select: { numero: true, statut: true, controleLe: true, createdAt: true, fiche: true, avecDerogation: true, controles: true } },
         affectations: { where: { fin: null }, select: { role: true, userId: true } },
       },
     });
@@ -186,6 +195,10 @@ export class ModelesService {
           sousTitre: derniere ? this.sousTitre(derniere.fiche as unknown as FicheModele) : '',
           demonstration: m.code.startsWith('TEST_'),
           versionActive: active ? { numero: active.numero, avecDerogation: active.avecDerogation } : null,
+          // Base de référence déclarée dans le paquet de la version active, et état de ses contrôles
+          // (libellé seulement, jamais une valeur : l'administrateur ne voit aucun chiffre).
+          baseReference: active ? ((active.fiche as unknown as FicheModele).base ?? null) : null,
+          controles: ModelesService.etatControles(active),
           responsable: resp ? noms.get(resp.userId) ?? null : null,
           etat: derniere ? { code: derniere.statut, libelle: LIBELLE_ETAT[derniere.statut], ton: TON_ETAT[derniere.statut], numero: derniere.numero } : null,
           dernierControle: controlee ? { numero: controlee.numero, le: controlee.controleLe } : null,

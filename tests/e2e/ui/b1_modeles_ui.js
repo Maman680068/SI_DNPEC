@@ -7,7 +7,7 @@ const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
 const { AxeBuilder } = require('@axe-core/playwright');
-const { browser, loginPage, check, bilan, WEB, ouvrirPlus } = require('./helpers');
+const { browser, loginPage, check, bilan, WEB, ouvrirPlus, entreesMenu, cliquerMenu } = require('./helpers');
 const { call, ids, login } = require('../lib');
 const E = require('../config');
 
@@ -42,14 +42,13 @@ const apparait = (zone, texte) => zone.getByText(texte).first().waitFor({ timeou
   console.log('— Menu : rôle de modélisation ou administrateur');
   let p = await loginPage(b, 'agentdee', BUREAU);
   await p.waitForTimeout(800);
-  check('agent sans rôle : pas d’entrée « Modèles » dans le menu', (await p.getByRole('navigation').getByRole('link', { name: 'Modèles' }).count()) === 0);
+  check('agent sans rôle : ni groupe « Modélisation » ni entrée « Modèles » dans le menu', (await p.locator('[data-testid=onglet-groupe]', { hasText: 'Modélisation' }).count()) === 0 && !(await entreesMenu(p)).some((e) => e.href === '/modelisation'));
   await p.goto(`${WEB}/modelisation`);
   check('agent sans rôle : page refusée avec un message en français', await p.getByText(/réservée aux personnes qui ont un rôle de modélisation/).waitFor({ timeout: 10000 }).then(() => true, () => false));
   await p.context().close();
 
   p = await loginPage(b, 'admin', BUREAU);
-  await p.getByRole('link', { name: 'Modèles' }).first().click();
-  await p.waitForURL('**/modelisation');
+  await cliquerMenu(p, '/modelisation');
   await p.getByRole('heading', { name: 'Modèles' }).waitFor();
   check('administrateur : « Modèles » dans le groupe Modélisation, « Déposer un modèle »', await p.getByRole('button', { name: /Déposer un modèle/ }).waitFor().then(() => true, () => false));
   check('les 4 étapes d’intégration sont présentées', (await p.getByRole('list', { name: 'Intégrer un modèle en quatre étapes' }).getByRole('listitem').count()) === 4);
@@ -153,8 +152,10 @@ const apparait = (zone, texte) => zone.getByText(texte).first().waitFor({ timeou
   console.log('— Responsable : approbation');
   p = await loginPage(b, 'chefssr', BUREAU);
   await p.waitForTimeout(800);
-  const entree = p.getByRole('navigation').getByRole('link', { name: /^Modèles/ });
-  check('responsable : « Modèles » dans le menu, avec pastille', (await entree.count()) === 1 && /1/.test(await entree.innerText()));
+  const entree = p.locator('[data-testid=onglet-groupe]', { hasText: 'Modélisation' });
+  check('responsable : groupe « Modélisation » dans le menu, avec pastille', (await entree.count()) === 1 && /1/.test(await entree.innerText()));
+  await entree.click();
+  check('responsable : sous-onglet « Modèles » avec sa pastille', /^Modèles\s*1$/.test((await p.locator('[data-testid=sous-onglets] a[href="/modelisation"]').innerText()).trim()));
   await p.goto(lienFiche);
   const bandeau = p.getByTestId('bandeau-approbation');
   await bandeau.waitFor();

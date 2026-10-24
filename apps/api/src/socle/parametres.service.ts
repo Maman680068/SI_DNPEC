@@ -19,6 +19,9 @@ export type DefinitionParametre = {
   max: number;
   effet: string;
   reference: string;
+  /** Rubrique « indicateurs » : cible d'un indicateur de succès, montrée dans l'onglet de ces indicateurs
+   * (pas dans l'onglet « Paramètres »), même circuit de modification. */
+  rubrique?: 'indicateurs';
 };
 
 export const PARAMETRES: DefinitionParametre[] = [
@@ -102,6 +105,62 @@ export const PARAMETRES: DefinitionParametre[] = [
     effet: 'Première alerte au DRH ; le rappel reste à 3 jours.',
     reference: '§4.1',
   },
+  // Cibles des indicateurs de succès (docs/conception_indicateurs_succes.md) : créées par le paramétrage initial.
+  {
+    cle: 'indicateurs.cibleConnexionsPct',
+    libelle: 'Cible : comptes actifs connectés chaque semaine (4 dernières semaines)',
+    unite: '%',
+    defaut: 70,
+    min: 10,
+    max: 100,
+    effet: 'Indicateur « Atteint » si la part mesurée est au moins égale à la cible.',
+    reference: 'Indicateurs de succès',
+    rubrique: 'indicateurs',
+  },
+  {
+    cle: 'indicateurs.cibleDecisionsTachePct',
+    libelle: 'Cible : décisions de réunion converties en tâche',
+    unite: '%',
+    defaut: 60,
+    min: 10,
+    max: 100,
+    effet: 'Indicateur « Atteint » si la part mesurée est au moins égale à la cible.',
+    reference: 'Indicateurs de succès',
+    rubrique: 'indicateurs',
+  },
+  {
+    cle: 'indicateurs.cibleDelaiCongeJours',
+    libelle: 'Cible : délai moyen entre une demande de congé et sa décision',
+    unite: 'jours ouvrés',
+    defaut: 5,
+    min: 1,
+    max: 30,
+    effet: 'Indicateur « Atteint » si le délai moyen mesuré ne dépasse pas la cible.',
+    reference: 'Indicateurs de succès',
+    rubrique: 'indicateurs',
+  },
+  {
+    cle: 'indicateurs.cibleImputationsPct',
+    libelle: 'Cible : imputations de courrier traitées avant leur échéance',
+    unite: '%',
+    defaut: 80,
+    min: 10,
+    max: 100,
+    effet: 'Indicateur « Atteint » si la part mesurée est au moins égale à la cible.',
+    reference: 'Indicateurs de succès',
+    rubrique: 'indicateurs',
+  },
+  {
+    cle: 'indicateurs.cibleTachesPct',
+    libelle: 'Cible : tâches terminées dans les délais',
+    unite: '%',
+    defaut: 75,
+    min: 10,
+    max: 100,
+    effet: 'Indicateur « Atteint » si la part mesurée est au moins égale à la cible.',
+    reference: 'Indicateurs de succès',
+    rubrique: 'indicateurs',
+  },
 ];
 
 const PAR_CLE = new Map(PARAMETRES.map((p) => [p.cle, p]));
@@ -138,7 +197,7 @@ export class ParametresService {
     if (motDePasse.length < min) throw new BadRequestException(`Le mot de passe doit contenir au moins ${min} caractères.`);
   }
 
-  private async exigerLecture(actor: AuthenticatedUser): Promise<void> {
+  async exigerLecture(actor: AuthenticatedUser): Promise<void> {
     await this.autorisation.exiger(actor, {
       action: 'L',
       objet: { type: 'Parametre' },
@@ -163,13 +222,25 @@ export class ParametresService {
     return {
       droits: { peutModifier },
       parametres: await Promise.all(
-        PARAMETRES.map(async (p) => {
-          const l = lignes.get(p.cle);
-          return { ...p, valeur: await this.valeur(p.cle), modifie: !!l, modifieLe: l?.modifieLe ?? null, modifiePar: l ? nom(l.modifieParId) : null };
-        }),
+        // Les cibles des indicateurs de succès sont dans leur propre onglet (IndicateursSuccesService).
+        PARAMETRES.filter((p) => !p.rubrique).map((p) => this.presenter(p, lignes.get(p.cle), nom)),
       ),
       testRestauration: test ? { ...(test.valeur as TestRestauration), declarePar: nom(test.modifieParId) } : null,
     };
+  }
+
+  /** Ligne d'un paramètre pour l'écran. Une ligne créée par le paramétrage initial (sans auteur) garde la
+   * valeur par défaut : elle n'est pas présentée comme « modifiée ». */
+  async presenter(p: DefinitionParametre, l: { modifieParId: string | null; modifieLe: Date } | undefined, nom: (id: string | null) => string | null) {
+    const modifie = !!l?.modifieParId;
+    return { ...p, valeur: await this.valeur(p.cle), modifie, modifieLe: modifie ? l!.modifieLe : null, modifiePar: modifie ? nom(l!.modifieParId) : null };
+  }
+
+  /** Cibles des indicateurs de succès (rubrique « indicateurs »), avec leurs lignes en base. */
+  async cibles(): Promise<{ definitions: DefinitionParametre[]; lignes: Map<string, { modifieParId: string | null; modifieLe: Date }> }> {
+    const definitions = PARAMETRES.filter((p) => p.rubrique === 'indicateurs');
+    const lignes = new Map((await this.prisma.parametre.findMany({ where: { cle: { in: definitions.map((d) => d.cle) } } })).map((l) => [l.cle, l]));
+    return { definitions, lignes };
   }
 
   private async exigerAdministrateur(actor: AuthenticatedUser): Promise<void> {

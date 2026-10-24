@@ -94,7 +94,7 @@ export function Organigramme() {
     return (
       <li key={u.id} data-testid="unite" data-code={u.code}>
         <div
-          className={`flex flex-wrap items-start gap-x-3 gap-y-2 border-b border-[#F0F1F6] py-2.5 pr-4 lg:items-center ${u.fermee ? 'opacity-60' : ''}`}
+          className={`flex flex-wrap items-start gap-x-3 gap-y-2 border-b border-line-doux py-2.5 pr-4 lg:items-center ${u.fermee ? 'opacity-60' : ''}`}
           style={{ paddingLeft: `calc(16px + min(${Math.min(niveau, 4) * 22}px, ${Math.min(niveau, 4) * 4}vw))` }}
         >
           {sous.length > 0 ? (

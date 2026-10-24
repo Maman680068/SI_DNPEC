@@ -64,6 +64,8 @@ const NAV_GROUPS: NavGroup[] = [
       // que son courrier personnel ; il en a aussi le paramétrage (Plus).
       { icone: Mail, label: 'Courrier', href: '/courrier', compteur: 'courrier' },
       { icone: Users, label: 'Annuaire', href: '/annuaire' },
+      // Boîte à suggestions : avec les échanges (fermée au stagiaire, NAVIGATION_STAGIAIRE).
+      { icone: Lightbulb, label: 'Boîte à suggestions', href: '/suggestions' },
     ],
   },
   {
@@ -93,7 +95,7 @@ const AIDE: NavItem = { icone: CircleHelp, label: 'Aide', href: '/aide' };
 
 /**
  * Entrées du menu selon le rôle (mêmes règles qu'avant la refonte) : les groupes principaux, puis
- * le groupe repliable « Plus » (dossier du personnel, RH, organisation, stagiaires, suggestions,
+ * le groupe repliable « Plus » (dossier du personnel, RH, organisation, stagiaires,
  * journal d'audit, administration…), puis l'aide. "Utilisateurs" n'apparaît que pour ADMIN_SYSTEME
  * (gestion complète) et DN/DNA (lecture seule — voir app/(app)/users/page.tsx) ; « Agents » pour le
  * DRH et le gestionnaire RH.
@@ -126,7 +128,6 @@ export function navigationPour(role: string | undefined, rolesFonctionnels: stri
   // Stages (D6) : DRH, Direction, chefs ; un tuteur y arrive par ses notifications et le tableau de bord.
   if (voitStages) plus.push({ icone: GraduationCap, label: 'Stagiaires', href: '/stages', compteur: 'stages' });
   if (SUPPLEANCE_NAV_ROLES.includes(role ?? '')) plus.push({ icone: ArrowLeftRight, label: 'Suppléances', href: '/suppleances' });
-  plus.push({ icone: Lightbulb, label: 'Boîte à suggestions', href: '/suggestions' });
   // Socle N2 : journal d'audit pour tous, dans sa portée ; paramétrage et supervision (administrateur ;
   // DN et DNA en lecture).
   plus.push({ icone: ScrollText, label: 'Journal d’audit', href: '/journal-audit' });
@@ -157,7 +158,7 @@ export function titrePage(pathname: string | null, role: string | undefined, rol
 
 /** Entrée active : le lien le plus précis qui contient la page (Courrier et Courrier (administration)
  * ne s'allument jamais ensemble). */
-function lienActif(items: NavItem[], pathname: string | null): string | undefined {
+export function lienActif(items: NavItem[], pathname: string | null): string | undefined {
   return items
     .map((i) => i.href)
     .filter((h) => pathname === h || pathname?.startsWith(`${h}/`))
@@ -177,7 +178,7 @@ function Pastille({ n, dore, id }: { n: number; dore?: boolean; id?: string }) {
       id={id}
       aria-hidden
       data-testid="pastille-menu"
-      className={`ml-auto grid h-5 min-w-[22px] place-items-center rounded-[10px] px-1.5 text-[11.5px] font-bold ${dore ? 'bg-gold text-ink-900' : 'bg-white/[.12] text-white'}`}
+      className={`ml-auto grid h-5 min-w-[22px] place-items-center rounded-[10px] px-1.5 text-[11.5px] font-bold ${dore ? 'bg-gold text-sur-or' : 'bg-white/[.12] text-white'}`}
     >
       {n > 99 ? '99+' : n}
     </span>
@@ -194,7 +195,7 @@ function Entree({ item, actif, compteurs }: { item: NavItem; actif: boolean; com
       aria-current={actif ? 'page' : undefined}
       aria-describedby={n ? idPastille : undefined}
       className={`flex h-[35px] items-center gap-[11px] rounded-lg px-2.5 text-[14px] font-medium ${
-        actif ? 'bg-white/[.09] text-white shadow-[inset_3px_0_0_theme(colors.gold.DEFAULT)]' : 'text-[#D3D7EC] hover:bg-white/[.05] hover:text-white'
+        actif ? 'bg-white/[.09] text-white shadow-[inset_3px_0_0_rgb(var(--c-or))]' : 'text-[#D3D7EC] hover:bg-white/[.05] hover:text-white'
       }`}
     >
       <Icone aria-hidden size={18} strokeWidth={1.8} className="flex-none" />
@@ -249,11 +250,11 @@ export function Sidebar({ open = false, onClose }: { open?: boolean; onClose?: (
 
   return (
     <>
-      {/* Fond assombri derrière le tiroir mobile — absent en desktop, où le menu
-       * est toujours visible dans le flux normal (voir md:static). */}
-      {open && <div className="fixed inset-0 z-40 bg-[rgba(18,28,77,0.45)] md:hidden" onClick={onClose} />}
+      {/* Tiroir du menu (téléphone seulement : sur écran large, le menu est en haut, MenuHaut). */}
+      {open && <div className="fixed inset-0 z-40 bg-[rgba(18,28,77,0.45)]" onClick={onClose} />}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex w-[240px] flex-shrink-0 flex-col bg-ink-900 text-[#C9CEE6] transition-transform duration-200 md:static md:z-auto md:translate-x-0 ${
+        data-testid="tiroir-menu"
+        className={`fixed inset-y-0 left-0 z-50 flex w-[240px] flex-shrink-0 flex-col bg-bandeau text-[#C9CEE6] transition-transform duration-200 ${
           open ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
@@ -263,7 +264,7 @@ export function Sidebar({ open = false, onClose }: { open?: boolean; onClose?: (
             <div className="font-heading text-[15px] font-bold tracking-[.01em] text-white">DNPEC</div>
             <div className="text-[12px] text-[#9AA2C8]">Espace de travail</div>
           </div>
-          <button onClick={onClose} aria-label="Fermer le menu" className="ml-auto flex h-8 w-8 items-center justify-center rounded-md text-[#C9CEE6] md:hidden">
+          <button onClick={onClose} aria-label="Fermer le menu" className="ml-auto flex h-8 w-8 items-center justify-center rounded-md text-[#C9CEE6]">
             <X aria-hidden size={18} />
           </button>
         </div>
@@ -315,7 +316,7 @@ export function Sidebar({ open = false, onClose }: { open?: boolean; onClose?: (
               aria-label="Mon compte"
               className="flex min-w-0 flex-1 items-center gap-2.5 text-left"
             >
-              <span className="grid h-[34px] w-[34px] flex-none place-items-center rounded-full bg-gold text-[12.5px] font-bold text-ink-900">
+              <span className="grid h-[34px] w-[34px] flex-none place-items-center rounded-full bg-gold text-[12.5px] font-bold text-sur-or">
                 {initials(user.firstName, user.lastName)}
               </span>
               <span className="min-w-0">

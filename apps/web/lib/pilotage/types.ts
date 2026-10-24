@@ -7,6 +7,9 @@ export interface Personne {
 export interface Activite {
   id: string;
   objectifId: string;
+  /** Référence courte « A-07 » (numéro dans l'année du plan, mis en forme par l'API). */
+  numero: number;
+  reference: string;
   libelle: string;
   responsable: Personne;
   dateDebut: string;
@@ -16,6 +19,12 @@ export interface Activite {
   avancement: number;
   nombreTaches: number;
   enRetard: boolean;
+  /** Part du temps écoulée entre le début et la fin (0 à 100), calculée par l'API. */
+  tempsEcoule: number;
+  /** Avancement comparé au temps (API) : en retard, en dessous du temps écoulé, ou conforme. */
+  etatAvancement: 'EN_RETARD' | 'EN_DECALAGE' | 'CONFORME';
+  /** Sigle de l'unité du plan (lecture du plan seulement). */
+  uniteSigle?: string;
   droits: { modifier: boolean; supprimer: boolean };
 }
 
@@ -36,6 +45,7 @@ export interface Objectif {
   annee: number;
   uniteId: string;
   unite: string;
+  uniteSigle: string;
   libelle: string;
   description: string | null;
   avancement: number;

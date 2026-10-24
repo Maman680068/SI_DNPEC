@@ -1,5 +1,5 @@
 // N6 — accessibilité des écrans principaux (SOC-PLT-04, WCAG 2.1 niveau AA) : audit automatique axe-core
-// sous Chromium, bureau et téléphone, pour chaque profil sur ses écrans (accueil et connexion exclus :
+// sous Chromium, bureau et téléphone, dans les deux thèmes (clair, sombre), pour chaque profil sur ses écrans (accueil et connexion exclus :
 // identité visuelle validée, contrôlée inchangée). Aucune violation « grave » ni
 // « critique » admise ; les violations « modérées » et « mineures » sont listées dans le rapport
 // (out/accessibilite.md) pour la revue manuelle qui complète l'audit.
@@ -45,14 +45,22 @@ const GRAVES = ['serious', 'critical'];
 (async () => {
   const b = await browser();
   const rapport = ['# Audit d’accessibilité automatique (axe-core, WCAG 2.1 A et AA)', '', '| Profil | Écran | Format | Règle | Impact | Éléments |', '|---|---|---|---|---|---|'];
-  for (const [vue, taille] of [['bureau', undefined], ['téléphone', TELEPHONE]]) {
+  for (const theme of ['clair', 'sombre'])
+  for (const [vueBase, taille] of [['bureau', undefined], ['téléphone', TELEPHONE]]) {
+    const vue = `${vueBase}, thème ${theme}`;
     console.log(`— ${vue}`);
     const pages = {};
     for (const [compte, url] of ECRANS) {
-      const p = (pages[compte] = pages[compte] || (await loginPage(b, compte, taille)));
+      if (!pages[compte]) {
+        pages[compte] = await loginPage(b, compte, taille);
+        // Thème choisi gardé dans le navigateur (lib/theme) : appliqué dès le chargement suivant.
+        if (theme === 'sombre') await pages[compte].context().addInitScript(() => window.localStorage.setItem('dnpec.theme', 'sombre'));
+      }
+      const p = pages[compte];
       await p.goto(WEB + url);
       await p.waitForLoadState('networkidle').catch(() => {});
       await p.waitForTimeout(400);
+      if (theme === 'sombre' && compte === ECRANS[0][0] && url === ECRANS[0][1]) check(`thème sombre appliqué (${vueBase})`, (await p.locator('.contraste-aa[data-theme=sombre]').count()) === 1);
       const r = await new AxeBuilder({ page: p }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
       for (const v of r.violations) rapport.push(`| ${compte} | ${url} | ${vue} | ${v.id} | ${v.impact} | ${v.nodes.length} |`);
       const graves = r.violations.filter((v) => GRAVES.includes(v.impact));

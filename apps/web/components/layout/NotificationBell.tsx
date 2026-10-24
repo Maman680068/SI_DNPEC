@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { getNombreNonLues, getNotifications, marquerLue, marquerToutLu } from '../../lib/api/notifications';
 import type { NotificationItem } from '../../lib/notifications/types';
+import { bordPastille, classesIcone, useSurBandeau } from '../../lib/navigation/bandeau';
 
 const INTERVALLE_MS = 60_000;
 
@@ -93,6 +94,7 @@ export function NotificationBell() {
   const [erreur, setErreur] = useState<string | null>(null);
   const [filtre, setFiltre] = useState<Filtre>('toutes');
   const racine = useRef<HTMLDivElement>(null);
+  const surBandeau = useSurBandeau();
   const requete = useRef(0);
 
   const compter = useCallback(() => {
@@ -184,11 +186,11 @@ export function NotificationBell() {
         onClick={basculer}
         aria-label={nonLues > 0 ? `Notifications : ${nonLues} non lue${nonLues > 1 ? 's' : ''}` : 'Notifications'}
         aria-expanded={ouvert}
-        className="relative grid h-[38px] w-[38px] place-items-center rounded-[10px] text-ink hover:bg-bg"
+        className={`relative grid h-[38px] w-[38px] place-items-center rounded-[10px] ${classesIcone(surBandeau)}`}
       >
         <Bell aria-hidden size={20} strokeWidth={1.8} />
         {nonLues > 0 && (
-          <span data-testid="compteur-notifications" className="absolute right-1 top-[5px] grid h-[17px] min-w-[17px] place-items-center rounded-[9px] border-2 border-white bg-clay px-1 text-[10.5px] font-bold leading-none text-white">
+          <span data-testid="compteur-notifications" className={`absolute right-1 top-[5px] grid h-[17px] min-w-[17px] place-items-center rounded-[9px] border-2 ${bordPastille(surBandeau)} bg-clay px-1 text-[10.5px] font-bold leading-none text-white`}>
             {nonLues > 99 ? '99+' : nonLues}
           </span>
         )}
@@ -232,7 +234,7 @@ export function NotificationBell() {
                 <div className="space-y-3 px-4 py-4" role="status" aria-label="Chargement en cours">
                   <span className="sr-only">Chargement en cours</span>
                   {[70, 55, 62].map((l) => (
-                    <span key={l} aria-hidden className="block h-3 animate-pulse rounded bg-[#ECEEF4]" style={{ width: `${l}%` }} />
+                    <span key={l} aria-hidden className="block h-3 animate-pulse rounded bg-fond-gris" style={{ width: `${l}%` }} />
                   ))}
                 </div>
               )
@@ -243,13 +245,13 @@ export function NotificationBell() {
             ) : (
               groupes.map((g) => (
                 <section key={g.jour} aria-label={g.jour}>
-                  <h3 className="bg-[#FBFBFD] px-4 pb-1 pt-2.5 font-sans text-[11.5px] font-semibold tracking-normal text-text-muted">{g.jour}</h3>
+                  <h3 className="bg-fond-doux px-4 pb-1 pt-2.5 font-sans text-[11.5px] font-semibold tracking-normal text-text-muted">{g.jour}</h3>
                   <ul>
                     {g.items.map((n) => {
                       const Icone = iconeDe(n.type);
                       return (
                         <li key={n.id}>
-                          <button onClick={() => ouvrir(n)} className={`flex w-full gap-3 px-4 py-2.5 text-left hover:bg-bg ${n.isRead ? '' : 'bg-[#F6F7FC]'}`} data-testid="notification" data-type={n.type}>
+                          <button onClick={() => ouvrir(n)} className={`flex w-full gap-3 px-4 py-2.5 text-left hover:bg-bg ${n.isRead ? '' : 'bg-survol'}`} data-testid="notification" data-type={n.type}>
                             <span aria-hidden className={`grid h-8 w-8 flex-none place-items-center rounded-[9px] ${A_TRAITER.has(n.type) ? 'bg-gold-50 text-ambre' : 'bg-ink-50 text-ink'}`}>
                               <Icone size={16} />
                             </span>

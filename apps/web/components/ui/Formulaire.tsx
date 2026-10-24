@@ -176,14 +176,14 @@ export function FenetreFormulaire({
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 sm:px-6">{children}</div>
       {!sansPied && (
-        <div className="border-t border-line bg-[#FBFBFD] px-5 py-3.5 sm:px-6">
+        <div className="border-t border-line bg-fond-doux px-5 py-3.5 sm:px-6">
           {Object.keys(erreurs).length > 0 && !erreur && (
             <div role="alert" data-testid="erreurs-champs" className="mb-3 text-[13px] font-semibold text-clay">
               Vérifiez les champs signalés en rouge.
             </div>
           )}
           {erreur && (
-            <div role="alert" data-testid="erreur-formulaire" className="mb-3 rounded-[9px] border border-[#F0C5CC] bg-clay-50 px-3 py-2.5 text-[13px] font-semibold text-clay">
+            <div role="alert" data-testid="erreur-formulaire" className="mb-3 rounded-[9px] border border-clay-bord bg-clay-50 px-3 py-2.5 text-[13px] font-semibold text-clay">
               {messageErreur(new Error(erreur))}
             </div>
           )}
@@ -772,7 +772,7 @@ export function ChampDate({
                       }
                     }}
                     className={`grid h-[30px] place-items-center rounded-[7px] ${
-                      choisi ? 'bg-ink font-bold text-white' : iso === aujourdhui ? 'border border-ink font-semibold text-ink' : dehors ? 'text-[#A5AABB]' : 'text-text hover:bg-bg'
+                      choisi ? 'bg-ink font-bold text-white' : iso === aujourdhui ? 'border border-ink font-semibold text-ink' : dehors ? 'text-text-faint' : 'text-text hover:bg-bg'
                     } disabled:cursor-not-allowed disabled:opacity-35`}
                   >
                     {d.getDate()}
@@ -787,7 +787,7 @@ export function ChampDate({
                   ['Dans 1 semaine', dansSemaine],
                   ['Fin du mois', finMois],
                 ].map(([l, iso]) => (
-                  <button key={l} type="button" disabled={!!horsBornes(iso!)} onClick={() => choisir(iso!)} className="flex-1 rounded-[7px] bg-ink-50 px-1.5 py-1.5 text-[11.5px] font-bold text-ink hover:bg-[#E2E6F5] disabled:opacity-40">
+                  <button key={l} type="button" disabled={!!horsBornes(iso!)} onClick={() => choisir(iso!)} className="flex-1 rounded-[7px] bg-ink-50 px-1.5 py-1.5 text-[11.5px] font-bold text-ink hover:bg-fond-gris disabled:opacity-40">
                     {l}
                   </button>
                 ))}
@@ -857,7 +857,7 @@ export function ZoneDepot({
         }}
         onDragLeave={() => setSurvol(false)}
         onDrop={deposer}
-        className={`flex items-center gap-3 rounded-[10px] border-[1.5px] border-dashed px-3.5 py-3 ${survol ? 'border-ink bg-ink-50' : message ? 'border-clay' : 'border-[#C3C8DA]'}`}
+        className={`flex items-center gap-3 rounded-[10px] border-[1.5px] border-dashed px-3.5 py-3 ${survol ? 'border-ink bg-ink-50' : message ? 'border-clay' : 'border-line-fort'}`}
       >
         <span aria-hidden className="grid h-9 w-9 flex-none place-items-center rounded-[9px] bg-ink-50 text-ink">
           <Paperclip size={17} />

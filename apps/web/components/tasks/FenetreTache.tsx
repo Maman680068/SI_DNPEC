@@ -32,6 +32,7 @@ import { ZoneDepot } from '../ui/Formulaire';
 import { SqueletteListe } from '../ui/Squelette';
 import { messageErreur, useToast } from '../ui/Toast';
 import { phrasePrevenus } from './CreateTaskModal';
+import { referenceTache } from '../../lib/references';
 
 const CONFIDENTIALITY_LABEL: Record<Task['confidentiality'], string> = {
   PUBLIC_INTERNE: 'Public interne',
@@ -215,7 +216,7 @@ export function FenetreTache({
   }
 
   const currentStepIndex = task ? STATUS_STEPS.findIndex((s) => s.status === task.status) : -1;
-  const filAriane = task ? [getDivisionName(task.divisionId), getSectionName(task.sectionId) ?? getCelluleName(task.celluleId)] : [];
+  const filAriane = task ? [getDivisionName(task.divisionId), getSectionName(task.sectionId) ?? getCelluleName(task.celluleId), referenceTache(task.numero)] : [];
 
   const etapes = task && (
     <ol aria-label="Étapes du statut" className="mt-3.5 flex flex-wrap items-center gap-y-2">
@@ -224,9 +225,9 @@ export function FenetreTache({
         const courant = i === currentStepIndex && task.status !== 'TERMINEE';
         return (
           <li key={step.status} className="flex items-center" aria-current={courant ? 'step' : undefined}>
-            {i > 0 && <span aria-hidden className={`mx-2.5 h-0.5 w-6 sm:w-14 ${i <= currentStepIndex ? 'bg-sage' : 'bg-[#E1E4EE]'}`} />}
+            {i > 0 && <span aria-hidden className={`mx-2.5 h-0.5 w-6 sm:w-14 ${i <= currentStepIndex ? 'bg-sage' : 'bg-fond-gris'}`} />}
             <span className={`flex items-center gap-[7px] text-[12.5px] font-semibold ${fait ? 'text-sage' : courant ? 'text-ink-900' : 'text-text-muted'}`}>
-              <b className={`grid h-[22px] w-[22px] place-items-center rounded-full text-[11px] ${fait ? 'bg-sage text-white' : courant ? 'bg-gold text-ink-900' : 'bg-[#ECEEF5] text-text-muted'}`}>
+              <b className={`grid h-[22px] w-[22px] place-items-center rounded-full text-[11px] ${fait ? 'bg-sage text-white' : courant ? 'bg-gold text-sur-or' : 'bg-fond-gris text-text-muted'}`}>
                 {fait ? <Check aria-hidden size={12} strokeWidth={3} /> : i + 1}
               </b>
               {step.status === 'SOUMISE_VALIDATION' ? 'En validation' : step.label}
@@ -250,7 +251,7 @@ export function FenetreTache({
       )}
       <section className="mb-[18px]">
         {titreSection('Description')}
-        <p className="whitespace-pre-line text-[13.5px] leading-[1.55] text-[#3A4152]">{task.description || 'Aucune description.'}</p>
+        <p className="whitespace-pre-line text-[13.5px] leading-[1.55] text-text-fort">{task.description || 'Aucune description.'}</p>
       </section>
 
       <section className="mb-[18px]">
@@ -323,7 +324,7 @@ export function FenetreTache({
             <button type="button" disabled={actionBusy} onClick={() => {
                 setRejectError(null);
                 setShowRejectForm(true);
-              }} className="flex h-10 items-center justify-center rounded-[10px] border border-[#E7B3BB] bg-surface font-bold text-clay disabled:opacity-60">
+              }} className="flex h-10 items-center justify-center rounded-[10px] border border-clay-bord bg-surface font-bold text-clay disabled:opacity-60">
               Rejeter avec un motif
             </button>
           </>
@@ -339,7 +340,7 @@ export function FenetreTache({
                 () => submitTask(task.id),
                 (t) => ['Tâche soumise pour validation', t.createdById !== currentUser?.id ? `${getUserLabel(t.createdById)} a été prévenu.` : undefined],
               )
-            } className="h-[42px] rounded-[10px] bg-gold font-bold text-ink-900 disabled:opacity-60">
+            } className="h-[42px] rounded-[10px] bg-gold font-bold text-sur-or disabled:opacity-60">
             Soumettre pour validation
           </button>
         )}

@@ -80,7 +80,7 @@ export const FolderNav = forwardRef<
           className={`flex min-h-[34px] w-full items-center gap-[9px] rounded-lg py-1.5 pr-2 text-left text-[13.5px] ${on ? 'bg-ink-50 font-semibold text-ink' : 'font-medium text-text hover:bg-bg'}`}
           style={{ paddingLeft: 8 + niveau * 18 }}
         >
-          <IconeDossier aria-hidden size={niveau ? 15 : 16} className={`flex-none ${on ? 'text-ink' : 'text-[#8A90A6]'}`} />
+          <IconeDossier aria-hidden size={niveau ? 15 : 16} className={`flex-none ${on ? 'text-ink' : 'text-text-faint'}`} />
           <span className="min-w-0 flex-1 leading-tight">{libelle}</span>
           <span className="flex-none text-[12px] font-semibold text-text-muted">
             {n}
@@ -108,7 +108,7 @@ export const FolderNav = forwardRef<
         </div>
       )}
       {dossiers && divisionId && (
-        <div className="mt-1.5 border-t border-[#F0F1F6] pt-1.5">
+        <div className="mt-1.5 border-t border-line-doux pt-1.5">
           <button type="button" onClick={() => setCreation(true)} className="flex w-full items-center gap-2 rounded-lg p-2 text-left text-[13px] font-semibold text-ink hover:bg-bg">
             <Plus aria-hidden size={15} /> Nouveau dossier
           </button>

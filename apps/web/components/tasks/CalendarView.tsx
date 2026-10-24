@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import type { Task } from '../../lib/tasks/types';
 import { STATUT_LIBELLE, STATUT_PASTILLE, estEnRetard } from '../../lib/tasks/affichage';
 import { Button } from '../ui/Button';
+import { referenceTache } from '../../lib/references';
 
 const WEEKDAYS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 
@@ -75,7 +76,9 @@ export function CalendarView({ tasks, onSelect }: { tasks: Task[]; onSelect: (id
                   className={`mb-1 flex w-full items-center gap-1 truncate rounded-[5px] px-1.5 py-0.5 text-left text-[10.5px] font-semibold hover:underline ${estEnRetard(task) ? 'bg-clay-50 text-clay' : STATUT_PASTILLE[task.status]}`}
                 >
                   <span aria-hidden className="h-1.5 w-1.5 flex-shrink-0 rounded-full bg-current" />
-                  <span className="truncate">{task.title}</span>
+                  <span className="truncate">
+                    <span className="font-semibold" data-testid="reference-tache">{referenceTache(task.numero)}</span> {task.title}
+                  </span>
                 </button>
               ))}
               {dayTasks.length > 3 && (

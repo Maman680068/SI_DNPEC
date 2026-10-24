@@ -103,6 +103,9 @@ fonctionnalité ajoute sa suite (`tests/e2e/api/`, `tests/e2e/ui/`) et sa ligne 
   cellule/section → division → DN/DNA) dans `conges.delaiAvisHeures` heures ouvrées
   (`socle/heures-ouvrees.ts`), rappel 12 h avant, avis tacite ensuite (job `executer(now)` toutes les
   15 min, tâche `avis-conges`), **décision du DRH** (`estDrh`) ; demande d'un DRH décidée par DN/DNA.
+  Demande en attente au-delà du solde restant de son type : `soldeInsuffisant` / `soldeRestant` calculés à la
+  lecture (demandeur, chef qui donne l'avis, décideur ; null si aucun solde ouvert pour ce type, type masqué ou
+  demande close) — la création n'est pas refusée, le DRH tranche.
   Motif médical : demandeur, chef qui donne l'avis et DRH (motif derrière `PreuveIdentiteService`,
   lecture tracée) ; DN/DNA et reste de la cascade : « Absence — motif protégé ». Certificat médical :
   agent et DRH seuls. Jours fériés (`JoursFeriesService`, `api/v1/jours-feries`, admin + DRH) exclus
@@ -122,7 +125,8 @@ fonctionnalité ajoute sa suite (`tests/e2e/api/`, `tests/e2e/ui/`) et sa ligne 
 - Socle N5 (pilotage, collaboration) : plan de travail (`plan-travail/`, routes `api/v1`) objectif →
   activité (responsable, indicateur) → tâche (`Task.activiteId`), géré par unité (chef de l'unité, chef de
   division pour ses sections, DN/DNA), lu par son unité et au-dessus (assistant : `getVisibilityActor`),
-  **avancement calculé** (moyenne des tâches principales). Alertes d'échéance (`EcheancesTachesService`,
+  **avancement calculé** (moyenne des tâches principales), comparé au temps écoulé (`etatAvancement` :
+  EN_RETARD, EN_DECALAGE sous le temps écoulé, CONFORME ; panneau du tableau de bord). Alertes d'échéance (`EcheancesTachesService`,
   7 h) : veille → assignés, retard → `chefsLesPlusProches` (`socle/chefs-proches.ts`, aussi utilisé pour
   les avis de congé), une seule fois (`alerteVeilleAt`, `alerteRetardAt`). Notifications :
   `notify(..., { urgent })` ; emails immédiats = `NOTIFICATIONS_IMMEDIATES` (liste fermée) ou `urgent`,
@@ -132,6 +136,12 @@ fonctionnalité ajoute sa suite (`tests/e2e/api/`, `tests/e2e/ui/`) et sa ligne 
   la requête de son module (jamais plus que l'écran ; pli personnel exclu). Instructions de la Direction
   (`instructions/`) : DN/DNA émettent, invisibles pour l'agent concerné avant l'exécution (acte signé),
   relance à 7 jours (`relance-instructions`).
+- Références courtes (migration additive `20261023080000_references_courtes`, retour arrière
+  `prisma/retour-arriere/ref_down.sql`, phase 39o) : `Task.numero` (séquence globale, « T-418 ») et
+  `Activite.numero` unique par `Activite.annee` (année de l'objectif, recopiée ; « A-07 », deux chiffres au
+  moins), attribué sous verrou consultatif dans `PlanTravailService.creerActivite`. Mise en forme :
+  `common/references/references.ts` (API) et `lib/references.ts` (web). La recherche transverse lit une
+  référence (`lireReference` : « T-418 », « t418 », « 418 », « A-07 ») dans le périmètre de chaque module.
 - Performance (2026-10, `docs/Performance_2026-10.md`) : une liste ne renvoie jamais tout un périmètre à
   un écran qui n'en montre qu'une partie (`GET /tasks?suivi=true&limite=` pour le tableau de bord,
   `assigneeId`/`createdById` pour « Mes tâches ») ; un droit calculé par ligne lit ses données une fois pour
@@ -174,7 +184,9 @@ fonctionnalité ajoute sa suite (`tests/e2e/api/`, `tests/e2e/ui/`) et sa ligne 
   jamais un stagiaire, jamais empruntés en intérim (`modelisation/acces.ts`). Administrateur des modèles =
   `ADMIN_SYSTEME` : dépose, règle les manettes, confirme une dérogation, **ne valide ni n'active rien, ne voit
   jamais les chiffres** d'une simulation. Version **immuable** (déclencheur), une seule active, approbateur ≠
-  auteur (contrainte) ; dérogation à deux (responsable demande, administrateur confirme). Service de calcul
+  auteur (contrainte) ; dérogation à deux (responsable demande, administrateur confirme). Liste : colonnes
+  « Base de référence » (déclarée dans le paquet de la version active) et « Contrôles » (Conforme, Alerte,
+  Avec dérogation, Sans version active), calculées par l'API, sans aucune valeur chiffrée. Service de calcul
   `apps/calcul` (Python, Docker, IPOPT ; service Render gratuit `dnpec-calcul`, `CALCUL_URL` +
   `CALCUL_SECRET`), appelé seulement par la **file de travaux en base** (`TravauxCalculService` : réveil du
   service, essais `calcul.tentativesMax` / `calcul.delaiRelanceSecondes`). Exécution interne `POST
@@ -227,6 +239,11 @@ fonctionnalité ajoute sa suite (`tests/e2e/api/`, `tests/e2e/ui/`) et sa ligne 
   quotas des routes publiques par `LoginAttemptService.consommer` ; type servi d'un fichier déposé =
   `typeServi()` (`common/storage/type-servi.ts`) ; aucun texte libre ni type protégé dans une notification ou
   le journal d'audit ; en-têtes de sécurité du web dans `apps/web/next.config.ts` (CSP).
+- Indicateurs de succès (`docs/conception_indicateurs_succes.md`, `socle/indicateurs-succes.service.ts`,
+  `GET api/v1/indicateurs-succes`) : onglet de « Paramétrage et supervision », lu par l'administrateur, le DN et
+  la DNA (403 journalisé sinon), **calculé à la lecture, rien de stocké** ; cibles = paramètres bornés de
+  rubrique `indicateurs` (`PARAMETRES`, hors onglet « Paramètres »), créés par le paramétrage initial,
+  modifiés par `PATCH api/v1/parametres/:cle` (administrateur).
 - Exploitation (2026-10, `docs/Plan_reprise_incident.md`) : supervision = `SupervisionService.services()`
   (léger : appelé toutes les 10 min et par la sonde publique) — disque (`statfs`), taille de la base ; la chaîne
   d'audit complète est vérifiée la nuit (`JournalAuditService.verifierNuit`, résultat gardé dans le paramètre
@@ -241,10 +258,25 @@ fonctionnalité ajoute sa suite (`tests/e2e/api/`, `tests/e2e/ui/`) et sa ligne 
 ### Web (`apps/web`)
 - `app/(app)/<route>/page.tsx` (client components), `components/<module>/*` (Modal, Drawer,
   List, Card), `lib/api/<module>.ts` (`apiFetch`), `lib/<module>/types.ts`.
-- Tokens Tailwind (`ink`, `gold`, `sage`, `clay`, `line`, `text-muted`...) issus de la maquette ;
+- Tokens Tailwind (`ink`, `gold`, `sage`, `clay`, `line`, `text-muted`, `fond-doux`, `survol`, `fond-gris`,
+  `line-doux`/`line-fort`, `bandeau`, `sur-or`...) issus de la maquette, **tous en variables** `--c-*` (canaux
+  RVB, `app/globals.css`) : maquette sur l'accueil et la connexion (`:root`), charte AA dans l'application
+  (`.contraste-aa`), **thème sombre** (`.contraste-aa[data-theme="sombre"]`, tons bleu nuit ; fonds pleins sous
+  un texte blanc gardés foncés). Choix « Thème : clair / sombre » (menu du compte, « Mon profil » →
+  Affichage), gardé dans le navigateur (`lib/theme.tsx`, `try/catch`), clair par défaut. **Aucune couleur
+  codée en dur** dans un écran (`bg-[#…]`) : un nouveau ton passe par une variable des deux thèmes. Audit
+  `n6_accessibilite_ui` dans les deux thèmes, `t_theme_ui` (aucun fond blanc oublié, captures) ;
   navigation dans `components/layout/Sidebar.tsx` ; ouverture profonde via `?id=`.
-- Cadre (refonte de l'interface, étapes 1 et 2) : menu 240 px `ink-900` (icônes `lucide-react`, groupes
-  Mon travail / Échanges / Ressources / Plus repliable / Aide), barre du haut (`Topbar`, Ctrl K, menu « Créer »).
+- Cadre (refonte de l'interface) : **menu en haut** sur écran large (`components/layout/MenuHaut.tsx`) —
+  bandeau `ink-900` (logo, `Topbar variante="bandeau"` : recherche Ctrl K, intérim, messagerie, notifications,
+  « Créer » ; Aide ; menu du compte), rangée d'onglets, un par groupe (Mon travail / [Modélisation] / Échanges /
+  Ressources / « Personnel et RH » ou « Administration »), pastille = somme des compteurs du groupe, groupe de
+  la page souligné en or ; puis bande blanche des sous-onglets du groupe ouvert. Rangées défilantes au clavier
+  (flèches, Début, Fin) et à la souris (flèches de défilement), `aria-current`. Sur téléphone (< md) : barre du
+  haut et tiroir du menu (`Sidebar`, 240 px, groupe « Plus » repliable), inchangés. Un seul des deux est rendu
+  (`useEcranLarge`, `lib/navigation/bandeau.tsx`) ; les icônes de la barre du haut choisissent leurs classes
+  par `useSurBandeau()`. Entrées et règles par rôle : `navigationPour` (`Sidebar.tsx`), communes aux deux.
+  Tests UI : aides `entreesMenu`, `cliquerMenu`, `ouvrirPlus`, `seDeconnecter` (`tests/e2e/ui/helpers.js`).
   Pastilles, « À traiter » du tableau de bord, entrées de « Créer » et onglet « Mon périmètre » viennent de
   `GET api/v1/navigation` (`tableau-de-bord/navigation.service.ts`, lu par `NavigationProvider`) : chaque
   compteur passe par le service de son module. Une page ouverte par « Créer » lit son paramètre avec
@@ -303,4 +335,10 @@ Exploitation (sauvegardes, mise à jour PR → CI verte → migration → fusion
 
 ## Reste à faire
 
-- **Module non construit** : D5 (rémunération), hors périmètre (§5 du cahier des charges).
+- **D5 (rémunération, SAF, paie)** : exclusion levée ; conception à valider, avec ses questions,
+  `docs/conception_D5_remuneration.md` — aucun code avant validation.
+- **Comptes externes** (lecteurs FMI, Banque mondiale) : lecture des seuls documents « Diffusable » (statut N4),
+  sans accès aux autres modules.
+- **Consommation du moteur de calcul** par les écrans (avec les simulations, lot B2).
+- Pages « toutes les versions » et « bases de référence » des modèles (lot B3).
+- Bloc « Dernières simulations » sur le tableau de bord (lot B2).

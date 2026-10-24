@@ -22,9 +22,10 @@ const MIGRATION = '20261004080000_socle_nimba_n7';
 const sql = (q) => prisma.$queryRawUnsafe(q);
 const tables = async () =>
   (await sql(`SELECT table_name AS t FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE' AND table_name NOT IN ('_prisma_migrations', 'journal_connexions', 'executions_taches', 'etat_supervision') ORDER BY 1`)).map((r) => r.t);
+// Colonnes du lot « références courtes » (postérieur) : retirées de l'empreinte des tâches et des activités.
 async function empreinte(liste) {
   const res = {};
-  for (const t of liste) res[t] = (await sql(`SELECT md5(to_jsonb(x)::text) AS h FROM "${t}" x`)).map((l) => l.h).sort();
+  for (const t of liste) res[t] = (await sql(`SELECT md5((to_jsonb(x)${t === 'tasks' ? " - 'numero'" : ''}${t === 'activites' ? " - 'numero' - 'annee'" : ''})::text) AS h FROM "${t}" x`)).map((l) => l.h).sort();
   return res;
 }
 function comparer(avant, maintenant) {

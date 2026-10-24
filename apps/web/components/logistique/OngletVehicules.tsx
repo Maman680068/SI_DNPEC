@@ -55,7 +55,7 @@ export function OngletVehicules() {
         ) : (
           <div role="table" aria-label="Parc de véhicules" data-testid="vehicules">
             <div role="rowgroup">
-              <div role="row" className={`hidden h-[38px] items-center gap-3 border-b border-line bg-[#F7F8FB] px-4 text-[12px] font-semibold text-text-muted lg:grid ${GRILLE_V}`}>
+              <div role="row" className={`hidden h-[38px] items-center gap-3 border-b border-line bg-fond-doux px-4 text-[12px] font-semibold text-text-muted lg:grid ${GRILLE_V}`}>
                 {['Immatriculation', 'Véhicule', 'Énergie', 'Compteur', 'État'].map((c) => (
                   <span key={c} role="columnheader">
                     {c}
@@ -127,7 +127,7 @@ function Missions({ parc, onChange }: { parc: ParcVehicules; onChange: () => voi
       ) : (
         <div role="table" aria-label="Ordres de mission">
           <div role="rowgroup">
-            <div role="row" className={`hidden h-[38px] items-center gap-3 border-b border-line bg-[#F7F8FB] px-4 text-[12px] font-semibold text-text-muted lg:grid ${GRILLE_M}`}>
+            <div role="row" className={`hidden h-[38px] items-center gap-3 border-b border-line bg-fond-doux px-4 text-[12px] font-semibold text-text-muted lg:grid ${GRILLE_M}`}>
               {['Mission', 'Agent', 'Dates', 'Véhicule'].map((c) => (
                 <span key={c} role="columnheader">
                   {c}

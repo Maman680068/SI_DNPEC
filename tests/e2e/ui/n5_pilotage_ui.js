@@ -91,12 +91,29 @@ async function choisirPersonne(d, label, nom) {
 
   console.log('— Agent (téléphone) : plan en lecture, « Mes tâches » en calendrier');
   p = await loginPage(b, 'agent1', TELEPHONE);
+  // Tableau de bord : panneau « Plan de travail — avancement des activités », juste après « À traiter ».
+  const panneauPlan = p.getByTestId('avancement-activites');
+  await panneauPlan.waitFor();
+  const ligne = panneauPlan.locator('[data-testid=ligne-activite]', { hasText: `Note mensuelle ${S}` });
+  const apiAct = (await call('agent1', 'GET', `/api/v1/plan-travail?annee=${new Date().getFullYear()}`)).body.objectifs.flatMap((o) => o.activites).find((a) => a.libelle === `Note mensuelle ${S}`);
+  check('tableau de bord : l’activité, son sigle d’unité et son pourcentage', (await ligne.count()) === 1 && (await ligne.innerText()).includes(`${apiAct.avancement} %`) && (await ligne.innerText()).includes(apiAct.uniteSigle));
+  check(`barre de la couleur de l’état calculé par l’API (${apiAct.etatAvancement})`, (await ligne.getAttribute('data-etat')) === apiAct.etatAvancement && (await ligne.locator('[role=progressbar] i').getAttribute('class')).includes(apiAct.etatAvancement === 'EN_RETARD' ? 'bg-clay' : apiAct.etatAvancement === 'EN_DECALAGE' ? 'bg-gold' : 'bg-sage'));
+  check('ligne : lien vers l’activité dans le Plan de travail', (await ligne.locator('a').getAttribute('href')) === `/plan-travail?activite=${apiAct.id}`);
+  check('panneau placé juste après « À traiter » (ou en tête)', await p.evaluate(() => { const x = document.querySelector('[data-testid=avancement-activites]'); const prec = x.previousElementSibling; return !prec || prec.getAttribute('data-testid') === 'a-traiter'; }));
+  check('l’ancienne section « Mes activités du plan de travail » a disparu', (await p.getByTestId('mes-activites').count()) === 0);
   await p.goto(`${WEB}/plan-travail`);
   await p.locator('[data-testid=objectif]', { hasText: `Conjoncture ${S}` }).waitFor();
   check('agent : pas de « Nouvel objectif » ni « Activité »', (await p.getByRole('button', { name: 'Nouvel objectif' }).count()) === 0 && (await p.getByRole('button', { name: 'Activité', exact: true }).count()) === 0);
   check('téléphone : sans défilement horizontal (plan)', await sansDefilementHorizontal(p));
   check('téléphone : unité et année repliées derrière « Filtres »', (await p.getByTestId('bouton-filtres').isVisible()) && !(await p.getByLabel('Unité', { exact: true }).isVisible()));
   await p.screenshot({ path: `${E.SHOTS}/n5_plan_mobile.png`, fullPage: true });
+  // Bouton « Rapport d'activité » : ouvre le formulaire existant de « Documents générés » (lien profond).
+  const perimetresRapport = (await call('agent1', 'GET', '/api/v1/documents-generes/catalogue')).body.rapportActivite.perimetres;
+  check('bouton « Rapport d’activité » présent (l’API ouvre un périmètre de rapport)', perimetresRapport.length > 0 && (await p.getByTestId('bouton-rapport-activite').count()) === 1);
+  await p.getByTestId('bouton-rapport-activite').click();
+  await p.waitForURL('**/documents-generes?onglet=rapport**');
+  await p.getByRole('region', { name: 'Rapport d’activité' }).waitFor();
+  check('« Documents générés » ouvert sur le formulaire du rapport, période depuis le 1er janvier', (await p.getByRole('tab', { name: 'Rapport d’activité' }).getAttribute('aria-selected')) === 'true' && new URL(p.url()).searchParams.get('debut') === `${new Date().getFullYear()}-01-01`);
   await p.goto(`${WEB}/tasks`);
   await p.getByRole('button', { name: 'Calendrier' }).click();
   await p.getByRole('button', { name: /Aujourd|‹|›|Mois/ }).first().waitFor({ timeout: 5000 }).catch(() => {});
@@ -178,7 +195,7 @@ async function choisirPersonne(d, label, nom) {
   const taches = p.locator('[data-testid=categorie-taches]');
   await taches.getByText(`Collecte ${S}`).waitFor();
   check('résultats par catégorie : la tâche trouvée, lien vers sa fiche', (await taches.getByRole('link', { name: new RegExp(`Collecte ${S}`) }).getAttribute('href')).startsWith('/tasks/'));
-  check('5 catégories affichées', (await p.locator('[data-testid^=categorie-]').count()) === 5);
+  check('6 catégories affichées (dont « Plan de travail »)', (await p.locator('[data-testid^=categorie-]').count()) === 6);
   await p.screenshot({ path: `${E.SHOTS}/n5_recherche_bureau.png` });
 
   console.log('— Fil de discussion : deux destinataires, objet joint');

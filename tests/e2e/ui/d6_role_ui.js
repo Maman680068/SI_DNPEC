@@ -1,7 +1,7 @@
 // D6 — rôle STAGIAIRE à l'écran : création par l'administrateur, navigation restreinte,
 // tableau de bord et messagerie sans module fermé, aucune erreur ; bureau et mobile.
 const E = require('../config');
-const { browser, loginPage, check, bilan, WEB } = require('./helpers');
+const { browser, loginPage, check, bilan, WEB, entreesMenu } = require('./helpers');
 const { call, ids } = require('../lib');
 const { PrismaClient } = require('@prisma/client'); const prisma = new PrismaClient();
 const SHOTS = E.SHOTS;
@@ -33,10 +33,8 @@ async function attendre(f) { for (let i = 0; i < 40; i++) { if (await f()) retur
     console.log(`— Stagiaire (${label})`);
     const p = await loginPage(b, `stagui${S}`, viewport);
     const erreurs = []; p.on('response', (r) => { if (r.url().startsWith('http://localhost:3000') && r.status() === 403) erreurs.push(r.url()); });
-    if (viewport) await p.getByRole('button', { name: 'Ouvrir le menu' }).click();
-    const nav = await p.locator('aside a').allInnerTexts();
-    // Refonte de l'interface : icônes dessinées (plus de caractère en tête), pastille de compteur en fin.
-    const entrees = nav.map((t) => t.replace(/\s+\d+$/, '').trim()).filter(Boolean);
+    // Menu en haut (bureau) ou tiroir (téléphone) : toutes les entrées, groupe par groupe.
+    const entrees = (await entreesMenu(p)).map((e) => e.label).filter(Boolean);
     check(`navigation limitée (${entrees.join(', ')})`, ['Tableau de bord', 'Mes tâches', 'Messagerie', 'Dossier du personnel', 'Mon stage'].every((e) => entrees.includes(e)) && !entrees.some((e) => /Courrier|Réunions|Archives|Congés|Annuaire|suggestions|Utilisateurs/.test(e)));
     if (viewport) await p.keyboard.press('Escape');
     await p.goto(`${WEB}/dashboard`);

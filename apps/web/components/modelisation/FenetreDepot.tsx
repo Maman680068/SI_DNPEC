@@ -22,7 +22,7 @@ function Etapes({ courante }: { courante: number }) {
         return (
           <li key={e} className="flex items-center gap-2.5" aria-current={actif ? 'step' : undefined}>
             {i > 0 && <span aria-hidden className={`hidden h-[2px] w-14 sm:block ${fait || actif ? 'bg-sage' : 'bg-line'}`} />}
-            <span className={`grid h-[22px] w-[22px] flex-none place-items-center rounded-full text-[11.5px] font-bold ${fait ? 'bg-sage text-white' : actif ? 'bg-gold text-ink-900' : 'bg-[#ECEEF3] text-text-muted'}`}>
+            <span className={`grid h-[22px] w-[22px] flex-none place-items-center rounded-full text-[11.5px] font-bold ${fait ? 'bg-sage text-white' : actif ? 'bg-gold text-sur-or' : 'bg-fond-gris text-text-muted'}`}>
               {fait ? <Check aria-hidden size={13} strokeWidth={3} /> : n}
             </span>
             <span className={`text-[13.5px] font-bold ${fait ? 'text-sage' : actif ? 'text-ink-900' : 'text-text-muted'}`}>
@@ -143,7 +143,7 @@ export function FenetreDepot({ onClose, onTermine, versionInitiale }: { onClose:
     corps = (
       <div className="px-6 py-5">
         <ZoneDepot id="paquet" label="Paquet du modèle (.zip, format « dnpec-modele/1 »)" fichiers={fichiers} onChange={setFichiers} accept=".zip,application/zip" aide="Fichier .zip · 50 Mo au plus · contrôlé avant tout enregistrement" />
-        <div className="rounded-[10px] border border-line bg-[#FBFBFD] px-3.5 pt-3">
+        <div className="rounded-[10px] border border-line bg-fond-doux px-3.5 pt-3">
           <Case id="donnees-confirmees" checked={confirme} onChange={setConfirme} label={<span className="font-semibold text-ink-900">Je confirme que les données de ce paquet sont publiées ou autorisées pour cet hébergement</span>} />
           <p className="pb-3 pl-[26px] text-[12.5px] text-text-muted">Tant que l’hébergement en Guinée n’est pas décidé, seules des données déjà publiées ou fictives peuvent être chargées. Votre confirmation est tracée dans le journal d’audit.</p>
         </div>
@@ -179,7 +179,7 @@ export function FenetreDepot({ onClose, onTermine, versionInitiale }: { onClose:
           </div>
           {version.statut === 'DEPOSEE' ? (
             v?.statut === 'ECHEC' ? (
-              <div role="alert" data-testid="verification-echec" className="rounded-[10px] border border-[#E7B3BB] bg-clay-50 px-3.5 py-3 text-[13.5px]">
+              <div role="alert" data-testid="verification-echec" className="rounded-[10px] border border-clay-bord bg-clay-50 px-3.5 py-3 text-[13.5px]">
                 <div className="font-bold text-clay">La vérification n’a pas abouti.</div>
                 <div className="mt-1 text-text">{v.message}</div>
                 {version.droits.peutRelancerVerification && (
@@ -189,7 +189,7 @@ export function FenetreDepot({ onClose, onTermine, versionInitiale }: { onClose:
                 )}
               </div>
             ) : (
-              <div role="status" data-testid="verification-en-cours" className="flex items-start gap-3 rounded-[10px] border border-line bg-[#FBFBFD] px-3.5 py-3.5 text-[13.5px]">
+              <div role="status" data-testid="verification-en-cours" className="flex items-start gap-3 rounded-[10px] border border-line bg-fond-doux px-3.5 py-3.5 text-[13.5px]">
                 <LoaderCircle aria-hidden size={20} className="mt-0.5 flex-none animate-spin text-ink" />
                 <div>
                   <div className="font-bold text-ink-900">{v?.etape === 'CALCUL' ? 'Calcul en cours…' : 'Réveil du service de calcul…'}</div>
@@ -206,9 +206,9 @@ export function FenetreDepot({ onClose, onTermine, versionInitiale }: { onClose:
             <ListeControles controles={version.controles} />
           )}
         </div>
-        <aside className="border-t border-line bg-[#FBFBFD] px-5 py-5 lg:border-l lg:border-t-0" aria-label="Lu dans le paquet">
+        <aside className="border-t border-line bg-fond-doux px-5 py-5 lg:border-l lg:border-t-0" aria-label="Lu dans le paquet">
           <h3 className="mb-3 text-[12px] font-bold uppercase tracking-wide text-text-muted">Lu dans le paquet</h3>
-          <dl className="divide-y divide-[#EEF0F5] text-[13px]">
+          <dl className="divide-y divide-line-doux text-[13px]">
             {(
               [
                 ['Famille', version.lu.famille],
@@ -257,7 +257,7 @@ export function FenetreDepot({ onClose, onTermine, versionInitiale }: { onClose:
           <div className="overflow-x-auto">
             <table className="w-full text-left text-[13.5px]" data-testid="tableau-manettes">
               <thead>
-                <tr className="bg-[#F4F5F9] text-[12px] font-semibold text-text-muted">
+                <tr className="bg-survol text-[12px] font-semibold text-text-muted">
                   <th scope="col" className="w-10 px-2 py-2">
                     <span className="sr-only">Proposée</span>
                   </th>
@@ -269,7 +269,7 @@ export function FenetreDepot({ onClose, onTermine, versionInitiale }: { onClose:
               </thead>
               <tbody>
                 {reglages.map((m) => (
-                  <tr key={m.id} className="border-b border-[#EEF0F5]" data-testid="manette">
+                  <tr key={m.id} className="border-b border-line-doux" data-testid="manette">
                     <td className="px-2 py-2">
                       <input type="checkbox" aria-label={`Proposer « ${m.libelle} » aux analystes`} checked={m.actif} onChange={(e) => changer(m.id, 'actif', e.target.checked)} className="h-4 w-4 accent-sage" />
                     </td>
@@ -303,7 +303,7 @@ export function FenetreDepot({ onClose, onTermine, versionInitiale }: { onClose:
                 type="button"
                 aria-pressed={c.actif}
                 onClick={() => setCompteurs((l) => l.map((x) => (x.id === c.id ? { ...x, actif: !x.actif } : x)))}
-                className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[12.5px] font-bold ${c.actif ? 'border-[#C9D3F0] bg-ink-50 text-ink' : 'border-line bg-surface text-text-muted line-through'}`}
+                className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[12.5px] font-bold ${c.actif ? 'border-line-fort bg-ink-50 text-ink' : 'border-line bg-surface text-text-muted line-through'}`}
               >
                 {c.actif && <Check aria-hidden size={13} strokeWidth={3} />}
                 {c.libelle}
@@ -375,9 +375,9 @@ export function FenetreDepot({ onClose, onTermine, versionInitiale }: { onClose:
           </button>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto">{corps}</div>
-        <div className="border-t border-line bg-[#FBFBFD] px-6 py-3.5">
+        <div className="border-t border-line bg-fond-doux px-6 py-3.5">
           {erreur && (
-            <div role="alert" data-testid="erreur-formulaire" className="mb-3 rounded-[9px] border border-[#F0C5CC] bg-clay-50 px-3 py-2.5 text-[13px] font-semibold text-clay">
+            <div role="alert" data-testid="erreur-formulaire" className="mb-3 rounded-[9px] border border-clay-bord bg-clay-50 px-3 py-2.5 text-[13px] font-semibold text-clay">
               {erreur}
             </div>
           )}

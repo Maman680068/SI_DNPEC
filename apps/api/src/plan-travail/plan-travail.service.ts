@@ -5,6 +5,7 @@ import { AuditService } from '../common/audit/audit.service';
 import { NotificationsService } from '../communication/notifications/notifications.service';
 import { AuthenticatedUser } from '../common/types/auth-user.type';
 import { CascadeService } from '../org/cascade/cascade.service';
+import { lireReference, referenceActivite } from '../common/references/references';
 import { ActiviteDto, ModifierActiviteDto, ModifierObjectifDto, ObjectifDto, PlanFiltresDto } from './dto/plan-travail.dto';
 
 type Unite = { id: string; type: TypeUnite; parentId: string | null; libelle: string; code: string; divisionId: string | null; sectionId: string | null; celluleId: string | null; dateFermeture: Date | null };
@@ -12,6 +13,8 @@ const UNITE_SELECT = { id: true, type: true, parentId: true, libelle: true, code
 const ACTIVITE_SELECT = {
   id: true,
   objectifId: true,
+  annee: true,
+  numero: true,
   libelle: true,
   responsableId: true,
   responsable: { select: { id: true, firstName: true, lastName: true } },
@@ -126,17 +129,19 @@ export class PlanTravailService {
     });
     const avancements = await this.avancements(objectifs.flatMap((o) => o.activites.map((a) => a.id)));
     const libelle = (id: string) => toutes.find((u) => u.id === id)?.libelle ?? '';
+    const sigle = (id: string) => toutes.find((u) => u.id === id)?.code ?? '';
     return {
       annee,
       unites: toutes.filter((u) => visibles.has(u.id) && !u.dateFermeture).map((u) => ({ id: u.id, libelle: u.libelle, type: u.type, gere: gerees.has(u.id) })),
       peutCreer: gerees.size > 0,
       objectifs: objectifs.map((o) => {
-        const acts = o.activites.map((a) => this.vueActivite(a, avancements, gerees.has(o.uniteId)));
+        const acts = o.activites.map((a) => ({ ...this.vueActivite(a, avancements, gerees.has(o.uniteId)), uniteSigle: sigle(o.uniteId) }));
         return {
           id: o.id,
           annee: o.annee,
           uniteId: o.uniteId,
           unite: libelle(o.uniteId),
+          uniteSigle: sigle(o.uniteId),
           libelle: o.libelle,
           description: o.description,
           avancement: acts.length ? Math.round(acts.reduce((s, a) => s + a.avancement, 0) / acts.length) : 0,
@@ -223,8 +228,14 @@ export class PlanTravailService {
     await this.assertGere(actor, o.uniteId);
     await this.assertResponsable(o.uniteId, dto.responsableId);
     this.assertDates(dto.dateDebut, dto.dateFin);
-    const a = await this.prisma.activite.create({
-      data: { objectifId, libelle: dto.libelle.trim(), responsableId: dto.responsableId, dateDebut: jour(dto.dateDebut), dateFin: jour(dto.dateFin), indicateur: dto.indicateur.trim(), cible: dto.cible?.trim() || null, creeParId: actor.id },
+    // Numéro « A-07 » : suivant de l'année du plan, attribué sous verrou (deux créations simultanées
+    // n'obtiennent jamais le même numéro ; l'index unique (annee, numero) en reste le garde-fou).
+    const a = await this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('activites.numero'), ${o.annee}::int)`;
+      const dernier = await tx.activite.aggregate({ where: { annee: o.annee }, _max: { numero: true } });
+      return tx.activite.create({
+        data: { objectifId, annee: o.annee, numero: (dernier._max.numero ?? 0) + 1, libelle: dto.libelle.trim(), responsableId: dto.responsableId, dateDebut: jour(dto.dateDebut), dateFin: jour(dto.dateFin), indicateur: dto.indicateur.trim(), cible: dto.cible?.trim() || null, creeParId: actor.id },
+      });
     });
     await this.audit.log({ actorId: actor.id, action: AuditAction.CREATION, entityType: 'Activite', entityId: a.id, metadata: { objectifId, responsableId: a.responsableId } });
     if (a.responsableId !== actor.id) {
@@ -262,6 +273,24 @@ export class PlanTravailService {
     return { supprime: true };
   }
 
+  /** Recherche transverse : activités des plans visibles, par libellé ou par référence (« A-07 », « a7 », « 7 »). */
+  async rechercher(actor: AuthenticatedUser, q: string, take: number) {
+    const toutes = await this.unites();
+    const visibles = [...this.visibles(actor, toutes)];
+    const ref = lireReference(q);
+    const acts = await this.prisma.activite.findMany({
+      where: {
+        objectif: { uniteId: { in: visibles } },
+        OR: [{ libelle: { contains: q, mode: 'insensitive' } }, ...(ref && ref.lettre !== 'T' ? [{ numero: ref.numero }] : [])],
+      },
+      select: { id: true, numero: true, annee: true, libelle: true, objectif: { select: { uniteId: true } } },
+      orderBy: [{ annee: 'desc' }, { numero: 'asc' }],
+      take,
+    });
+    const sigle = (id: string) => toutes.find((u) => u.id === id)?.code ?? '';
+    return acts.map((a) => ({ id: a.id, reference: referenceActivite(a.numero), libelle: a.libelle, annee: a.annee, uniteSigle: sigle(a.objectif.uniteId), lien: LIEN(a.id) }));
+  }
+
   // ------------------------------------------------------------------ rapport d'activité (N4)
 
   /** Activités d'un périmètre recoupant une période, avec leur avancement, pour le rapport d'activité. */
@@ -292,12 +321,27 @@ export class PlanTravailService {
     return new Map(g.map((x) => [x.activiteId!, { moyenne: Math.round(x._avg.progressPercent ?? 0), nombre: x._count._all }]));
   }
 
+  /**
+   * Avancement comparé au temps (tableau de bord) : EN_RETARD si l'échéance est passée sans 100 % ;
+   * EN_DECALAGE si l'avancement est en dessous de la part du temps écoulée entre le début et la fin ;
+   * CONFORME sinon. Calculé ici, jamais par l'écran.
+   */
+  private etatAvancement(a: { dateDebut: Date; dateFin: Date }, avancement: number, enRetard: boolean, auj: Date) {
+    const duree = a.dateFin.getTime() - a.dateDebut.getTime();
+    const ecoule = duree <= 0 ? (auj >= a.dateFin ? 100 : 0) : Math.round((100 * (auj.getTime() - a.dateDebut.getTime())) / duree);
+    const tempsEcoule = Math.max(0, Math.min(100, ecoule));
+    return { tempsEcoule, etatAvancement: enRetard ? 'EN_RETARD' : avancement < tempsEcoule ? 'EN_DECALAGE' : 'CONFORME' } as const;
+  }
+
   private vueActivite(a: ActiviteChargee, av: Map<string, { moyenne: number; nombre: number }>, gere: boolean) {
     const x = av.get(a.id) ?? { moyenne: 0, nombre: 0 };
     const auj = new Date(new Date().toISOString().slice(0, 10));
+    const enRetard = a.dateFin < auj && x.moyenne < 100;
     return {
       id: a.id,
       objectifId: a.objectifId,
+      numero: a.numero,
+      reference: referenceActivite(a.numero),
       libelle: a.libelle,
       responsable: { id: a.responsable.id, nom: `${a.responsable.firstName} ${a.responsable.lastName}` },
       dateDebut: a.dateDebut,
@@ -306,7 +350,8 @@ export class PlanTravailService {
       cible: a.cible,
       avancement: x.moyenne,
       nombreTaches: x.nombre,
-      enRetard: a.dateFin < auj && x.moyenne < 100,
+      enRetard,
+      ...this.etatAvancement(a, x.moyenne, enRetard, auj),
       droits: { modifier: gere, supprimer: gere && x.nombre === 0 },
     };
   }

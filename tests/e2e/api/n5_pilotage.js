@@ -94,6 +94,17 @@ async function signerActe(acteId, soumettant) {
   const o1 = planAg.objectifs.find((o) => o.id === obj.body.id);
   check('agent1 lit le plan de sa section et de sa division', !!o1 && planAg.objectifs.some((o) => o.id === objDiv.body.id) && !planAg.peutCreer);
   check('avancement de l’objectif = moyenne de ses activités', o1.avancement === attendu);
+  // Tableau de bord (avancement des activités) : état comparé au temps écoulé, calculé par l'API.
+  const actAo = (await call('chefssr', 'POST', `/api/v1/plan-travail/objectifs/${obj.body.id}/activites`, { ...A, libelle: `En cours ${S}`, dateDebut: jour(-10), dateFin: jour(10) })).body;
+  const actFutur = (await call('chefssr', 'POST', `/api/v1/plan-travail/objectifs/${obj.body.id}/activites`, { ...A, libelle: `À venir ${S}`, dateDebut: jour(5), dateFin: jour(30) })).body;
+  const plan2 = (await call('agent1', 'GET', `/api/v1/plan-travail?annee=${annee}`)).body.objectifs.find((o) => o.id === obj.body.id);
+  const etat = (id) => plan2.activites.find((a) => a.id === id);
+  check('activité échue sous 100 % : EN_RETARD, temps écoulé 100 %', etat(act.body.id).etatAvancement === (attendu < 100 ? 'EN_RETARD' : 'CONFORME') && etat(act.body.id).tempsEcoule === 100, JSON.stringify(etat(act.body.id)));
+  check('activité à mi-parcours sans avancement : EN_DECALAGE (avancement sous le temps écoulé)', etat(actAo.id).etatAvancement === 'EN_DECALAGE' && etat(actAo.id).tempsEcoule >= 45 && etat(actAo.id).tempsEcoule <= 55, JSON.stringify(etat(actAo.id)));
+  check('activité pas encore commencée : CONFORME, temps écoulé 0 %', etat(actFutur.id).etatAvancement === 'CONFORME' && etat(actFutur.id).tempsEcoule === 0);
+  check('sigle de l’unité sur l’objectif et ses activités', plan2.uniteSigle === uSSR.code && plan2.activites.every((a) => a.uniteSigle === uSSR.code), plan2.uniteSigle);
+  await call('chefssr', 'DELETE', `/api/v1/plan-travail/activites/${actAo.id}`);
+  await call('chefssr', 'DELETE', `/api/v1/plan-travail/activites/${actFutur.id}`);
   check('agent1 ne voit pas le plan d’une autre division', !planAg.objectifs.some((o) => o.libelle === `Objectif DEE ${S}`));
   expect('plan d’une autre unité demandé explicitement', await call('agentdee', 'GET', `/api/v1/plan-travail?uniteId=${uSSR.id}`), 403);
   check('activités proposées pour une tâche', (await call('agent1', 'GET', '/api/v1/plan-travail/activites-disponibles')).body.some((a) => a.id === act.body.id));
@@ -184,7 +195,7 @@ async function signerActe(acteId, soumettant) {
   expect('moins de 3 caractères', await call('agent1', 'GET', '/api/v1/recherche?q=ab'), 400);
   const rAg = (await call('agent1', 'GET', `/api/v1/recherche?q=${S}`)).body;
   const cat = (r, cle) => r.categories.find((c) => c.cle === cle);
-  check('5 catégories : tâches, documents, courrier, annuaire, réunions', rAg.categories.map((c) => c.cle).join() === 'taches,documents,courrier,annuaire,reunions');
+  check('6 catégories : tâches, plan de travail, documents, courrier, annuaire, réunions', rAg.categories.map((c) => c.cle).join() === 'taches,activites,documents,courrier,annuaire,reunions');
   check('agent1 trouve ses tâches (5 au plus, « autres » signalés)', cat(rAg, 'taches').resultats.length === 5 && cat(rAg, 'taches').autres === true);
   for (const k of ['agentdee', 'admin', 'agent2', 'dn']) {
     const r = (await call(k, 'GET', `/api/v1/recherche?q=${S}`)).body;
@@ -192,6 +203,20 @@ async function signerActe(acteId, soumettant) {
     check(`${k} : aucune tâche hors de ce que l’écran des tâches lui montre`, cat(r, 'taches').resultats.every((t) => visibles.has(t.id)), `${cat(r, 'taches').resultats.length} résultat(s)`);
   }
   check('agent d’une autre division : aucune tâche de la section', cat((await call('agentdee', 'GET', `/api/v1/recherche?q=${S}`)).body, 'taches').resultats.length === 0);
+  // Références courtes : « T-418 », « t418 », « 418 » pour une tâche ; « A-07 » pour une activité ; jamais hors périmètre.
+  const t1n = (await call('agent1', 'GET', `/tasks/${t1.id}`)).body;
+  check('tâche : numéro stable renvoyé par l’API', Number.isInteger(t1n.numero) && t1n.numero > 0 && (await prisma.task.findUnique({ where: { id: t1.id } })).numero === t1n.numero);
+  for (const saisie of [`T-${t1n.numero}`, `t${String(t1n.numero).padStart(2, '0')}`, String(t1n.numero).padStart(3, '0')]) {
+    const r = (await call('agent1', 'GET', `/api/v1/recherche?q=${encodeURIComponent(saisie)}`)).body;
+    check(`recherche « ${saisie} » : la tâche T-${t1n.numero}, libellé préfixé de sa référence`, cat(r, 'taches').resultats.some((x) => x.id === t1.id && x.libelle.startsWith(`T-${t1n.numero} — `)));
+  }
+  check('recherche par référence hors périmètre : rien (agent d’une autre division)', !cat((await call('agentdee', 'GET', `/api/v1/recherche?q=T-${t1n.numero}`)).body, 'taches').resultats.some((x) => x.id === t1.id));
+  const actN = (await call('agent1', 'GET', `/api/v1/plan-travail/activites/${act.body.id}`)).body;
+  check('activité : numéro et référence « A-07 » (deux chiffres au moins)', Number.isInteger(actN.numero) && actN.reference === `A-${String(actN.numero).padStart(2, '0')}`, actN.reference);
+  const rAct = (await call('agent1', 'GET', `/api/v1/recherche?q=${encodeURIComponent(actN.reference)}`)).body;
+  check(`recherche « ${actN.reference} » : l’activité, lien vers le plan de travail`, cat(rAct, 'activites').resultats.some((x) => x.id === act.body.id && x.lien === `/plan-travail?activite=${act.body.id}` && x.libelle.startsWith(`${actN.reference} — `)));
+  check('recherche d’une activité par référence hors périmètre : rien', !cat((await call('agentdee', 'GET', `/api/v1/recherche?q=${encodeURIComponent(actN.reference)}`)).body, 'activites').resultats.some((x) => x.id === act.body.id));
+  check('« A-… » ne cherche pas de tâche, « T-… » pas d’activité', !cat(rAct, 'taches').resultats.some((x) => x.libelle.startsWith(`T-${actN.numero} `)) && !cat((await call('agent1', 'GET', `/api/v1/recherche?q=T-${actN.numero}`)).body, 'activites').resultats.some((x) => x.id === act.body.id));
   const nomAg = (await call('agent1', 'GET', '/users/directory')).body.find((u) => u.id === ids.agent1);
   const rAnn = (await call('agent2', 'GET', `/api/v1/recherche?q=${encodeURIComponent(nomAg.lastName)}`)).body;
   check('annuaire : personnel actif par nom', cat(rAnn, 'annuaire').resultats.some((u) => u.id === ids.agent1));

@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import { Bell, CircleHelp, Lock } from 'lucide-react';
+import { Bell, CircleHelp, Lock, Palette } from 'lucide-react';
+import { ChoixTheme } from '../../../components/layout/MenuHaut';
 import { useAuth } from '../../../lib/auth/AuthProvider';
 import {
   activerDoubleAuth,
@@ -65,6 +66,7 @@ export default function ProfilPage() {
         <div className="min-w-0 space-y-4">
           <SectionSecurite profil={profil} onChange={charger} />
           <SectionNotifications />
+          <SectionAffichage />
           <SectionAide />
         </div>
       </div>
@@ -81,7 +83,7 @@ function Section({ id, icone, titre, children }: { id: string; icone: ReactNode;
         </span>
         {titre}
       </h2>
-      <div className="divide-y divide-[#F0F1F6]">{children}</div>
+      <div className="divide-y divide-line-doux">{children}</div>
     </section>
   );
 }
@@ -123,7 +125,7 @@ function CarteIdentite({ profil }: { profil: Profil | null }) {
   return (
     <div className="rounded-xl border border-line bg-surface p-5" data-testid="carte-identite">
       <div className="mb-4 text-center">
-        <span aria-hidden className="mx-auto mb-2.5 grid h-[84px] w-[84px] place-items-center rounded-full bg-gold font-heading text-[28px] font-extrabold text-ink-900">
+        <span aria-hidden className="mx-auto mb-2.5 grid h-[84px] w-[84px] place-items-center rounded-full bg-gold font-heading text-[28px] font-extrabold text-sur-or">
           {init}
         </span>
         <p className="font-heading text-[18px] font-extrabold text-ink-900">
@@ -143,7 +145,7 @@ function CarteIdentite({ profil }: { profil: Profil | null }) {
       />
       <div className={`mt-4 rounded-[10px] px-3.5 py-3 text-[12.5px] ${c.pourcentage >= 100 ? 'bg-sage-50' : 'bg-gold-50'}`} data-testid="completude">
         <p className="mb-2 font-bold text-ink-900">Profil complété à {c.pourcentage} %</p>
-        <div className="mb-2 h-1.5 overflow-hidden rounded-full bg-white" role="progressbar" aria-label="Complétude du dossier" aria-valuenow={c.pourcentage} aria-valuemin={0} aria-valuemax={100}>
+        <div className="mb-2 h-1.5 overflow-hidden rounded-full bg-surface" role="progressbar" aria-label="Complétude du dossier" aria-valuenow={c.pourcentage} aria-valuemin={0} aria-valuemax={100}>
           <span className={`block h-full rounded-full ${c.pourcentage >= 100 ? 'bg-sage' : 'bg-gold'}`} style={{ width: `${c.pourcentage}%` }} />
         </div>
         {c.manquants.length > 0 ? (
@@ -276,7 +278,7 @@ function SectionSecurite({ profil, onChange }: { profil: Profil | null; onChange
         ) : sessions.length === 0 ? (
           <p className="text-[13px] text-text-muted">Aucune autre session.</p>
         ) : (
-          <ul className="divide-y divide-[#F0F1F6] rounded-[10px] border border-line">
+          <ul className="divide-y divide-line-doux rounded-[10px] border border-line">
             {sessions.map((s, i) => (
               <li key={s.id} className="flex flex-wrap items-center gap-2 px-3 py-2 text-[13px]" data-testid="session">
                 <span className="min-w-0 flex-1">
@@ -311,7 +313,7 @@ function SectionSecurite({ profil, onChange }: { profil: Profil | null; onChange
                 <li>Saisissez le code à 6 chiffres qu’elle affiche.</li>
               </ol>
               {qr && (
-                <div className="mb-3 inline-block rounded-[10px] border border-line bg-[#FAFBFD] p-3 text-center">
+                <div className="mb-3 inline-block rounded-[10px] border border-line bg-fond-doux p-3 text-center">
                   <img src={qr.qrCodeDataUrl} alt="QR code de la double authentification" className="mx-auto h-40 w-40" />
                   <p className="mt-2 break-all font-mono text-[11px]" data-testid="cle-manuelle">
                     {qr.secret}
@@ -392,7 +394,7 @@ function SectionNotifications() {
                 role="switch"
                 aria-checked={p.resumeQuotidien}
                 onClick={() => void enregistrer(!p.resumeQuotidien, p.heureResume)}
-                className={`relative h-[26px] w-[46px] rounded-full transition-colors ${p.resumeQuotidien ? 'bg-sage' : 'bg-[#C9CDD9]'}`}
+                className={`relative h-[26px] w-[46px] rounded-full transition-colors ${p.resumeQuotidien ? 'bg-sage' : 'bg-line-fort'}`}
               >
                 <span className={`absolute top-[3px] h-5 w-5 rounded-full bg-white shadow transition-all ${p.resumeQuotidien ? 'left-[23px]' : 'left-[3px]'}`} />
               </button>
@@ -419,6 +421,15 @@ function SectionNotifications() {
           </p>
         </>
       )}
+    </Section>
+  );
+}
+
+/** Affichage : thème clair ou sombre, gardé dans ce navigateur (même choix que le menu du compte). */
+function SectionAffichage() {
+  return (
+    <Section id="affichage" icone={<Palette size={18} />} titre="Affichage">
+      <Ligne titre="Thème de l’application" sous="Clair par défaut ; le choix est gardé dans ce navigateur" action={<ChoixTheme />} testid="ligne-theme" />
     </Section>
   );
 }

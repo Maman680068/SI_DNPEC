@@ -46,7 +46,7 @@ export function LigneArrivee({ a, unite, onOpen }: { a: Arrivee; unite: (key: st
       </>
       <span className="text-text-muted">{dateCourte(a.dateReception)}</span>
       <>
-        <span className={`${UNE_LIGNE} text-[#3A4152]`}>{a.expediteur}</span>
+        <span className={`${UNE_LIGNE} text-text-fort`}>{a.expediteur}</span>
         {a.referenceExpediteur && <span className={SOUS}>Réf. {a.referenceExpediteur}</span>}
       </>
       <>
@@ -93,7 +93,7 @@ export function LigneActe({ a, onOpen }: { a: Acte; onOpen: () => void }) {
         <span className={SOUS}>{a.registre.code}</span>
       </>
       <span className="text-text-muted">{dateCourte(dateActe(a))}</span>
-      <span className={`${UNE_LIGNE} text-[#3A4152]`}>{a.destinataires ?? '—'}</span>
+      <span className={`${UNE_LIGNE} text-text-fort`}>{a.destinataires ?? '—'}</span>
       <>
         <span className={`${UNE_LIGNE} font-medium`} title={a.objet}>
           {a.objet}

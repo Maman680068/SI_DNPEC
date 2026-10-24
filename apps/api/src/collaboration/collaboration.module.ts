@@ -4,6 +4,7 @@ import { TasksModule } from '../tasks/tasks.module';
 import { DocumentsModule } from '../documents/documents.module';
 import { MeetingsModule } from '../meetings/meetings.module';
 import { CourrierModule } from '../courrier/courrier.module';
+import { PlanTravailModule } from '../plan-travail/plan-travail.module';
 import { FilsController, RechercheController } from './collaboration.controller';
 import { FilsService } from './fils.service';
 import { RechercheService } from './recherche.service';
@@ -13,7 +14,7 @@ import { ContexteConversationService } from '../communication/messages/contexte-
 
 /** Socle N5 : fils de discussion (renvois vers les objets de la plateforme) et recherche transverse. */
 @Module({
-  imports: [CommunicationModule, TasksModule, DocumentsModule, MeetingsModule, CourrierModule],
+  imports: [CommunicationModule, TasksModule, DocumentsModule, MeetingsModule, CourrierModule, PlanTravailModule],
   // Fiche de l'interlocuteur d'une conversation directe (refonte, étape 6) : a besoin des tâches et des documents.
   controllers: [FilsController, RechercheController, ContexteConversationController],
   providers: [FilsService, RechercheService, ObjetsPlateformeService, ContexteConversationService],

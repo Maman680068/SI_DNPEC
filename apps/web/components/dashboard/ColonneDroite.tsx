@@ -39,7 +39,7 @@ export function Agenda({ reunions }: { reunions: Meeting[] }) {
         : reunions.map((m, i) => {
             const d = new Date(m.startAt);
             return (
-              <Link key={m.id} href={`/reunions?id=${m.id}`} className={`flex items-center gap-3 py-[7px] ${i ? 'border-t border-[#F0F1F6]' : ''}`}>
+              <Link key={m.id} href={`/reunions?id=${m.id}`} className={`flex items-center gap-3 py-[7px] ${i ? 'border-t border-line-doux' : ''}`}>
                 <span className="flex h-[46px] w-11 flex-none flex-col justify-center rounded-[9px] bg-ink-50 text-center text-ink">
                   <b className="font-heading text-[17px] leading-none">{d.toLocaleDateString('fr-FR', { day: 'numeric', timeZone: CONAKRY })}</b>
                   <small className="text-[10.5px] font-semibold uppercase">{d.toLocaleDateString('fr-FR', { weekday: 'short', timeZone: CONAKRY })}</small>
@@ -94,7 +94,7 @@ export function StagiaireEncadre({ bloc }: { bloc: BlocTableau }) {
   return (
     <Boite titre={bloc.valeur && bloc.valeur > 1 ? 'Stagiaires encadrés' : 'Stagiaire encadré'} lien="/stages" libelleLien="Ouvrir" testid="boite-stagiaire">
       {(bloc.elements ?? []).map((e, i) => (
-        <div key={i} className={`flex items-center justify-between py-1.5 text-[13px] ${i ? 'border-t border-[#F0F1F6]' : ''}`}>
+        <div key={i} className={`flex items-center justify-between py-1.5 text-[13px] ${i ? 'border-t border-line-doux' : ''}`}>
           <Link href={e.lien ?? '/stages'} className="flex min-w-0 items-center gap-2.5 hover:underline">
             <span className="grid h-7 w-7 flex-none place-items-center rounded-full bg-ink-50 text-[11px] font-bold text-ink">
               {e.libelle
@@ -109,7 +109,7 @@ export function StagiaireEncadre({ bloc }: { bloc: BlocTableau }) {
           <span className={`inline-flex h-[22px] flex-none items-center rounded-md px-2 text-[12px] font-semibold ${e.detail ? 'bg-gold-50 text-ambre' : 'bg-sage-50 text-sage'}`}>{e.detail ? 'Rapport à valider' : 'À jour'}</span>
         </div>
       ))}
-      <div className="flex items-center justify-between border-t border-[#F0F1F6] py-1.5 text-[13px]">
+      <div className="flex items-center justify-between border-t border-line-doux py-1.5 text-[13px]">
         <span className="text-text-muted">Rapports à valider</span>
         <b>{aValider}</b>
       </div>

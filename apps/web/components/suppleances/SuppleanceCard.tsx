@@ -44,7 +44,7 @@ export function SuppleanceCard({
   const status = suppleanceStatus(suppleance);
 
   return (
-    <div className="flex flex-col gap-2 border-b border-[#F0F1F6] px-[18px] py-3 last:border-b-0 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-col gap-2 border-b border-line-doux px-[18px] py-3 last:border-b-0 sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0 space-y-0.5">
         <div className="mb-1 flex flex-wrap items-center gap-2">
           <Pastille ton={TON[status]}>{SUPPLEANCE_STATUS_LABEL[status]}</Pastille>
@@ -69,7 +69,7 @@ export function SuppleanceCard({
             </button>
           )}
           {canRevoke && (
-            <button type="button" className={`${BTN_LIGNE} !border-[#E7B3BB] !text-clay disabled:opacity-50`} disabled={pending} onClick={onRevoke}>
+            <button type="button" className={`${BTN_LIGNE} !border-clay-bord !text-clay disabled:opacity-50`} disabled={pending} onClick={onRevoke}>
               Révoquer
             </button>
           )}

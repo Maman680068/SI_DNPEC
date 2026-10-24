@@ -78,7 +78,7 @@ export function LigneReunion({ meeting, onSelect, onUpdated }: { meeting: Meetin
   const visibles = meeting.participants.slice(0, 3);
   const reste = meeting.participants.length - visibles.length;
   return (
-    <li data-testid="reunion" className="grid grid-cols-[52px_minmax(0,1fr)] items-center gap-x-3.5 gap-y-2 border-t border-[#F0F1F6] px-4 py-3 md:grid-cols-[52px_minmax(0,1fr)_120px_190px]">
+    <li data-testid="reunion" className="grid grid-cols-[52px_minmax(0,1fr)] items-center gap-x-3.5 gap-y-2 border-t border-line-doux px-4 py-3 md:grid-cols-[52px_minmax(0,1fr)_120px_190px]">
       <span aria-hidden className="flex h-[52px] w-[50px] flex-col justify-center rounded-[10px] bg-ink-50 text-center text-ink">
         <b className="font-heading text-[18px] leading-none">{debut.getDate()}</b>
         <small className="text-[10.5px] font-bold">{jourCourt(debut)}</small>
@@ -101,7 +101,7 @@ export function LigneReunion({ meeting, onSelect, onUpdated }: { meeting: Meetin
             {getUserInitials(p.userId)}
           </span>
         ))}
-        {reste > 0 && <span className="-ml-1 grid h-[26px] min-w-[26px] place-items-center rounded-full border-2 border-surface bg-[#ECEEF5] px-1 text-[10px] font-bold text-text-muted">+{reste}</span>}
+        {reste > 0 && <span className="-ml-1 grid h-[26px] min-w-[26px] place-items-center rounded-full border-2 border-surface bg-fond-gris px-1 text-[10px] font-bold text-text-muted">+{reste}</span>}
       </div>
       <div className="col-start-2 md:col-start-auto">
         {meeting.status === 'ANNULEE' ? (

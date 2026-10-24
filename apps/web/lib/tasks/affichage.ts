@@ -11,7 +11,7 @@ export const STATUT_LIBELLE: Record<TaskStatus, string> = {
 
 /** Pastille de statut (fond pâle, texte et point de la couleur du statut). */
 export const STATUT_PASTILLE: Record<TaskStatus, string> = {
-  A_FAIRE: 'bg-[#F0F1F5] text-[#4B5263]',
+  A_FAIRE: 'bg-fond-gris text-text-fort',
   EN_COURS: 'bg-ink-50 text-ink',
   SOUMISE_VALIDATION: 'bg-gold-50 text-ambre',
   TERMINEE: 'bg-sage-50 text-sage',
@@ -67,8 +67,8 @@ export const PUCE_ECHEANCE: Record<ReturnType<typeof tonEcheance>, string> = {
   retard: 'bg-clay-50 text-clay',
   proche: 'bg-gold-50 text-ambre',
   semaine: 'bg-ink-50 text-ink',
-  tard: 'bg-[#F0F1F5] text-text-muted',
-  aucune: 'bg-[#F0F1F5] text-text-muted',
+  tard: 'bg-fond-gris text-text-muted',
+  aucune: 'bg-fond-gris text-text-muted',
 };
 
 /**

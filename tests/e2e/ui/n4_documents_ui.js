@@ -7,7 +7,7 @@
 // messages de confirmation, filtres repliés sur téléphone.
 const fs = require('fs');
 const path = require('path');
-const { browser, loginPage, check, bilan, WEB } = require('./helpers');
+const { browser, loginPage, check, bilan, WEB, entreesMenu } = require('./helpers');
 const { call, ids } = require('../lib');
 const E = require('../config');
 
@@ -131,7 +131,7 @@ async function choisirPersonne(p, label, nom) {
 
   console.log('— Documents générés : attestation de travail (DRH, bureau)');
   p = await loginPage(b, 'drh');
-  check('menu : « Documents générés »', (await p.locator('a[href="/documents-generes"]').count()) === 1);
+  check('menu : « Documents générés »', (await entreesMenu(p)).filter((e) => e.href === '/documents-generes').length === 1);
   await p.goto(`${WEB}/documents-generes`);
   await p.getByRole('tab', { name: 'Attestations de travail' }).waitFor();
   await p.getByText('Créée le', { exact: false }).first().waitFor({ timeout: 5000 }).catch(() => {});

@@ -133,7 +133,7 @@ export function FenetreDetail({
             </div>
             <div className={`min-h-0 flex-1 overflow-y-auto ${cote ? 'md:grid md:grid-cols-[minmax(0,1fr)_290px] md:overflow-hidden' : ''}`}>
               <div className={`px-5 py-[18px] sm:px-6 ${cote ? 'md:overflow-y-auto md:border-r md:border-line' : ''}`}>{children}</div>
-              {cote && <div className="border-t border-line bg-[#FAFBFD] px-5 py-[18px] md:overflow-y-auto md:border-t-0">{cote}</div>}
+              {cote && <div className="border-t border-line bg-fond-doux px-5 py-[18px] md:overflow-y-auto md:border-t-0">{cote}</div>}
             </div>
           </>
         )}
