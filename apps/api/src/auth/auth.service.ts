@@ -491,7 +491,9 @@ export class AuthService {
   async refresh(plainRefreshToken: string) {
     const { userId, refreshToken } = await this.sessionService.rotateRefreshToken(plainRefreshToken);
     const accessToken = await this.issueAccessToken(userId);
-    return { accessToken, refreshToken };
+    // Jeton tout juste remplacé par une requête simultanée : pas de nouveau jeton de
+    // renouvellement, le client garde celui que la première requête lui a remis.
+    return refreshToken ? { accessToken, refreshToken } : { accessToken };
   }
 
   private async issueSession(user: User, ip: string | undefined, navigateur?: string) {

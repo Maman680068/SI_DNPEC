@@ -223,6 +223,12 @@ fonctionnalité ajoute sa suite (`tests/e2e/api/`, `tests/e2e/ui/`) et sa ligne 
   « Se connecter »), rejetée (motif facultatif `POST /users/:id/reject { motif? }`), compte créé
   par l'admin (lien de premier accès 7 jours, `creerLienPremierAcces`, partagé avec l'import).
   Envoyés après l'action, jamais bloquants (A7) ; pas de notification in-app.
+- Sessions (`auth/services/session.service.ts`) : rotation du jeton de renouvellement à chaque usage, par
+  remplacement conditionnel (une seule rotation même si deux requêtes arrivent ensemble). Le jeton tout juste
+  remplacé reste accepté `DELAI_GRACE_ROTATION_MS` (30 s), **sans nouvelle rotation** et jamais pour une session
+  révoquée ou expirée (liste en mémoire : une seule instance de l'API) ; `/auth/refresh` ne renvoie alors pas de
+  `refreshToken` et le relais du web laisse le cookie en place. Côté web, un seul renouvellement à la fois
+  (`AuthProvider`, promesse partagée). Suite `s3_sessions`.
 - Double authentification (`auth/`) : `GET /auth/2fa/status`, `POST /auth/2fa/setup` (409 si
   active), `POST /auth/2fa/activate`, `POST /auth/2fa/disable` (code exigé) ; réinitialisation
   par l'administrateur `POST /users/:id/2fa/reset` (jamais sur soi-même). Écran

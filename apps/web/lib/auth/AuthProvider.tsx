@@ -47,19 +47,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setStatus('unauthenticated');
   }, []);
 
-  const silentRefresh = useCallback(async (): Promise<string | null> => {
-    try {
-      const result = await refreshRequest();
-      if (!result) {
+  // Un seul renouvellement à la fois : plusieurs requêtes qui expirent ensemble attendent
+  // le même renouvellement, au lieu d'envoyer chacune l'ancien jeton (le second envoi était
+  // refusé et déconnectait la personne).
+  const renouvellementEnCours = useRef<Promise<string | null> | null>(null);
+  const silentRefresh = useCallback((): Promise<string | null> => {
+    if (renouvellementEnCours.current) return renouvellementEnCours.current;
+    const enCours = (async () => {
+      try {
+        const result = await refreshRequest();
+        if (!result) {
+          clearSession();
+          return null;
+        }
+        applySession(result.accessToken, result.user);
+        return result.accessToken;
+      } catch {
         clearSession();
         return null;
+      } finally {
+        renouvellementEnCours.current = null;
       }
-      applySession(result.accessToken, result.user);
-      return result.accessToken;
-    } catch {
-      clearSession();
-      return null;
-    }
+    })();
+    renouvellementEnCours.current = enCours;
+    return enCours;
   }, [applySession, clearSession]);
 
   useEffect(() => {
