@@ -305,7 +305,9 @@ fonctionnalité ajoute sa suite (`tests/e2e/api/`, `tests/e2e/ui/`) et sa ligne 
   encre reçu, bleu à venir. Données ajoutées pour ces écrans, toutes en lecture avec leur suite 403 (`u_*.js`) :
   `api/v1/conges/:id/contexte`, `api/v1/documents/synthese` (+ filtre `couvreDu`/`couvreAu` de
   `GET /documents`), `api/v1/messages/avec/:userId/contexte`, `api/v1/decisions/a-suivre`,
-  `api/v1/rh/dossiers`, `api/v1/rh/effectifs/export.xlsx`, `api/v1/instructions/export.xlsx`. L'annuaire
+  `api/v1/rh/dossiers` (DRH : complétude, alertes, « Cat. / éch. », prise de service, ancienneté en années
+  révolues et lien `attestation` vers l'attestation de travail préremplie — `documents-generes?onglet=attestations&
+  nouvelle=1&agent=`, ouverte seulement si l'API la permet), `api/v1/rh/effectifs/export.xlsx`, `api/v1/instructions/export.xlsx`. L'annuaire
   n'expose ni email ni téléphone.
 - Formulaires (refonte, étape 9) : `components/ui/Formulaire.tsx` — `FenetreFormulaire` (large, deux colonnes
   avec `Grille2`, phrase `pied` à gauche, bouton principal à droite, validation dans la fenêtre avant l'envoi :

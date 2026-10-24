@@ -471,6 +471,7 @@
           "titre": "Dossier du personnel",
           "etapes": [
             "Onglet « Personnel et RH » (« Administration » pour la Direction et l’administrateur) → « Dossier du personnel » : tous les dossiers ; ouvrez-en un pour le compléter.",
+            "Dans la liste des dossiers : catégorie et échelon, date de prise de service et ancienneté de chaque agent (repris de son dossier) ; le bouton « Attestation » ouvre l’attestation de travail déjà remplie pour cet agent, dans « Documents générés ».",
             "« Importer (Excel) » : création ou mise à jour en masse ; le rapport liste ce qui a été créé et les erreurs.",
             "Les signalements d’erreur des agents vous arrivent par notification."
           ],

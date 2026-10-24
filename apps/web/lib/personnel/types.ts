@@ -143,6 +143,11 @@ export interface LigneDossier {
   aVerifier: boolean;
   alertes: { type: TypeAlerteDossier; libelle: string }[];
   lien: string;
+  categorieEchelon: string | null;
+  priseDeService: string | null;
+  ancienneteAnnees: number | null;
+  /** Attestation de travail préremplie (lien calculé par l'API) ; null quand elle n'est pas possible. */
+  attestation: string | null;
 }
 
 export interface SyntheseDossiers {
