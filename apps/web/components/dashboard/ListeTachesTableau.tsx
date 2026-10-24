@@ -82,7 +82,7 @@ export function ListeTachesTableau({
               >
                 <PointStatut tache={t} />
                 <button type="button" onClick={() => onOuvrir(t.id)} className="min-w-0 text-left">
-                  <span className="block truncate text-[14px] font-semibold hover:underline">{t.title}</span>
+                  <span className="line-clamp-2 break-words text-[14px] font-semibold hover:underline sm:line-clamp-none sm:truncate">{t.title}</span>
                   <span className="flex items-center gap-2.5 text-[12.5px] text-text-muted">
                     <span className="flex-none font-semibold" data-testid="reference-tache">{referenceTache(t.numero)}</span>
                     <span className="truncate">

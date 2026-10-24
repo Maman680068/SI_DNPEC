@@ -12,11 +12,12 @@ export async function fetchCurrentUser(accessToken: string): Promise<unknown> {
 }
 
 /** Construit la réponse { accessToken, user } côté navigateur et pose le refresh token
- * en cookie httpOnly — jamais l'inverse. */
-export async function issueSessionResponse(accessToken: string, refreshToken: string): Promise<NextResponse> {
+ * en cookie httpOnly — jamais l'inverse. Sans refresh token (renouvellement simultané :
+ * l'API n'a pas fait de nouvelle rotation), le cookie déjà posé est laissé tel quel. */
+export async function issueSessionResponse(accessToken: string, refreshToken: string | undefined): Promise<NextResponse> {
   const user = await fetchCurrentUser(accessToken);
   const res = NextResponse.json({ status: 'authenticated', accessToken, user });
-  res.cookies.set(REFRESH_TOKEN_COOKIE, refreshToken, refreshTokenCookieOptions(REFRESH_TOKEN_MAX_AGE_SECONDS));
+  if (refreshToken) res.cookies.set(REFRESH_TOKEN_COOKIE, refreshToken, refreshTokenCookieOptions(REFRESH_TOKEN_MAX_AGE_SECONDS));
   return res;
 }
 

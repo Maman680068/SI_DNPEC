@@ -40,28 +40,71 @@ export class SessionService {
   }
 
   /**
+   * Jetons tout juste remplacés : empreinte de l'ancien jeton → session, pendant
+   * DELAI_GRACE_ROTATION_MS. Deux renouvellements simultanés avec le même jeton (deux
+   * onglets, deux chargements de page rapprochés) ne doivent pas déconnecter la personne :
+   * le second reçoit un jeton d'accès, sans nouvelle rotation, et le navigateur garde le
+   * cookie posé par le premier. En mémoire seulement (une seule instance de l'API) : un
+   * redémarrage vide la liste, ce qui ne fait que rétablir la règle stricte.
+   */
+  private readonly recemmentRemplaces = new Map<string, { sessionId: string; expire: number }>();
+
+  /**
    * Rotation du refresh token : même session (même id, donc même ligne dans
    * "Vos sessions actives"), mais nouvelle valeur de token à chaque
    * rafraîchissement — limite la fenêtre d'exploitation si un refresh token
-   * fuite (l'ancien devient immédiatement invalide).
+   * fuite. L'ancien jeton n'est plus accepté qu'un court instant (voir
+   * `recemmentRemplaces`), et jamais pour une session révoquée ou expirée.
+   * `refreshToken` vaut null quand aucune rotation n'a eu lieu (jeton tout juste remplacé).
    */
-  async rotateRefreshToken(plainRefreshToken: string): Promise<{ userId: string; refreshToken: string }> {
-    const session = await this.findActiveSessionByToken(plainRefreshToken);
-    const newPlainToken = this.generateToken();
-
-    await this.prisma.userSession.update({
-      where: { id: session.id },
-      data: { refreshTokenHash: this.hashToken(newPlainToken), lastUsedAt: new Date() },
-    });
-
-    return { userId: session.userId, refreshToken: newPlainToken };
+  async rotateRefreshToken(plainRefreshToken: string): Promise<{ userId: string; refreshToken: string | null }> {
+    const ancienHash = this.hashToken(plainRefreshToken);
+    const session = await this.prisma.userSession.findFirst({ where: { refreshTokenHash: ancienHash, revokedAt: null } });
+    if (session) {
+      await this.verifierInactivite(session);
+      const newPlainToken = this.generateToken();
+      // Remplacement conditionnel : si une requête simultanée a déjà fait la rotation,
+      // aucune ligne n'est modifiée et l'on passe par le délai de grâce ci-dessous.
+      const { count } = await this.prisma.userSession.updateMany({
+        where: { id: session.id, refreshTokenHash: ancienHash, revokedAt: null },
+        data: { refreshTokenHash: this.hashToken(newPlainToken), lastUsedAt: new Date() },
+      });
+      if (count === 1) {
+        this.noterRemplacement(ancienHash, session.id);
+        return { userId: session.userId, refreshToken: newPlainToken };
+      }
+    }
+    const remplace = this.recemmentRemplaces.get(ancienHash);
+    if (remplace && remplace.expire > Date.now()) {
+      const active = await this.prisma.userSession.findFirst({ where: { id: remplace.sessionId, revokedAt: null } });
+      if (active) {
+        await this.verifierInactivite(active);
+        return { userId: active.userId, refreshToken: null };
+      }
+    }
+    throw new UnauthorizedException('Session invalide ou révoquée');
   }
 
   async revokeSessionByToken(plainRefreshToken: string): Promise<void> {
+    const hash = this.hashToken(plainRefreshToken);
     await this.prisma.userSession.updateMany({
-      where: { refreshTokenHash: this.hashToken(plainRefreshToken), revokedAt: null },
+      where: { refreshTokenHash: hash, revokedAt: null },
       data: { revokedAt: new Date() },
     });
+    // Déconnexion avec un jeton tout juste remplacé (cookie d'un autre onglet) : la session
+    // qu'il désignait est révoquée aussi.
+    const remplace = this.recemmentRemplaces.get(hash);
+    if (remplace && remplace.expire > Date.now()) {
+      await this.prisma.userSession.updateMany({ where: { id: remplace.sessionId, revokedAt: null }, data: { revokedAt: new Date() } });
+    }
+  }
+
+  private noterRemplacement(ancienHash: string, sessionId: string): void {
+    const maintenant = Date.now();
+    if (this.recemmentRemplaces.size > 1000) {
+      for (const [h, v] of this.recemmentRemplaces) if (v.expire <= maintenant) this.recemmentRemplaces.delete(h);
+    }
+    this.recemmentRemplaces.set(ancienHash, { sessionId, expire: maintenant + DELAI_GRACE_ROTATION_MS });
   }
 
   async revokeSession(sessionId: string, userId: string): Promise<void> {
@@ -90,17 +133,15 @@ export class SessionService {
     });
   }
 
-  private async findActiveSessionByToken(plainRefreshToken: string) {
-    const session = await this.prisma.userSession.findFirst({
-      where: { refreshTokenHash: this.hashToken(plainRefreshToken), revokedAt: null },
-    });
-    if (!session) throw new UnauthorizedException('Session invalide ou révoquée');
-    // Expiration après inactivité (paramètre, 30 jours par défaut — socle N2, §4.4).
+  /** Expiration après inactivité (paramètre, 30 jours par défaut — socle N2, §4.4). */
+  private async verifierInactivite(session: { id: string; lastUsedAt: Date }): Promise<void> {
     const jours = await this.parametres.valeur('session.expirationJours');
     if (session.lastUsedAt.getTime() < Date.now() - jours * 864e5) {
       await this.prisma.userSession.update({ where: { id: session.id }, data: { revokedAt: new Date() } });
       throw new UnauthorizedException('Session expirée après inactivité : reconnectez-vous.');
     }
-    return session;
   }
 }
+
+/** Délai pendant lequel un jeton tout juste remplacé reste accepté (sans nouvelle rotation). */
+export const DELAI_GRACE_ROTATION_MS = 30_000;

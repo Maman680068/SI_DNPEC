@@ -24,17 +24,26 @@ export function bordPastille(surBandeau: boolean): string {
 }
 
 const REQUETE_LARGE = '(min-width: 768px)';
-function abonner(rappel: () => void) {
-  const m = window.matchMedia(REQUETE_LARGE);
-  m.addEventListener('change', rappel);
-  return () => m.removeEventListener('change', rappel);
+function abonnerA(requete: string) {
+  return (rappel: () => void) => {
+    const m = window.matchMedia(requete);
+    m.addEventListener('change', rappel);
+    return () => m.removeEventListener('change', rappel);
+  };
+}
+const abonnements = new Map<string, (rappel: () => void) => () => void>();
+/** Vrai quand la requête média est satisfaite ; `parDefaut` côté serveur. */
+function useRequeteMedia(requete: string, parDefaut: boolean): boolean {
+  if (!abonnements.has(requete)) abonnements.set(requete, abonnerA(requete));
+  return useSyncExternalStore(abonnements.get(requete)!, () => window.matchMedia(requete).matches, () => parDefaut);
 }
 
 /** Écran large (≥ md, 768 px) : menu en haut ; sinon barre du haut et tiroir du menu. */
 export function useEcranLarge(): boolean {
-  return useSyncExternalStore(
-    abonner,
-    () => window.matchMedia(REQUETE_LARGE).matches,
-    () => true,
-  );
+  return useRequeteMedia(REQUETE_LARGE, true);
+}
+
+/** Écran d'au moins 1280 px (xl) : la recherche du bandeau a la place d'un texte d'exemple complet. */
+export function useEcranTresLarge(): boolean {
+  return useRequeteMedia('(min-width: 1280px)', true);
 }

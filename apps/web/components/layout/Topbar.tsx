@@ -14,7 +14,7 @@ import { NotificationBell } from './NotificationBell';
 import { MenuCreer } from './MenuCreer';
 import { titrePage } from './Sidebar';
 import { useNavigation } from '../../lib/navigation/NavigationProvider';
-import { SurBandeauProvider } from '../../lib/navigation/bandeau';
+import { SurBandeauProvider, useEcranTresLarge } from '../../lib/navigation/bandeau';
 
 const ICONES: Record<string, LucideIcon> = { taches: SquareCheck, activites: Target, documents: FileText, courrier: Mail, annuaire: Users, reunions: CalendarDays };
 
@@ -41,6 +41,8 @@ function surligner(texte: string, q: string): ReactNode {
  */
 export function Topbar({ onMenuClick, variante }: { onMenuClick?: () => void; variante?: 'bandeau' }) {
   const bandeau = variante === 'bandeau';
+  // Tablette et petit portable : texte d'exemple court, sinon il est coupé au milieu d'un mot.
+  const tresLarge = useEcranTresLarge();
   const { user } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
@@ -170,7 +172,7 @@ export function Topbar({ onMenuClick, variante }: { onMenuClick?: () => void; va
               }}
               onFocus={() => q.trim().length >= 3 && setOuvert(true)}
               onKeyDown={clavier}
-              placeholder="Rechercher une tâche, un document, une personne…"
+              placeholder={!bandeau || tresLarge ? 'Rechercher une tâche, un document, une personne…' : 'Rechercher…'}
               minLength={3}
               className={`h-full min-w-0 flex-1 bg-transparent text-[13.5px] focus:outline-none ${bandeau ? 'text-white placeholder:text-[#B9BFDD]' : 'text-text placeholder:text-text-faint'}`}
             />
