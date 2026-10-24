@@ -124,3 +124,65 @@ export class AnneeQueryDto {
   @Max(2100)
   annee?: number;
 }
+
+/** Plan de formation individuel : session de formation d'un agent (docs/conception_plan_formation.md). */
+export class SessionFormationDto {
+  @IsString()
+  @Length(3, 200)
+  intitule!: string;
+
+  /** Compte de l'agent. */
+  @IsString()
+  agentId!: string;
+
+  /** Besoin d'origine (facultatif) : un besoin retenu. */
+  @IsOptional()
+  @IsString()
+  besoinId?: string;
+
+  @IsDateString()
+  dateDebut!: string;
+
+  @IsOptional()
+  @IsDateString()
+  dateFin?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(365)
+  dureeJours?: number;
+
+  @IsOptional()
+  @IsString()
+  @Length(0, 200)
+  organisme?: string;
+
+  /** Planifiée d'emblée (sinon souhaitée). */
+  @IsOptional()
+  @IsBoolean()
+  planifier?: boolean;
+}
+
+export class ModifierSessionFormationDto {
+  @IsOptional()
+  @IsDateString()
+  dateDebut?: string;
+
+  @IsOptional()
+  @IsDateString()
+  dateFin?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(365)
+  dureeJours?: number;
+
+  @IsOptional()
+  @IsString()
+  @Length(0, 200)
+  organisme?: string;
+}

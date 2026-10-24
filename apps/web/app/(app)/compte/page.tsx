@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import { Bell, CircleHelp, Lock, Palette } from 'lucide-react';
+import { Bell, CircleHelp, GraduationCap, Lock, Palette } from 'lucide-react';
 import { ChoixTheme } from '../../../components/layout/MenuHaut';
 import { useAuth } from '../../../lib/auth/AuthProvider';
 import {
@@ -17,6 +17,9 @@ import {
   type SessionOuverte,
 } from '../../../lib/api/auth';
 import { getPreferences, modifierPreferences } from '../../../lib/api/pilotage';
+import { getMesFormations } from '../../../lib/api/rh';
+import { LIBELLE_ETAT_SESSION, type SessionFormation } from '../../../lib/rh/types';
+import { periodeSession } from '../../../components/rh/PlanSessionsFormation';
 import type { PreferencesNotification } from '../../../lib/pilotage/types';
 import { ROLE_LABEL } from '../../../lib/users/types';
 import type { SystemRole } from '../../../lib/auth/types';
@@ -34,7 +37,7 @@ import { Fenetre } from '../../../components/ui/Fenetre';
  * sections de cette page (?section=securite | notifications, redirections dans anciens-liens.json).
  */
 /** Sections que `?section=` peut viser (liens des emails, anciennes adresses). */
-const SECTIONS: string[] = ['securite', 'notifications', 'aide'];
+const SECTIONS: string[] = ['securite', 'formations', 'notifications', 'aide'];
 
 export default function ProfilPage() {
   const [profil, setProfil] = useState<Profil | null>(null);
@@ -48,7 +51,7 @@ export default function ProfilPage() {
     charger();
   }, [charger]);
 
-  // ?section=securite | notifications | aide : la section est amenée à l'écran.
+  // ?section=securite | formations | notifications | aide : la section est amenée à l'écran.
   const deja = useRef(false);
   useEffect(() => {
     if (!profil || deja.current) return;
@@ -65,6 +68,7 @@ export default function ProfilPage() {
         <CarteIdentite profil={profil} />
         <div className="min-w-0 space-y-4">
           <SectionSecurite profil={profil} onChange={charger} />
+          <SectionFormations />
           <SectionNotifications />
           <SectionAffichage />
           <SectionAide />
@@ -85,6 +89,32 @@ function Section({ id, icone, titre, children }: { id: string; icone: ReactNode;
       </h2>
       <div className="divide-y divide-line-doux">{children}</div>
     </section>
+  );
+}
+
+/** Mes formations : sessions du plan de formation individuel (GET api/v1/profil/formations). */
+function SectionFormations() {
+  const [l, setL] = useState<SessionFormation[] | null>(null);
+  const [erreur, setErreur] = useState<string | null>(null);
+  useEffect(() => {
+    getMesFormations()
+      .then(setL)
+      .catch((e) => setErreur(messageChargement(e)));
+  }, []);
+  return (
+    <Section id="formations" icone={<GraduationCap size={18} />} titre="Mes formations">
+      {erreur && <p className="px-[18px] py-3 text-[13px] text-text-muted">{erreur}</p>}
+      {l && l.length === 0 && <p className="px-[18px] py-3 text-[13px] text-text-muted">Aucune formation à votre plan de formation.</p>}
+      {l?.map((s) => (
+        <Ligne
+          key={s.id}
+          testid="ma-formation"
+          titre={s.intitule}
+          sous={[periodeSession(s), s.dureeJours ? `${s.dureeJours} j` : null, s.organisme].filter(Boolean).join(' · ')}
+          action={<Pastille ton={s.etat === 'SUIVIE' ? 'vert' : s.etat === 'PLANIFIEE' ? 'encre' : 'ambre'}>{LIBELLE_ETAT_SESSION[s.etat]}</Pastille>}
+        />
+      ))}
+    </Section>
   );
 }
 

@@ -48,7 +48,7 @@ const sansDefilementHorizontal = (p) => p.evaluate(() => document.documentElemen
   // Refonte (étape 8) : rubriques à gauche avec leur nombre de paramètres, lignes de la rubrique choisie à droite,
   // champ avec unité, « Enregistrer » en haut de page.
   const rubriques = await p.getByTestId('rubrique-parametres').allInnerTexts();
-  check('8 paramètres répartis en rubriques (Congés, Personnel et RH, Sécurité, Modélisation)', rubriques.reduce((n, t) => n + Number(t.match(/(\d+)\s*$/)?.[1] ?? 0), 0) === 8 && /^Congés/.test(rubriques[0]) && rubriques.some((t) => /^Sécurité/.test(t)) && rubriques.some((t) => /^Modélisation\s*2$/.test(t)), rubriques.join(' | '));
+  check('9 paramètres répartis en rubriques (Congés, Personnel et RH, Sécurité, Modélisation)', rubriques.reduce((n, t) => n + Number(t.match(/(\d+)\s*$/)?.[1] ?? 0), 0) === 9 && /^Congés/.test(rubriques[0]) && rubriques.some((t) => /^Sécurité/.test(t)) && rubriques.some((t) => /^Modélisation\s*2$/.test(t)), rubriques.join(' | '));
   check('« Enregistrer » inactif tant que rien n’est modifié', await p.getByTestId('enregistrer-parametres').isDisabled());
   await p.getByTestId('rubrique-parametres').filter({ hasText: 'Sécurité' }).click();
   const conservation = p.locator('[data-cle="connexions.conservationMois"]');

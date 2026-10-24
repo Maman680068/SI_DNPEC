@@ -163,7 +163,8 @@
           "titre": "Ma carrière et ma fiche de poste",
           "etapes": [
             "Onglet « Personnel et RH » (« Administration » pour la Direction et l’administrateur) → « Ressources humaines » → « Carrière et actes » : vos nominations, avancements, promotions et mutations, une fois l’acte signé par le DN ou la DNA, avec son numéro.",
-            "Onglet « Fiches de poste » : missions, activités et compétences attendues pour chaque fonction de la DNPEC."
+            "Onglet « Fiches de poste » : missions, activités et compétences attendues pour chaque fonction de la DNPEC.",
+            "Mes formations : votre nom en haut à droite → « Mon profil », section « Mes formations » : les sessions de votre plan de formation (période, durée, organisme, état). Vous êtes prévenu avant le début d’une session planifiée."
           ]
         }
       ]
@@ -235,7 +236,8 @@
           "titre": "Besoins de formation",
           "etapes": [
             "Onglet « Personnel et RH » (« Administration » pour la Direction et l’administrateur) → « Ressources humaines » → « Formation » → « Exprimer un besoin » : intitulé, priorité, origine (entretien, plan de travail…) et nombre d’agents concernés.",
-            "Le DRH consolide les besoins de toutes les unités et décide : « Retenu » dans le plan de formation, « Réalisé » ou « Écarté ». Vous voyez les besoins de votre unité et leur statut."
+            "Le DRH consolide les besoins de toutes les unités et décide : « Retenu » dans le plan de formation, « Réalisé » ou « Écarté ». Vous voyez les besoins de votre unité et leur statut.",
+            "Au-dessus des besoins, le « Plan de formation » montre les sessions de vos agents (formation, période, durée, état) ; vous êtes prévenu avant le début d’une session planifiée."
           ]
         }
       ]
@@ -303,7 +305,8 @@
           "titre": "Besoins de formation",
           "etapes": [
             "Onglet « Personnel et RH » (« Administration » pour la Direction et l’administrateur) → « Ressources humaines » → « Formation » → « Exprimer un besoin » : intitulé, priorité, origine (entretien, plan de travail…) et nombre d’agents concernés.",
-            "Le DRH consolide les besoins de toutes les unités et décide : « Retenu » dans le plan de formation, « Réalisé » ou « Écarté ». Vous voyez les besoins de votre unité et leur statut."
+            "Le DRH consolide les besoins de toutes les unités et décide : « Retenu » dans le plan de formation, « Réalisé » ou « Écarté ». Vous voyez les besoins de votre unité et leur statut.",
+            "Au-dessus des besoins, le « Plan de formation » montre les sessions de vos agents (formation, période, durée, état) ; vous êtes prévenu avant le début d’une session planifiée."
           ]
         }
       ]
@@ -535,7 +538,8 @@
           "titre": "Fiches de poste et plan de formation",
           "etapes": [
             "Onglet « Fiches de poste » → « Nouvelle fiche de poste » : une fiche par fonction (missions, activités, compétences), lisible par tout le personnel.",
-            "Onglet « Formation » : les besoins exprimés par les chefs d’unité ; choisissez « Retenu » pour les inscrire au plan de formation de l’année, puis « Réalisé »."
+            "Onglet « Formation » : les besoins exprimés par les chefs d’unité ; choisissez « Retenu » pour les inscrire au plan de formation de l’année, puis « Réalisé ».",
+            "Plan de formation individuel (en tête de l’onglet « Formation ») : « Planifier une formation » sur un besoin retenu, ou en haut du tableau ; choisissez l’agent, la date de début, la date de fin ou la durée, l’organisme. Une session « planifiée » prévient l’agent et son chef le plus proche 15 jours avant son début (paramètre « Préavis avant le début d’une formation planifiée ») ; marquez-la « Suivie » une fois commencée, ou « Annulée »."
           ]
         }
       ]

@@ -9,6 +9,8 @@ import type {
   ListePieces,
   Mouvement,
   PlanFormation,
+  PlanSessions,
+  SessionFormation,
   TypeMouvement,
 } from '../rh/types';
 
@@ -43,3 +45,10 @@ export const exprimerBesoin = (v: { annee: number; intitule: string; priorite: s
 export const statutBesoin = (id: string, statut: string) => apiFetch(`/api/v1/rh/formation/${id}/statut`, j('PATCH', { statut }));
 export const getOngletsRh = () =>
   apiFetch<{ effectifs: boolean; alertes: boolean; carriere: boolean; familles: boolean; fiches: boolean; formation: boolean; pieces: boolean }>('/api/v1/rh');
+
+// Plan de formation individuel (sessions par agent).
+export const getSessionsFormation = () => apiFetch<PlanSessions>('/api/v1/rh/formations');
+export const creerSessionFormation = (v: { intitule: string; agentId: string; besoinId?: string; dateDebut: string; dateFin?: string; dureeJours?: number; organisme?: string; planifier?: boolean }) =>
+  apiFetch<SessionFormation>('/api/v1/rh/formations', j('POST', v));
+export const etatSessionFormation = (id: string, action: 'planifier' | 'suivie' | 'annuler') => apiFetch<SessionFormation>(`/api/v1/rh/formations/${id}/${action}`, j('POST'));
+export const getMesFormations = () => apiFetch<SessionFormation[]>('/api/v1/profil/formations');

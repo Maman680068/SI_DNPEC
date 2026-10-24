@@ -7,14 +7,19 @@ import { EffectifsService } from './effectifs.service';
 import { CarriereService } from './carriere.service';
 import { ReferentielRhService } from './referentiel-rh.service';
 import { DossiersSyntheseService } from './dossiers-synthese.service';
+import { FormationsService } from './formations.service';
+import { EtatSessionFormation } from '@prisma/client';
+import { OuvertAuxStagiaires } from '../common/decorators/ouvert-aux-stagiaires.decorator';
 import {
   AnneeQueryDto,
   BesoinFormationDto,
   FamilleRegistreDto,
   FichePosteDto,
+  ModifierSessionFormationDto,
   ModifierPieceRequiseDto,
   MouvementDto,
   PieceRequiseDto,
+  SessionFormationDto,
   StatutBesoinDto,
 } from './dto/rh.dto';
 
@@ -26,6 +31,7 @@ export class RhController {
     private readonly carriere: CarriereService,
     private readonly referentiel: ReferentielRhService,
     private readonly dossiers: DossiersSyntheseService,
+    private readonly formations: FormationsService,
   ) {}
 
   @Get()
@@ -129,5 +135,51 @@ export class RhController {
   @Patch('formation/:id/statut')
   statutBesoin(@CurrentUser() actor: AuthenticatedUser, @Param('id') id: string, @Body() dto: StatutBesoinDto) {
     return this.referentiel.changerStatut(actor, id, dto);
+  }
+
+  // Plan de formation individuel (docs/conception_plan_formation.md).
+  @Get('formations')
+  planFormation(@CurrentUser() actor: AuthenticatedUser) {
+    return this.formations.plan(actor);
+  }
+
+  @Post('formations')
+  creerSession(@CurrentUser() actor: AuthenticatedUser, @Body() dto: SessionFormationDto) {
+    return this.formations.creer(actor, dto);
+  }
+
+  @Patch('formations/:id')
+  modifierSession(@CurrentUser() actor: AuthenticatedUser, @Param('id') id: string, @Body() dto: ModifierSessionFormationDto) {
+    return this.formations.modifier(actor, id, dto);
+  }
+
+  @Post('formations/:id/planifier')
+  @HttpCode(200)
+  planifierSession(@CurrentUser() actor: AuthenticatedUser, @Param('id') id: string) {
+    return this.formations.changerEtat(actor, id, EtatSessionFormation.PLANIFIEE);
+  }
+
+  @Post('formations/:id/suivie')
+  @HttpCode(200)
+  sessionSuivie(@CurrentUser() actor: AuthenticatedUser, @Param('id') id: string) {
+    return this.formations.changerEtat(actor, id, EtatSessionFormation.SUIVIE);
+  }
+
+  @Post('formations/:id/annuler')
+  @HttpCode(200)
+  annulerSession(@CurrentUser() actor: AuthenticatedUser, @Param('id') id: string) {
+    return this.formations.changerEtat(actor, id, EtatSessionFormation.ANNULEE);
+  }
+}
+
+/** « Mon profil » : les sessions de formation de la personne connectée (aucune pour un stagiaire). */
+@Controller('api/v1/profil')
+export class FormationsProfilController {
+  constructor(private readonly formations: FormationsService) {}
+
+  @OuvertAuxStagiaires()
+  @Get('formations')
+  miennes(@CurrentUser() actor: AuthenticatedUser) {
+    return this.formations.miennes(actor);
   }
 }

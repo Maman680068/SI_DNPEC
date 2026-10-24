@@ -158,6 +158,13 @@ fonctionnalité ajoute sa suite (`tests/e2e/api/`, `tests/e2e/ui/`) et sa ligne 
   la signature** (`ActesService.surSignature`, dans la transaction de signature) ; une mutation ne vise
   qu'un AGENT/DRH/ADMIN (les autres passent par le changement de rôle) ; fin de contrat → `Agent.dateFinPrevue`.
   Fiches de poste (une par fonction, DRH), besoins de formation (chefs, Direction ; le DRH retient).
+  **Plan de formation individuel** (`rh/formations.service.ts`, `docs/conception_plan_formation.md`) :
+  sessions par agent (`SessionFormation` : souhaitée → planifiée → suivie, ou annulée), besoin d'origine
+  facultatif et **retenu** ; écriture DRH seul (`estDrh`), lecture Direction, chef le plus proche
+  (`chefsLesPlusProchesMemo`) et l'agent (`api/v1/profil/formations`, « Mon profil » → « Mes formations ») ;
+  403 pour les autres. Tâche `alertes-formation` (`TachesPlanifieesService.suivre`) : alerte une fois
+  (`alerteDebutAt`, effacé si la date de début change) `rh.formationAlerteJours` jours avant le début.
+  Retour arrière `formation_down.sql` (avant `ref_down.sql`), phase 39p.
   Véhicules (`logistique/vehicules.*`, gestionnaire logistique) : **carburant en litres seulement, aucun
   montant** (bloc finances/paie), compteur qui ne recule jamais (verrou + CHECK), véhicule affecté à un
   **ordre de mission N4** (chevauchement 409), plein rattachable à la mission ; le document signé de

@@ -79,6 +79,7 @@ import { PlanTravailService } from '../src/plan-travail/plan-travail.service';
 import { InstructionsService } from '../src/instructions/instructions.service';
 import { FilsService } from '../src/collaboration/fils.service';
 import { ReferentielRhService } from '../src/rh/referentiel-rh.service';
+import { FormationsService } from '../src/rh/formations.service';
 import { VehiculesService } from '../src/logistique/vehicules.service';
 import { DOMAINE_DEMO, DUREE_DEMO_JOURS, ENTITE_AUDIT_DEMO, PREFIXE_DEMO, estAdresseDemo } from '../src/demo/demo.constantes';
 import { verifierMigrations } from './verifier-migrations';
@@ -631,7 +632,7 @@ async function instructionsDirection(ctx: Ctx) {
 }
 
 /** Socle N6 : véhicule de service (carburant en litres, relié à l'ordre de mission N4), fiche de
- * poste, besoin de formation. Pas de mouvement de carrière : ses actes iraient dans les registres
+ * poste, besoin de formation et plan de formation individuel. Pas de mouvement de carrière : ses actes iraient dans les registres
  * réels des familles d'actes RH. */
 async function ressourcesHumaines(ctx: Ctx) {
   const { prisma, app, u } = ctx;
@@ -655,6 +656,19 @@ async function ressourcesHumaines(ctx: Ctx) {
       const rh = app.get(ReferentielRhService);
       await rh.enregistrerFiche(await acteur(prisma, u.systeme!.id), { fonction: `${T}Chargé d’études — conjoncture`, missions: 'Suivre les indicateurs de conjoncture et rédiger les notes trimestrielles.', activites: 'Collecte, analyse, rédaction.', competences: 'Statistique, économétrie, rédaction.' } as never);
       await rh.exprimer(await acteur(prisma, u.chefDivision!.id), { annee: new Date().getUTCFullYear(), intitule: `${T}Modélisation macroéconomique`, priorite: 'HAUTE', origine: 'PLAN_TRAVAIL', effectif: 3 } as never);
+    },
+  );
+  await bloc(
+    'Plan de formation individuel (sessions : une planifiée dans 10 jours depuis le besoin retenu, une suivie)',
+    async () => (await prisma.sessionFormation.count({ where: { intitule: { startsWith: T } } })) > 0,
+    async () => {
+      const drh = await acteur(prisma, u.systeme!.id);
+      const besoin = await prisma.besoinFormation.findFirst({ where: { intitule: `${T}Modélisation macroéconomique` } });
+      if (besoin && besoin.statut === 'EXPRIME') await app.get(ReferentielRhService).changerStatut(drh, besoin.id, { statut: 'RETENU' } as never);
+      const svc = app.get(FormationsService);
+      await svc.creer(drh, { intitule: `${T}Modélisation macroéconomique`, agentId: u.agent1!.id, besoinId: besoin?.id, dateDebut: dateSeule(10), dureeJours: 5, organisme: 'Centre de formation démo', planifier: true } as never);
+      const suivie = await svc.creer(drh, { intitule: `${T}Rédaction administrative`, agentId: u.agent2!.id, dateDebut: dateSeule(-40), dateFin: dateSeule(-38), organisme: 'École nationale d’administration (démo)', planifier: true } as never);
+      await svc.changerEtat(drh, suivie.id, 'SUIVIE' as never);
     },
   );
 }
@@ -944,6 +958,7 @@ async function supprimer(prisma: PrismaClient) {
   n('Pleins de carburant', await prisma.pleinCarburant.deleteMany({ where: { vehicule: { immatriculation: IMMATRICULATION_DEMO } } }));
   n('Véhicules', await prisma.vehicule.deleteMany({ where: { immatriculation: IMMATRICULATION_DEMO } }));
   n('Fiches de poste', await prisma.fichePoste.deleteMany({ where: { fonction: { startsWith: T } } }));
+  n('Sessions de formation', await prisma.sessionFormation.deleteMany({ where: { OR: [{ agentId: { in: U } }, { creeParId: { in: U } }, { intitule: { startsWith: T } }] } }));
   n('Besoins de formation', await prisma.besoinFormation.deleteMany({ where: { OR: [{ creeParId: { in: U } }, { intitule: { startsWith: T } }] } }));
   // Réunions (participants, décisions : cascade).
   n('Réunions', await prisma.meeting.deleteMany({ where: { createdById: { in: U } } }));
