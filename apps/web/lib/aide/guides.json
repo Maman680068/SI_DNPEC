@@ -636,6 +636,7 @@
             "Sur un compte : « Gérer », ou le bouton « ⋯ » (« Plus d’actions ») pour « Nommer chef de cellule » et « Changer de rôle » (aperçu des effets, puis confirmation avec un motif) ; mot de passe temporaire, lien de réinitialisation, « Réinitialiser la double authentification ».",
             "Chaque nomination d’un chef est suivie le même jour d’un changement de rôle : l’acte signé de nomination met à jour la fonction du dossier, puis vous recevez la notification « Nomination à appliquer ». Onglet « Nominations » : le changement de rôle est pré-rempli (nouveau rôle, nouvelle unité, rôle proposé pour l’actuel titulaire du poste) → « Confirmer… » (motif : le numéro de l’acte ; la fonction de l’ancien titulaire suit son nouveau rôle, inscrite à son historique « suite à l’acte n° … »), ou « Refuser… » avec un motif que le DRH verra.",
             "Le même onglet liste les écarts entre la fonction du dossier et le rôle du compte, signalés chaque matin et dans la supervision (« Fonction et rôle des comptes »).",
+            "La liste « Tous les comptes » montre aussi les rôles fonctionnels de chacun et si sa double authentification est activée (jamais son code). Dessous, « Agents sans compte » : les agents en activité du dossier RH qui n’ont pas encore de compte ; « Ouvrir un compte » ouvre la création préremplie et rattachée à l’agent. La Direction voit ces informations en lecture seule.",
             "Vous n’avez pas accès au contenu métier des agents (tâches, stages, courrier des autres)."
           ],
           "capture": "utilisateurs.png"

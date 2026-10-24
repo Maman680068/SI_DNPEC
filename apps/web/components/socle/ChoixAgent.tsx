@@ -13,12 +13,20 @@ export type SelectionAgent = { agentId?: string; matricule?: string };
  * agent existant sans compte (dossier tenu par les RH), ou crée l'agent (matricule
  * saisi, sinon provisoire, remplacé ensuite par le DRH).
  */
-export function ChoixAgent({ onChange, onAgentChoisi }: { onChange: (s: SelectionAgent) => void; onAgentChoisi?: (a: AgentSansCompte) => void }) {
+export function ChoixAgent({ onChange, onAgentChoisi, agentInitial }: { onChange: (s: SelectionAgent) => void; onAgentChoisi?: (a: AgentSansCompte) => void; agentInitial?: string }) {
   const [agents, setAgents] = useState<AgentSansCompte[]>([]);
-  const [agentId, setAgentId] = useState('');
+  const [agentId, setAgentId] = useState(agentInitial ?? '');
   const [matricule, setMatricule] = useState('');
   useEffect(() => {
-    listerAgentsSansCompte().then(setAgents).catch(() => setAgents([]));
+    listerAgentsSansCompte()
+      .then((l) => {
+        setAgents(l);
+        // « Ouvrir un compte » depuis un agent sans compte : nom et prénom repris de son dossier.
+        const a = agentInitial ? l.find((x) => x.id === agentInitial) : undefined;
+        if (a) onAgentChoisi?.(a);
+        else if (agentInitial) setAgentId('');
+      })
+      .catch(() => setAgents([]));
   }, []);
   useEffect(() => {
     onChange(agentId ? { agentId } : matricule.trim() ? { matricule: matricule.trim() } : {});

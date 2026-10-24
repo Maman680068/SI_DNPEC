@@ -236,6 +236,11 @@ fonctionnalité ajoute sa suite (`tests/e2e/api/`, `tests/e2e/ui/`) et sa ligne 
   « Se connecter »), rejetée (motif facultatif `POST /users/:id/reject { motif? }`), compte créé
   par l'admin (lien de premier accès 7 jours, `creerLienPremierAcces`, partagé avec l'import).
   Envoyés après l'action, jamais bloquants (A7) ; pas de notification in-app.
+- Comptes et habilitations (`users/comptes-synthese.service.ts`, `GET api/v1/comptes/synthese`) : par
+  compte, libellés des rôles fonctionnels actifs et `doubleAuthentification` (booléen, **jamais le
+  secret**) ; « Agents sans compte » (agents EN_ACTIVITE sans compte) avec `droits.ouvrirCompte`
+  (administrateur ; création `POST /users { agentId }`, « aucun compte sans agent » inchangé). DN et
+  DNA en lecture seule ; 403 pour les autres et en intérim.
 - Sessions (`auth/services/session.service.ts`) : rotation du jeton de renouvellement à chaque usage, par
   remplacement conditionnel (une seule rotation même si deux requêtes arrivent ensemble). Le jeton tout juste
   remplacé reste accepté `DELAI_GRACE_ROTATION_MS` (30 s), **sans nouvelle rotation** et jamais pour une session

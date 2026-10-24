@@ -13,6 +13,7 @@ import { RejectRegistrationDto } from './dto/reject-registration.dto';
 import { ResolveUsersDto } from './dto/resolve-users.dto';
 import { SearchUsersDto } from './dto/search-users.dto';
 import { OuvertAuxStagiaires } from '../common/decorators/ouvert-aux-stagiaires.decorator';
+import { ComptesSyntheseService } from './comptes-synthese.service';
 
 @Controller('users')
 export class UsersController {
@@ -117,5 +118,16 @@ export class UsersController {
   @Post(':id/reject')
   reject(@Param('id') id: string, @Body() dto: RejectRegistrationDto, @CurrentUser() actor: AuthenticatedUser) {
     return this.usersService.rejectRegistration(actor, id, dto);
+  }
+}
+
+/** Comptes et habilitations : rôles fonctionnels, double authentification, agents sans compte. */
+@Controller('api/v1/comptes')
+export class ComptesSyntheseController {
+  constructor(private readonly comptes: ComptesSyntheseService) {}
+
+  @Get('synthese')
+  synthese(@CurrentUser() actor: AuthenticatedUser) {
+    return this.comptes.synthese(actor);
   }
 }
