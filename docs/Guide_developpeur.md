@@ -61,6 +61,9 @@ fonctionnalité ajoute sa suite (`tests/e2e/api/`, `tests/e2e/ui/`) et sa ligne 
 - Suppléance : en-tête `X-Interim-For: <titulaireId>` validé par `JwtAuthGuard` → `role`/rattachement
   du titulaire empruntés pour la requête, `id` reste celui du suppléant, `interimForId` renseigné,
   `AuditLog.onBehalfOfId` posé automatiquement (AsyncLocalStorage).
+  Vue d'ensemble « Toutes les suppléances en cours » : `GET /suppleances/en-cours` (lecture seule :
+  unité, titulaire, suppléant, période, statut) et `GET /suppleances/droits` (onglet) — DN, DNA,
+  administrateur, **identité réelle** (`interimForId` nul, sinon 403) ; 403 pour les autres.
 - `AuditService.log({ actorId, action, entityType, entityId, metadata }, tx?)` : client global
   par défaut (audit après le commit), ou `tx` pour un audit annulé avec la transaction.
   Détail des événements dans `metadata.event`.

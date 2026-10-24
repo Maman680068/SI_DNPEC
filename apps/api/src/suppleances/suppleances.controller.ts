@@ -20,6 +20,18 @@ export class SuppleancesController {
     return this.suppleancesService.findMine(actor);
   }
 
+  @OuvertAuxStagiaires()
+  @Get('droits')
+  droits(@CurrentUser() actor: AuthenticatedUser) {
+    return this.suppleancesService.droits(actor);
+  }
+
+  /** Vue d'ensemble en lecture seule (DN, DNA, administrateur) ; 403 pour tout autre profil et en intérim. */
+  @Get('en-cours')
+  enCours(@CurrentUser() actor: AuthenticatedUser) {
+    return this.suppleancesService.enCours(actor);
+  }
+
   @Get('titulaires')
   findManageableTitulaires(@CurrentUser() actor: AuthenticatedUser) {
     return this.suppleancesService.findManageableTitulaires(actor);

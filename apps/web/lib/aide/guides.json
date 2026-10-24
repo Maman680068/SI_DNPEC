@@ -341,6 +341,7 @@
           "titre": "Suppléance et priorité",
           "etapes": [
             "Onglet « Personnel et RH » (« Administration » pour la Direction et l’administrateur) → « Suppléances » : désignez qui agit en votre nom pendant une absence.",
+            "Onglet « Toutes les suppléances en cours » (Direction et administrateur, en lecture seule) : unité, titulaire, suppléant, période et statut de chaque suppléance en cours dans la DNPEC. Rien ne s’y emprunte : en intérim, l’onglet n’apparaît pas.",
             "Réservations : vous avez la priorité sur toute la DNPEC, sauf entre le DN et la DNA, qui sont pairs."
           ],
           "capture": "suppleances.png"
@@ -634,6 +635,7 @@
             "À la création d’un compte (ou à l’approbation d’une inscription), rattachez-le à son agent : « Agent (dossier RH) » s’il existe déjà, sinon indiquez son matricule s’il est connu ; à défaut, un agent avec un matricule provisoire est créé pour le DRH.",
             "La personne est prévenue par email : inscription approuvée (rôle, unité, bouton « Se connecter »), inscription rejetée (motif facultatif, saisi dans la fenêtre « Rejeter l’inscription »), compte créé par vous (lien pour choisir son mot de passe, valable 7 jours).",
             "Sur un compte : « Gérer », ou le bouton « ⋯ » (« Plus d’actions ») pour « Nommer chef de cellule » et « Changer de rôle » (aperçu des effets, puis confirmation avec un motif) ; mot de passe temporaire, lien de réinitialisation, « Réinitialiser la double authentification ».",
+            "« Suppléances » → « Toutes les suppléances en cours » : vue d’ensemble en lecture seule des suppléances en cours (unité, titulaire, suppléant, période, statut).",
             "Chaque nomination d’un chef est suivie le même jour d’un changement de rôle : l’acte signé de nomination met à jour la fonction du dossier, puis vous recevez la notification « Nomination à appliquer ». Onglet « Nominations » : le changement de rôle est pré-rempli (nouveau rôle, nouvelle unité, rôle proposé pour l’actuel titulaire du poste) → « Confirmer… » (motif : le numéro de l’acte ; la fonction de l’ancien titulaire suit son nouveau rôle, inscrite à son historique « suite à l’acte n° … »), ou « Refuser… » avec un motif que le DRH verra.",
             "Le même onglet liste les écarts entre la fonction du dossier et le rôle du compte, signalés chaque matin et dans la supervision (« Fonction et rôle des comptes »).",
             "La liste « Tous les comptes » montre aussi les rôles fonctionnels de chacun et si sa double authentification est activée (jamais son code). Dessous, « Agents sans compte » : les agents en activité du dossier RH qui n’ont pas encore de compte ; « Ouvrir un compte » ouvre la création préremplie et rattachée à l’agent. La Direction voit ces informations en lecture seule.",
