@@ -165,7 +165,10 @@ fonctionnalité ajoute sa suite (`tests/e2e/api/`, `tests/e2e/ui/`) et sa ligne 
   par les requêtes des modules) ; bande des quatre chiffres **par profil** `api/v1/tableau-de-bord/chiffres`
   (`tableau-de-bord/chiffres.service.ts`, ouverte au stagiaire) : Direction, DRH, administrateur, assistant
   (visibilité héritée seulement), chefs (tâches du périmètre), chargé d'études et stagiaire (ses tâches et
-  congés ; sans lien vers les congés pour le stagiaire) ; chaque chiffre = la requête de l'écran de son module. Accessibilité AA : couleurs `sage` et `text-faint` en variables
+  congés ; sans lien vers les congés pour le stagiaire) ; chaque chiffre = la requête de l'écran de son module.
+  Vue de la Direction (DN, DNA) : panneau du plan = toutes les activités de la DNPEC, de la plus en retard à la
+  plus avancée, 8 au plus (`GET api/v1/plan-travail/avancement-direction`, 403 sinon), puis les blocs
+  « Décisions de réunion non exécutées » et « Absences du jour » avant le suivi de l'équipe. Accessibilité AA : couleurs `sage` et `text-faint` en variables
   (`globals.css`), assombries dans `.contraste-aa` (application) seulement — accueil et connexion gardent
   la maquette ; audit axe `n6_accessibilite_ui`. Images Docker `apps/api/Dockerfile`, `apps/web/Dockerfile`
   (Render ne les utilise pas).

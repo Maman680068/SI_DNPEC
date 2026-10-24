@@ -273,6 +273,21 @@ export class PlanTravailService {
     return { supprime: true };
   }
 
+  /**
+   * Tableau de bord de la Direction (DN, DNA) : toutes les activités de la DNPEC de l'année, de la plus en
+   * retard à la plus avancée (en retard, puis en dessous du temps écoulé, puis par écart au temps écoulé),
+   * avec le sigle de leur unité ; les `limite` premières et le total. 403 pour tout autre profil.
+   */
+  async avancementDirection(actor: AuthenticatedUser, annee: number, limite: number) {
+    if (!this.direction(actor)) throw new ForbiddenException('Vue réservée au DN et à la DNA.');
+    const p = await this.plan(actor, { annee } as PlanFiltresDto);
+    const rang = { EN_RETARD: 0, EN_DECALAGE: 1, CONFORME: 2 } as const;
+    const toutes = p.objectifs
+      .flatMap((o) => o.activites)
+      .sort((a, b) => rang[a.etatAvancement] - rang[b.etatAvancement] || a.avancement - a.tempsEcoule - (b.avancement - b.tempsEcoule) || a.avancement - b.avancement);
+    return { annee, total: toutes.length, activites: toutes.slice(0, limite) };
+  }
+
   /** Recherche transverse : activités des plans visibles, par libellé ou par référence (« A-07 », « a7 », « 7 »). */
   async rechercher(actor: AuthenticatedUser, q: string, take: number) {
     const toutes = await this.unites();

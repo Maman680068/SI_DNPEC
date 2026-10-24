@@ -26,6 +26,17 @@ const ouverte = (i) => ['EMISE', 'RECUE', 'PRISE_EN_COMPTE'].includes(i.statut);
     check(`${k} : décisions non exécutées (lien Réunions)`, Number.isInteger(c.decisions.valeur) && c.decisions.lien === '/reunions');
   }
 
+  console.log('— Vue Direction : toutes les activités de la DNPEC, de la plus en retard à la plus avancée');
+  const av = await call('dn', 'GET', '/api/v1/plan-travail/avancement-direction');
+  const toutes = (await call('dn', 'GET', `/api/v1/plan-travail?annee=${new Date().getUTCFullYear()}`)).body.objectifs.flatMap((o) => o.activites);
+  const rang = { EN_RETARD: 0, EN_DECALAGE: 1, CONFORME: 2 };
+  const triee = av.body.activites.every((a, i, l) => i === 0 || rang[l[i - 1].etatAvancement] < rang[a.etatAvancement] || (rang[l[i - 1].etatAvancement] === rang[a.etatAvancement] && l[i - 1].avancement - l[i - 1].tempsEcoule <= a.avancement - a.tempsEcoule));
+  check(`DN : ${av.body.total} activités (toute la DNPEC), 8 au plus, triées de la plus en retard à la plus avancée, avec sigle d’unité`, av.status === 200 && av.body.total === toutes.length && av.body.activites.length === Math.min(8, toutes.length) && triee && av.body.activites.every((a) => a.uniteSigle), JSON.stringify(av.body.activites.map((a) => [a.etatAvancement, a.avancement, a.tempsEcoule])));
+  check('DNA : même vue', (await call('dna', 'GET', '/api/v1/plan-travail/avancement-direction')).body.total === toutes.length);
+  for (const k of ['chefdpe', 'agent1', 'drh', 'admin']) expect(`${k} : vue Direction du plan refusée`, await call(k, 'GET', '/api/v1/plan-travail/avancement-direction'), 403);
+  const absDn = (await call('dn', 'GET', '/api/v1/tableau-de-bord')).body.blocs.find((b) => b.cle === 'absences');
+  check('DN : bloc « Absences du jour » sans nature médicale (« motif protégé » au besoin)', !!absDn && !(absDn.elements || []).some((e) => /maladie/i.test(e.detail || '')));
+
   console.log('— DRH');
   const rd = await lire('drh');
   const cd = par(rd);
