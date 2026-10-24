@@ -162,6 +162,8 @@ lancer "38m-septies. REFONTE — MESSAGERIE : FICHE DE L’INTERLOCUTEUR (DOCUME
 lancer "38m-octies. REFONTE — RÉUNIONS : DÉCISIONS À SUIVRE, 403" api/u_decisions_a_suivre.js
 lancer "38m-nonies. REFONTE — PERSONNEL : COMPLÉTUDE DES DOSSIERS ET ALERTES (DRH SEUL), 403" api/u_personnel_synthese.js
 lancer "38m-decies. REFONTE — EFFECTIFS : INDICATEURS AGRÉGÉS ET EXPORT EXCEL (DRH, DN, DNA), SANS DONNÉE NOMINATIVE, 403" api/u_effectifs_indicateurs.js
+lancer "38m-decies-bis. TABLEAU DE BORD : CHIFFRES PAR PROFIL (DIRECTION, DRH, ADMINISTRATEUR, ASSISTANT, CHEFS, CHARGÉ D’ÉTUDES, STAGIAIRE), REFUS" api/u_tableau_chiffres.js
+lancer "38m-decies-ter. CHROMIUM — TABLEAU DE BORD PAR PROFIL : BANDE DES CHIFFRES (API), LIENS, « À TRAITER » DESSOUS" ui/u_tableau_profils_ui.js
 lancer "38m-undecies. REFONTE — INSTRUCTIONS : EXPORT EXCEL (MÊME PÉRIMÈTRE QUE LA LISTE, SANS TEXTE NI MOTIF), 403" api/u_instructions_export.js
 lancer "38m-duodecies. CHROMIUM — REFONTE : ANNUAIRE ET BOÎTE À SUGGESTIONS (BUREAU, TÉLÉPHONE)" ui/u_annuaire_suggestions_ui.js
 lancer "38m-terdecies. REFONTE (ÉTAPE 9) — MON PROFIL (SON PROPRE PROFIL SEULEMENT), POINTS DE SUPERVISION DANS « À TRAITER » DE L’ADMINISTRATEUR" api/u_profil.js

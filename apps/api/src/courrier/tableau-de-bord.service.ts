@@ -34,6 +34,7 @@ export class CourrierTableauDeBordService {
       // Vue du registre (bande de compteurs de la page Courrier) : décompte par statut des
       // MÊMES listes visibles — jamais plus que ce que la personne voit à l'écran.
       arriveesEnAttente: arrivees.filter((a) => a.statut === ArriveeStatut.ENREGISTRE).length,
+      arriveesEnTraitement: arrivees.filter((a) => a.statut === ArriveeStatut.IMPUTE).length,
       visasEnCours: actes.filter((a) => a.statut === ActeStatut.EN_VISA).length,
       actesASigner: actes.filter((a) => a.statut === ActeStatut.A_SIGNER).length,
       actesAExpedier: actes.filter((a) => a.statut === ActeStatut.SIGNE).length,

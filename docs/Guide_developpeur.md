@@ -162,7 +162,10 @@ fonctionnalité ajoute sa suite (`tests/e2e/api/`, `tests/e2e/ui/`) et sa ligne 
   montant** (bloc finances/paie), compteur qui ne recule jamais (verrou + CHECK), véhicule affecté à un
   **ordre de mission N4** (chevauchement 409), plein rattachable à la mission ; le document signé de
   l'ordre de mission ne change pas. Tableau de bord par rôle `api/v1/tableau-de-bord` (blocs calculés
-  par les requêtes des modules). Accessibilité AA : couleurs `sage` et `text-faint` en variables
+  par les requêtes des modules) ; bande des quatre chiffres **par profil** `api/v1/tableau-de-bord/chiffres`
+  (`tableau-de-bord/chiffres.service.ts`, ouverte au stagiaire) : Direction, DRH, administrateur, assistant
+  (visibilité héritée seulement), chefs (tâches du périmètre), chargé d'études et stagiaire (ses tâches et
+  congés ; sans lien vers les congés pour le stagiaire) ; chaque chiffre = la requête de l'écran de son module. Accessibilité AA : couleurs `sage` et `text-faint` en variables
   (`globals.css`), assombries dans `.contraste-aa` (application) seulement — accueil et connexion gardent
   la maquette ; audit axe `n6_accessibilite_ui`. Images Docker `apps/api/Dockerfile`, `apps/web/Dockerfile`
   (Render ne les utilise pas).

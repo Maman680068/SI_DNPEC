@@ -9,7 +9,7 @@ import { estStagiaire } from '../../../lib/auth/stagiaire';
 import { useNavigation } from '../../../lib/navigation/NavigationProvider';
 import { getTasks, getDashboard } from '../../../lib/api/tasks';
 import { exportDashboardPdf, exportTasksExcel } from '../../../lib/api/export';
-import { getTableauRole, type TableauRole } from '../../../lib/api/tableau-de-bord';
+import { getChiffresTableau, getTableauRole, type ChiffreTableau, type TableauRole } from '../../../lib/api/tableau-de-bord';
 import { getMeetings } from '../../../lib/api/meetings';
 import { getMyBalances } from '../../../lib/api/leaves';
 import { getAnnouncements } from '../../../lib/api/communication';
@@ -20,7 +20,7 @@ import type { LeaveBalanceView } from '../../../lib/leaves/types';
 import type { Announcement } from '../../../lib/communication/types';
 import type { Activite } from '../../../lib/pilotage/types';
 import { estClose, estEnRetard } from '../../../lib/tasks/affichage';
-import { KpiRow } from '../../../components/tasks/KpiRow';
+import { BandeChiffres } from '../../../components/dashboard/BandeChiffres';
 import { ViewToggle, useVueTaches } from '../../../components/tasks/ViewToggle';
 import { KanbanBoard } from '../../../components/tasks/KanbanBoard';
 import { CalendarView } from '../../../components/tasks/CalendarView';
@@ -32,7 +32,7 @@ import { Agenda, DerniereAnnonce, MesConges, StagiaireEncadre } from '../../../c
 import { ErreurChargement, messageChargement } from '../../../components/ui/ErreurChargement';
 import { Barre } from '../../../components/ui/Squelette';
 
-/** Bande des compteurs en cours de chargement (même forme que `KpiRow`). */
+/** Bande des chiffres en cours de chargement (même forme que `BandeChiffres`). */
 function SqueletteBande() {
   return (
     <div role="status" aria-label="Chargement en cours" data-testid="squelette" className="mb-[18px] grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-line bg-line lg:grid-cols-4">
@@ -173,6 +173,7 @@ export default function DashboardPage() {
   const canBroadcast = CAN_BROADCAST_ROLES.includes(effectiveRole ?? '');
 
   const [dashboard, setDashboard] = useState<TaskDashboard | null>(null);
+  const [chiffres, setChiffres] = useState<ChiffreTableau[] | null>(null);
   const [tableau, setTableau] = useState<TableauRole | null>(null);
   const [mesTaches, setMesTaches] = useState<Task[] | null>(null);
   const [creees, setCreees] = useState<Task[] | null>(null);
@@ -198,6 +199,10 @@ export default function DashboardPage() {
   const rafraichirIndicateurs = useCallback(() => {
     getDashboard()
       .then(setDashboard)
+      .catch((e) => setErreur(messageChargement(e)));
+    // Bande des quatre chiffres : choisis et calculés par l'API selon le profil.
+    getChiffresTableau()
+      .then((c) => setChiffres(c.chiffres))
       .catch((e) => setErreur(messageChargement(e)));
   }, []);
 
@@ -447,7 +452,7 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {dashboard ? <KpiRow dashboard={dashboard} perimetre={!!navigation?.perimetre} chezLeChef={!encadrement} /> : !erreur && <SqueletteBande />}
+      {chiffres ? <BandeChiffres chiffres={chiffres} /> : !erreur && <SqueletteBande />}
 
       <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-[18px] lg:grid-cols-[minmax(0,1fr)_330px]">
         <div className="flex min-w-0 flex-col gap-[18px]">
