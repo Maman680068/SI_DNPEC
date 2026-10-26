@@ -164,7 +164,7 @@ fonctionnalité ajoute sa suite (`tests/e2e/api/`, `tests/e2e/ui/`) et sa ligne 
   **Plan de formation individuel** (`rh/formations.service.ts`, `docs/conception_plan_formation.md`) :
   sessions par agent (`SessionFormation` : souhaitée → planifiée → suivie, ou annulée), besoin d'origine
   facultatif et **retenu** ; écriture DRH seul (`estDrh`), lecture Direction, chef le plus proche
-  (`chefsLesPlusProchesMemo`) et l'agent (`api/v1/profil/formations`, « Mon profil » → « Mes formations ») ;
+  (`chefsLesPlusProchesMemo`) et l'agent (`api/v1/profil/formations`, `rh/formations-profil.controller.ts`, « Mon profil » → « Mes formations ») ;
   403 pour les autres. Tâche `alertes-formation` (`TachesPlanifieesService.suivre`) : alerte une fois
   (`alerteDebutAt`, effacé si la date de début change) `rh.formationAlerteJours` jours avant le début.
   Retour arrière `formation_down.sql` (avant `ref_down.sql`), phase 39p.
@@ -239,7 +239,8 @@ fonctionnalité ajoute sa suite (`tests/e2e/api/`, `tests/e2e/ui/`) et sa ligne 
   « Se connecter »), rejetée (motif facultatif `POST /users/:id/reject { motif? }`), compte créé
   par l'admin (lien de premier accès 7 jours, `creerLienPremierAcces`, partagé avec l'import).
   Envoyés après l'action, jamais bloquants (A7) ; pas de notification in-app.
-- Comptes et habilitations (`users/comptes-synthese.service.ts`, `GET api/v1/comptes/synthese`) : par
+- Comptes et habilitations (`users/comptes-synthese.service.ts` et `.controller.ts` : un contrôleur par
+  fichier, l'analyse des routes de `d6_role_stagiaire` le suppose ; `GET api/v1/comptes/synthese`) : par
   compte, libellés des rôles fonctionnels actifs et `doubleAuthentification` (booléen, **jamais le
   secret**) ; « Agents sans compte » (agents EN_ACTIVITE sans compte) avec `droits.ouvrirCompte`
   (administrateur ; création `POST /users { agentId }`, « aucun compte sans agent » inchangé). DN et

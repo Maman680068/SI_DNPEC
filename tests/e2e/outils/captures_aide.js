@@ -116,6 +116,7 @@ async function capture(b, compte, url, fichier, attendre) {
   await capture(b, 'dn', `/instructions?id=${ins.id}`, 'instructions.png', async (p) => p.locator('[data-testid=fiche-instruction]').waitFor());
   await capture(b, 'drh', '/rh?onglet=effectifs', 'rh-effectifs.png', async (p) => p.locator('[data-testid=effectifs]').waitFor());
   await capture(b, 'drh', '/rh?onglet=carriere', 'rh-carriere.png', async (p) => p.locator('[data-testid=familles-actes]').waitFor());
+  await capture(b, 'drh', '/rh?onglet=formation', 'rh-formation.png', async (p) => p.locator('[data-testid=session-formation]').first().waitFor());
   await capture(b, 'agentsaf', '/logistique?onglet=vehicules', 'vehicules.png', async (p) => p.locator('[data-testid=vehicule]').first().waitFor());
   await capture(b, 'admin', '/modelisation', 'modeles.png', async (p) => p.getByTestId('ligne-modele').first().waitFor());
   if (depot?.statut === 'CONTROLEE')

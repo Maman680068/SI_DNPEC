@@ -541,7 +541,8 @@
             "Onglet « Fiches de poste » → « Nouvelle fiche de poste » : une fiche par fonction (missions, activités, compétences), lisible par tout le personnel.",
             "Onglet « Formation » : les besoins exprimés par les chefs d’unité ; choisissez « Retenu » pour les inscrire au plan de formation de l’année, puis « Réalisé ».",
             "Plan de formation individuel (en tête de l’onglet « Formation ») : « Planifier une formation » sur un besoin retenu, ou en haut du tableau ; choisissez l’agent, la date de début, la date de fin ou la durée, l’organisme. Une session « planifiée » prévient l’agent et son chef le plus proche 15 jours avant son début (paramètre « Préavis avant le début d’une formation planifiée ») ; marquez-la « Suivie » une fois commencée, ou « Annulée »."
-          ]
+          ],
+          "capture": "rh-formation.png"
         }
       ]
     },
