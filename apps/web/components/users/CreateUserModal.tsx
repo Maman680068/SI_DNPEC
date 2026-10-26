@@ -12,7 +12,7 @@ import { messageErreur } from '../ui/Toast';
 
 const EMPTY_ATTACHMENT: OrgAttachment = { divisionId: null, sectionId: null, celluleId: null, supervisorId: null };
 
-export function CreateUserModal({ onClose, onCreated }: { onClose: () => void; onCreated: (user: AdminUser) => void }) {
+export function CreateUserModal({ onClose, onCreated, agentInitial }: { onClose: () => void; onCreated: (user: AdminUser) => void; agentInitial?: string }) {
   const [email, setEmail] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -51,6 +51,7 @@ export function CreateUserModal({ onClose, onCreated }: { onClose: () => void; o
       testid="fenetre-nouveau-compte"
     >
       <ChoixAgent
+        agentInitial={agentInitial}
         onChange={choisirAgent}
         onAgentChoisi={(a) => {
           setFirstName(a.prenoms);

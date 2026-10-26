@@ -163,6 +163,20 @@ async function signerActe(acteId) {
   check('message « Besoin retenu » avec « Annuler » (même route)', /Besoin retenu/.test(await toast(p).innerText()) && (await toast(p).getByRole('button', { name: 'Annuler' }).count()) === 1);
   const enBase = await prisma.besoinFormation.findFirst({ where: { intitule: `Prévision macroéconomique ${S}` } });
   check('le DRH retient le besoin dans le plan de formation', enBase.statut === 'RETENU', enBase.statut);
+  // Plan de formation individuel : le DRH planifie une session depuis le besoin retenu.
+  await besoin.getByTestId('planifier-besoin').click();
+  d = p.getByRole('dialog', { name: /Planifier une formation/ });
+  await d.waitFor();
+  check('« Planifier une formation » : intitulé repris du besoin retenu', (await d.getByLabel('Intitulé de la formation').inputValue()) === `Prévision macroéconomique ${S}` && (await d.getByLabel('Besoin d’origine').inputValue()) === enBase.id);
+  await d.getByLabel('Agent', { exact: true }).selectOption(ids.agent1);
+  await d.getByLabel('Date de début', { exact: true }).fill(jour(20));
+  await d.getByLabel('Durée (jours)').fill('4');
+  await d.getByLabel('Organisme').fill('ENA');
+  await d.getByRole('button', { name: 'Planifier', exact: true }).click();
+  await d.waitFor({ state: 'detached' });
+  const ligneSession = p.locator('[data-testid=session-formation]', { hasText: `Prévision macroéconomique ${S}` });
+  await ligneSession.waitFor();
+  check('tableau « Plan de formation » au-dessus des besoins : agent, durée, état « Planifiée », actions du DRH', /4 j/.test(await ligneSession.innerText()) && /Planifiée/.test(await ligneSession.innerText()) && (await ligneSession.getByRole('button', { name: 'Annuler' }).count()) === 1 && (await p.getByTestId('plan-sessions-formation').evaluate((t) => !!(t.compareDocumentPosition(document.querySelector('[data-testid=besoins-formation]')) & Node.DOCUMENT_POSITION_FOLLOWING))));
   await p.screenshot({ path: `${E.SHOTS}/n6_formation_bureau.png` });
   await p.goto(`${WEB}/dashboard`);
   // Refonte de l'interface : décisions de congé dans « À traiter », alertes RH en ligne compacte (masquée à zéro).
@@ -186,6 +200,17 @@ async function signerActe(acteId) {
   check('téléphone : sans défilement horizontal (RH)', await sansDefilementHorizontal(p));
   await p.screenshot({ path: `${E.SHOTS}/n6_carriere_mobile.png`, fullPage: true });
   await p.context().close();
+  console.log('— Agent : « Mes formations » dans Mon profil');
+  p = await loginPage(b, 'agent1');
+  await p.goto(`${WEB}/compte?section=formations`);
+  const maFormation = p.locator('[data-testid=ma-formation]', { hasText: `Prévision macroéconomique ${S}` });
+  await maFormation.waitFor();
+  check('agent : sa session planifiée, sans action', /Planifiée/.test(await maFormation.innerText()) && (await maFormation.getByRole('button').count()) === 0);
+  await p.goto(`${WEB}/rh?onglet=formation`);
+  await p.waitForTimeout(800);
+  check('agent : aucun plan de formation à l’écran', (await p.getByTestId('plan-sessions-formation').count()) === 0);
+  await p.context().close();
+
   console.log('— Chef de division (téléphone) : filtres de la formation repliés');
   p = await loginPage(b, 'chefdpe', TELEPHONE);
   await p.goto(`${WEB}/rh?onglet=formation`);

@@ -101,6 +101,7 @@ const compte = async () => ({
   const vehicule = await prisma.vehicule.findUnique({ where: { immatriculation: 'TEST 0001 DM' }, include: { pleins: true, missions: true } });
   check('véhicule (N6) : 2 pleins en litres, compteur 58 800 km, affecté à l’ordre de mission N4 de démonstration', !!vehicule && vehicule.pleins.length === 2 && vehicule.kilometrage === 58800 && vehicule.missions.length === 1 && vehicule.missions[0].agentId === idsDemo.find((x) => x === vehicule.missions[0].agentId));
   check('fiche de poste et besoin de formation (N6)', (await prisma.fichePoste.count({ where: { fonction: { startsWith: 'TEST — ' } } })) === 1 && (await prisma.besoinFormation.count({ where: { intitule: { startsWith: 'TEST — ' }, creeParId: { in: idsDemo } } })) === 1);
+  check('plan de formation individuel : une session planifiée (besoin retenu), une suivie', (await prisma.sessionFormation.count({ where: { intitule: { startsWith: 'TEST — ' }, etat: 'PLANIFIEE', besoinId: { not: null }, agentId: { in: idsDemo } } })) === 1 && (await prisma.sessionFormation.count({ where: { intitule: { startsWith: 'TEST — ' }, etat: 'SUIVIE', agentId: { in: idsDemo } } })) === 1);
   const modeleDemo = await prisma.modele.findUnique({ where: { code: 'TEST_DEMONSTRATION' }, include: { versions: true, affectations: { where: { fin: null } } } });
   const analystes = await prisma.affectationModelisation.count({ where: { role: 'ANALYSTE', fin: null, userId: { in: idsDemo } } });
   check(

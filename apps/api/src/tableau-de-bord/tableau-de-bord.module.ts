@@ -13,11 +13,12 @@ import { TableauDeBordController } from './tableau-de-bord.controller';
 import { NavigationController } from './navigation.controller';
 import { NavigationService } from './navigation.service';
 import { TableauDeBordService } from './tableau-de-bord.service';
+import { ChiffresTableauService } from './chiffres.service';
 
 /** Tableau de bord par rôle (socle N6, SIG-RF-TDB) et compteurs de navigation (refonte de l'interface). */
 @Module({
   imports: [TasksModule, LeavesModule, MeetingsModule, InstructionsModule, PlanTravailModule, RhModule, CourrierModule, LogistiqueModule, CommunicationModule, StagesModule],
   controllers: [TableauDeBordController, NavigationController],
-  providers: [TableauDeBordService, NavigationService],
+  providers: [TableauDeBordService, NavigationService, ChiffresTableauService],
 })
 export class TableauDeBordModule {}

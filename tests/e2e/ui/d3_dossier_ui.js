@@ -161,5 +161,28 @@ function espion(page) {
     check(`${key} : ${recus.length} réponses de l’API reçues, aucune ne contient une valeur du niveau 2`, recus.length > 0 && !recus.some((t) => SECRETS.some((s) => t.includes(s)) || t.includes(`${TEL}9`)));
   }
 
+  console.log('— Liste des dossiers (DRH) : catégorie et échelon, prise de service, ancienneté, « Attestation »');
+  const drhL = await loginPage(b, 'drh', { width: 1440, height: 900 });
+  await drhL.goto(`${WEB}/personnel`);
+  await drhL.getByTestId('compteur-completude').waitFor();
+  const api = (await call('drh', 'GET', '/api/v1/rh/dossiers')).body.lignes;
+  const entetes = await drhL.getByRole('columnheader').allInnerTexts();
+  check('DRH : colonnes « Cat. / éch. », « Prise de service », « Ancienneté »', ['Cat. / éch.', 'Prise de service', 'Ancienneté'].every((c) => entetes.some((e) => e.trim() === c)), entetes.join('|'));
+  check(`DRH : un bouton « Attestation » par ligne qui le permet (${api.filter((l) => l.attestation).length})`, (await drhL.getByTestId('bouton-attestation').count()) === api.filter((l) => l.attestation).length);
+  const premiere = api.find((l) => l.attestation);
+  await drhL.locator(`[data-testid=bouton-attestation][href="${premiere.attestation}"]`).click();
+  const fen = drhL.getByTestId('fenetre-attestation');
+  await fen.waitFor();
+  check(`« Attestation » : générateur ouvert, déjà rempli pour ${premiere.prenom} ${premiere.nom}`, (await fen.locator('[data-testid=personne-choisie]').count()) === 1 && (await fen.locator('[data-testid=personne-choisie]').innerText()).includes(premiere.nom));
+  await drhL.context().close();
+  const chefL = await loginPage(b, 'chefdpe', { width: 1440, height: 900 });
+  await chefL.goto(`${WEB}/personnel`);
+  await chefL.locator('[data-testid=ligne-personnel]').first().waitFor();
+  check('chef : ni colonnes de situation administrative, ni bouton « Attestation »', (await chefL.getByTestId('bouton-attestation').count()) === 0 && !(await chefL.getByRole('columnheader').allInnerTexts()).some((e) => /Cat\. \/ éch\.|Ancienneté/.test(e)));
+  await chefL.goto(`${WEB}/documents-generes?onglet=attestations&nouvelle=1&agent=${premiere.userId}`);
+  await chefL.waitForTimeout(1500);
+  check('chef : le lien d’attestation n’ouvre aucun formulaire (droit calculé par l’API)', (await chefL.getByTestId('fenetre-attestation').count()) === 0);
+  await chefL.context().close();
+
   await b.close(); await prisma.$disconnect(); bilan();
 })().catch((e) => { console.error(e); process.exit(2); });

@@ -76,6 +76,16 @@ export const PARAMETRES: DefinitionParametre[] = [
     reference: 'A3.5, SIG-RF-CAR-02',
   },
   {
+    cle: 'rh.formationAlerteJours',
+    libelle: 'Préavis avant le début d’une formation planifiée',
+    unite: 'jours',
+    defaut: 15,
+    min: 3,
+    max: 60,
+    effet: 'L’agent et son chef le plus proche sont prévenus, une seule fois, ce nombre de jours avant le début d’une session de formation planifiée.',
+    reference: 'Plan de formation individuel',
+  },
+  {
     cle: 'calcul.tentativesMax',
     libelle: 'Essais auprès du service de calcul avant de le déclarer injoignable',
     unite: 'essais',

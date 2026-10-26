@@ -163,7 +163,8 @@
           "titre": "Ma carrière et ma fiche de poste",
           "etapes": [
             "Onglet « Personnel et RH » (« Administration » pour la Direction et l’administrateur) → « Ressources humaines » → « Carrière et actes » : vos nominations, avancements, promotions et mutations, une fois l’acte signé par le DN ou la DNA, avec son numéro.",
-            "Onglet « Fiches de poste » : missions, activités et compétences attendues pour chaque fonction de la DNPEC."
+            "Onglet « Fiches de poste » : missions, activités et compétences attendues pour chaque fonction de la DNPEC.",
+            "Mes formations : votre nom en haut à droite → « Mon profil », section « Mes formations » : les sessions de votre plan de formation (période, durée, organisme, état). Vous êtes prévenu avant le début d’une session planifiée."
           ]
         }
       ]
@@ -235,7 +236,8 @@
           "titre": "Besoins de formation",
           "etapes": [
             "Onglet « Personnel et RH » (« Administration » pour la Direction et l’administrateur) → « Ressources humaines » → « Formation » → « Exprimer un besoin » : intitulé, priorité, origine (entretien, plan de travail…) et nombre d’agents concernés.",
-            "Le DRH consolide les besoins de toutes les unités et décide : « Retenu » dans le plan de formation, « Réalisé » ou « Écarté ». Vous voyez les besoins de votre unité et leur statut."
+            "Le DRH consolide les besoins de toutes les unités et décide : « Retenu » dans le plan de formation, « Réalisé » ou « Écarté ». Vous voyez les besoins de votre unité et leur statut.",
+            "Au-dessus des besoins, le « Plan de formation » montre les sessions de vos agents (formation, période, durée, état) ; vous êtes prévenu avant le début d’une session planifiée."
           ]
         }
       ]
@@ -303,7 +305,8 @@
           "titre": "Besoins de formation",
           "etapes": [
             "Onglet « Personnel et RH » (« Administration » pour la Direction et l’administrateur) → « Ressources humaines » → « Formation » → « Exprimer un besoin » : intitulé, priorité, origine (entretien, plan de travail…) et nombre d’agents concernés.",
-            "Le DRH consolide les besoins de toutes les unités et décide : « Retenu » dans le plan de formation, « Réalisé » ou « Écarté ». Vous voyez les besoins de votre unité et leur statut."
+            "Le DRH consolide les besoins de toutes les unités et décide : « Retenu » dans le plan de formation, « Réalisé » ou « Écarté ». Vous voyez les besoins de votre unité et leur statut.",
+            "Au-dessus des besoins, le « Plan de formation » montre les sessions de vos agents (formation, période, durée, état) ; vous êtes prévenu avant le début d’une session planifiée."
           ]
         }
       ]
@@ -338,6 +341,7 @@
           "titre": "Suppléance et priorité",
           "etapes": [
             "Onglet « Personnel et RH » (« Administration » pour la Direction et l’administrateur) → « Suppléances » : désignez qui agit en votre nom pendant une absence.",
+            "Onglet « Toutes les suppléances en cours » (Direction et administrateur, en lecture seule) : unité, titulaire, suppléant, période et statut de chaque suppléance en cours dans la DNPEC. Rien ne s’y emprunte : en intérim, l’onglet n’apparaît pas.",
             "Réservations : vous avez la priorité sur toute la DNPEC, sauf entre le DN et la DNA, qui sont pairs."
           ],
           "capture": "suppleances.png"
@@ -471,6 +475,7 @@
           "titre": "Dossier du personnel",
           "etapes": [
             "Onglet « Personnel et RH » (« Administration » pour la Direction et l’administrateur) → « Dossier du personnel » : tous les dossiers ; ouvrez-en un pour le compléter.",
+            "Dans la liste des dossiers : catégorie et échelon, date de prise de service et ancienneté de chaque agent (repris de son dossier) ; le bouton « Attestation » ouvre l’attestation de travail déjà remplie pour cet agent, dans « Documents générés ».",
             "« Importer (Excel) » : création ou mise à jour en masse ; le rapport liste ce qui a été créé et les erreurs.",
             "Les signalements d’erreur des agents vous arrivent par notification."
           ],
@@ -534,8 +539,10 @@
           "titre": "Fiches de poste et plan de formation",
           "etapes": [
             "Onglet « Fiches de poste » → « Nouvelle fiche de poste » : une fiche par fonction (missions, activités, compétences), lisible par tout le personnel.",
-            "Onglet « Formation » : les besoins exprimés par les chefs d’unité ; choisissez « Retenu » pour les inscrire au plan de formation de l’année, puis « Réalisé »."
-          ]
+            "Onglet « Formation » : les besoins exprimés par les chefs d’unité ; choisissez « Retenu » pour les inscrire au plan de formation de l’année, puis « Réalisé ».",
+            "Plan de formation individuel (en tête de l’onglet « Formation ») : « Planifier une formation » sur un besoin retenu, ou en haut du tableau ; choisissez l’agent, la date de début, la date de fin ou la durée, l’organisme. Une session « planifiée » prévient l’agent et son chef le plus proche 15 jours avant son début (paramètre « Préavis avant le début d’une formation planifiée ») ; marquez-la « Suivie » une fois commencée, ou « Annulée »."
+          ],
+          "capture": "rh-formation.png"
         }
       ]
     },
@@ -629,8 +636,10 @@
             "À la création d’un compte (ou à l’approbation d’une inscription), rattachez-le à son agent : « Agent (dossier RH) » s’il existe déjà, sinon indiquez son matricule s’il est connu ; à défaut, un agent avec un matricule provisoire est créé pour le DRH.",
             "La personne est prévenue par email : inscription approuvée (rôle, unité, bouton « Se connecter »), inscription rejetée (motif facultatif, saisi dans la fenêtre « Rejeter l’inscription »), compte créé par vous (lien pour choisir son mot de passe, valable 7 jours).",
             "Sur un compte : « Gérer », ou le bouton « ⋯ » (« Plus d’actions ») pour « Nommer chef de cellule » et « Changer de rôle » (aperçu des effets, puis confirmation avec un motif) ; mot de passe temporaire, lien de réinitialisation, « Réinitialiser la double authentification ».",
+            "« Suppléances » → « Toutes les suppléances en cours » : vue d’ensemble en lecture seule des suppléances en cours (unité, titulaire, suppléant, période, statut).",
             "Chaque nomination d’un chef est suivie le même jour d’un changement de rôle : l’acte signé de nomination met à jour la fonction du dossier, puis vous recevez la notification « Nomination à appliquer ». Onglet « Nominations » : le changement de rôle est pré-rempli (nouveau rôle, nouvelle unité, rôle proposé pour l’actuel titulaire du poste) → « Confirmer… » (motif : le numéro de l’acte ; la fonction de l’ancien titulaire suit son nouveau rôle, inscrite à son historique « suite à l’acte n° … »), ou « Refuser… » avec un motif que le DRH verra.",
             "Le même onglet liste les écarts entre la fonction du dossier et le rôle du compte, signalés chaque matin et dans la supervision (« Fonction et rôle des comptes »).",
+            "La liste « Tous les comptes » montre aussi les rôles fonctionnels de chacun et si sa double authentification est activée (jamais son code). Dessous, « Agents sans compte » : les agents en activité du dossier RH qui n’ont pas encore de compte ; « Ouvrir un compte » ouvre la création préremplie et rattachée à l’agent. La Direction voit ces informations en lecture seule.",
             "Vous n’avez pas accès au contenu métier des agents (tâches, stages, courrier des autres)."
           ],
           "capture": "utilisateurs.png"

@@ -17,6 +17,7 @@ import { ErreurChargement, messageChargement } from '../../../components/ui/Erre
 import { SquelettePage } from '../../../components/ui/Squelette';
 import { messageErreur, useToast } from '../../../components/ui/Toast';
 import {
+  BTN_LIGNE,
   BTN_PRINCIPAL,
   BTN_SECONDAIRE,
   BandeCompteurs,
@@ -36,7 +37,7 @@ const sansAccents = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').to
 const jourMois = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', timeZone: 'UTC' });
 const pluriel = (n: number, un: string, plusieurs: string) => `${n} ${n > 1 ? plusieurs : un}`;
 
-const GRILLE_DRH = 'lg:grid-cols-[minmax(0,1.3fr)_96px_minmax(0,1.2fr)_minmax(0,1fr)_118px_150px_minmax(0,1fr)]';
+const GRILLE_DRH = 'lg:grid-cols-[minmax(0,1.3fr)_88px_minmax(0,1fr)_minmax(0,0.9fr)_74px_96px_70px_110px_130px_minmax(0,0.9fr)_96px]';
 const GRILLE = 'lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1.2fr)_minmax(0,1fr)_120px]';
 
 type FiltreStatut = 'TOUS' | 'EN_ACTIVITE' | 'SUSPENDU' | 'PARTI';
@@ -266,7 +267,7 @@ export default function PersonnelPage() {
           <Tableau
             label="Dossiers du personnel"
             grille={GRILLE_DRH}
-            colonnes={['Agent', 'Matricule', 'Poste', 'Unité', 'Statut', 'Dossier complet', 'Alerte']}
+            colonnes={['Agent', 'Matricule', 'Poste', 'Unité', 'Cat. / éch.', 'Prise de service', 'Ancienneté', 'Statut', 'Dossier complet', 'Alerte', <span key="a" className="sr-only">Attestation</span>]}
             testid="tableau-dossiers"
             vide={
               <EtatVide
@@ -286,6 +287,9 @@ export default function PersonnelPage() {
                 <span className="text-[12.5px] text-text-muted">{l.matricule ?? '—'}</span>
                 <span className="block truncate">{l.poste ?? (l.role ? ROLE_LABEL[l.role] : '—')}</span>
                 <span className="block truncate text-[12.5px] text-text-muted">{l.unite ?? '—'}</span>
+                <span className="text-[12.5px]" data-testid="categorie-echelon">{l.categorieEchelon ?? '—'}</span>
+                <span className="text-[12.5px]" data-testid="prise-de-service">{l.priseDeService ? new Date(`${l.priseDeService}T00:00:00Z`).toLocaleDateString('fr-FR', { timeZone: 'UTC' }) : '—'}</span>
+                <span className="text-[12.5px]" data-testid="anciennete">{l.ancienneteAnnees === null ? '—' : `${l.ancienneteAnnees} an${l.ancienneteAnnees > 1 ? 's' : ''}`}</span>
                 <StatutAgent l={l} />
                 <Completude valeur={l.completude} />
                 {l.alertes.length ? (
@@ -298,6 +302,13 @@ export default function PersonnelPage() {
                     <span aria-hidden>—</span>
                     <span className="sr-only">Aucune alerte</span>
                   </span>
+                )}
+                {l.attestation ? (
+                  <Link href={l.attestation} className={BTN_LIGNE} data-testid="bouton-attestation" aria-label={`Attestation de travail — ${l.prenom} ${l.nom}`}>
+                    Attestation
+                  </Link>
+                ) : (
+                  <span aria-hidden />
                 )}
               </Ligne>
             ))}

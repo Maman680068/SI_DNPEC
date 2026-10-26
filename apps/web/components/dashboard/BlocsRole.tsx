@@ -10,13 +10,16 @@ const REPRIS = ['taches', 'solde', 'demandes', 'reunions', 'encadrement', 'activ
  * Blocs du tableau de bord propres au rôle (socle N6, A6.6), compactés en une ligne chacun
  * (refonte de l'interface) ; un bloc à zéro est masqué.
  */
-export function BlocsRole({ blocs }: { blocs: BlocTableau[] }) {
-  const visibles = blocs.filter((b) => !REPRIS.includes(b.cle) && (b.valeur ?? 0) > 0);
+export function BlocsRole({ blocs, seulement, sauf = [], titre = 'Suivi de mon rôle', testid = 'blocs-role' }: { blocs: BlocTableau[]; seulement?: string[]; sauf?: string[]; titre?: string; testid?: string }) {
+  // `seulement` : blocs montrés même à zéro (vue de la Direction, en tête) ; sinon un bloc à zéro est masqué.
+  const visibles = seulement
+    ? seulement.map((c) => blocs.find((b) => b.cle === c)).filter((b): b is BlocTableau => !!b)
+    : blocs.filter((b) => !REPRIS.includes(b.cle) && !sauf.includes(b.cle) && (b.valeur ?? 0) > 0);
   if (visibles.length === 0) return null;
   return (
-    <section aria-label="Suivi de mon rôle" data-testid="blocs-role" className="rounded-xl border border-line bg-surface">
+    <section aria-label={titre} data-testid={testid} className="rounded-xl border border-line bg-surface">
       <div className="flex items-center gap-3 border-b border-line px-[18px] py-3.5">
-        <h2 className="font-heading text-[16px] font-bold text-ink-900">Suivi de mon rôle</h2>
+        <h2 className="font-heading text-[16px] font-bold text-ink-900">{titre}</h2>
       </div>
       {visibles.map((b, i) => (
         <article key={b.cle} data-testid={`bloc-${b.cle}`} className={`grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1 px-[18px] py-2.5 md:grid-cols-[minmax(0,240px)_48px_minmax(0,1fr)_auto] ${i ? 'border-t border-line-doux' : ''}`}>

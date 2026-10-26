@@ -49,6 +49,13 @@ export interface LigneDossier {
   alertes: { type: TypeAlerteDossier; libelle: string }[];
   /** Dossier à ouvrir : celui du compte, sinon la fiche de l'agent. */
   lien: string;
+  /** Situation administrative (niveau 1 du dossier) : « A / 3 », date de prise de service, ancienneté en
+   * années révolues — calculées à la lecture, null si non renseignées. */
+  categorieEchelon: string | null;
+  priseDeService: string | null;
+  ancienneteAnnees: number | null;
+  /** Attestation de travail préremplie (Documents générés) : compte actif, hors stagiaire, hors soi-même ; null sinon. */
+  attestation: string | null;
 }
 
 /**
@@ -82,6 +89,13 @@ function aVerifier(f: Fichier | null): boolean {
     jobDescription: f.jobDescriptionFileName,
   };
   return BASIC_FIELD_KEYS.some((k) => valeurs[k] != null && verifies[k] !== true);
+}
+
+/** Années révolues entre la prise de service et aujourd'hui (jamais négatif). */
+function anneesRevolues(depuis: Date, maintenant: Date): number {
+  let n = maintenant.getUTCFullYear() - depuis.getUTCFullYear();
+  if (maintenant.getUTCMonth() < depuis.getUTCMonth() || (maintenant.getUTCMonth() === depuis.getUTCMonth() && maintenant.getUTCDate() < depuis.getUTCDate())) n--;
+  return Math.max(0, n);
 }
 
 const STATUT_COMPTE: Record<UserStatus, StatutAgent> = {
@@ -168,6 +182,10 @@ export class DossiersSyntheseService {
         aVerifier: verifier,
         alertes,
         lien: c ? `/personnel/${c.id}` : `/agents?id=${a!.id}`,
+        categorieEchelon: f?.categorie || f?.echelon ? `${f?.categorie ?? '—'} / ${f?.echelon ?? '—'}` : null,
+        priseDeService: f?.serviceStartDate ? f.serviceStartDate.toISOString().slice(0, 10) : null,
+        ancienneteAnnees: f?.serviceStartDate ? anneesRevolues(f.serviceStartDate, maintenant) : null,
+        attestation: c && c.status === UserStatus.ACTIF && c.role !== SystemRole.STAGIAIRE && c.id !== actor.id ? `/documents-generes?onglet=attestations&nouvelle=1&agent=${c.id}` : null,
       };
     };
 

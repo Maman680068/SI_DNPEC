@@ -61,6 +61,9 @@ fonctionnalité ajoute sa suite (`tests/e2e/api/`, `tests/e2e/ui/`) et sa ligne 
 - Suppléance : en-tête `X-Interim-For: <titulaireId>` validé par `JwtAuthGuard` → `role`/rattachement
   du titulaire empruntés pour la requête, `id` reste celui du suppléant, `interimForId` renseigné,
   `AuditLog.onBehalfOfId` posé automatiquement (AsyncLocalStorage).
+  Vue d'ensemble « Toutes les suppléances en cours » : `GET /suppleances/en-cours` (lecture seule :
+  unité, titulaire, suppléant, période, statut) et `GET /suppleances/droits` (onglet) — DN, DNA,
+  administrateur, **identité réelle** (`interimForId` nul, sinon 403) ; 403 pour les autres.
 - `AuditService.log({ actorId, action, entityType, entityId, metadata }, tx?)` : client global
   par défaut (audit après le commit), ou `tx` pour un audit annulé avec la transaction.
   Détail des événements dans `metadata.event`.
@@ -158,11 +161,24 @@ fonctionnalité ajoute sa suite (`tests/e2e/api/`, `tests/e2e/ui/`) et sa ligne 
   la signature** (`ActesService.surSignature`, dans la transaction de signature) ; une mutation ne vise
   qu'un AGENT/DRH/ADMIN (les autres passent par le changement de rôle) ; fin de contrat → `Agent.dateFinPrevue`.
   Fiches de poste (une par fonction, DRH), besoins de formation (chefs, Direction ; le DRH retient).
+  **Plan de formation individuel** (`rh/formations.service.ts`, `docs/conception_plan_formation.md`) :
+  sessions par agent (`SessionFormation` : souhaitée → planifiée → suivie, ou annulée), besoin d'origine
+  facultatif et **retenu** ; écriture DRH seul (`estDrh`), lecture Direction, chef le plus proche
+  (`chefsLesPlusProchesMemo`) et l'agent (`api/v1/profil/formations`, `rh/formations-profil.controller.ts`, « Mon profil » → « Mes formations ») ;
+  403 pour les autres. Tâche `alertes-formation` (`TachesPlanifieesService.suivre`) : alerte une fois
+  (`alerteDebutAt`, effacé si la date de début change) `rh.formationAlerteJours` jours avant le début.
+  Retour arrière `formation_down.sql` (avant `ref_down.sql`), phase 39p.
   Véhicules (`logistique/vehicules.*`, gestionnaire logistique) : **carburant en litres seulement, aucun
   montant** (bloc finances/paie), compteur qui ne recule jamais (verrou + CHECK), véhicule affecté à un
   **ordre de mission N4** (chevauchement 409), plein rattachable à la mission ; le document signé de
   l'ordre de mission ne change pas. Tableau de bord par rôle `api/v1/tableau-de-bord` (blocs calculés
-  par les requêtes des modules). Accessibilité AA : couleurs `sage` et `text-faint` en variables
+  par les requêtes des modules) ; bande des quatre chiffres **par profil** `api/v1/tableau-de-bord/chiffres`
+  (`tableau-de-bord/chiffres.service.ts`, ouverte au stagiaire) : Direction, DRH, administrateur, assistant
+  (visibilité héritée seulement), chefs (tâches du périmètre), chargé d'études et stagiaire (ses tâches et
+  congés ; sans lien vers les congés pour le stagiaire) ; chaque chiffre = la requête de l'écran de son module.
+  Vue de la Direction (DN, DNA) : panneau du plan = toutes les activités de la DNPEC, de la plus en retard à la
+  plus avancée, 8 au plus (`GET api/v1/plan-travail/avancement-direction`, 403 sinon), puis les blocs
+  « Décisions de réunion non exécutées » et « Absences du jour » avant le suivi de l'équipe. Accessibilité AA : couleurs `sage` et `text-faint` en variables
   (`globals.css`), assombries dans `.contraste-aa` (application) seulement — accueil et connexion gardent
   la maquette ; audit axe `n6_accessibilite_ui`. Images Docker `apps/api/Dockerfile`, `apps/web/Dockerfile`
   (Render ne les utilise pas).
@@ -223,6 +239,12 @@ fonctionnalité ajoute sa suite (`tests/e2e/api/`, `tests/e2e/ui/`) et sa ligne 
   « Se connecter »), rejetée (motif facultatif `POST /users/:id/reject { motif? }`), compte créé
   par l'admin (lien de premier accès 7 jours, `creerLienPremierAcces`, partagé avec l'import).
   Envoyés après l'action, jamais bloquants (A7) ; pas de notification in-app.
+- Comptes et habilitations (`users/comptes-synthese.service.ts` et `.controller.ts` : un contrôleur par
+  fichier, l'analyse des routes de `d6_role_stagiaire` le suppose ; `GET api/v1/comptes/synthese`) : par
+  compte, libellés des rôles fonctionnels actifs et `doubleAuthentification` (booléen, **jamais le
+  secret**) ; « Agents sans compte » (agents EN_ACTIVITE sans compte) avec `droits.ouvrirCompte`
+  (administrateur ; création `POST /users { agentId }`, « aucun compte sans agent » inchangé). DN et
+  DNA en lecture seule ; 403 pour les autres et en intérim.
 - Sessions (`auth/services/session.service.ts`) : rotation du jeton de renouvellement à chaque usage, par
   remplacement conditionnel (une seule rotation même si deux requêtes arrivent ensemble). Le jeton tout juste
   remplacé reste accepté `DELAI_GRACE_ROTATION_MS` (30 s), **sans nouvelle rotation** et jamais pour une session
@@ -299,7 +321,9 @@ fonctionnalité ajoute sa suite (`tests/e2e/api/`, `tests/e2e/ui/`) et sa ligne 
   encre reçu, bleu à venir. Données ajoutées pour ces écrans, toutes en lecture avec leur suite 403 (`u_*.js`) :
   `api/v1/conges/:id/contexte`, `api/v1/documents/synthese` (+ filtre `couvreDu`/`couvreAu` de
   `GET /documents`), `api/v1/messages/avec/:userId/contexte`, `api/v1/decisions/a-suivre`,
-  `api/v1/rh/dossiers`, `api/v1/rh/effectifs/export.xlsx`, `api/v1/instructions/export.xlsx`. L'annuaire
+  `api/v1/rh/dossiers` (DRH : complétude, alertes, « Cat. / éch. », prise de service, ancienneté en années
+  révolues et lien `attestation` vers l'attestation de travail préremplie — `documents-generes?onglet=attestations&
+  nouvelle=1&agent=`, ouverte seulement si l'API la permet), `api/v1/rh/effectifs/export.xlsx`, `api/v1/instructions/export.xlsx`. L'annuaire
   n'expose ni email ni téléphone.
 - Formulaires (refonte, étape 9) : `components/ui/Formulaire.tsx` — `FenetreFormulaire` (large, deux colonnes
   avec `Grille2`, phrase `pied` à gauche, bouton principal à droite, validation dans la fenêtre avant l'envoi :

@@ -645,6 +645,7 @@ model User {
   instructionsConcernant    Instruction[]            @relation("InstructionAgentConcerne")
 
   @@map("users")
+  sessionsFormation  SessionFormation[] @relation("SessionFormationAgent")
 }
 
 // Sessions actives, pour la fonction de déconnexion à distance / partout
@@ -3164,8 +3165,42 @@ model BesoinFormation {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  sessions  SessionFormation[]
+
   @@index([annee])
   @@map("besoins_formation")
+}
+
+/// Plan de formation individuel : session de formation d'un agent (compte), issue ou non d'un besoin retenu.
+model SessionFormation {
+  id            String                @id @default(cuid())
+  intitule      String
+  agentId       String
+  agent         User                  @relation("SessionFormationAgent", fields: [agentId], references: [id])
+  besoinId      String?
+  besoin        BesoinFormation?      @relation(fields: [besoinId], references: [id])
+  dateDebut     DateTime              @db.Date
+  dateFin       DateTime?             @db.Date
+  dureeJours    Int?
+  organisme     String?
+  etat          EtatSessionFormation  @default(SOUHAITEE)
+  creeParId     String
+  alerteDebutAt DateTime?
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+
+  @@index([agentId])
+  @@index([etat, dateDebut])
+  @@map("sessions_formation")
+}
+
+enum EtatSessionFormation {
+  SOUHAITEE
+  PLANIFIEE
+  SUIVIE
+  ANNULEE
+
+  @@map("etat_session_formation")
 }
 
 /// Véhicule de service (logistique) : affecté aux ordres de mission, suivi du kilométrage et du carburant.

@@ -24,6 +24,12 @@ const OUVERTES = new Set([
   'GET /api/v1/messages/avec/:userId/contexte',
   // Refonte de l'interface (étape 9) : sa page « Mon profil » (son propre profil seulement).
   'GET /api/v1/profil',
+  // Tableau de bord par profil : sa bande des quatre chiffres (ses tâches, ses demandes, son solde).
+  'GET /api/v1/tableau-de-bord/chiffres',
+  // Plan de formation : « Mon profil » → « Mes formations » (les siennes ; aucune pour un stagiaire).
+  'GET /api/v1/profil/formations',
+  // Suppléances : droit à l'onglet « Toutes les suppléances en cours » (toujours non pour un stagiaire).
+  'GET /suppleances/droits',
 ]);
 // Socle N5 : fils de discussion et préférences de notification ouverts aux stagiaires.
 const CLASSES_OUVERTES = ['/auth', '/messages', '/notifications', '/personnel-files', '/stages', '/aide', '/api/v1/fils', '/api/v1/notifications/preferences'];

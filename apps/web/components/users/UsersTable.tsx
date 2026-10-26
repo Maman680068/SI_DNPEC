@@ -54,8 +54,11 @@ export function UsersTable({
   users,
   canManage,
   onRefresh,
+  complements,
 }: {
   users: AdminUser[];
+  /** Rôles fonctionnels (libellés) et double authentification, calculés par l'API (api/v1/comptes/synthese). */
+  complements?: Map<string, { rolesFonctionnels: string[]; doubleAuthentification: boolean }>;
   /** ADMIN_SYSTEME uniquement — DN/DNA voient cette liste en lecture seule
    * (PATCH /users/:id/status et POST /org/cellules/:id/chef sont réservés à
    * ADMIN_SYSTEME côté API). */
@@ -103,6 +106,11 @@ export function UsersTable({
             </div>
             <div className="mb-3 text-[12.5px] text-text-muted">
               {ROLE_LABEL[user.role]} · {attachmentLabel(user, getDivisionName, getSectionName, getCelluleName, getUserLabel)}
+              {complements?.get(user.id) && (
+                <span className="block">
+                  {complements.get(user.id)!.rolesFonctionnels.join(', ') || 'Aucun rôle fonctionnel'} · Double authentification : {complements.get(user.id)!.doubleAuthentification ? 'activée' : 'non'}
+                </span>
+              )}
             </div>
             {canManage && (
               <div className="flex items-center gap-1.5">
@@ -120,31 +128,43 @@ export function UsersTable({
         <table className="w-full text-left text-[13px]">
           <thead>
             <tr className="h-[38px] border-b border-line bg-fond-doux text-[12px] font-semibold text-text-muted">
-              <th scope="col" className="px-4 py-2">Nom</th>
-              <th scope="col" className="px-4 py-2">Email</th>
-              <th scope="col" className="px-4 py-2">Rôle</th>
-              <th scope="col" className="px-4 py-2">Rattachement</th>
-              <th scope="col" className="px-4 py-2">Statut</th>
-              {canManage && <th scope="col" className="px-4 py-2"><span className="sr-only">Actions</span></th>}
+              <th scope="col" className="px-3 py-2">Nom</th>
+              <th scope="col" className="px-3 py-2">Email</th>
+              <th scope="col" className="px-3 py-2">Rôle</th>
+              <th scope="col" className="px-3 py-2">Rattachement</th>
+              {complements && <th scope="col" className="px-3 py-2">Rôles fonctionnels</th>}
+              {complements && <th scope="col" className="px-3 py-2">Double authentification</th>}
+              <th scope="col" className="px-3 py-2">Statut</th>
+              {canManage && <th scope="col" className="px-3 py-2"><span className="sr-only">Actions</span></th>}
             </tr>
           </thead>
           <tbody>
             {users.map((user) => (
               <tr key={user.id} className="border-b border-line-doux last:border-0 hover:bg-survol">
                 {/* Une seule ligne par cellule (texte long raccourci, complet au survol) : toutes les lignes ont la même hauteur. */}
-                <td className="max-w-[160px] truncate whitespace-nowrap px-4 py-2.5 font-semibold text-ink-900" title={`${user.firstName} ${user.lastName}`}>
+                <td className="max-w-[160px] truncate whitespace-nowrap px-3 py-2.5 font-semibold text-ink-900" title={`${user.firstName} ${user.lastName}`}>
                   {user.firstName} {user.lastName}
                 </td>
-                <td className="max-w-[200px] truncate whitespace-nowrap px-4 py-2.5 text-text-muted" title={user.email}>{user.email}</td>
-                <td className="max-w-[170px] truncate whitespace-nowrap px-4 py-2.5" title={ROLE_LABEL[user.role]}>{ROLE_LABEL[user.role]}</td>
-                <td className="max-w-[180px] truncate whitespace-nowrap px-4 py-2.5 text-text-muted" title={attachmentLabel(user, getDivisionName, getSectionName, getCelluleName, getUserLabel)}>
+                <td className="max-w-[180px] truncate whitespace-nowrap px-3 py-2.5 text-text-muted" title={user.email}>{user.email}</td>
+                <td className="max-w-[150px] truncate whitespace-nowrap px-3 py-2.5" title={ROLE_LABEL[user.role]}>{ROLE_LABEL[user.role]}</td>
+                <td className="max-w-[160px] truncate whitespace-nowrap px-3 py-2.5 text-text-muted" title={attachmentLabel(user, getDivisionName, getSectionName, getCelluleName, getUserLabel)}>
                   {attachmentLabel(user, getDivisionName, getSectionName, getCelluleName, getUserLabel)}
                 </td>
-                <td className="whitespace-nowrap px-4 py-2.5">
+                {complements && (
+                  <td className="max-w-[170px] truncate whitespace-nowrap px-3 py-2.5 text-text-muted" data-testid="roles-fonctionnels" title={complements.get(user.id)?.rolesFonctionnels.join(', ')}>
+                    {complements.get(user.id)?.rolesFonctionnels.join(', ') || '—'}
+                  </td>
+                )}
+                {complements && (
+                  <td className="whitespace-nowrap px-3 py-2.5" data-testid="double-authentification">
+                    {complements.get(user.id)?.doubleAuthentification ? <Pastille ton="vert">Activée</Pastille> : <span className="text-text-muted">Non</span>}
+                  </td>
+                )}
+                <td className="whitespace-nowrap px-3 py-2.5">
                   <Pastille ton={PASTILLE[STATUS_BADGE_TONE[user.status]]}>{STATUS_BADGE_LABEL[user.status]}</Pastille>
                 </td>
                 {canManage && (
-                  <td className="w-px whitespace-nowrap px-4 py-2.5">
+                  <td className="w-px whitespace-nowrap px-3 py-2.5">
                     {/* Un seul bouton visible, les autres actions dans « Plus d'actions » : lignes de même hauteur. */}
                     <div className="flex justify-end gap-1.5">
                       <button type="button" className={BTN_LIGNE} onClick={() => setManagingAccountFor(user)}>

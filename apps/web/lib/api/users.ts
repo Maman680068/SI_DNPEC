@@ -65,3 +65,13 @@ export const confirmerChangementRole = (id: string, v: { note?: string; ancienTi
   apiFetch(`/api/v1/changements-role/${id}/confirmation`, { method: 'POST', body: JSON.stringify(v) });
 export const refuserChangementRole = (id: string, motif: string) =>
   apiFetch(`/api/v1/changements-role/${id}/refus`, { method: 'POST', body: JSON.stringify({ motif }) });
+
+/** Comptes et habilitations : rôles fonctionnels, double authentification, agents sans compte (administrateur, DN, DNA). */
+export interface SyntheseComptes {
+  droits: { ouvrirCompte: boolean };
+  comptes: { id: string; rolesFonctionnels: string[]; doubleAuthentification: boolean }[];
+  agentsSansCompte: { id: string; matricule: string; nom: string; prenoms: string; fonction: string | null; unite: string | null; dateCreation: string }[];
+}
+export function getSyntheseComptes(): Promise<SyntheseComptes> {
+  return apiFetch<SyntheseComptes>('/api/v1/comptes/synthese');
+}

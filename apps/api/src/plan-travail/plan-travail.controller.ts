@@ -14,6 +14,12 @@ export class PlanTravailController {
     return this.plan.plan(actor, f);
   }
 
+  /** Tableau de bord de la Direction : activités de toute la DNPEC, de la plus en retard à la plus avancée. */
+  @Get('avancement-direction')
+  avancementDirection(@CurrentUser() actor: AuthenticatedUser) {
+    return this.plan.avancementDirection(actor, new Date().getUTCFullYear(), 8);
+  }
+
   @Get('activites-disponibles')
   disponibles(@CurrentUser() actor: AuthenticatedUser) {
     return this.plan.activitesDisponibles(actor);

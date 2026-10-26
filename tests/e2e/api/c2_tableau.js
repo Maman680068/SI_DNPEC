@@ -40,6 +40,7 @@ async function suppleance(titulaire, suppleant) {
       brouillons: act.filter((x) => x.droits.modifier).length,
       // Bande de compteurs de la page (vue du registre) : statuts des mêmes listes visibles.
       arriveesEnAttente: arr.filter((x) => x.statut === 'ENREGISTRE').length,
+      arriveesEnTraitement: arr.filter((x) => x.statut === 'IMPUTE').length,
       visasEnCours: act.filter((x) => x.statut === 'EN_VISA').length,
       actesASigner: act.filter((x) => x.statut === 'A_SIGNER').length,
       actesAExpedier: act.filter((x) => x.statut === 'SIGNE').length,

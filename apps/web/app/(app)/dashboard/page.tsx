@@ -9,18 +9,18 @@ import { estStagiaire } from '../../../lib/auth/stagiaire';
 import { useNavigation } from '../../../lib/navigation/NavigationProvider';
 import { getTasks, getDashboard } from '../../../lib/api/tasks';
 import { exportDashboardPdf, exportTasksExcel } from '../../../lib/api/export';
-import { getTableauRole, type TableauRole } from '../../../lib/api/tableau-de-bord';
+import { getChiffresTableau, getTableauRole, type ChiffreTableau, type TableauRole } from '../../../lib/api/tableau-de-bord';
 import { getMeetings } from '../../../lib/api/meetings';
 import { getMyBalances } from '../../../lib/api/leaves';
 import { getAnnouncements } from '../../../lib/api/communication';
-import { getPlan } from '../../../lib/api/pilotage';
+import { getAvancementDirection, getPlan } from '../../../lib/api/pilotage';
 import type { Task, TaskDashboard } from '../../../lib/tasks/types';
 import type { Meeting } from '../../../lib/meetings/types';
 import type { LeaveBalanceView } from '../../../lib/leaves/types';
 import type { Announcement } from '../../../lib/communication/types';
 import type { Activite } from '../../../lib/pilotage/types';
 import { estClose, estEnRetard } from '../../../lib/tasks/affichage';
-import { KpiRow } from '../../../components/tasks/KpiRow';
+import { BandeChiffres } from '../../../components/dashboard/BandeChiffres';
 import { ViewToggle, useVueTaches } from '../../../components/tasks/ViewToggle';
 import { KanbanBoard } from '../../../components/tasks/KanbanBoard';
 import { CalendarView } from '../../../components/tasks/CalendarView';
@@ -32,7 +32,7 @@ import { Agenda, DerniereAnnonce, MesConges, StagiaireEncadre } from '../../../c
 import { ErreurChargement, messageChargement } from '../../../components/ui/ErreurChargement';
 import { Barre } from '../../../components/ui/Squelette';
 
-/** Bande des compteurs en cours de chargement (même forme que `KpiRow`). */
+/** Bande des chiffres en cours de chargement (même forme que `BandeChiffres`). */
 function SqueletteBande() {
   return (
     <div role="status" aria-label="Chargement en cours" data-testid="squelette" className="mb-[18px] grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-line bg-line lg:grid-cols-4">
@@ -126,10 +126,16 @@ const TON_ACTIVITE: Record<Activite['etatAvancement'], { barre: string; texte: s
   CONFORME: { barre: 'bg-sage', texte: 'text-sage', libelle: 'dans les temps' },
 };
 
-/** Plan de travail — avancement des activités dont la personne est responsable ou auxquelles ses tâches contribuent. */
-function PanneauPlan({ activites }: { activites: Activite[] }) {
+/** Plan de travail — avancement des activités dont la personne est responsable ou auxquelles ses tâches
+ * contribuent ; pour la Direction, toutes les activités de la DNPEC, de la plus en retard à la plus avancée
+ * (ordre et limite donnés par l'API), avec « Voir tout le plan ». */
+function PanneauPlan({ activites, total }: { activites: Activite[]; total?: number }) {
   return (
-    <Panneau titre="Plan de travail — avancement des activités" testid="avancement-activites" droite={<span className="ml-auto text-[12.5px] text-text-muted">Calculé à partir des tâches rattachées</span>}>
+    <Panneau
+      titre="Plan de travail — avancement des activités"
+      testid="avancement-activites"
+      droite={<span className="ml-auto text-[12.5px] text-text-muted">{total !== undefined ? `Toute la DNPEC, de la plus en retard à la plus avancée` : 'Calculé à partir des tâches rattachées'}</span>}
+    >
       <ul>
         {activites.map((a, i) => {
           const ton = TON_ACTIVITE[a.etatAvancement];
@@ -160,6 +166,7 @@ function PanneauPlan({ activites }: { activites: Activite[] }) {
           );
         })}
       </ul>
+      {total !== undefined && <PiedPanneau href="/plan-travail" libelle="Voir tout le plan" droite={`${Math.min(total, activites.length)} sur ${total} activité${total > 1 ? 's' : ''}`} />}
     </Panneau>
   );
 }
@@ -173,6 +180,7 @@ export default function DashboardPage() {
   const canBroadcast = CAN_BROADCAST_ROLES.includes(effectiveRole ?? '');
 
   const [dashboard, setDashboard] = useState<TaskDashboard | null>(null);
+  const [chiffres, setChiffres] = useState<ChiffreTableau[] | null>(null);
   const [tableau, setTableau] = useState<TableauRole | null>(null);
   const [mesTaches, setMesTaches] = useState<Task[] | null>(null);
   const [creees, setCreees] = useState<Task[] | null>(null);
@@ -182,6 +190,7 @@ export default function DashboardPage() {
   const [soldes, setSoldes] = useState<LeaveBalanceView[]>([]);
   const [annonce, setAnnonce] = useState<Announcement | null>(null);
   const [activites, setActivites] = useState<Activite[]>([]);
+  const [planDirection, setPlanDirection] = useState<{ total: number; activites: Activite[] } | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [showBroadcastModal, setShowBroadcastModal] = useState(false);
@@ -198,6 +207,10 @@ export default function DashboardPage() {
   const rafraichirIndicateurs = useCallback(() => {
     getDashboard()
       .then(setDashboard)
+      .catch((e) => setErreur(messageChargement(e)));
+    // Bande des quatre chiffres : choisis et calculés par l'API selon le profil.
+    getChiffresTableau()
+      .then((c) => setChiffres(c.chiffres))
       .catch((e) => setErreur(messageChargement(e)));
   }, []);
 
@@ -240,6 +253,14 @@ export default function DashboardPage() {
       })
       .catch((e) => setErreur(messageChargement(e)));
   }, [encadrement]);
+
+  // Direction : toutes les activités de la DNPEC (ordre et limite de l'API).
+  useEffect(() => {
+    if (profil !== 'DIRECTION') return;
+    getAvancementDirection()
+      .then(setPlanDirection)
+      .catch(() => setPlanDirection(null));
+  }, [profil]);
 
   useEffect(() => {
     if (!user || stagiaire || !mesTaches) return;
@@ -447,12 +468,20 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {dashboard ? <KpiRow dashboard={dashboard} perimetre={!!navigation?.perimetre} chezLeChef={!encadrement} /> : !erreur && <SqueletteBande />}
+      {chiffres ? <BandeChiffres chiffres={chiffres} /> : !erreur && <SqueletteBande />}
 
       <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-[18px] lg:grid-cols-[minmax(0,1fr)_330px]">
         <div className="flex min-w-0 flex-col gap-[18px]">
           {(encadrement || (profil !== null && profil !== 'AGENT' && profil !== 'STAGIAIRE') || aTraiter.length > 0) && blocATraiter}
-          {activites.length > 0 && <PanneauPlan activites={activites} />}
+          {profil === 'DIRECTION' ? (
+            <>
+              {planDirection && planDirection.total > 0 && <PanneauPlan activites={planDirection.activites} total={planDirection.total} />}
+              {/* Direction : décisions non exécutées et absences du jour juste après le plan, avant le suivi de l'équipe. */}
+              <BlocsRole blocs={blocs} seulement={['decisions', 'absences']} titre="Décisions et absences" testid="blocs-direction" />
+            </>
+          ) : (
+            activites.length > 0 && <PanneauPlan activites={activites} />
+          )}
           {encadrement && (
             <Panneau titre="Suivi de l’équipe" testid="suivi-equipe" droite={<div className="ml-auto"><ViewToggle value={vue} onChange={setVue} /></div>}>
               {!equipe ? (
@@ -467,7 +496,7 @@ export default function DashboardPage() {
             </Panneau>
           )}
           {(!encadrement || ouvertes.length > 0 || source === 'creees') && panneauPriorites}
-          <BlocsRole blocs={blocs} />
+          <BlocsRole blocs={blocs} sauf={profil === 'DIRECTION' ? ['decisions', 'absences'] : []} />
         </div>
 
         <aside aria-label="Agenda et informations" className="flex flex-col gap-3.5">

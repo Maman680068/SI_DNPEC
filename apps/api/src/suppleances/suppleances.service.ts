@@ -148,6 +148,42 @@ export class SuppleancesService {
     return rows.map((row) => ({ ...row, conforme: isComparableRank(row.titulaire, row.suppleant) }));
   }
 
+  /** Vue d'ensemble (DN, DNA, administrateur, identité réelle — rien n'est emprunté en intérim). */
+  private voitToutes(actor: AuthenticatedUser): boolean {
+    return !actor.interimForId && ([SystemRole.DN, SystemRole.DNA, SystemRole.ADMIN_SYSTEME] as SystemRole[]).includes(actor.role);
+  }
+
+  droits(actor: AuthenticatedUser) {
+    return { voirToutes: this.voitToutes(actor) };
+  }
+
+  /**
+   * « Toutes les suppléances en cours », en lecture seule : unité du titulaire, titulaire, suppléant,
+   * période, statut (en cours, ou non conforme au rang comparable sur les rôles actuels). Aucune action.
+   */
+  async enCours(actor: AuthenticatedUser) {
+    if (!this.voitToutes(actor)) throw new ForbiddenException('La vue d’ensemble des suppléances est réservée à la Direction et à l’administrateur.');
+    const maintenant = new Date();
+    const partie = { ...PARTY_SELECT, division: { select: { name: true } }, section: { select: { name: true } }, cellule: { select: { name: true } } } as const;
+    const rows = await this.prisma.suppleance.findMany({
+      where: { revokedAt: null, startDate: { lte: maintenant }, endDate: { gt: maintenant } },
+      select: { id: true, startDate: true, endDate: true, titulaire: { select: partie }, suppleant: { select: PARTY_SELECT } },
+      orderBy: [{ endDate: 'asc' }, { startDate: 'asc' }],
+    });
+    return rows.map((r) => {
+      const t = r.titulaire;
+      return {
+        id: r.id,
+        unite: t.cellule?.name ?? (t.section ? `${t.division?.name ?? ''} · ${t.section.name}` : t.division?.name) ?? 'Direction',
+        titulaire: `${t.firstName} ${t.lastName}`,
+        suppleant: `${r.suppleant.firstName} ${r.suppleant.lastName}`,
+        debut: r.startDate,
+        fin: r.endDate,
+        statut: isComparableRank(t, r.suppleant) ? 'EN_COURS' : 'NON_CONFORME',
+      };
+    });
+  }
+
   /** Titulaires pour lesquels `actor` peut désigner un suppléant : lui-même
    * s'il a un rôle de chef, et tout chef ACTIF sur qui il a une autorité
    * hiérarchique directe — exactement la règle de create(). */

@@ -3,12 +3,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../../../lib/auth/AuthProvider';
 import { useInterim } from '../../../lib/interim/InterimProvider';
-import { getManageableTitulaires, getMySuppleances, revokeSuppleance } from '../../../lib/api/suppleances';
-import { suppleanceStatus, type Suppleance, type SuppleanceParty } from '../../../lib/suppleances/types';
+import { getDroitsSuppleances, getManageableTitulaires, getMySuppleances, getSuppleancesEnCours, revokeSuppleance, type SuppleanceEnCours } from '../../../lib/api/suppleances';
+import { SUPPLEANCE_STATUS_LABEL, suppleanceStatus, type Suppleance, type SuppleanceParty } from '../../../lib/suppleances/types';
 import { SuppleanceCard } from '../../../components/suppleances/SuppleanceCard';
 import { DesignateSuppleanceModal } from '../../../components/suppleances/DesignateSuppleanceModal';
 import { Plus } from 'lucide-react';
-import { BTN_PRINCIPAL, EnTetePage, EtatVide, Panneau } from '../../../components/ui/Charte';
+import { BTN_PRINCIPAL, EnTetePage, EtatVide, LigneTableau, Onglets, Panneau, Pastille, Tableau } from '../../../components/ui/Charte';
 import { ErreurChargement } from '../../../components/ui/ErreurChargement';
 import { SqueletteCartes } from '../../../components/ui/Squelette';
 import { messageErreur, useToast } from '../../../components/ui/Toast';
@@ -58,7 +58,19 @@ export default function SuppleancesPage() {
   const [showModal, setShowModal] = useState(false);
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [voirToutes, setVoirToutes] = useState(false);
+  const [onglet, setOnglet] = useState<'miennes' | 'toutes'>('miennes');
   const toast = useToast();
+
+  // Onglet « Toutes les suppléances en cours » : droit donné par l'API (DN, DNA, administrateur) ; ?onglet=toutes.
+  useEffect(() => {
+    getDroitsSuppleances()
+      .then((d) => {
+        setVoirToutes(d.voirToutes);
+        if (d.voirToutes && new URLSearchParams(window.location.search).get('onglet') === 'toutes') setOnglet('toutes');
+      })
+      .catch(() => setVoirToutes(false));
+  }, []);
 
   const load = useCallback(() => {
     Promise.all([getMySuppleances(), getManageableTitulaires()])
@@ -113,7 +125,8 @@ export default function SuppleancesPage() {
       <EnTetePage
         titre="Suppléances"
         actions={
-          titulaires.length > 0 && (
+          titulaires.length > 0 &&
+          onglet === 'miennes' && (
             <button type="button" className={BTN_PRINCIPAL} onClick={() => setShowModal(true)}>
               <Plus aria-hidden size={17} /> Désigner un suppléant
             </button>
@@ -127,7 +140,21 @@ export default function SuppleancesPage() {
 
       <ErreurChargement message={error} />
 
-      {suppleances === null ? (
+      {voirToutes && (
+        <Onglets
+          label="Suppléances"
+          actif={onglet}
+          onChange={setOnglet}
+          onglets={[
+            { cle: 'miennes', label: 'Mes suppléances' },
+            { cle: 'toutes', label: 'Toutes les suppléances en cours' },
+          ]}
+        />
+      )}
+
+      {onglet === 'toutes' && voirToutes ? (
+        <ToutesEnCours />
+      ) : suppleances === null ? (
         !error && <SqueletteCartes cartes={3} />
       ) : (
         <>
@@ -171,5 +198,40 @@ export default function SuppleancesPage() {
         />
       )}
     </div>
+  );
+}
+
+const GRILLE_TOUTES = 'lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.1fr)_170px]';
+const dateCourte = (d: string) => new Date(d).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
+
+/** Vue d'ensemble en lecture seule : aucune action, aucun intérim depuis cet onglet. */
+function ToutesEnCours() {
+  const [l, setL] = useState<SuppleanceEnCours[] | null>(null);
+  const [erreur, setErreur] = useState<string | null>(null);
+  useEffect(() => {
+    getSuppleancesEnCours()
+      .then(setL)
+      .catch((e) => setErreur(messageErreur(e, 'Impossible de charger les suppléances en cours')));
+  }, []);
+  if (erreur) return <ErreurChargement message={erreur} />;
+  if (!l) return <SqueletteCartes cartes={2} />;
+  return (
+    <Tableau
+      label="Toutes les suppléances en cours"
+      testid="suppleances-en-cours"
+      grille={GRILLE_TOUTES}
+      colonnes={['Unité', 'Titulaire', 'Suppléant', 'Période', 'Statut']}
+      vide={<EtatVide texte="Aucune suppléance en cours." />}
+    >
+      {l.map((s) => (
+        <LigneTableau key={s.id} grille={GRILLE_TOUTES} testid="suppleance-en-cours">
+          <span className="block truncate text-text-muted">{s.unite}</span>
+          <b className="block truncate font-semibold text-ink-900">{s.titulaire}</b>
+          <span className="block truncate">{s.suppleant}</span>
+          <span className="text-text-muted">{dateCourte(s.debut)} → {dateCourte(s.fin)}</span>
+          <Pastille ton={s.statut === 'EN_COURS' ? 'vert' : 'rouge'}>{SUPPLEANCE_STATUS_LABEL[s.statut]}</Pastille>
+        </LigneTableau>
+      ))}
+    </Tableau>
   );
 }

@@ -119,6 +119,8 @@ const compte = async (k) => (await call(k, 'GET', '/messages/unread-count')).bod
   await dest.fill('agent2');
   await t.getByRole('option', { name: /AGENT2/i }).first().click();
   await t.locator('[data-testid=echange]').waitFor();
+  // L'en-tête de l'échange passe à l'interlocuteur choisi un instant après l'ouverture.
+  await t.getByRole('heading', { name: /AGENT2/i }).first().waitFor({ timeout: 10_000 }).catch(() => {});
   check('nouveau message : destinataire choisi dans la liste (option), échange ouvert', /\/communication/.test(t.url()) && (await t.getByRole('heading', { name: /AGENT2/i }).count()) >= 1);
   check('téléphone : nouveau message sans défilement horizontal', await t.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
   await t.context().close();

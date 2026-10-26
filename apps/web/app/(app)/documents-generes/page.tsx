@@ -38,6 +38,7 @@ export default function DocumentsGeneresPage() {
   const [erreur, setErreur] = useState<string | null>(null);
   const [nouvelOrdre, setNouvelOrdre] = useState(false);
   const [nouvelleAttestation, setNouvelleAttestation] = useState(false);
+  const [agentPropose, setAgentPropose] = useState<string | null>(null);
   const [selection, setSelection] = useState<Selection>(null);
 
   const charger = useCallback(() => {
@@ -55,6 +56,12 @@ export default function DocumentsGeneresPage() {
     charger();
     const o = new URLSearchParams(window.location.search).get('onglet');
     if (o === 'attestations' || o === 'ordres' || o === 'rapport') setOnglet(o);
+    // Lien profond du dossier du personnel (DRH) : ?onglet=attestations&nouvelle=1&agent=<compte>.
+    const q = new URLSearchParams(window.location.search);
+    if (o === 'attestations' && q.get('nouvelle') === '1') {
+      setAgentPropose(q.get('agent'));
+      setNouvelleAttestation(true);
+    }
   }, [charger]);
 
   if (!catalogue) {
@@ -122,9 +129,10 @@ export default function DocumentsGeneresPage() {
           onFait={() => (setNouvelOrdre(false), setOnglet('ordres'), charger())}
         />
       )}
-      {nouvelleAttestation && (
+      {nouvelleAttestation && catalogue.attestationTravail.peutCreer && (
         <FenetreAttestation
           catalogue={catalogue}
+          agentInitial={agentPropose}
           onClose={() => setNouvelleAttestation(false)}
           onFait={() => (setNouvelleAttestation(false), setOnglet('attestations'), charger())}
         />
@@ -327,9 +335,10 @@ function Ordres({ catalogue, liste, onNouvel, onVoir }: { catalogue: Catalogue; 
 }
 
 /** Nouvelle attestation de travail : l'agent est choisi parmi ceux que l'API propose. */
-function FenetreAttestation({ catalogue, onClose, onFait }: { catalogue: Catalogue; onClose: () => void; onFait: () => void }) {
+function FenetreAttestation({ catalogue, onClose, onFait, agentInitial }: { catalogue: Catalogue; onClose: () => void; onFait: () => void; agentInitial?: string | null }) {
   const toast = useToast();
-  const [agentId, setAgentId] = useState('');
+  // Agent proposé par le lien (dossier du personnel), seulement s'il fait partie des agents permis par l'API.
+  const [agentId, setAgentId] = useState(() => (agentInitial && catalogue.attestationTravail.agents.some((a) => a.id === agentInitial) ? agentInitial : ''));
   const { enCours, erreur, envoyer } = useEnvoi();
   const agents = catalogue.attestationTravail.agents;
   return (

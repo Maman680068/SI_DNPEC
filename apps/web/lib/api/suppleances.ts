@@ -26,3 +26,20 @@ export function createSuppleance(input: CreateSuppleanceInput): Promise<Supplean
 export function revokeSuppleance(id: string): Promise<Suppleance> {
   return apiFetch<Suppleance>(`/suppleances/${id}/revoke`, { method: 'POST', skipInterim: true });
 }
+
+/** Vue d'ensemble « Toutes les suppléances en cours » (DN, DNA, administrateur ; identité réelle). */
+export interface SuppleanceEnCours {
+  id: string;
+  unite: string;
+  titulaire: string;
+  suppleant: string;
+  debut: string;
+  fin: string;
+  statut: 'EN_COURS' | 'NON_CONFORME';
+}
+export function getDroitsSuppleances(): Promise<{ voirToutes: boolean }> {
+  return apiFetch<{ voirToutes: boolean }>('/suppleances/droits', { skipInterim: true });
+}
+export function getSuppleancesEnCours(): Promise<SuppleanceEnCours[]> {
+  return apiFetch<SuppleanceEnCours[]>('/suppleances/en-cours', { skipInterim: true });
+}

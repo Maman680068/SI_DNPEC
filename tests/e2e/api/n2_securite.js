@@ -122,7 +122,7 @@ async function code(secret) {
 
   console.log('— Paramètres (bornés, audités, branchés)');
   const liste = await call('admin', 'GET', '/api/v1/parametres');
-  check('administrateur : 8 paramètres (dont le délai d’avis des congés, N3, l’avancement d’échelon, N6, et la relance du service de calcul, B1), modifiables', liste.status === 200 && liste.body.parametres.length === 8 && liste.body.droits.peutModifier === true && liste.body.parametres.find((p) => p.cle === 'motDePasse.longueurMin').valeur === 8);
+  check('administrateur : 9 paramètres (dont le délai d’avis des congés, N3, l’avancement d’échelon et le préavis de formation, N6, et la relance du service de calcul, B1), modifiables', liste.status === 200 && liste.body.parametres.length === 9 && liste.body.droits.peutModifier === true && liste.body.parametres.find((p) => p.cle === 'motDePasse.longueurMin').valeur === 8);
   check('DN : lecture seule', (await call('dn', 'GET', '/api/v1/parametres')).body.droits.peutModifier === false);
   expect('DN ne modifie pas', await call('dn', 'PATCH', '/api/v1/parametres/connexions.conservationMois', { valeur: 6 }), 403);
   expect('un agent ne lit pas le paramétrage', await call('agent1', 'GET', '/api/v1/parametres'), 403);

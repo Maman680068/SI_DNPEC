@@ -49,6 +49,17 @@ const attendu = (n, total) => Math.round((n / total) * 100);
   expect('DRH : date de prise de service', await call('drh', 'PATCH', `/personnel-files/${u.id}/basic`, { serviceStartDate: '2015-01-05' }), 200);
   l = await ligneDe(u.id);
   check(`5 champs sur ${total} : ${attendu(5, total)} %`, l.completude === attendu(5, total), l.completude);
+  // Colonnes du DRH, calculées par l'API depuis le niveau 1 (sans migration).
+  const maint = new Date();
+  let ans = maint.getUTCFullYear() - 2015;
+  if (maint.getUTCMonth() === 0 && maint.getUTCDate() < 5) ans--;
+  check(`colonnes : « A / 3 », prise de service le 2015-01-05, ancienneté ${ans} ans`, l.categorieEchelon === 'A / 3' && l.priseDeService === '2015-01-05' && l.ancienneteAnnees === ans, JSON.stringify([l.categorieEchelon, l.priseDeService, l.ancienneteAnnees]));
+  check('bouton « Attestation » : lien vers l’attestation de travail préremplie pour ce compte', l.attestation === `/documents-generes?onglet=attestations&nouvelle=1&agent=${u.id}`);
+  const lignesTout = (await synthese()).lignes;
+  check('pas d’attestation pour un stagiaire, pour le DRH lui-même ni pour un compte inactif', lignesTout.filter((x) => x.role === 'STAGIAIRE' || x.userId === ids.drh || x.statut !== 'EN_ACTIVITE').every((x) => x.attestation === null));
+  check('dossier sans situation administrative : colonnes vides (null)', lignesTout.some((x) => x.categorieEchelon === null && x.priseDeService === null && x.ancienneteAnnees === null));
+  const cat = (await call('drh', 'GET', '/api/v1/documents-generes/catalogue')).body.attestationTravail.agents.map((a) => a.id);
+  check('chaque lien d’attestation vise un agent que le générateur accepte', lignesTout.filter((x) => x.attestation).every((x) => cat.includes(x.userId)));
   for (const p of pieces) await upload('drh', `/personnel-files/${u.id}/documents`, { label: p.libelle, pieceRequiseId: p.id }, [{ field: 'file', name: 'piece.pdf' }]);
   l = await ligneDe(u.id);
   check('dossier complet (champs et pièces requises) : 100 %', l.completude === 100, l.completude);

@@ -146,3 +146,30 @@ export interface PlanFormation {
   monUnite: string | null;
   droits: { exprimer: boolean; decider: boolean };
 }
+
+/** Plan de formation individuel : sessions par agent (docs/conception_plan_formation.md). */
+export type EtatSessionFormation = 'SOUHAITEE' | 'PLANIFIEE' | 'SUIVIE' | 'ANNULEE';
+export const LIBELLE_ETAT_SESSION: Record<EtatSessionFormation, string> = {
+  SOUHAITEE: 'Souhaitée',
+  PLANIFIEE: 'Planifiée',
+  SUIVIE: 'Suivie',
+  ANNULEE: 'Annulée',
+};
+export interface SessionFormation {
+  id: string;
+  intitule: string;
+  agent: { id: string; nom: string };
+  besoin: { id: string; intitule: string } | null;
+  dateDebut: string;
+  dateFin: string | null;
+  dureeJours: number | null;
+  organisme: string | null;
+  etat: EtatSessionFormation;
+  droits: { planifier: boolean; marquerSuivie: boolean; annuler: boolean; modifier: boolean };
+}
+export interface PlanSessions {
+  sessions: SessionFormation[];
+  droits: { creer: boolean };
+  agentsPossibles: { id: string; nom: string }[];
+  besoinsRetenus: { id: string; intitule: string; annee: number }[];
+}

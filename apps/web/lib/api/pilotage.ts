@@ -1,5 +1,6 @@
 import { apiFetch, telechargerFichier } from './client';
 import type {
+  Activite,
   ActiviteDetail,
   ActiviteDisponible,
   Fil,
@@ -18,6 +19,8 @@ const j = (method: string, body?: unknown) => ({
 });
 
 // Plan de travail
+/** Tableau de bord de la Direction : activités de toute la DNPEC, de la plus en retard à la plus avancée (8 au plus). */
+export const getAvancementDirection = () => apiFetch<{ annee: number; total: number; activites: Activite[] }>('/api/v1/plan-travail/avancement-direction');
 export const getPlan = (annee: number, uniteId?: string) =>
   apiFetch<Plan>(
     `/api/v1/plan-travail?annee=${annee}${uniteId ? `&uniteId=${encodeURIComponent(uniteId)}` : ''}`,

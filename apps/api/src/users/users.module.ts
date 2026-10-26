@@ -3,6 +3,8 @@ import { OrgModule } from '../org/org.module';
 import { CommunicationModule } from '../communication/communication.module';
 import { PersonnelModule } from '../personnel/personnel.module';
 import { UsersController } from './users.controller';
+import { ComptesSyntheseController } from './comptes-synthese.controller';
+import { ComptesSyntheseService } from './comptes-synthese.service';
 import { UsersService } from './users.service';
 import { ComptesEmailsService } from './comptes-emails.service';
 
@@ -13,8 +15,8 @@ import { ComptesEmailsService } from './comptes-emails.service';
   // n'importe jamais UsersModule) pour éviter tout cycle avec AuthModule.
   // CommunicationModule : EmailService, pour les emails de compte (ComptesEmailsService).
   imports: [OrgModule, PersonnelModule, CommunicationModule],
-  controllers: [UsersController],
-  providers: [UsersService, ComptesEmailsService],
+  controllers: [UsersController, ComptesSyntheseController],
+  providers: [UsersService, ComptesEmailsService, ComptesSyntheseService],
   // ComptesEmailsService : aussi utilisé par les stages (compte stagiaire créé avec son stage).
   exports: [UsersService, ComptesEmailsService],
 })

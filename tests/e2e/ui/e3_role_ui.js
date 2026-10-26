@@ -45,7 +45,8 @@ async function action(zone, page, nom) {
   check('aperçu : avant → après et sessions', /Chargé.*→.*Directeur des Ressources Humaines/s.test(ap) && /sessions seront fermées/.test(ap), ap.split('\n')[0]);
   await p.screenshot({ path: `${SHOTS}/e3_changement_role_apercu_desktop.png` });
   await dlg(p).getByRole('button', { name: 'Confirmer le changement' }).click();
-  await ligne(p, u).getByText('Directeur des Ressources Humaines').waitFor();
+  // Rôle du compte, puis rôle fonctionnel DRH (colonne « Rôles fonctionnels ») : deux mentions.
+  await ligne(p, u).getByText('Directeur des Ressources Humaines').first().waitFor();
   check('message de confirmation « Rôle changé »', /Rôle changé/.test(await p.getByTestId('toast').innerText()));
   check('table à jour : DRH, cellule RH', (await ligne(p, u).innerText()).includes('Ressources Humaines'));
 

@@ -9,18 +9,23 @@ import { BandeCompteurs, BarreOutils, Filtres, BTN_LIGNE, BTN_PRINCIPAL, EtatVid
 import { ChoixSegment, FenetreFormulaire, Grille2, Saisie } from '../ui/Formulaire';
 import { messageErreur, useToast } from '../ui/Toast';
 import { Chargement, ErreurChargement, messageChargement } from '../ui/ErreurChargement';
+import { PlanSessionsFormation, type BesoinAPlanifier } from './PlanSessionsFormation';
 
 const TON_PRIORITE = { HAUTE: 'rouge', MOYENNE: 'ambre', BASSE: 'gris' } as const;
 const GRILLE = 'lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_150px_140px_130px]';
 const LIBELLE_PRIORITE: Record<PrioriteFormation, string> = { HAUTE: 'Priorité haute', MOYENNE: 'Priorité moyenne', BASSE: 'Priorité basse' };
 
-/** Plan de formation (SIG-RF-CAR-08) : besoins exprimés par les unités, consolidés par le DRH. */
+/**
+ * Formation (SIG-RF-CAR-08) : en tête, le plan de formation individuel (sessions par agent) ; dessous, les
+ * besoins exprimés par les unités et consolidés par le DRH, d'où le DRH planifie une session.
+ */
 export function OngletFormation() {
   const anneeCourante = new Date().getFullYear();
   const [annee, setAnnee] = useState(anneeCourante);
   const toast = useToast();
   const [p, setP] = useState<PlanFormation | null>(null);
   const [nouveau, setNouveau] = useState(false);
+  const [aPlanifier, setAPlanifier] = useState<BesoinAPlanifier | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
   const charger = useCallback(() => getPlanFormation(annee).then(setP).catch((x) => setErreur(messageChargement(x))), [annee]);
   useEffect(() => {
@@ -31,6 +36,8 @@ export function OngletFormation() {
   return (
     <div>
       <ErreurChargement message={erreur} />
+      <PlanSessionsFormation aPlanifier={aPlanifier} onPlanifie={() => setAPlanifier(null)} />
+      <h2 className="mb-3 text-[15px] font-bold text-ink-900">Besoins de formation</h2>
       <BandeCompteurs
         label={`Plan de formation ${annee}`}
         items={[
@@ -77,6 +84,11 @@ export function OngletFormation() {
             <span className="block">
               <b className="block font-semibold text-ink-900">{b.intitule}</b>
               <small className="block text-[12px] text-text-muted">{b.effectif} agent(s)</small>
+              {p.droits.decider && b.statut === 'RETENU' && (
+                <button type="button" className={`${BTN_LIGNE} mt-1.5`} data-testid="planifier-besoin" onClick={() => setAPlanifier({ id: b.id, intitule: b.intitule })}>
+                  Planifier une formation
+                </button>
+              )}
             </span>
             <span className="block truncate text-text-muted">{b.unite ?? '—'}</span>
             <span className="text-text-muted">{LIBELLE_ORIGINE[b.origine]}</span>
