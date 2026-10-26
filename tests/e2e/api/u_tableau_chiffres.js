@@ -49,10 +49,17 @@ const ouverte = (i) => ['EMISE', 'RECUE', 'PRISE_EN_COMPTE'].includes(i.statut);
   check(`DRH : stagiaires en cours (${stages}) et alertes RH ouvertes`, cd.stagiaires.valeur === stages && Number.isInteger(cd['alertes-rh'].valeur) && cd['alertes-rh'].lien === '/rh?onglet=alertes');
 
   console.log('— Administrateur');
-  const ra = await lire('admin');
-  const ca = par(ra);
+  let ra = await lire('admin');
+  let ca = par(ra);
   const attente = await prisma.user.count({ where: { status: 'EN_ATTENTE' } });
-  const sup = (await call('admin', 'GET', '/api/v1/supervision')).body.services.filter((s) => s.etat !== 'NOMINAL').length;
+  const pointsSupervision = async () => (await call('admin', 'GET', '/api/v1/supervision')).body.services.filter((s) => s.etat !== 'NOMINAL').length;
+  let sup = await pointsSupervision();
+  // Les points de supervision du tableau de bord sont gardés une minute : un état qui vient de changer
+  // (service de calcul réveillé…) n'y apparaît qu'à l'expiration ; on relit alors les deux.
+  if (ca.supervision.valeur !== sup) {
+    await new Promise((r) => setTimeout(r, 61_000));
+    ra = await lire('admin'); ca = par(ra); sup = await pointsSupervision();
+  }
   const travaux = await prisma.travailCalcul.count({ where: { statut: { in: ['EN_FILE', 'EN_COURS', 'ECHEC'] } } });
   check('administrateur : profil ADMINISTRATEUR, 4 chiffres', ra.profil === 'ADMINISTRATEUR' && ra.chiffres.map((x) => x.cle).join() === 'comptes,supervision,calcul,audit');
   check(`administrateur : comptes en attente (${attente}), points de supervision (${sup}), travaux du calcul (${travaux})`, ca.comptes.valeur === attente && ca.supervision.valeur === sup && ca.calcul.valeur === travaux);

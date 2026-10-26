@@ -9,7 +9,6 @@ import { ReferentielRhService } from './referentiel-rh.service';
 import { DossiersSyntheseService } from './dossiers-synthese.service';
 import { FormationsService } from './formations.service';
 import { EtatSessionFormation } from '@prisma/client';
-import { OuvertAuxStagiaires } from '../common/decorators/ouvert-aux-stagiaires.decorator';
 import {
   AnneeQueryDto,
   BesoinFormationDto,
@@ -169,17 +168,5 @@ export class RhController {
   @HttpCode(200)
   annulerSession(@CurrentUser() actor: AuthenticatedUser, @Param('id') id: string) {
     return this.formations.changerEtat(actor, id, EtatSessionFormation.ANNULEE);
-  }
-}
-
-/** « Mon profil » : les sessions de formation de la personne connectée (aucune pour un stagiaire). */
-@Controller('api/v1/profil')
-export class FormationsProfilController {
-  constructor(private readonly formations: FormationsService) {}
-
-  @OuvertAuxStagiaires()
-  @Get('formations')
-  miennes(@CurrentUser() actor: AuthenticatedUser) {
-    return this.formations.miennes(actor);
   }
 }

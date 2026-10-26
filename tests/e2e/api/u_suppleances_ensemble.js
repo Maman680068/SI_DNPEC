@@ -5,9 +5,12 @@ const { call, ids, check, expect, bilan } = require('../lib');
 const { PrismaClient } = require('@prisma/client'); const prisma = new PrismaClient();
 const J = 864e5;
 const t = (n) => new Date(Date.now() + n).toISOString();
+// Suppléances laissées actives par une suite précédente : retirées pour ces titulaires (données de test).
+const liberer = (titulaires) => prisma.suppleance.updateMany({ where: { titulaireId: { in: titulaires }, revokedAt: null, endDate: { gt: new Date() } }, data: { revokedAt: new Date() } });
 
 (async () => {
   console.log('— Jeu : une suppléance en cours, une à venir, une révoquée, une en cours pour le DN');
+  await liberer([ids.chefsfp, ids.chefse, ids.chefdee, ids.dn]);
   const enCours = await call('chefsfp', 'POST', '/suppleances', { titulaireId: ids.chefsfp, suppleantId: ids.chefssr, startDate: t(-60e3), endDate: t(2 * J) });
   expect('en cours : chef SFP → chef SSR', enCours, 201);
   const aVenir = await call('chefse', 'POST', '/suppleances', { titulaireId: ids.chefse, suppleantId: ids.chefdee, startDate: t(3 * J), endDate: t(5 * J) });

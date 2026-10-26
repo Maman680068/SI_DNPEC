@@ -8,6 +8,8 @@ const S = Date.now().toString(36).slice(-5);
 const BASE = process.env.BASE || 'http://localhost:3000';
 const URL = '/api/v1/comptes/synthese';
 const J = 864e5;
+// Suppléances laissées actives par une suite précédente : retirées pour ces titulaires (données de test).
+const liberer = (titulaires) => prisma.suppleance.updateMany({ where: { titulaireId: { in: titulaires }, revokedAt: null, endDate: { gt: new Date() } }, data: { revokedAt: new Date() } });
 
 (async () => {
   console.log('— Accès');
@@ -60,6 +62,7 @@ const J = 864e5;
   expect('agent parti : compte refusé (409)', await call('admin', 'POST', '/users', { email: `cp${S}@test.local`, password: 'Password123!', firstName: 'Ibrahima', lastName: parti.nom, role: 'AGENT', divisionId: ids.DPE, agentId: parti.id }), 409);
 
   console.log('— Intérim : rien n’est emprunté');
+  await liberer([ids.dn]);
   const sup = await call('dn', 'POST', '/suppleances', { titulaireId: ids.dn, suppleantId: ids.chefdpe, startDate: new Date(Date.now() - 60e3).toISOString(), endDate: new Date(Date.now() + J).toISOString() });
   expect('suppléance de test (DN → chef DPE)', sup, 201);
   check('chef DPE en intérim du DN : l’intérim est bien actif (rôle DN emprunté)', (await call('chefdpe', 'GET', '/auth/me', undefined, { 'X-Interim-For': ids.dn })).status === 200);

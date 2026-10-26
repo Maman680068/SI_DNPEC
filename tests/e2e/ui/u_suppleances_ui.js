@@ -4,8 +4,11 @@ const { browser, loginPage, check, bilan, WEB } = require('./helpers');
 const { call, ids } = require('../lib');
 const E = require('../config');
 const t = (n) => new Date(Date.now() + n).toISOString();
+const { PrismaClient } = require('@prisma/client'); const prisma = new PrismaClient();
 
 (async () => {
+  // Suppléance laissée active par une suite précédente : retirée (données de test).
+  await prisma.suppleance.updateMany({ where: { titulaireId: ids.chefsfp, revokedAt: null, endDate: { gt: new Date() } }, data: { revokedAt: new Date() } });
   const s = (await call('chefsfp', 'POST', '/suppleances', { titulaireId: ids.chefsfp, suppleantId: ids.chefssr, startDate: t(-60e3), endDate: t(2 * 864e5) })).body;
   const b = await browser();
   let p = await loginPage(b, 'dn', { width: 1440, height: 900 });
@@ -28,6 +31,6 @@ const t = (n) => new Date(Date.now() + n).toISOString();
   check('chef : pas d’onglet ni de vue d’ensemble', (await p.getByRole('tab', { name: 'Toutes les suppléances en cours' }).count()) === 0 && (await p.getByTestId('suppleances-en-cours').count()) === 0);
   await p.context().close();
   await call('chefsfp', 'POST', `/suppleances/${s.id}/revoke`);
-  await b.close();
+  await b.close(); await prisma.$disconnect();
   process.exitCode = bilan() ? 1 : 0;
 })().catch((e) => { console.error(e); process.exit(2); });

@@ -1,7 +1,8 @@
 import { Module } from '@nestjs/common';
 import { CommunicationModule } from '../communication/communication.module';
 import { CourrierModule } from '../courrier/courrier.module';
-import { FormationsProfilController, RhController } from './rh.controller';
+import { RhController } from './rh.controller';
+import { FormationsProfilController } from './formations-profil.controller';
 import { FormationsService } from './formations.service';
 import { EffectifsService } from './effectifs.service';
 import { CarriereService } from './carriere.service';
