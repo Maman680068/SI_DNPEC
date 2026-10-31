@@ -82,7 +82,7 @@ function espion(page) {
   check('DRH : échelon enregistré « À vérifier »', await attendre(async () => /À vérifier/.test(await d.locator('[data-testid="champ-Échelon"]').innerText())));
   await d.getByRole('button', { name: 'Ajouter' }).nth(1).click();
   await d.getByLabel('Libellé').fill(`Arrêté de nomination ${S}`);
-  await d.getByLabel('Fichier').setInputFiles({ name: 'arrete.pdf', mimeType: 'application/pdf', buffer: Buffer.from(`ARRETE ${S}`) });
+  await d.getByLabel('Fichier', { exact: true }).setInputFiles({ name: 'arrete.pdf', mimeType: 'application/pdf', buffer: Buffer.from(`ARRETE ${S}`) });
   await d.getByRole('dialog').getByRole('button', { name: 'Ajouter la pièce' }).click();
   await d.getByText(`Arrêté de nomination ${S}`).waitFor();
   check('message de confirmation « Pièce ajoutée »', /Pièce ajoutée/.test(await d.getByTestId('toast').innerText()));

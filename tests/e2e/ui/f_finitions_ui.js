@@ -100,7 +100,7 @@ async function saisir(page, key) {
   await alerte.getByRole('button', { name: 'Réessayer' }).click();
   await e.getByRole('heading', { name: 'Réunions' }).waitFor();
   check('« Réessayer » : la liste se charge', await attendre(async () => (await e.getByRole('alert').filter({ hasText: 'Réessayer' }).count()) === 0 && (await e.getByText('Chargement…').count()) === 0));
-  for (const [chemin, motif] of [['/leaves', '/leaves'], ['/annuaire', '/users/directory'], ['/users', '/users']]) {
+  for (const [chemin, motif] of [['/leaves', '/leaves'], ['/annuaire', '/api/v1/annuaire'], ['/users', '/users']]) {
     const key = chemin === '/users' ? 'admin' : 'agent1';
     const x = await loginPage(b, key);
     await x.route(new RegExp(`localhost:3000${motif.replace('/', '\\/')}(\\?|$)`), (route) => route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ statusCode: 500, message: 'Erreur serveur simulée' }) }));

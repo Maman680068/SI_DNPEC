@@ -41,7 +41,8 @@ function Case({
 }) {
   const sansChef = variante !== 'calculee' && !chef;
   const style = {
-    direction: 'min-w-[200px] border-2 border-ink-900 bg-ink-900 text-white shadow-md',
+    // Texte de la couleur du fond de page : lisible sur ink-900 dans les deux thèmes (ink-900 s'éclaircit en sombre).
+    direction: 'min-w-[200px] border-2 border-ink-900 bg-ink-900 text-surface shadow-md',
     division: 'min-w-[150px] border-2 border-ink-900 bg-surface shadow-md',
     section: 'min-w-[140px] border border-line-fort bg-surface',
     cellule: 'min-w-[130px] max-w-[170px] border border-dashed border-line-fort bg-fond-doux text-[11.5px] opacity-90',
@@ -61,10 +62,10 @@ function Case({
         </span>
       )}
       <b className={`block font-heading ${variante === 'cellule' || variante === 'calculee' ? 'text-[12.5px]' : 'text-[14px]'} font-extrabold`}>{sigle}</b>
-      <span className={`block truncate ${variante === 'direction' ? 'text-white/80' : 'text-text-muted'} text-[11.5px]`} title={titre}>
+      <span className={`block truncate ${variante === 'direction' ? 'text-surface/80' : 'text-text-muted'} text-[11.5px]`} title={titre}>
         {titre}
       </span>
-      <span className={`mt-0.5 block truncate text-[11.5px] ${variante === 'direction' ? 'text-white' : sansChef ? 'font-semibold text-clay' : 'text-text'}`}>{sousTitre ?? (chef ? chef.nom : 'Sans responsable')}</span>
+      <span className={`mt-0.5 block truncate text-[11.5px] ${variante === 'direction' ? 'text-surface' : sansChef ? 'font-semibold text-clay' : 'text-text'}`}>{sousTitre ?? (chef ? chef.nom : 'Sans responsable')}</span>
     </button>
   );
 }

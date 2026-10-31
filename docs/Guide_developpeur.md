@@ -220,6 +220,22 @@ fonctionnalité ajoute sa suite (`tests/e2e/api/`, `tests/e2e/ui/`) et sa ligne 
   mise à jour conditionnelle) ; `POST /meetings { demandeReunionId }` consomme l'autorisation dans la
   transaction de création (date et participants validés imposés). Participants : `ParticipantsReunionService`
   (unités du socle et leurs membres, sans stagiaires). Retour arrière `demandes_reunion_down.sql` (phase 39q).
+- Pièces jointes de la messagerie (S3, S3c, `docs/conception_S3_pieces_jointes.md`) :
+  `communication/messages/pieces-jointes.*` — `POST api/v1/messages/fichier` (envoi d'un fichier),
+  `GET api/v1/messages/avec/:userId/documents-a-citer` (documents des Archives que les deux personnes peuvent lire),
+  `GET api/v1/messages/:id/piece-jointe` (téléchargement journalisé, expéditeur et destinataire seuls). La clé de
+  stockage n'est jamais acceptée du client ni renvoyée (`CreateMessageDto` : destinataire et texte seulement).
+- Pages d'administration (lot 3, S9, `docs/conception_S9_administration.md`) :
+  - Journal d'audit en français : `socle/journal-audit.phrases.ts` (phrase, objet protégé générique, domaines,
+    événements sensibles) ; export CSV / PDF journalisé (`GET api/v1/journal-audit/export`).
+  - Utilisateurs : chiffres et sécurité par compte dans `GET api/v1/comptes/synthese` ; rappel de double
+    authentification et renvoi d'invitation (`POST api/v1/comptes/…`).
+  - Courrier : `GET courrier/parametrage` (une lecture : alertes, registres par nature, habilitations par registre).
+  - Logistique : `GET logistique/administration` ; `GestionnairesLogistiqueService.alerterSiAucun` (retrait et nuit).
+  - Stages : `unites` dans `GET stages/capacites`, `POST stages/modele-attestation/verifier`,
+    `GET stages/modele-attestation/apercu`.
+  - Charte : `Interrupteur` et `usePreference` (préférence d'affichage du navigateur, jamais un droit) ; « Masquer
+    les … de démonstration » activé par défaut sur les pages d'administration.
 - Organisation (S8, `docs/conception_S8_organisation.md`) : `GET api/v1/organisation` (`org/organisation-vue.*`) calcule les
   trois onglets (schéma, Divisions & Sections, Cellules) ; `cellules.rattachement` / `cellules.nature` (migration
   `20261102080000_rattachement_cellules`, retour arrière `rattachement_cellules_down.sql`, phase 39r ; colonnes
@@ -394,18 +410,3 @@ Exploitation (sauvegardes, mise à jour PR → CI verte → migration → fusion
 - **Consommation du moteur de calcul** par les écrans (avec les simulations, lot B2).
 - Pages « toutes les versions » et « bases de référence » des modèles (lot B3).
 - Bloc « Dernières simulations » sur le tableau de bord (lot B2).
-
-### Pages d'administration (lot 3, S9)
-
-- Journal d'audit en français : `socle/journal-audit.phrases.ts` (phrase, objet protégé générique, domaines,
-  événements sensibles) ; export CSV / PDF journalisé (`GET api/v1/journal-audit/export`).
-- Utilisateurs : chiffres et sécurité par compte dans `GET api/v1/comptes/synthese` ; rappel de double
-  authentification et renvoi d'invitation (`POST api/v1/comptes/…`).
-- Courrier : `GET courrier/parametrage` (une lecture : alertes, registres par nature, habilitations par registre).
-- Logistique : `GET logistique/administration` ; `GestionnairesLogistiqueService.alerterSiAucun` (retrait et nuit).
-- Stages : `unites` dans `GET stages/capacites`, `POST stages/modele-attestation/verifier`,
-  `GET stages/modele-attestation/apercu`.
-- Charte : `Interrupteur` et `usePreference` (préférence d'affichage du navigateur, jamais un droit) ; « Masquer
-  les … de démonstration » activé par défaut sur les pages d'administration.
-- Détails : `docs/conception_S9_administration.md`.
-

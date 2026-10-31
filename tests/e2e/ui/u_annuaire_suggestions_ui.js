@@ -63,7 +63,8 @@ const attendre = (p, fn, arg) => p.waitForFunction(fn, arg, { timeout: 8000 }).t
   check('agent : pas d’« Assigner une tâche » (droit de l’API)', (await fiche.getByRole('button', { name: 'Assigner une tâche' }).count()) === 0);
   await p.getByLabel('Rechercher un nom, une fonction, une unité ou un sigle').fill(chefdpe.lastName.toLowerCase());
   await attendre(p, () => document.querySelectorAll('[data-testid=personne-annuaire]').length <= 3);
-  check('recherche à chaque lettre (sans majuscules) : cartes filtrées, nom en gras', (await p.locator('[data-testid=personne-annuaire]', { hasText: `${chefdpe.firstName} ${chefdpe.lastName}` }).count()) === 1 && (await carte.locator('b b').count()) >= 1);
+  // La carte d'un suppléant cite aussi « supplée <nom> » : on compte la carte de la personne elle-même.
+  check('recherche à chaque lettre (sans majuscules) : cartes filtrées, nom en gras', (await p.locator('[data-testid=personne-annuaire]').filter({ has: p.getByRole('button', { name: `Voir la fiche de ${chefdpe.firstName} ${chefdpe.lastName}`, exact: true }) }).count()) === 1 && (await carte.locator('b b').count()) >= 1);
   await p.getByLabel('Rechercher un nom, une fonction, une unité ou un sigle').fill('');
   await p.getByRole('button', { name: 'Liste', exact: true }).click();
   await p.getByRole('table', { name: 'Annuaire' }).waitFor();
