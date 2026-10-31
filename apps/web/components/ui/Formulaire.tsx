@@ -850,41 +850,58 @@ export function ZoneDepot({
         {label}
         {facultatif && <span className="font-normal text-text-muted"> (facultatif)</span>}
       </label>
+      {/* Tout le cadre ouvre le choix du fichier (clic, Entrée, Espace) ; un clic venu d'un bouton ou du
+          champ lui-même est ignoré, pour ne jamais ouvrir l'explorateur deux fois. */}
       <div
+        role="button"
+        tabIndex={0}
+        aria-label={`${typeof label === 'string' ? `${label} : ` : ''}glissez ${multiple ? 'vos fichiers' : 'votre fichier'} ici ou parcourez votre ordinateur`}
+        aria-describedby={`${id}-aide`}
+        data-testid="zone-depot"
+        onClick={(e) => {
+          const t = e.target as HTMLElement;
+          if (t.closest('button, input') && t.closest('button, input') !== e.currentTarget) return;
+          saisie.current?.click();
+        }}
+        onKeyDown={(e) => {
+          if (e.target !== e.currentTarget || (e.key !== 'Enter' && e.key !== ' ')) return;
+          e.preventDefault();
+          saisie.current?.click();
+        }}
         onDragOver={(e) => {
           e.preventDefault();
           setSurvol(true);
         }}
         onDragLeave={() => setSurvol(false)}
         onDrop={deposer}
-        className={`flex items-center gap-3 rounded-[10px] border-[1.5px] border-dashed px-3.5 py-3 ${survol ? 'border-ink bg-ink-50' : message ? 'border-clay' : 'border-line-fort'}`}
+        className={`flex cursor-pointer items-center gap-3 rounded-[10px] border-[1.5px] border-dashed px-3.5 py-3 hover:border-ink hover:bg-ink-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink ${survol ? 'border-ink bg-ink-50' : message ? 'border-clay' : 'border-line-fort'}`}
       >
-        <span aria-hidden className="grid h-9 w-9 flex-none place-items-center rounded-[9px] bg-ink-50 text-ink">
+        <span aria-hidden className="grid h-9 w-9 flex-none place-items-center rounded-[9px] bg-ink-50 text-ink" data-testid="zone-depot-icone">
           <Paperclip size={17} />
         </span>
         <span className="min-w-0 flex-1 text-[13px]">
           <span className="font-semibold text-ink-900">Glissez {multiple ? 'vos fichiers' : 'votre fichier'} ici</span> ou{' '}
-          <button type="button" className="font-bold text-ink underline-offset-2 hover:underline" onClick={() => saisie.current?.click()}>
-            parcourez votre ordinateur
-          </button>
-          <span className="block text-[12px] text-text-muted">{aide}</span>
+          <span className="font-bold text-ink underline-offset-2 hover:underline">parcourez votre ordinateur</span>
+          <span id={`${id}-aide`} className="block text-[12px] text-text-muted">{aide}</span>
         </span>
-        <input
-          ref={saisie}
-          id={id}
-          type="file"
-          multiple={multiple}
-          accept={accept}
-          required={required && fichiers.length === 0}
-          aria-describedby={message ? `${id}-erreur` : undefined}
-          className="sr-only"
-          data-cible-champ={id}
-          onChange={(e) => {
-            ajouter(e.target.files);
-            e.target.value = '';
-          }}
-        />
       </div>
+      {/* Champ hors du cadre : aucun élément interactif imbriqué dans le bouton. */}
+      <input
+        ref={saisie}
+        id={id}
+        type="file"
+        tabIndex={-1}
+        multiple={multiple}
+        accept={accept}
+        required={required && fichiers.length === 0}
+        aria-describedby={message ? `${id}-erreur` : undefined}
+        className="sr-only"
+        data-cible-champ={id}
+        onChange={(e) => {
+          ajouter(e.target.files);
+          e.target.value = '';
+        }}
+      />
       {fichiers.length > 0 && (
         <ul className="mt-2 space-y-1.5" data-testid="fichiers-choisis">
           {fichiers.map((f, i) => (
