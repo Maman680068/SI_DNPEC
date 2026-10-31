@@ -129,6 +129,8 @@ lancer "29. CHROMIUM — D2 DÉCISIONS" ui/d2_decisions_ui.js
 lancer "30. CHROMIUM — D3 DOSSIER DU PERSONNEL" ui/d3_dossier_ui.js
 lancer "31. CHROMIUM — F CLOCHE, RETOUR, ERREURS" ui/f_finitions_ui.js
 lancer "32. CHROMIUM — MESSAGERIE" ui/f_messagerie_ui.js
+lancer "32-bis. MESSAGERIE : RECHERCHE DU DESTINATAIRE (RÉCENTS, TOUT LE PERSONNEL, SANS ACCENTS, PLUSIEURS MOTS, FONCTION, UNITÉ)" api/s2_recherche_personnes.js
+lancer "32-ter. CHROMIUM — MESSAGERIE : RECHERCHE DU DESTINATAIRE À CHAQUE LETTRE, LETTRES EN GRAS, CONVERSATION EXISTANTE OUVERTE" ui/s2_recherche_ui.js
 lancer "33. CHROMIUM — D6 RÔLE STAGIAIRE" ui/d6_role_ui.js
 lancer "34. CHROMIUM — D6 STAGES" ui/d6_stages_ui.js
 lancer "34-bis. CHROMIUM — ACCÈS DES STAGIAIRES : NOUVEAU STAGIAIRE (DRH, ADMINISTRATEUR), DEMANDE D’ACCÈS" ui/v_stagiaire_acces_ui.js

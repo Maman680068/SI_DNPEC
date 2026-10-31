@@ -132,3 +132,18 @@ export function searchUsers(query: string): Promise<BasicUserInfo[]> {
 export function getDirectory(): Promise<DirectoryUser[]> {
   return apiFetch<DirectoryUser[]>('/users/directory');
 }
+
+/** Personne trouvée par la recherche de la messagerie et de l'annuaire (api/v1/personnes/recherche). */
+export interface PersonneTrouvee {
+  id: string;
+  prenom: string;
+  nom: string;
+  fonction: string | null;
+  unite: string | null;
+  uniteLibelle: string | null;
+  conversation: boolean;
+}
+/** Sans texte : correspondants récents puis tout le personnel ; avec texte : résultats triés par l'API. */
+export function rechercherPersonnes(q: string): Promise<{ recents: PersonneTrouvee[]; personnes: PersonneTrouvee[] }> {
+  return apiFetch(`/api/v1/personnes/recherche?q=${encodeURIComponent(q.trim())}`);
+}

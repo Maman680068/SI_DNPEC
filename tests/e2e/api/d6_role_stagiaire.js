@@ -30,6 +30,8 @@ const OUVERTES = new Set([
   'GET /api/v1/profil/formations',
   // Suppléances : droit à l'onglet « Toutes les suppléances en cours » (toujours non pour un stagiaire).
   'GET /suppleances/droits',
+  // Messagerie : recherche du destinataire (même périmètre que GET /users/search, déjà ouvert).
+  'GET /api/v1/personnes/recherche',
 ]);
 // Socle N5 : fils de discussion et préférences de notification ouverts aux stagiaires.
 const CLASSES_OUVERTES = ['/auth', '/messages', '/notifications', '/personnel-files', '/stages', '/aide', '/api/v1/fils', '/api/v1/notifications/preferences'];
