@@ -2,16 +2,22 @@
 
 import Link from 'next/link';
 import { Fragment, useEffect, useRef, useState, type FormEvent } from 'react';
-import { ArrowLeft, Info, Lock, Paperclip, X } from 'lucide-react';
+import { Archive, ArrowLeft, Download, FolderOpen, Info, Laptop, Lock, Paperclip, X } from 'lucide-react';
 import { useAuth } from '../../lib/auth/AuthProvider';
 import { useOrg } from '../../lib/org/OrgProvider';
-import { EVENEMENT_MESSAGES_LUS, getMessagesWith, markMessageRead, sendMessage } from '../../lib/api/communication';
+import { envoyerFichierMessage, EVENEMENT_MESSAGES_LUS, getMessagesWith, lirePieceJointe, markMessageRead, sendMessage, telechargerPieceJointe } from '../../lib/api/communication';
 import type { ContexteConversation, DirectMessage } from '../../lib/communication/types';
 import { decouperCorps, heure, libelleJour, ligneDocument, memeJour } from '../../lib/communication/affichage';
 import { Chargement, messageChargement } from '../ui/ErreurChargement';
 import { IconeFichier, Initiales } from '../ui/Charte';
 import { ChoixDocument, type DocumentChoisi } from './ChoixDocument';
 import { messageErreur, useToast } from '../ui/Toast';
+import { UploadDocumentModal } from '../documents/UploadDocumentModal';
+
+/** Fichiers permis depuis l'ordinateur (l'API vérifie aussi le contenu). */
+const TYPES_PERMIS = '.pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.gif,.webp';
+const TAILLE_MAX = 10 * 1024 * 1024;
+const taille = (o: number) => (o < 1024 * 1024 ? `${Math.max(1, Math.round(o / 1024))} Ko` : `${(o / 1024 / 1024).toFixed(1).replace('.', ',')} Mo`);
 
 /** Carte d'un document des Archives cité : cliquable si le lecteur peut l'ouvrir (l'API le dit), sinon muette. */
 function CarteDocument({ id, contexte, sortant }: { id: string; contexte: ContexteConversation | null; sortant: boolean }) {
@@ -65,6 +71,10 @@ export function MessageThread({
   const [body, setBody] = useState('');
   const [piece, setPiece] = useState<DocumentChoisi | null>(null);
   const [choix, setChoix] = useState(false);
+  const [menuJoindre, setMenuJoindre] = useState(false);
+  const [fichier, setFichier] = useState<File | null>(null);
+  const [aClasser, setAClasser] = useState<File | null>(null);
+  const saisieFichier = useRef<HTMLInputElement>(null);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fil = useRef<HTMLDivElement>(null);
@@ -75,6 +85,8 @@ export function MessageThread({
     setError(null);
     setPiece(null);
     setChoix(false);
+    setMenuJoindre(false);
+    setFichier(null);
     getMessagesWith(otherUserId)
       .then(async (result) => {
         setMessages(result);
@@ -96,11 +108,16 @@ export function MessageThread({
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     const corps = [body.trim(), piece ? ligneDocument(piece.id) : ''].filter(Boolean).join('\n');
-    if (!corps) return;
+    if (!corps && !fichier) return;
+    if (fichier && fichier.size > TAILLE_MAX) {
+      setError('Fichier trop volumineux : 10 Mo au plus.');
+      return;
+    }
     setSending(true);
     setError(null);
     try {
-      const message = await sendMessage(otherUserId, corps);
+      const message = fichier ? await envoyerFichierMessage(otherUserId, fichier, corps) : await sendMessage(otherUserId, corps);
+      setFichier(null);
       setMessages((prev) => (prev ? [...prev, message] : [message]));
       setBody('');
       if (piece) onContexteChange();
@@ -161,12 +178,32 @@ export function MessageThread({
                   <CarteDocument key={id} id={id} contexte={contexte} sortant={isMine} />
                 ))}
                 {message.attachmentName && (
-                  <span className={`${isMine ? 'self-end' : 'self-start'} flex max-w-[85%] items-center gap-2.5 rounded-[10px] border border-line bg-surface px-2.5 py-2 text-[13px]`}>
+                  <span data-testid="piece-jointe" className={`${isMine ? 'self-end' : 'self-start'} flex max-w-[85%] flex-wrap items-center gap-2.5 rounded-[10px] border border-line bg-surface px-2.5 py-2 text-[13px]`}>
                     <IconeFichier nom={message.attachmentName} />
-                    <span className="min-w-0">
+                    <span className="min-w-0 flex-1">
                       <b className="block truncate font-bold text-ink-900">{message.attachmentName}</b>
                       <span className="block text-[12.5px] text-text-muted">Pièce jointe</span>
                     </span>
+                    <button
+                      type="button"
+                      className="inline-flex h-8 items-center gap-1.5 rounded-[8px] border border-line px-2.5 text-[12.5px] font-semibold hover:bg-bg"
+                      onClick={() => telechargerPieceJointe(message.id, message.attachmentName).catch((e) => toast.erreur('Téléchargement impossible', messageErreur(e)))}
+                    >
+                      <Download aria-hidden size={14} /> Télécharger
+                    </button>
+                    {contexte?.droits.classer && (
+                      <button
+                        type="button"
+                        className="inline-flex h-8 items-center gap-1.5 rounded-[8px] border border-line px-2.5 text-[12.5px] font-semibold hover:bg-bg"
+                        onClick={() =>
+                          lirePieceJointe(message.id, message.attachmentName!)
+                            .then(setAClasser)
+                            .catch((e) => toast.erreur('Classement impossible', messageErreur(e)))
+                        }
+                      >
+                        <Archive aria-hidden size={14} /> Classer dans les Archives
+                      </button>
+                    )}
                   </span>
                 )}
                 <span className={`text-[11px] text-text-muted ${isMine ? 'self-end' : 'self-start'}`}>
@@ -182,12 +219,70 @@ export function MessageThread({
       <form onSubmit={handleSubmit} className="relative border-t border-line px-3 py-3 sm:px-4">
         {choix && (
           <ChoixDocument
+            avec={otherUserId}
             onChoisir={(d) => {
               setPiece(d);
               setChoix(false);
             }}
             onFermer={() => setChoix(false)}
           />
+        )}
+        {menuJoindre && (
+          <div role="menu" aria-label="Joindre" className="absolute bottom-full left-3 z-20 mb-2 w-[240px] rounded-[10px] border border-line bg-surface p-1.5 shadow-[0_12px_30px_rgba(18,28,77,0.18)]" data-testid="menu-joindre">
+            <button
+              type="button"
+              role="menuitem"
+              className="flex w-full items-center gap-2.5 rounded-[7px] px-2.5 py-2 text-left text-[13px] font-semibold hover:bg-bg"
+              onClick={() => {
+                setMenuJoindre(false);
+                saisieFichier.current?.click();
+              }}
+            >
+              <Laptop aria-hidden size={16} className="text-text-muted" /> Depuis mon ordinateur
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              className="flex w-full items-center gap-2.5 rounded-[7px] px-2.5 py-2 text-left text-[13px] font-semibold hover:bg-bg"
+              onClick={() => {
+                setMenuJoindre(false);
+                setChoix(true);
+              }}
+            >
+              <FolderOpen aria-hidden size={16} className="text-text-muted" /> Depuis les Archives
+            </button>
+          </div>
+        )}
+        <input
+          ref={saisieFichier}
+          type="file"
+          accept={TYPES_PERMIS}
+          tabIndex={-1}
+          aria-hidden
+          className="sr-only"
+          data-testid="fichier-message"
+          onChange={(e) => {
+            const f = e.target.files?.[0] ?? null;
+            e.target.value = '';
+            if (!f) return;
+            if (f.size > TAILLE_MAX) {
+              setError('Fichier trop volumineux : 10 Mo au plus.');
+              return;
+            }
+            setError(null);
+            setFichier(f);
+          }}
+        />
+        {fichier && (
+          <div className="mb-2 flex items-center gap-2 text-[12.5px]" data-testid="fichier-joint">
+            <Paperclip aria-hidden size={14} className="text-text-muted" />
+            <span className="min-w-0 truncate">
+              Fichier joint : <b>{fichier.name}</b> ({taille(fichier.size)})
+            </span>
+            <button type="button" onClick={() => setFichier(null)} aria-label="Retirer le fichier joint" className="grid h-6 w-6 place-items-center rounded text-text-muted hover:bg-bg">
+              <X aria-hidden size={14} />
+            </button>
+          </div>
         )}
         {piece && (
           <div className="mb-2 flex items-center gap-2 text-[12.5px]" data-testid="document-joint">
@@ -201,8 +296,17 @@ export function MessageThread({
           </div>
         )}
         <div className="flex items-center gap-2.5">
-          {peutJoindre && (
-            <button type="button" onClick={() => setChoix((c) => !c)} aria-label="Joindre un document des Archives" aria-expanded={choix} className="grid h-10 w-10 flex-none place-items-center rounded-[10px] border border-line text-text-muted hover:bg-bg">
+          {(contexte?.droits.joindre ?? peutJoindre) && (
+            <button
+              type="button"
+              onClick={() => {
+                setChoix(false);
+                setMenuJoindre((m) => !m);
+              }}
+              aria-label="Joindre"
+              aria-haspopup="menu"
+              aria-expanded={menuJoindre}
+              className="grid h-10 w-10 flex-none place-items-center rounded-[10px] border border-line text-text-muted hover:bg-bg">
               <Paperclip aria-hidden size={17} />
             </button>
           )}
@@ -213,7 +317,7 @@ export function MessageThread({
             placeholder="Écrire un message…"
             className="h-10 min-w-0 flex-1 rounded-[10px] border border-line bg-surface px-3 text-[13.5px] placeholder:text-text-faint focus:border-ink focus:outline focus:outline-2 focus:outline-ink"
           />
-          <button type="submit" disabled={sending || (!body.trim() && !piece)} className="h-10 flex-none rounded-[10px] bg-ink px-3.5 text-[14px] font-bold text-white hover:bg-ink-800 disabled:opacity-60">
+          <button type="submit" disabled={sending || (!body.trim() && !piece && !fichier)} className="h-10 flex-none rounded-[10px] bg-ink px-3.5 text-[14px] font-bold text-white hover:bg-ink-800 disabled:opacity-60">
             Envoyer
           </button>
         </div>
@@ -223,6 +327,16 @@ export function MessageThread({
           </p>
         )}
       </form>
+      {aClasser && (
+        <UploadDocumentModal
+          divisionId={currentUser?.divisionId ?? null}
+          celluleId={currentUser?.divisionId ? null : currentUser?.celluleId ?? null}
+          folderId={null}
+          fichierInitial={aClasser}
+          onClose={() => setAClasser(null)}
+          onCreated={() => setAClasser(null)}
+        />
+      )}
     </div>
   );
 }

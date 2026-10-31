@@ -53,7 +53,7 @@ export class MessagesService {
       dto.recipientId,
       NotificationType.MESSAGE_DIRECT,
       'Nouveau message',
-      dto.body.length > 200 ? `${dto.body.slice(0, 200)}…` : dto.body,
+      dto.body ? (dto.body.length > 200 ? `${dto.body.slice(0, 200)}…` : dto.body) : `Pièce jointe : ${piece?.nom ?? 'fichier'}`,
       `/communication?with=${actor.id}`,
     );
 

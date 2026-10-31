@@ -1,4 +1,4 @@
-import { apiFetch } from './client';
+import { apiFetch, lireFichier, telechargerFichier } from './client';
 import type {
   Announcement,
   AnnouncementReadReceipt,
@@ -51,4 +51,30 @@ export const EVENEMENT_MESSAGES_LUS = 'dnpec:messages-lus';
 /** Fiche de l'interlocuteur : fonction, unité, documents cités et tâches en commun que le lecteur voit. */
 export function getContexteConversation(userId: string): Promise<ContexteConversation> {
   return apiFetch<ContexteConversation>(`/api/v1/messages/avec/${encodeURIComponent(userId)}/contexte`);
+}
+
+// Pièces jointes de la messagerie (S3).
+export function envoyerFichierMessage(recipientId: string, fichier: File, body: string): Promise<DirectMessage> {
+  const fd = new FormData();
+  fd.append('recipientId', recipientId);
+  if (body.trim()) fd.append('body', body.trim());
+  fd.append('fichier', fichier);
+  return apiFetch<DirectMessage>('/api/v1/messages/fichier', { method: 'POST', body: fd });
+}
+export function telechargerPieceJointe(messageId: string, nom: string | null): Promise<void> {
+  return telechargerFichier(`/api/v1/messages/${messageId}/piece-jointe`, nom);
+}
+export function lirePieceJointe(messageId: string, nom: string): Promise<File> {
+  return lireFichier(`/api/v1/messages/${messageId}/piece-jointe`, nom);
+}
+export interface DocumentACiter {
+  id: string;
+  titre: string;
+  nomFichier: string | null;
+  version: number | null;
+  chemin: string;
+  echange: boolean;
+}
+export function documentsACiter(avec: string, q: string): Promise<DocumentACiter[]> {
+  return apiFetch<DocumentACiter[]>(`/api/v1/messages/avec/${encodeURIComponent(avec)}/documents-a-citer?q=${encodeURIComponent(q.trim())}`);
 }

@@ -68,7 +68,8 @@ const compte = async (k) => (await call(k, 'GET', '/messages/unread-count')).bod
   await fiche.getByText('AGENTDEE Test').waitFor();
   await fiche.getByText(/ · /).first().waitFor({ timeout: 8000 }).catch(() => {}); // fonction · unité : seconde requête
   check('fiche : nom, fonction · unité', / · /.test(await fiche.innerText()));
-  await a1.getByRole('button', { name: 'Joindre un document des Archives' }).click();
+  await a1.getByRole('button', { name: 'Joindre', exact: true }).click();
+  await a1.getByRole('menuitem', { name: 'Depuis les Archives' }).click();
   await a1.locator('[data-testid=choix-document]').getByRole('searchbox').fill(`Projections ${S}`);
   await a1.locator('[data-testid=choix-document]').getByRole('button', { name: `Projections ${S}` }).click();
   await a1.locator('[data-testid=document-joint]').waitFor();

@@ -64,6 +64,12 @@ export class ContexteConversationService {
       },
       documents,
       taches,
+      // Pièces jointes (S3) : joindre (fichier ou document des Archives) et classer un fichier reçu ou
+      // envoyé dans les Archives de son unité (dépôt normal, droits normaux) — jamais pour un stagiaire.
+      droits: {
+        joindre: actor.role !== SystemRole.STAGIAIRE,
+        classer: actor.role !== SystemRole.STAGIAIRE && !!(actor.divisionId || actor.celluleId),
+      },
     };
   }
 

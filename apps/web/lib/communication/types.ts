@@ -90,4 +90,5 @@ export interface ContexteConversation {
   interlocuteur: { id: string; prenom: string; nom: string; fonction: string; unite: string | null };
   documents: { id: string; titre: string; nomFichier: string | null; version: number | null; chemin: string; lien: string }[];
   taches: { id: string; titre: string; statut: string; echeance: string | null; lien: string }[];
+  droits: { joindre: boolean; classer: boolean };
 }

@@ -32,6 +32,8 @@ const OUVERTES = new Set([
   'GET /suppleances/droits',
   // Messagerie : recherche du destinataire (même périmètre que GET /users/search, déjà ouvert).
   'GET /api/v1/personnes/recherche',
+  // Messagerie : téléchargement d'une pièce jointe reçue ou envoyée (les deux personnes seulement).
+  'GET /api/v1/messages/:id/piece-jointe',
 ]);
 // Socle N5 : fils de discussion et préférences de notification ouverts aux stagiaires.
 const CLASSES_OUVERTES = ['/auth', '/messages', '/notifications', '/personnel-files', '/stages', '/aide', '/api/v1/fils', '/api/v1/notifications/preferences'];

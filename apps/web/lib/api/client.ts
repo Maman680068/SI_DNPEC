@@ -194,3 +194,21 @@ export async function telechargerFichier(path: string, fileName: string | null, 
   link.click();
   URL.revokeObjectURL(url);
 }
+
+/** Lit un fichier de l'API (même identité que l'écran) et le rend comme un `File` du navigateur —
+ * pour le redéposer ailleurs (ex. « Classer dans les Archives » une pièce jointe). */
+export async function lireFichier(path: string, nom: string): Promise<File> {
+  const res = await appelApi(`${API_BASE_URL}${path}`, { headers: authHeaders() });
+  if (!res.ok) {
+    let message = 'Lecture du fichier impossible';
+    try {
+      const body = (await res.json()) as { message?: string | string[] };
+      if (body.message) message = Array.isArray(body.message) ? body.message.join(', ') : body.message;
+    } catch {
+      // corps non JSON : message générique
+    }
+    throw new ApiError(res.status, message);
+  }
+  const blob = await res.blob();
+  return new File([blob], nom, { type: blob.type });
+}
