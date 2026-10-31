@@ -121,6 +121,8 @@ lancer "22. CHROMIUM — C2 PAGE" ui/c2_page.js
 lancer "23. CHROMIUM — C2 ARRIVÉE" ui/c2_arrivee.js
 lancer "24. CHROMIUM — C2 ACTE" ui/c2_acte.js
 lancer "25. CHROMIUM — C2 ADMINISTRATION" ui/c2_admin.js
+lancer "25-bis. PARAMÉTRAGE DU COURRIER EN UNE LECTURE : ALERTES, REGISTRES PAR NATURE, PROCHAIN NUMÉRO SANS CONSOMMER, HABILITATIONS PAR REGISTRE" api/s9c_parametrage_courrier.js
+lancer "25-ter. CHROMIUM — PARAMÉTRAGE DU COURRIER : ALERTES, TABLEAUX PAR NATURE, DÉMONSTRATION MASQUÉE, HABILITATIONS PAR REGISTRE" ui/s9c_parametrage_courrier_ui.js
 lancer "26. CHROMIUM — C2 CARTE" ui/c2_carte.js
 lancer "27. CHROMIUM — C2 DATES" ui/c2_dates_ui.js
 lancer "28. CHROMIUM — E3 CHANGEMENT DE RÔLE" ui/e3_role_ui.js

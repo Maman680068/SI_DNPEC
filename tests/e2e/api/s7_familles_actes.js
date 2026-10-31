@@ -13,6 +13,12 @@ const fam = (e, code) => e.familles.find((f) => f.code === code);
   console.log('— Situation de départ (comme en production : ATT sur l’arrêté d’affectation)');
   await prisma.familleActeRh.updateMany({ data: { registreId: null } });
   let att = await prisma.registreCourrier.findUnique({ where: { code: 'ATT' } });
+  // Jeu du courrier (c1_setup) : un registre ATT « par unité », inutilisable pour une famille d'actes.
+  // Son code est libéré (le jeu s'y réfère par identifiant) pour rejouer la situation de production.
+  if (att && (att.nature !== 'ACTE' || att.portee !== 'DIRECTION' || !att.isActive)) {
+    await prisma.registreCourrier.update({ where: { id: att.id }, data: { code: `ATU${Date.now().toString(36).slice(-4).toUpperCase()}` } });
+    att = null;
+  }
   if (!att) att = (await call('admin', 'POST', '/courrier/registres', { code: 'ATT', libelle: 'Attestations', nature: 'ACTE', portee: 'DIRECTION', gabaritNumero: 'ATT/{seq}/{annee}' })).body;
   expect('ATT rattaché à « Arrêté d’affectation »', await call('drh', 'PATCH', `${URL}/ARRETE_AFFECTATION`, { registreId: att.id }), 200);
 

@@ -44,3 +44,19 @@ Droits inchangés pour toutes les pages S9. Aucune migration.
   avec compteur (`?onglet=agents-sans-compte`, `?onglet=inscriptions`).
 - Limite assumée : « jamais connecté » se lit dans le journal des connexions, purgé après sa durée de
   conservation ; un compte silencieux depuis plus longtemps est donc compté comme jamais connecté.
+
+## S9c. Courrier — paramétrage
+
+- `GET courrier/parametrage` (administrateur, `ParametrageCourrierService`, contrôleur dans son propre fichier) :
+  alertes (registre actif sans personne habilitée **active** ; famille d'actes RH sans registre utilisable,
+  lien `/rh?onglet=carriere`), registres groupés par nature (Arrivée, Départ, Actes) : code, libellé, portée,
+  gabarit, prochain numéro par `NumerotationService.apercu` (aucune séquence consommée ; pour une portée « par
+  unité », celui de la première unité habilitée), numéros de l'année et date du dernier (compteurs de l'année),
+  personnes habilitées (compte inactif signalé), familles d'actes liées avec leur état (`etatFamille`, fonction
+  partagée avec S7 : « à corriger » si incohérente) ; habilitations groupées par registre, historique compris.
+  Configuration et comptages seulement, jamais le contenu d'un courrier.
+- Écran : deux onglets (« Registres et numérotation » — l'ancien onglet « Compteurs » y est fusionné : « Voir
+  les compteurs » et « Reprise d'un compteur » dans le menu de chaque registre — et « Habilitations du
+  secrétariat »), registres de démonstration (`TEST-…`) masqués par défaut (interrupteur, préférence du
+  navigateur). Routes d'écriture inchangées.
+

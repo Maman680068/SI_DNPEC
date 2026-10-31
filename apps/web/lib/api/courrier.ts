@@ -176,3 +176,42 @@ export const exporterArrivees = (filtres: ArriveeFiltres) =>
   telecharger(`/courrier/arrivees/export.xlsx${query(filtres)}`, `courrier_arrivee_${jour()}.xlsx`);
 export const exporterActes = (filtres: ActeFiltres) =>
   telecharger(`/courrier/actes/export.xlsx${query(filtres)}`, `departs_actes_${jour()}.xlsx`);
+
+/** Paramétrage du courrier en une lecture (S9c) — administrateur. */
+export interface ParametrageCourrier {
+  alertes: {
+    registresSansPersonne: { id: string; code: string; libelle: string; demonstration: boolean }[];
+    famillesSansRegistre: { code: string; libelle: string }[];
+    lienFamilles: string;
+  };
+  groupes: {
+    nature: RegistreNature;
+    libelle: string;
+    registres: {
+      id: string;
+      code: string;
+      libelle: string;
+      nature: RegistreNature;
+      portee: RegistrePortee;
+      porteeLibelle: string;
+      gabarit: string;
+      actif: boolean;
+      demonstration: boolean;
+      prochainNumero: string | null;
+      prochainNumeroUnite: string | null;
+      utilisesAnnee: number;
+      dernierLe: string | null;
+      habilites: { id: string; nom: string; actif: boolean; unite: string | null }[];
+      sansPersonne: boolean;
+      familles: { code: string; libelle: string; etat: 'PRETE' | 'A_CORRIGER' | 'BLOQUEE' }[];
+    }[];
+  }[];
+  habilitations: {
+    registre: { id: string; code: string; libelle: string; actif: boolean; demonstration: boolean };
+    actives: LigneHabilitation[];
+    historique: LigneHabilitation[];
+  }[];
+  comptesInactifsHabilites: number;
+}
+export interface LigneHabilitation { id: string; userId: string; nom: string; compteActif: boolean; unite: string; depuis: string; revoqueeLe: string | null }
+export const getParametrageCourrier = () => apiFetch<ParametrageCourrier>('/courrier/parametrage');

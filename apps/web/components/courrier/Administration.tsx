@@ -5,20 +5,25 @@ import {
   createHabilitation,
   createRegistre,
   getCompteurs,
-  getHabilitations,
+  getParametrageCourrier,
   getRegistres,
   getUnites,
   initialiserCompteur,
   revoquerHabilitation,
   updateRegistre,
+  type LigneHabilitation,
+  type ParametrageCourrier,
 } from '../../lib/api/courrier';
 import { listAllUsers } from '../../lib/api/users';
 import type { AdminUser } from '../../lib/users/types';
-import type { Compteur, Habilitation, Registre, RegistreNature, RegistrePortee, Unite } from '../../lib/courrier/types';
+import type { Compteur, Registre, RegistreNature, RegistrePortee, Unite } from '../../lib/courrier/types';
 import { REGISTRE_NATURE_LABEL, REGISTRE_PORTEE_LABEL, formatDate } from '../../lib/courrier/types';
-import { Plus } from 'lucide-react';
+import { AlertTriangle, Plus } from 'lucide-react';
 import { Badge } from '../ui/Badge';
-import { BTN_LIGNE, BTN_PRINCIPAL } from '../ui/Charte';
+import { Bandeau, BarreOutils, BTN_PRINCIPAL, EtatVide, Interrupteur, LigneTableau, Onglets, Pastille, Tableau, usePreference } from '../ui/Charte';
+import { MenuActions } from '../ui/MenuActions';
+import Link from 'next/link';
+import { Fenetre } from '../ui/Fenetre';
 import { ErreurChargement } from '../ui/ErreurChargement';
 import { ChoixSegment, FenetreFormulaire, Grille2, Liste, Saisie, SelecteurPersonnes } from '../ui/Formulaire';
 import { SqueletteListe } from '../ui/Squelette';
@@ -53,21 +58,38 @@ function libelleUnite(unites: Unite[], key: string): string {
 // Registres
 // ---------------------------------------------------------------------------
 
-export function PanneauRegistres() {
+type OngletParametrage = 'registres' | 'habilitations';
+
+/**
+ * Paramétrage du courrier (S9c) : alertes en tête, puis deux onglets — « Registres et numérotation »
+ * (registres groupés par nature, prochain numéro sans consommer la séquence, numéros de l'année, personnes
+ * habilitées, famille d'actes liée ; reprise d'un compteur dans le menu de la ligne) et « Habilitations du
+ * secrétariat » (groupées par registre, compte inactif signalé). Tout est calculé par l'API
+ * (`GET courrier/parametrage`).
+ */
+export function ParametrageCourrierVue() {
   const toast = useToast();
-  const [registres, setRegistres] = useState<Registre[] | null>(null);
+  const [vue, setVue] = useState<ParametrageCourrier | null>(null);
+  const [registres, setRegistres] = useState<Registre[]>([]);
   const [unites, setUnites] = useState<Unite[]>([]);
-  const [edition, setEdition] = useState<Registre | 'nouveau' | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
+  const [onglet, setOnglet] = useState<OngletParametrage>('registres');
+  const [masquerDemo, setMasquerDemo] = usePreference('courrier.masquerDemo', true);
+  const [edition, setEdition] = useState<Registre | 'nouveau' | null>(null);
+  const [reprise, setReprise] = useState<Registre | null>(null);
+  const [compteursDe, setCompteursDe] = useState<Registre | null>(null);
+  const [accorder, setAccorder] = useState<string | null>(null);
   const charger = useCallback(() => {
-    Promise.all([getRegistres(), getUnites()])
-      .then(([r, u]) => {
+    Promise.all([getParametrageCourrier(), getRegistres(), getUnites()])
+      .then(([v, r, u]) => {
+        setVue(v);
         setRegistres(r);
         setUnites(u);
       })
-      .catch((e) => setErreur(messageErreur(e, 'Les registres n’ont pas pu être lus.')));
+      .catch((e) => setErreur(messageErreur(e, 'Le paramétrage du courrier n’a pas pu être lu.')));
   }, []);
   useEffect(() => charger(), [charger]);
+  const registre = (id: string) => registres.find((r) => r.id === id);
 
   async function basculer(r: Registre, isActive: boolean, annulable = true) {
     try {
@@ -81,44 +103,201 @@ export function PanneauRegistres() {
       toast.erreur('Modification impossible', messageErreur(e));
     }
   }
+  async function revoquer(h: LigneHabilitation, code: string) {
+    if (!window.confirm(`Révoquer l’habilitation de ${h.nom} sur ${code} ?`)) return;
+    try {
+      await revoquerHabilitation(h.id);
+      toast.succes('Habilitation révoquée', { detail: `${h.nom} n’enregistre plus le courrier de ${code}.` });
+      charger();
+    } catch (e) {
+      toast.erreur('Révocation impossible', messageErreur(e));
+    }
+  }
 
+  if (!vue) return <>{erreur ? <ErreurChargement message={erreur} /> : <SqueletteListe lignes={5} colonnes={4} />}</>;
+  const sansPersonne = vue.alertes.registresSansPersonne.filter((r) => !masquerDemo || !r.demonstration);
   return (
     <div>
-      <div className="mb-3 flex justify-end">
-        <button type="button" className={BTN_PRINCIPAL} onClick={() => setEdition('nouveau')}>
-          <Plus aria-hidden size={16} />
-          Nouveau registre
-        </button>
-      </div>
       <ErreurChargement message={erreur} />
-      {registres === null ? (
-        !erreur && <SqueletteListe lignes={4} colonnes={2} />
-      ) : registres.length === 0 ? (
-        <Vide>Aucun registre.</Vide>
+      {sansPersonne.length > 0 && (
+        <Bandeau ton="rouge" icone={<AlertTriangle aria-hidden size={18} />} testid="alerte-sans-personne">
+          <b>{sansPersonne.length === 1 ? 'Un registre actif n’a' : `${sansPersonne.length} registres actifs n’ont`} aucune personne habilitée</b> : {sansPersonne.map((r) => r.code).join(', ')}. Personne ne peut y enregistrer le courrier.
+        </Bandeau>
+      )}
+      {vue.alertes.famillesSansRegistre.length > 0 && (
+        <Bandeau
+          ton="ambre"
+          icone={<AlertTriangle aria-hidden size={18} />}
+          testid="alerte-familles"
+          action={
+            <Link href={vue.alertes.lienFamilles} className="text-[13px] font-semibold text-ink underline">
+              Ouvrir Carrière et actes
+            </Link>
+          }
+        >
+          <b>{vue.alertes.famillesSansRegistre.length} famille(s) d’actes RH sans registre</b> : {vue.alertes.famillesSansRegistre.map((f) => f.libelle).join(', ')}. Ces actes ne peuvent être ni préparés ni signés.
+        </Bandeau>
+      )}
+      <Onglets
+        label="Paramétrage du courrier"
+        actif={onglet}
+        onChange={setOnglet}
+        onglets={[
+          { cle: 'registres', label: 'Registres et numérotation' },
+          { cle: 'habilitations', label: 'Habilitations du secrétariat', n: vue.comptesInactifsHabilites || null, chaud: vue.comptesInactifsHabilites > 0 },
+        ]}
+      />
+      <BarreOutils
+        droite={
+          onglet === 'registres' ? (
+            <button type="button" className={BTN_PRINCIPAL} onClick={() => setEdition('nouveau')}>
+              <Plus aria-hidden size={16} />
+              Nouveau registre
+            </button>
+          ) : (
+            <button type="button" className={BTN_PRINCIPAL} onClick={() => setAccorder('')}>
+              <Plus aria-hidden size={16} />
+              Accorder une habilitation
+            </button>
+          )
+        }
+      >
+        <Interrupteur label="Masquer les registres de démonstration" actif={masquerDemo} onChange={setMasquerDemo} testid="masquer-demo" />
+      </BarreOutils>
+
+      {onglet === 'registres' ? (
+        <div className="space-y-5">
+          {vue.groupes.map((g) => {
+            const lignes = g.registres.filter((r) => !masquerDemo || !r.demonstration);
+            return (
+              <section key={g.nature} aria-labelledby={`nature-${g.nature}`} data-testid={`groupe-${g.nature}`}>
+                <h2 id={`nature-${g.nature}`} className="mb-2 text-[15px] font-bold text-ink-900">
+                  {g.libelle} <span className="text-text-muted">· {lignes.length}</span>
+                </h2>
+                <Tableau
+                  label={`Registres — ${g.libelle}`}
+                  grille={GRILLE_REGISTRES}
+                  colonnes={['Registre', 'Portée', 'Prochain numéro', 'Cette année', 'Personnes habilitées', 'Famille d’actes', '']}
+                  vide={<EtatVide texte="Aucun registre de cette nature." />}
+                >
+                  {lignes.map((l) => {
+                    const r = registre(l.id);
+                    return (
+                      <LigneTableau key={l.id} grille={GRILLE_REGISTRES} testid="registre">
+                        <span className={l.actif ? '' : 'opacity-60'}>
+                          <b className="font-heading text-[14px] font-bold text-ink">{l.code}</b> {!l.actif && <Pastille ton="gris">Inactif</Pastille>}
+                          <span className="block text-[13px]">{l.libelle}</span>
+                        </span>
+                        <span className="text-text-muted">{l.porteeLibelle}</span>
+                        <span>
+                          <b className="block break-all font-heading text-[13px]" data-testid="prochain-numero">{l.prochainNumero ?? '—'}</b>
+                          <span className="block break-all font-mono text-[11.5px] text-text-muted">{l.gabarit}</span>
+                          {l.prochainNumeroUnite && <span className="block text-[11.5px] text-text-muted">pour {l.prochainNumeroUnite}</span>}
+                        </span>
+                        <span data-testid="numeros-annee">
+                          <b className="block">{l.utilisesAnnee} numéro(s)</b>
+                          <span className="block text-[12px] text-text-muted">{l.dernierLe ? `dernier le ${formatDate(l.dernierLe)}` : 'aucun cette année'}</span>
+                        </span>
+                        <span data-testid="habilites">
+                          {l.habilites.length === 0 ? (
+                            <b className={l.actif ? 'text-clay' : 'text-text-muted'}>Personne</b>
+                          ) : (
+                            <span className="flex flex-wrap gap-1">
+                              {l.habilites.map((h) => (
+                                <Pastille key={`${h.id}-${h.unite}`} ton={h.actif ? 'encre' : 'rouge'}>
+                                  {h.nom}
+                                  {h.unite && l.portee === 'UNITE' ? ` · ${h.unite}` : ''}
+                                  {h.actif ? '' : ' · compte inactif'}
+                                </Pastille>
+                              ))}
+                            </span>
+                          )}
+                        </span>
+                        <span data-testid="famille-liee">
+                          {l.familles.length === 0 ? (
+                            <span className="text-text-muted">—</span>
+                          ) : (
+                            l.familles.map((f) => (
+                              <span key={f.code} className="block">
+                                {f.libelle} {f.etat !== 'PRETE' && <Pastille ton="ambre">à corriger</Pastille>}
+                              </span>
+                            ))
+                          )}
+                        </span>
+                        <span className="flex justify-end">
+                          {r && (
+                            <MenuActions
+                              actions={[
+                                { label: 'Modifier', onSelect: () => setEdition(r) },
+                                { label: 'Voir les compteurs', onSelect: () => setCompteursDe(r) },
+                                { label: 'Reprise d’un compteur', onSelect: () => setReprise(r) },
+                                { label: r.isActive ? 'Désactiver' : 'Réactiver', onSelect: () => void basculer(r, !r.isActive), danger: r.isActive },
+                              ]}
+                            />
+                          )}
+                        </span>
+                      </LigneTableau>
+                    );
+                  })}
+                </Tableau>
+              </section>
+            );
+          })}
+        </div>
       ) : (
-        <div className="space-y-2">
-          {registres.map((r) => (
-            <div key={r.id} className={`rounded-xl border border-line bg-surface px-4 py-3 ${r.isActive ? '' : 'opacity-60'}`} data-testid="registre">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="font-heading text-[14px] font-bold text-ink">{r.code}</span>
-                <span className="text-[13.5px]">{r.libelle}</span>
-                <Badge tone="accent">{REGISTRE_NATURE_LABEL[r.nature].toUpperCase()}</Badge>
-                <Badge tone="muted">{r.portee === 'DIRECTION' ? 'DIRECTION' : 'UNITÉ'}</Badge>
-                {!r.isActive && <Badge tone="clay">INACTIF</Badge>}
-              </div>
-              <div className="mt-1 break-all font-mono text-[12px] text-text-muted">{r.gabaritNumero}</div>
-              <div className="mt-2 flex flex-wrap gap-2">
-                <button type="button" className={BTN_LIGNE} onClick={() => setEdition(r)}>
-                  Modifier
-                </button>
-                <button type="button" className={BTN_LIGNE} onClick={() => basculer(r, !r.isActive)}>
-                  {r.isActive ? 'Désactiver' : 'Réactiver'}
-                </button>
-              </div>
-            </div>
-          ))}
+        <div className="space-y-4">
+          <p className="max-w-[680px] text-[12.5px] text-text-muted">
+            Une habilitation permet d’enregistrer le courrier d’un registre (et d’expédier ses actes signés) pour une unité. Elle ne donne aucune autorité d’imputation ni de signature.
+          </p>
+          {vue.habilitations
+            .filter((g) => !masquerDemo || !g.registre.demonstration)
+            .map((g) => (
+              <section key={g.registre.id} className="rounded-xl border border-line bg-surface" data-testid="habilitations-registre" aria-labelledby={`hab-${g.registre.id}`}>
+                <header className="flex flex-wrap items-center gap-2 border-b border-line px-4 py-2.5">
+                  <h2 id={`hab-${g.registre.id}`} className="text-[14px] font-bold text-ink-900">
+                    {g.registre.code} <span className="font-normal text-text-muted">— {g.registre.libelle}</span>
+                  </h2>
+                  {!g.registre.actif && <Pastille ton="gris">Inactif</Pastille>}
+                  {g.registre.actif && g.actives.filter((h) => h.compteActif).length === 0 && <Pastille ton="rouge">Personne</Pastille>}
+                  <button type="button" className="ml-auto text-[12.5px] font-semibold text-ink hover:underline" onClick={() => setAccorder(g.registre.id)} disabled={!g.registre.actif}>
+                    Habiliter quelqu’un
+                  </button>
+                </header>
+                {g.actives.length === 0 ? (
+                  <p className="px-4 py-2.5 text-[13px] text-text-muted">Aucune habilitation active.</p>
+                ) : (
+                  <ul>
+                    {g.actives.map((h) => (
+                      <li key={h.id} className="flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-line-doux px-4 py-2 text-[13px] last:border-b-0" data-testid="habilitation">
+                        <span className="font-semibold">{h.nom}</span>
+                        {!h.compteActif && <Pastille ton="rouge">Compte inactif</Pastille>}
+                        <span className="text-text-muted">{h.unite}</span>
+                        <span className="text-[12px] text-text-muted">depuis le {formatDate(h.depuis)}</span>
+                        <span className="sr-only">{g.registre.code}</span>
+                        <button type="button" onClick={() => revoquer(h, g.registre.code)} className="ml-auto text-[12.5px] font-semibold text-clay hover:underline">
+                          Révoquer
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {g.historique.length > 0 && (
+                  <details className="border-t border-line-doux px-4 py-2">
+                    <summary className="cursor-pointer text-[12.5px] font-semibold text-text-muted">Historique ({g.historique.length})</summary>
+                    <ul className="mt-1">
+                      {g.historique.map((h) => (
+                        <li key={h.id} className="text-[12.5px] text-text-muted" data-testid="habilitation">
+                          {h.nom} · {h.unite} · du {formatDate(h.depuis)} au {formatDate(h.revoqueeLe!)}
+                        </li>
+                      ))}
+                    </ul>
+                  </details>
+                )}
+              </section>
+            ))}
         </div>
       )}
+
       {edition && (
         <FenetreRegistre
           registre={edition === 'nouveau' ? null : edition}
@@ -130,7 +309,73 @@ export function PanneauRegistres() {
           }}
         />
       )}
+      {accorder !== null && (
+        <FenetreHabilitation
+          registreInitial={accorder || undefined}
+          registres={registres.filter((r) => r.isActive)}
+          unites={unites}
+          onClose={() => setAccorder(null)}
+          onFait={() => {
+            setAccorder(null);
+            charger();
+          }}
+        />
+      )}
+      {reprise && (
+        <FenetreReprise
+          registre={reprise}
+          unites={unites}
+          onClose={() => setReprise(null)}
+          onFait={() => {
+            setReprise(null);
+            charger();
+          }}
+        />
+      )}
+      {compteursDe && <FenetreCompteurs registre={compteursDe} unites={unites} onClose={() => setCompteursDe(null)} />}
     </div>
+  );
+}
+
+const GRILLE_REGISTRES = 'lg:grid-cols-[minmax(0,1.3fr)_90px_minmax(0,1.3fr)_minmax(0,0.9fr)_minmax(0,1.4fr)_minmax(0,1fr)_44px]';
+
+/** Compteurs d'un registre (par unité et par année), en lecture. */
+function FenetreCompteurs({ registre, unites, onClose }: { registre: Registre; unites: Unite[]; onClose: () => void }) {
+  const [compteurs, setCompteurs] = useState<Compteur[] | null>(null);
+  const [erreur, setErreur] = useState<string | null>(null);
+  useEffect(() => {
+    getCompteurs(registre.id).then(setCompteurs).catch((e) => setErreur(messageErreur(e, 'Les compteurs n’ont pas pu être lus.')));
+  }, [registre.id]);
+  return (
+    <Fenetre titre={`Compteurs — ${registre.code}`} onClose={onClose} largeur={560}>
+      <ErreurChargement message={erreur} />
+      {compteurs === null ? (
+        !erreur && <SqueletteListe lignes={3} colonnes={4} />
+      ) : compteurs.length === 0 ? (
+        <Vide>Aucun numéro encore attribué dans ce registre.</Vide>
+      ) : (
+        <table className="w-full text-left text-[13px]">
+          <thead className="bg-fond-doux text-[12px] text-text-muted">
+            <tr>
+              <th className="px-3 py-2 font-semibold">Unité</th>
+              <th className="px-3 py-2 font-semibold">Année</th>
+              <th className="px-3 py-2 font-semibold">Dernier numéro</th>
+              <th className="px-3 py-2 font-semibold">Mis à jour</th>
+            </tr>
+          </thead>
+          <tbody>
+            {compteurs.map((c) => (
+              <tr key={`${c.uniteKey}-${c.annee}`} className="border-t border-line" data-testid="compteur">
+                <td className="px-3 py-2">{libelleUnite(unites, c.uniteKey)}</td>
+                <td className="px-3 py-2">{c.annee}</td>
+                <td className="px-3 py-2 font-semibold">{c.dernier}</td>
+                <td className="px-3 py-2 text-text-muted">{formatDate(c.updatedAt)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </Fenetre>
   );
 }
 
@@ -248,105 +493,14 @@ function FenetreRegistre({ registre, unites, onClose, onFait }: { registre: Regi
 // Habilitations
 // ---------------------------------------------------------------------------
 
-export function PanneauHabilitations() {
+function FenetreHabilitation({ registreInitial, registres, unites, onClose, onFait }: { registreInitial?: string; registres: Registre[]; unites: Unite[]; onClose: () => void; onFait: () => void }) {
   const toast = useToast();
-  const [habs, setHabs] = useState<Habilitation[] | null>(null);
   const [users, setUsers] = useState<AdminUser[]>([]);
-  const [registres, setRegistres] = useState<Registre[]>([]);
-  const [unites, setUnites] = useState<Unite[]>([]);
-  const [accorder, setAccorder] = useState(false);
-  const [erreur, setErreur] = useState<string | null>(null);
-  const charger = useCallback(() => {
-    Promise.all([getHabilitations(), listAllUsers(), getRegistres(), getUnites()])
-      .then(([h, u, r, un]) => {
-        setHabs(h);
-        setUsers(u);
-        setRegistres(r);
-        setUnites(un);
-      })
-      .catch((e) => setErreur(messageErreur(e, 'Les habilitations n’ont pas pu être lues.')));
+  useEffect(() => {
+    listAllUsers().then((u) => setUsers(u.filter((x) => x.status === 'ACTIF'))).catch(() => setUsers([]));
   }, []);
-  useEffect(() => charger(), [charger]);
-
-  const nom = (id: string) => {
-    const u = users.find((x) => x.id === id);
-    return u ? `${u.firstName} ${u.lastName}` : id;
-  };
-  async function revoquer(h: Habilitation) {
-    if (!window.confirm(`Révoquer l’habilitation de ${nom(h.userId)} sur ${h.registre.code} ?`)) return;
-    try {
-      await revoquerHabilitation(h.id);
-      toast.succes('Habilitation révoquée', { detail: `${nom(h.userId)} n’enregistre plus le courrier de ${h.registre.code}.` });
-      charger();
-    } catch (e) {
-      toast.erreur('Révocation impossible', messageErreur(e));
-    }
-  }
-  const ligne = (h: Habilitation) => (
-    <div key={h.id} className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl border border-line bg-surface px-4 py-2.5 text-[13px]" data-testid="habilitation">
-      <span className="font-semibold">{nom(h.userId)}</span>
-      <Badge tone="accent">{h.registre.code}</Badge>
-      <span className="text-text-muted">{libelleUnite(unites, h.uniteKey)}</span>
-      <span className="text-[12px] text-text-muted">
-        depuis le {formatDate(h.createdAt)}
-        {h.revoqueeAt ? ` · révoquée le ${formatDate(h.revoqueeAt)}` : ''}
-      </span>
-      {!h.revoqueeAt && (
-        <button type="button" onClick={() => revoquer(h)} className="ml-auto text-[12.5px] font-semibold text-clay hover:underline">
-          Révoquer
-        </button>
-      )}
-    </div>
-  );
-  const actives = habs?.filter((h) => !h.revoqueeAt) ?? [];
-  const revoquees = habs?.filter((h) => h.revoqueeAt) ?? [];
-
-  return (
-    <div>
-      <p className="mb-3 max-w-[680px] text-[12.5px] text-text-muted">
-        Une habilitation permet d’enregistrer le courrier d’un registre (et d’expédier ses actes signés) pour une unité. Elle ne donne aucune autorité
-        d’imputation ni de signature.
-      </p>
-      <div className="mb-3 flex justify-end">
-        <button type="button" className={BTN_PRINCIPAL} onClick={() => setAccorder(true)}>
-          <Plus aria-hidden size={16} />
-          Accorder une habilitation
-        </button>
-      </div>
-      <ErreurChargement message={erreur} />
-      {habs === null ? (
-        !erreur && <SqueletteListe lignes={4} colonnes={3} />
-      ) : actives.length === 0 ? (
-        <Vide>Aucune habilitation active.</Vide>
-      ) : (
-        <div className="space-y-2">{actives.map(ligne)}</div>
-      )}
-      {revoquees.length > 0 && (
-        <details className="mt-3">
-          <summary className="cursor-pointer text-[12.5px] font-semibold text-text-muted">Historique ({revoquees.length})</summary>
-          <div className="mt-2 space-y-2">{revoquees.map(ligne)}</div>
-        </details>
-      )}
-      {accorder && (
-        <FenetreHabilitation
-          users={users.filter((u) => u.status === 'ACTIF')}
-          registres={registres.filter((r) => r.isActive)}
-          unites={unites}
-          onClose={() => setAccorder(false)}
-          onFait={() => {
-            setAccorder(false);
-            charger();
-          }}
-        />
-      )}
-    </div>
-  );
-}
-
-function FenetreHabilitation({ users, registres, unites, onClose, onFait }: { users: AdminUser[]; registres: Registre[]; unites: Unite[]; onClose: () => void; onFait: () => void }) {
-  const toast = useToast();
   const [userId, setUserId] = useState('');
-  const [registreId, setRegistreId] = useState(registres[0]?.id ?? '');
+  const [registreId, setRegistreId] = useState(registreInitial ?? registres[0]?.id ?? '');
   const [uniteKey, setUniteKey] = useState('');
   const { enCours, erreur, envoyer } = useEnvoi();
   const registre = registres.find((r) => r.id === registreId);
@@ -380,100 +534,6 @@ function FenetreHabilitation({ users, registres, unites, onClose, onFait }: { us
 // ---------------------------------------------------------------------------
 // Compteurs (lecture et reprise de l'existant papier)
 // ---------------------------------------------------------------------------
-
-export function PanneauCompteurs() {
-  const [registres, setRegistres] = useState<Registre[]>([]);
-  const [unites, setUnites] = useState<Unite[]>([]);
-  const [registreId, setRegistreId] = useState('');
-  const [compteurs, setCompteurs] = useState<Compteur[] | null>(null);
-  const [reprise, setReprise] = useState(false);
-  const [erreur, setErreur] = useState<string | null>(null);
-  useEffect(() => {
-    Promise.all([getRegistres(), getUnites()])
-      .then(([r, u]) => {
-        setRegistres(r);
-        setUnites(u);
-        setRegistreId(r[0]?.id ?? '');
-      })
-      .catch((e) => setErreur(messageErreur(e, 'Les registres n’ont pas pu être lus.')));
-  }, []);
-  const [version, setVersion] = useState(0);
-  const charger = () => setVersion((v) => v + 1);
-  // Une réponse arrivée après un changement de registre est ignorée : elle
-  // afficherait les compteurs d'un autre registre.
-  useEffect(() => {
-    if (!registreId) return;
-    let actuel = true;
-    setCompteurs(null);
-    getCompteurs(registreId)
-      .then((c) => actuel && setCompteurs(c))
-      .catch((e) => actuel && setErreur(messageErreur(e, 'Les compteurs n’ont pas pu être lus.')));
-    return () => {
-      actuel = false;
-    };
-  }, [registreId, version]);
-  const registre = registres.find((r) => r.id === registreId);
-
-  return (
-    <div>
-      <div className="mb-3 flex flex-wrap items-end gap-2">
-        <div className="min-w-[220px] flex-1 sm:max-w-[360px]">
-          <Libelle htmlFor="c-registre">Registre</Libelle>
-          <select id="c-registre" className={SELECT_CLASS} value={registreId} onChange={(e) => setRegistreId(e.target.value)}>
-            {registres.map((r) => (
-              <option key={r.id} value={r.id}>
-                {r.code} — {r.libelle}
-              </option>
-            ))}
-          </select>
-        </div>
-        <button type="button" className={BTN_PRINCIPAL} onClick={() => setReprise(true)} disabled={!registre}>
-          Reprise d’un compteur
-        </button>
-      </div>
-      <ErreurChargement message={erreur} />
-      {compteurs === null ? (
-        !erreur && <SqueletteListe lignes={3} colonnes={4} />
-      ) : compteurs.length === 0 ? (
-        <Vide>Aucun numéro encore attribué dans ce registre.</Vide>
-      ) : (
-        <div className="overflow-x-auto rounded-xl border border-line bg-surface">
-          <table className="w-full text-left text-[13px]">
-            <thead className="bg-fond-doux text-[12px] text-text-muted">
-              <tr>
-                <th className="px-4 py-2 font-semibold">Unité</th>
-                <th className="px-4 py-2 font-semibold">Année</th>
-                <th className="px-4 py-2 font-semibold">Dernier numéro</th>
-                <th className="px-4 py-2 font-semibold">Mis à jour</th>
-              </tr>
-            </thead>
-            <tbody>
-              {compteurs.map((c) => (
-                <tr key={`${c.uniteKey}-${c.annee}`} className="border-t border-line" data-testid="compteur">
-                  <td className="px-4 py-2">{libelleUnite(unites, c.uniteKey)}</td>
-                  <td className="px-4 py-2">{c.annee}</td>
-                  <td className="px-4 py-2 font-semibold">{c.dernier}</td>
-                  <td className="px-4 py-2 text-text-muted">{formatDate(c.updatedAt)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-      {reprise && registre && (
-        <FenetreReprise
-          registre={registre}
-          unites={unites}
-          onClose={() => setReprise(false)}
-          onFait={() => {
-            setReprise(false);
-            charger();
-          }}
-        />
-      )}
-    </div>
-  );
-}
 
 function FenetreReprise({ registre, unites, onClose, onFait }: { registre: Registre; unites: Unite[]; onClose: () => void; onFait: () => void }) {
   const toast = useToast();

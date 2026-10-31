@@ -696,7 +696,7 @@
           "titre": "Paramétrage",
           "etapes": [
             "« Organisation » : l’organigramme (création, modification, fermeture d’unités, que vous tenez avec le DRH), et les onglets « Divisions & Sections » et « Cellules » pour leurs chefs.",
-            "« Courrier » : registres, habilitations des secrétariats, reprise des numéros papier.",
+            "« Courrier » : en tête, les alertes (registre actif sans personne habilitée ; famille d’actes RH sans registre, avec un lien vers Carrière et actes). Onglet « Registres et numérotation » : registres groupés par nature (Arrivée, Départ, Actes) avec le prochain numéro (aperçu, rien n’est consommé), les numéros de l’année, les personnes habilitées (« Personne » en rouge) et la famille d’actes liée ; « Plus d’actions » › Modifier, Voir les compteurs, Reprise d’un compteur (numéros papier), Désactiver. Onglet « Habilitations du secrétariat » : par registre, compte inactif signalé. Les registres de démonstration sont masqués par défaut.",
             "« Logistique » : catégories (validation du chef oui/non) et gestionnaires.",
             "« Stages (réglages) » : capacités d’accueil et modèle d’attestation, que vous tenez avec le DRH (jamais le contenu des stages)."
           ],

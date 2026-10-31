@@ -14,11 +14,13 @@ import { ActesService } from './actes.service';
 import { CourrierRappelsService } from './rappels.service';
 import { CourrierExportService } from './courrier-export.service';
 import { CourrierTableauDeBordService } from './tableau-de-bord.service';
+import { ParametrageCourrierController } from './parametrage-courrier.controller';
+import { ParametrageCourrierService } from './parametrage-courrier.service';
 
 /** Courrier et actes (D7) — voir schema.prisma, section « Module Courrier et actes ». */
 @Module({
   imports: [OrgModule, CommunicationModule],
-  controllers: [RegistresController, ArriveesController, ActesController],
+  controllers: [RegistresController, ArriveesController, ActesController, ParametrageCourrierController],
   providers: [
     RegistresService,
     NumerotationService,
@@ -30,6 +32,7 @@ import { CourrierTableauDeBordService } from './tableau-de-bord.service';
     CourrierRappelsService,
     CourrierExportService,
     CourrierTableauDeBordService,
+    ParametrageCourrierService,
   ],
   // ActesService : l'attestation de stage (D6) est un acte de ce module.
   exports: [ActesService, ArriveesService, CourrierTableauDeBordService, RegistresService, NumerotationService],

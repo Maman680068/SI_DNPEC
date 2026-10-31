@@ -22,6 +22,13 @@ export const GABARIT_FAMILLE = '{seq:4}/MEFB/DNPEC/{code}/{annee}';
 
 export type EtatFamille = 'PRETE' | 'A_CORRIGER' | 'BLOQUEE';
 
+/** État d'une famille selon son registre (aussi lu par le paramétrage du courrier, S9c). */
+export function etatFamille(code: string, r: { code: string; isActive: boolean; nature: RegistreNature; portee: RegistrePortee } | null): EtatFamille {
+  const attendu = CODE_ATTENDU[code] ?? null;
+  const utilisable = !!r && r.isActive && r.nature === RegistreNature.ACTE && r.portee === RegistrePortee.DIRECTION;
+  return !utilisable ? 'BLOQUEE' : attendu && r!.code !== attendu ? 'A_CORRIGER' : 'PRETE';
+}
+
 /**
  * Familles d'actes et registres (S7, docs/conception_S7_familles_actes.md) : état de chaque famille (prête :
  * registre d'actes actif de la Direction au bon code ; à corriger : code qui ne correspond pas ; bloquée :
@@ -56,8 +63,8 @@ export class FamillesActesService {
     for (const f of familles) {
       const attendu = CODE_ATTENDU[f.code] ?? null;
       const r = f.registre;
-      const utilisable = !!r && r.isActive && r.nature === RegistreNature.ACTE && r.portee === RegistrePortee.DIRECTION;
-      const etat: EtatFamille = !utilisable ? 'BLOQUEE' : attendu && r!.code !== attendu ? 'A_CORRIGER' : 'PRETE';
+      const etat = etatFamille(f.code, r);
+      const utilisable = etat !== 'BLOQUEE';
       const apercu = utilisable ? await this.numerotation.apercu(r!, UNITE_DIRECTION, 'DNPEC', maintenant) : null;
       const actes = r ? await this.prisma.acteCourrier.count({ where: { registreId: r.id, annee, numero: { not: null } } }) : 0;
       // Qui tient aujourd'hui le registre attendu (une autre famille) ?
