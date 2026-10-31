@@ -423,6 +423,12 @@ export class InventaireService {
     } catch (e) {
       this.logger.error(`Alertes « bien à récupérer » : ${(e as Error).message}`);
     }
+    try {
+      // S9d : un gestionnaire dont le compte a été suspendu peut laisser la logistique sans personne.
+      await this.gestionnaires.alerterSiAucun(true);
+    } catch (e) {
+      this.logger.error(`Alerte « aucun gestionnaire » : ${(e as Error).message}`);
+    }
   }
 
   /**

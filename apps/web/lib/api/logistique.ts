@@ -83,3 +83,13 @@ export const reserver = (input: { ressourceId: string; debut: string; fin: strin
 export const validerReservation = (id: string) => post<Reservation>(`/logistique/reservations/${id}/valider`);
 export const refuserReservation = (id: string, motif: string) => post<Reservation>(`/logistique/reservations/${id}/refuser`, { motif });
 export const annulerReservation = (id: string, motif?: string) => post<Reservation>(`/logistique/reservations/${id}/annuler`, { motif: motif || undefined });
+
+/** Administration de la logistique en une lecture (S9d) — administrateur. */
+export interface AdministrationLogistique {
+  gestionnaires: { actifs: number; inactifs: number; conseilDeux: boolean; liste: { habilitationId: string; userId: string; nom: string; role: string; actif: boolean; depuis: string }[] };
+  alerteAucun: boolean;
+  circuit: { avecValidation: number; sansValidation: number; gestionnaireDisponible: boolean };
+  categories: (Categorie & { demonstration: boolean; contenu: { biens: number; demandesEnCours: number; articlesSousSeuil: number } })[];
+  vehicules: { total: number; enMission: number };
+}
+export const getAdministrationLogistique = () => apiFetch<AdministrationLogistique>('/logistique/administration');

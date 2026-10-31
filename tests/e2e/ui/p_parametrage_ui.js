@@ -17,7 +17,9 @@ const S = Date.now().toString(36).slice(-5);
   await adm.screenshot({ path: `${SHOTS}/p_reglages_stages_admin.png`, fullPage: true });
   await adm.goto(`${WEB}/logistique/administration`);
   const ligne = adm.getByTestId('categorie').filter({ hasText: 'Mobilier' }).first();
-  await ligne.getByRole('button', { name: 'Renommer' }).click();
+  // S9d : « Renommer » dans le menu de la ligne.
+  await ligne.getByRole('button', { name: 'Plus d’actions' }).click();
+  await adm.getByRole('menu').getByRole('menuitem', { name: 'Renommer' }).click();
   // Étape 9 : renommage dans une fenêtre ; message de confirmation (toast).
   const fr = adm.locator('div[role=dialog]:has(> form)');
   await fr.getByLabel('Nouveau libellé', { exact: true }).fill(`Mobilier et rangement ${S}`);

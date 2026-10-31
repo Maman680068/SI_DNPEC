@@ -113,6 +113,7 @@ lancer "21d. D6 — LISTES DE CHOIX" api/d6_listes.js
 lancer "21e. ACCÈS DES STAGIAIRES — COMPTE CRÉÉ AVEC LE STAGE (DRH, ADMINISTRATEUR), RÔLE STAGIAIRE SEUL, 409/403/400, DÉSACTIVATION À LA FIN" api/v_stagiaire_acces.js
 lancer "21e. D9 — LOGISTIQUE" api/d9_logistique.js
 lancer "21f. D9 — RÉSERVATIONS ET PRIORITÉ" api/d9_reservations.js
+lancer "21f-bis. ADMINISTRATION DE LA LOGISTIQUE : GESTIONNAIRES, ALERTE SANS GESTIONNAIRE, CIRCUIT, CONTENU DES CATÉGORIES" api/s9d_administration_logistique.js
 lancer "21g. G3 — DOUBLE AUTHENTIFICATION (API)" api/g3_2fa.js
 lancer "21h. G3 — SOCLE : INSCRIPTION, MOT DE PASSE, TÂCHES, CONGÉS, GED, ANNONCES, SONDAGES" api/g3_socle.js
 lancer "21i. G4 — AIDE EN LIGNE : PROFILS" api/g4_aide.js
@@ -139,6 +140,7 @@ lancer "33. CHROMIUM — D6 RÔLE STAGIAIRE" ui/d6_role_ui.js
 lancer "34. CHROMIUM — D6 STAGES" ui/d6_stages_ui.js
 lancer "34-bis. CHROMIUM — ACCÈS DES STAGIAIRES : NOUVEAU STAGIAIRE (DRH, ADMINISTRATEUR), DEMANDE D’ACCÈS" ui/v_stagiaire_acces_ui.js
 lancer "35. CHROMIUM — D9 LOGISTIQUE" ui/d9_logistique_ui.js
+lancer "35-bis. CHROMIUM — ADMINISTRATION DE LA LOGISTIQUE : ALERTE, GESTIONNAIRES, CIRCUIT, CATÉGORIES (INTERRUPTEUR, MENU, DÉSACTIVÉES)" ui/s9d_administration_logistique_ui.js
 lancer "36. CHROMIUM — G3 DOUBLE AUTHENTIFICATION" ui/g3_2fa_ui.js
 lancer "37. CHROMIUM — G4 AIDE EN LIGNE" ui/g4_aide_ui.js
 lancer "38. CHROMIUM — H EMAILS DE COMPTE" ui/h_email_comptes_ui.js

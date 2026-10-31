@@ -60,3 +60,19 @@ Droits inchangés pour toutes les pages S9. Aucune migration.
   secrétariat »), registres de démonstration (`TEST-…`) masqués par défaut (interrupteur, préférence du
   navigateur). Routes d'écriture inchangées.
 
+## S9d. Administration de la logistique
+
+- `GET logistique/administration` (administrateur) : gestionnaires (actifs, inactifs, statut de chacun, conseil
+  « au moins deux »), `alerteAucun`, circuit (catégories actives avec et sans validation du chef, gestionnaire
+  disponible), catégories avec leur contenu calculé (biens hors réforme, demandes en cours — à valider, à
+  traiter, en traitement —, articles suivis sous leur seuil), parc de véhicules (`VehiculesService.disponibilite`).
+- Choix : les véhicules n'appartiennent à aucune catégorie (modèle `Vehicule` sans catégorie) ; « véhicules en
+  mission » est donc affiché une fois, sous le tableau des catégories, plutôt que par catégorie.
+- Notification de l'administrateur (`GestionnairesLogistiqueService.alerterSiAucun`, type existant
+  `LOGISTIQUE_DEMANDE_A_TRAITER`, urgent) : après un retrait qui laisse la logistique sans gestionnaire actif,
+  et chaque nuit (tâche existante de l'inventaire, 0 h 20 : couvre un gestionnaire dont le compte a été
+  suspendu), sans répéter le même message plus d'une fois par semaine.
+- Écran : alerte rouge, compteur actifs / inactifs, circuit dessiné (gestionnaire « Personne » en rouge),
+  tableau des catégories (nature en étiquette, contenu, interrupteur « Validation du chef », menu ⋯ Renommer /
+  Désactiver, « Afficher les désactivées »).
+

@@ -1,9 +1,13 @@
 import { ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { AuditAction, SystemRole, UserStatus } from '@prisma/client';
+import { AuditAction, NotificationType, SystemRole, UserStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../common/audit/audit.service';
 import { AuthenticatedUser } from '../common/types/auth-user.type';
 import { RolesFonctionnelsService } from '../socle/roles-fonctionnels.service';
+import { NotificationsService } from '../communication/notifications/notifications.service';
+
+/** Notification de l'administrateur quand plus personne ne traite les demandes (S9d). */
+export const TITRE_AUCUN_GESTIONNAIRE = 'Logistique : aucun gestionnaire actif';
 
 const NOM = { select: { id: true, firstName: true, lastName: true, email: true } } as const;
 
@@ -19,7 +23,33 @@ export class GestionnairesLogistiqueService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly rolesFonctionnels: RolesFonctionnelsService,
+    private readonly notifications: NotificationsService,
   ) {}
+
+  /**
+   * S9d : plus aucun gestionnaire actif → chaque administrateur actif est prévenu (urgent). Appelé après un
+   * retrait et chaque nuit ; `deDoublonner` (la nuit) : pas de nouveau message si le même a été envoyé dans
+   * les 7 derniers jours. Rend le nombre d'administrateurs prévenus.
+   */
+  async alerterSiAucun(deDoublonner = false): Promise<number> {
+    if ((await this.idsGestionnaires()).length > 0) return 0;
+    const admins = await this.prisma.user.findMany({ where: { role: SystemRole.ADMIN_SYSTEME, status: UserStatus.ACTIF }, select: { id: true } });
+    let n = 0;
+    for (const a of admins) {
+      if (deDoublonner && (await this.prisma.notification.count({ where: { userId: a.id, title: TITRE_AUCUN_GESTIONNAIRE, createdAt: { gte: new Date(Date.now() - 7 * 864e5) } } }))) continue;
+      await this.notifications.notify(
+        a.id,
+        NotificationType.LOGISTIQUE_DEMANDE_A_TRAITER,
+        TITRE_AUCUN_GESTIONNAIRE,
+        'Plus personne ne peut traiter les demandes logistiques. Habilitez au moins deux personnes dans l’administration de la logistique.',
+        '/logistique/administration',
+        undefined,
+        { libelleBouton: 'Habiliter un gestionnaire', urgent: true },
+      );
+      n++;
+    }
+    return n;
+  }
 
   async estGestionnaire(actor: Pick<AuthenticatedUser, 'id'>): Promise<boolean> {
     const h = await this.prisma.habilitationLogistique.findFirst({
@@ -101,6 +131,7 @@ export class GestionnairesLogistiqueService {
       await this.audit.log({ actorId: actor.id, action: AuditAction.MODIFICATION, entityType: 'HabilitationLogistique', entityId: id, metadata: { event: 'revocation', userId: h.userId } }, tx);
       return u;
     });
+    await this.alerterSiAucun();
     return updated;
   }
 }
