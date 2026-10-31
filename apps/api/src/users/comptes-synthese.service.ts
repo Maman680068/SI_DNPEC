@@ -125,8 +125,8 @@ export class ComptesSyntheseService {
         u.id,
         NotificationType.ROLE_MODIFIE,
         'Activez la double authentification',
-        'Votre compte n’est protégé que par votre mot de passe. Ouvrez « Mon profil », rubrique « Double authentification », puis suivez les étapes avec une application d’authentification sur votre téléphone : cela prend deux minutes.',
-        '/compte',
+        'Votre compte n’est protégé que par votre mot de passe. Ouvrez « Mon profil », section « Sécurité », cliquez « Activer » sur la ligne Double authentification et suivez les étapes avec une application d’authentification sur votre téléphone : cela prend deux minutes.',
+        '/compte?section=securite',
         undefined,
         { libelleBouton: 'Ouvrir Mon profil', urgent: true },
       );

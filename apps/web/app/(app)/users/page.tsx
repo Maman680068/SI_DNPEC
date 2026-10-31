@@ -206,7 +206,7 @@ export default function UsersPage() {
                 <FiltreSelect label="Statut" value={fStatut} defaut="tous" onChange={setFStatut} options={[{ value: 'tous', label: 'Tous les statuts' }, { value: 'ACTIF', label: 'Actifs' }, { value: 'SUSPENDU', label: 'Suspendus' }, { value: 'SUPPRIME', label: 'Désactivés' }]} />
                 <FiltreSelect label="Rôle" value={fRole} defaut="tous" onChange={setFRole} options={[{ value: 'tous', label: 'Tous les rôles' }, ...Object.entries(ROLE_LABEL).map(([value, label]) => ({ value, label }))]} />
                 {synthese && <FiltreSelect label="Unité" value={fUnite} defaut="toutes" onChange={setFUnite} options={[{ value: 'toutes', label: 'Toutes les unités' }, ...unites.map((u) => ({ value: u, label: u }))]} />}
-                {synthese && <FiltreSelect label="Double authentification" value={f2fa} defaut="tous" onChange={setF2fa} options={[{ value: 'tous', label: 'Double authentification : toutes' }, { value: 'oui', label: 'Activée' }, { value: 'non', label: 'Non activée' }]} />}
+                {synthese && <FiltreSelect label="Double authentification" value={f2fa} defaut="tous" onChange={setF2fa} options={[{ value: 'tous', label: '2FA : toutes' }, { value: 'oui', label: '2FA activée' }, { value: 'non', label: '2FA non activée' }]} />}
               </Filtres>
             </BarreOutils>
             <UsersTable users={affiches} canManage={isAdmin} onRefresh={loadAll} complements={complements} />

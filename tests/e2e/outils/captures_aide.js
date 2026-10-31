@@ -97,7 +97,7 @@ async function capture(b, compte, url, fichier, attendre) {
   await capture(b, 'drh', '/documents-generes', 'documents-generes.png', async (p) => p.getByRole('tab', { name: 'Attestations de travail' }).waitFor());
   await capture(b, 'agentsaf', '/logistique?onglet=inventaire', 'inventaire.png', async (p) => p.getByTestId('onglet-biens').waitFor());
   await capture(b, 'admin', '/users', 'utilisateurs.png');
-  await capture(b, 'drh', '/organisation', 'organigramme.png', async (p) => p.locator('[data-testid=unite][data-code=DPE]').first().waitFor());
+  await capture(b, 'drh', '/organisation', 'organigramme.png', async (p) => p.getByTestId('case-dn').waitFor());
   await capture(b, 'drh', '/agents', 'agents.png', async (p) => p.locator('[data-testid=ligne-agent]').first().waitFor());
   await capture(b, 'admin', '/users', 'roles-fonctionnels.png', async (p) => {
     await p.getByRole('tab', { name: /^Rôles fonctionnels/ }).click();
@@ -106,6 +106,7 @@ async function capture(b, compte, url, fichier, attendre) {
   await capture(b, 'dn', '/parametrage', 'parametres.png', async (p) => p.locator('[data-testid=parametre]').first().waitFor());
   await capture(b, 'admin', '/parametrage?onglet=supervision', 'supervision.png', async (p) => p.locator('[data-testid=service]').first().waitFor());
   await capture(b, 'admin', '/logistique/administration', 'administration.png', titre('Administration de la logistique'));
+  await capture(b, 'admin', '/journal-audit', 'journal-audit.png', async (p) => p.getByTestId('entree-audit').first().waitFor());
   await capture(b, 'agent1', '/compte?section=securite', 'securite.png', async (p) => p.getByTestId('session').first().waitFor());
   await capture(b, 'chefsfp', '/plan-travail', 'plan-travail.png', async (p) => {
     await p.getByLabel('Unité').selectOption(uSfp.id);

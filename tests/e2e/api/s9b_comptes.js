@@ -3,12 +3,13 @@
 // connexion tirée du journal des connexions), sigle d'unité, marque de démonstration ; « Envoyer un rappel »
 // (notification et e-mail immédiat vers « Mon profil ») et « Renvoyer l'invitation » (compte jamais utilisé),
 // réservés à l'administrateur, inscrits au journal. Droits inchangés : DN et DNA lisent, les autres 403.
-const { call, ids, check, expect, bilan } = require('../lib');
+const { call, login, ids, check, expect, bilan } = require('../lib');
 const { PrismaClient } = require('@prisma/client'); const prisma = new PrismaClient();
 const S = Date.now().toString(36).slice(-5);
 const URL = '/api/v1/comptes/synthese';
 
 (async () => {
+  await login('agent1'); // une connexion réussie au journal, quel que soit l'ordre des suites
   console.log('— Jeu : un compte de démonstration suspendu, un compte neuf jamais utilisé, un DRH sans 2FA');
   const demo = (await call('admin', 'POST', '/users', { email: `s9b${S}@demo.dnpec.test`, password: 'Password123!', firstName: 'TEST — Demo', lastName: `S9b${S}`, role: 'AGENT', divisionId: ids.DPE })).body;
   await call('admin', 'PATCH', `/users/${demo.id}/status`, { status: 'SUSPENDU' });
@@ -60,7 +61,7 @@ const URL = '/api/v1/comptes/synthese';
   const cibles = (await prisma.user.findMany({ where: { status: 'ACTIF', twoFactorEnabled: false }, select: { email: true } })).filter((u) => !u.email.endsWith('@demo.dnpec.test')).length;
   check(`nombre de personnes prévenues : ${cibles} (comptes actifs sans 2FA, hors démonstration)`, rap.body.personnes === cibles, rap.body.personnes);
   const n = await prisma.notification.findMany({ where: { userId: ids.drh, createdAt: { gte: avant }, title: 'Activez la double authentification' } });
-  check('DRH : notification et e-mail immédiat, lien « Mon profil »', n.some((x) => x.channel === 'IN_APP' && x.link === '/compte') && n.some((x) => x.channel === 'EMAIL' && !!x.sentAt) && /Mon profil/.test(n[0].body));
+  check('DRH : notification et e-mail immédiat, lien « Mon profil »', n.some((x) => x.channel === 'IN_APP' && x.link === '/compte?section=securite') && n.some((x) => x.channel === 'EMAIL' && !!x.sentAt) && /Mon profil/.test(n[0].body));
   const a = await prisma.auditLog.findFirst({ where: { createdAt: { gte: avant }, entityType: 'User', metadata: { path: ['event'], equals: 'rappel_double_authentification' } } });
   check('rappel inscrit au journal (nombre de personnes)', !!a && a.metadata.personnes === cibles);
   const j = (await call('admin', 'GET', '/api/v1/journal-audit?q=compte')).body;
