@@ -532,11 +532,13 @@
         {
           "titre": "Carrière et actes",
           "etapes": [
+            "« Familles d’actes » en tête de l’onglet : la jauge dit combien de familles sont prêtes sur 6. Une famille « bloquée » n’a pas de registre (son acte ne peut être ni préparé ni signé) ; « à corriger » signale un registre au mauvais code (par exemple ATT sur l’arrêté d’affectation). Le bouton de la ligne corrige en une fois (« Créer le registre AFF », « Lui donner ATT »…) ; « Configurer les N registres manquants » liste ce qui sera créé avant de le faire. Le prochain numéro affiché est un aperçu : il ne consomme pas la séquence.",
             "Avant le premier mouvement : choisissez dans « Familles d’actes » le registre du Courrier de chaque famille (sa séquence de numéros).",
             "« Nouveau mouvement » : l’agent (tapez son nom puis choisissez-le), le type (nomination, avancement d’échelon, promotion, mutation, fin de contrat), la date d’effet et la nouvelle valeur → « Préparer le mouvement ».",
             "Nomination à un poste de chef (ou DN, DNA) : choisissez le « Poste visé » dans la liste ; le rôle, l’unité et l’intitulé de la fonction en découlent (« Autre fonction » garde le texte libre, sans effet sur les droits). Après la signature, le mouvement affiche « Droits en attente (administrateur) », puis « Droits appliqués » ou « Droits refusés » avec le motif.",
             "« Préparer l’acte » : l’acte est créé dans le Courrier, avec la décision jointe, et suit le circuit de visa et de signature. Le dossier n’est modifié qu’à la signature par le DN ou la DNA ; l’agent est prévenu.",
-            "Une mutation ne concerne qu’un chargé d’études ; pour un chef, un assistant ou un stagiaire, passez par le changement de rôle (Organisation)."
+            "Une mutation ne concerne qu’un chargé d’études ; pour un chef, un assistant ou un stagiaire, passez par le changement de rôle (Organisation).",
+            "Mouvements : filtrez par année et par type ; les quatre chiffres comptent ceux en préparation, en attente de signature, signés et appliqués, annulés. « Préparer un mouvement » est réservé au DRH."
           ],
           "capture": "rh-carriere.png"
         },

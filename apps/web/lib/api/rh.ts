@@ -28,8 +28,10 @@ export const getFamillesActes = () => apiFetch<Familles>('/api/v1/rh/familles-ac
 export const choisirRegistreFamille = (code: string, registreId: string | null) =>
   apiFetch<Familles>(`/api/v1/rh/familles-actes/${code}`, j('PATCH', { registreId }));
 
-export const getMouvements = (userId?: string) =>
-  apiFetch<ListeMouvements>(`/api/v1/rh/mouvements${userId ? `?userId=${encodeURIComponent(userId)}` : ''}`);
+export const getMouvements = (userId?: string, filtres?: { annee?: number; type?: string }) =>
+  apiFetch<ListeMouvements>(`/api/v1/rh/mouvements?${new URLSearchParams(Object.entries({ userId: userId ?? '', annee: filtres?.annee ? String(filtres.annee) : '', type: filtres?.type ?? '' }).filter(([, v]) => v)).toString()}`);
+export const registreAttenduFamille = (code: string) => apiFetch<Familles>(`/api/v1/rh/familles-actes/${code}/registre-attendu`, j('POST'));
+export const configurerFamillesActes = () => apiFetch<Familles>('/api/v1/rh/familles-actes/configurer', j('POST'));
 export const preparerMouvement = (v: { userId: string; type: TypeMouvement; dateEffet: string; motif?: string; apres: Record<string, string | null> }) =>
   apiFetch<Mouvement>('/api/v1/rh/mouvements', j('POST', v));
 export const preparerActeMouvement = (id: string) => apiFetch<{ acteId: string }>(`/api/v1/rh/mouvements/${id}/acte`, j('POST'));

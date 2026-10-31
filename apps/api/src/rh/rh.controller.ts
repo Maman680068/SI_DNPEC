@@ -8,6 +8,7 @@ import { CarriereService } from './carriere.service';
 import { ReferentielRhService } from './referentiel-rh.service';
 import { DossiersSyntheseService } from './dossiers-synthese.service';
 import { FormationsService } from './formations.service';
+import { FamillesActesService } from './familles-actes.service';
 import { EtatSessionFormation } from '@prisma/client';
 import {
   AnneeQueryDto,
@@ -31,6 +32,7 @@ export class RhController {
     private readonly referentiel: ReferentielRhService,
     private readonly dossiers: DossiersSyntheseService,
     private readonly formations: FormationsService,
+    private readonly famillesActes: FamillesActesService,
   ) {}
 
   @Get()
@@ -75,19 +77,33 @@ export class RhController {
     return this.effectifs.modifierPiece(actor, id, dto);
   }
 
+  /** État des familles d'actes (S7) : prête / à corriger / bloquée, prochain numéro, actes de l'année. */
   @Get('familles-actes')
   familles(@CurrentUser() actor: AuthenticatedUser) {
-    return this.carriere.familles(actor);
+    return this.famillesActes.etat(actor);
+  }
+
+  @Post('familles-actes/configurer')
+  @HttpCode(200)
+  configurerFamilles(@CurrentUser() actor: AuthenticatedUser) {
+    return this.famillesActes.configurerTout(actor);
+  }
+
+  @Post('familles-actes/:code/registre-attendu')
+  @HttpCode(200)
+  registreAttendu(@CurrentUser() actor: AuthenticatedUser, @Param('code') code: string) {
+    return this.famillesActes.registreAttendu(actor, code);
   }
 
   @Patch('familles-actes/:code')
-  choisirRegistre(@CurrentUser() actor: AuthenticatedUser, @Param('code') code: string, @Body() dto: FamilleRegistreDto) {
-    return this.carriere.choisirRegistre(actor, code, dto);
+  async choisirRegistre(@CurrentUser() actor: AuthenticatedUser, @Param('code') code: string, @Body() dto: FamilleRegistreDto) {
+    await this.carriere.choisirRegistre(actor, code, dto);
+    return this.famillesActes.etat(actor);
   }
 
   @Get('mouvements')
-  mouvements(@CurrentUser() actor: AuthenticatedUser, @Query('userId') userId?: string) {
-    return this.carriere.liste(actor, userId);
+  mouvements(@CurrentUser() actor: AuthenticatedUser, @Query('userId') userId?: string, @Query('annee') annee?: string, @Query('type') type?: string) {
+    return this.carriere.liste(actor, userId, { annee: annee ? Number(annee) : undefined, type });
   }
 
   @Post('mouvements')

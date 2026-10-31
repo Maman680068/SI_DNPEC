@@ -6,12 +6,14 @@ import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import {
   annulerMouvement,
   choisirRegistreFamille,
+  configurerFamillesActes,
   getFamillesActes,
   getMouvements,
   preparerActeMouvement,
   preparerMouvement,
+  registreAttenduFamille,
 } from '../../lib/api/rh';
-import type { Familles, ListeMouvements, Mouvement, StatutMouvement, TypeMouvement } from '../../lib/rh/types';
+import type { EtatFamille, Familles, ListeMouvements, Mouvement, StatutMouvement, TypeMouvement } from '../../lib/rh/types';
 import { LIBELLE_STATUT_MOUVEMENT, LIBELLE_TYPE_MOUVEMENT } from '../../lib/rh/types';
 import { useOrg } from '../../lib/org/OrgProvider';
 import { ROLE_LABEL } from '../../lib/users/types';
@@ -38,12 +40,19 @@ import {
   type TonPastille,
 } from '../ui/Charte';
 import { Chargement, ErreurChargement, messageChargement } from '../ui/ErreurChargement';
+import { Fenetre } from '../ui/Fenetre';
 
 const DROITS: Record<'EN_ATTENTE' | 'APPLIQUE' | 'REFUSE', { libelle: string; ton: TonPastille }> = {
   APPLIQUE: { libelle: 'Droits appliqués', ton: 'vert' },
   EN_ATTENTE: { libelle: 'Droits en attente (administrateur)', ton: 'ambre' },
   REFUSE: { libelle: 'Droits refusés', ton: 'rouge' },
 };
+const ETAT_FAMILLE: Record<EtatFamille, { libelle: string; ton: TonPastille }> = {
+  PRETE: { libelle: '✓ Prête', ton: 'vert' },
+  A_CORRIGER: { libelle: '! À corriger', ton: 'ambre' },
+  BLOQUEE: { libelle: '✕ Bloquée', ton: 'rouge' },
+};
+const GRILLE_FAMILLES = 'lg:grid-cols-[minmax(0,1.2fr)_120px_minmax(0,1fr)_minmax(0,1.1fr)_80px_minmax(0,1.2fr)]';
 const TON: Record<StatutMouvement, TonPastille> = { PREPARE: 'ambre', EN_ACTE: 'bleu', APPLIQUE: 'vert', ANNULE: 'gris' };
 const GRILLE = 'lg:grid-cols-[minmax(0,1fr)_130px_170px_190px]';
 const LIBELLE_CHAMP: Record<string, string> = {
@@ -57,11 +66,14 @@ export function OngletCarriere({ userId, voirFamilles }: { userId?: string; voir
   const [nouveau, setNouveau] = useState(false);
   const [ouvert, setOuvert] = useState<string | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
+  const [annee, setAnnee] = useState<number | ''>('');
+  const [type, setType] = useState('');
+  const [configurer, setConfigurer] = useState(false);
   const { getDivisionName, getSectionName, getCelluleName } = useOrg();
   const charger = useCallback(() => {
-    getMouvements(userId).then(setL).catch((x) => setErreur(messageChargement(x)));
+    getMouvements(userId, { annee: annee || undefined, type: type || undefined }).then(setL).catch((x) => setErreur(messageChargement(x)));
     if (voirFamilles) getFamillesActes().then(setF).catch((x) => setErreur(messageChargement(x)));
-  }, [userId, voirFamilles]);
+  }, [userId, voirFamilles, annee, type]);
   useEffect(() => {
     charger();
   }, [charger]);
@@ -115,16 +127,37 @@ export function OngletCarriere({ userId, voirFamilles }: { userId?: string; voir
   return (
     <div>
       <ErreurChargement message={erreur} />
-      {l.droits.preparer && (
+      {f && <PanneauFamilles f={f} onChange={setF} onConfigurer={() => setConfigurer(true)} />}
+      {(l.droits.preparer || voirFamilles) && (
         <BandeCompteurs
           label="Mouvements de carrière"
           items={[
-            { valeur: l.mouvements.filter((m) => m.statut === 'PREPARE').length, label: 'Préparés', sous: 'acte à préparer', ton: 'ambre' },
-            { valeur: l.mouvements.filter((m) => m.statut === 'EN_ACTE').length, label: 'Actes en cours', sous: 'dans le circuit du Courrier' },
-            { valeur: l.mouvements.filter((m) => m.statut === 'APPLIQUE').length, label: 'Appliqués', sous: 'au dossier, à la signature', ton: 'vert' },
-            { valeur: l.mouvements.filter((m) => m.droitsPoste?.statut === 'EN_ATTENTE').length, label: 'Droits en attente', sous: 'confirmation de l’administrateur', ton: 'gris' },
+            { valeur: l.compteurs.enPreparation, label: 'En préparation', sous: 'acte à préparer', ton: 'ambre' },
+            { valeur: l.compteurs.enAttenteSignature, label: 'En attente de signature', sous: 'acte dans le circuit du Courrier' },
+            { valeur: l.compteurs.appliques, label: 'Signés et appliqués', sous: 'au dossier, à la signature', ton: 'vert' },
+            { valeur: l.compteurs.annules, label: 'Annulés', sous: 'sans effet sur le dossier', ton: 'gris' },
           ]}
         />
+      )}
+      {(l.droits.preparer || voirFamilles) && (
+        <div className="mb-3 flex flex-wrap items-center gap-2" data-testid="filtres-mouvements">
+          <select aria-label="Année" value={annee} onChange={(e) => setAnnee(e.target.value ? Number(e.target.value) : '')} className="h-9 rounded-[9px] border border-line bg-surface px-2.5 text-[13px] font-semibold">
+            <option value="">Toutes les années</option>
+            {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() + 1 - i).map((a) => (
+              <option key={a} value={a}>
+                {a}
+              </option>
+            ))}
+          </select>
+          <select aria-label="Type de mouvement" value={type} onChange={(e) => setType(e.target.value)} className="h-9 rounded-[9px] border border-line bg-surface px-2.5 text-[13px] font-semibold">
+            <option value="">Tous les types</option>
+            {l.types.map((t) => (
+              <option key={t.valeur} value={t.valeur}>
+                {t.libelle}
+              </option>
+            ))}
+          </select>
+        </div>
       )}
       <Panneau
         titre="Mouvements de carrière"
@@ -132,7 +165,7 @@ export function OngletCarriere({ userId, voirFamilles }: { userId?: string; voir
         action={
           l.droits.preparer && (
             <button type="button" className={BTN_PRINCIPAL} onClick={() => setNouveau(true)}>
-              <Plus aria-hidden size={16} /> Nouveau mouvement
+              <Plus aria-hidden size={16} /> Préparer un mouvement
             </button>
           )
         }
@@ -140,7 +173,11 @@ export function OngletCarriere({ userId, voirFamilles }: { userId?: string; voir
       >
         {l.mouvements.length === 0 ? (
           <EtatVide
-            texte="Aucun mouvement de carrière."
+            texte={
+              annee || type
+                ? 'Aucun mouvement ne correspond à ces filtres.'
+                : 'Aucun mouvement de carrière. Un mouvement (nomination, avancement, promotion, mutation, fin de contrat) est préparé par le DRH, porté par un acte du Courrier dans le registre de sa famille, puis appliqué au dossier à la signature.'
+            }
             action={l.droits.preparer ? <button type="button" className={BTN_LIGNE} onClick={() => setNouveau(true)}>Préparer un mouvement</button> : undefined}
           />
         ) : (
@@ -180,36 +217,30 @@ export function OngletCarriere({ userId, voirFamilles }: { userId?: string; voir
           </div>
         )}
       </Panneau>
-      {f && (
-        <Panneau titre="Familles d’actes" testid="familles-actes" className="overflow-hidden">
-          <p className="border-b border-line px-[18px] py-2.5 text-[12.5px] text-text-muted">Chaque famille a sa séquence (celle de son registre du Courrier, continue et jamais réutilisée) et son signataire.</p>
-          <ul>
-            {f.familles.map((x) => (
-              <li key={x.code} className="flex flex-wrap items-center justify-between gap-2 border-b border-line-doux px-[18px] py-2.5 text-[13.5px] last:border-b-0">
-                <span><strong className="text-ink-900">{x.libelle}</strong> <span className="text-text-muted">· signataire : {x.signataire}</span></span>
-                {f.droits.gerer ? (
-                  <select
-                    aria-label={`Registre de la famille ${x.libelle}`}
-                    value={x.registre?.id ?? ''}
-                    onChange={(e) => {
-                      const avant = x.registre?.id ?? null;
-                      agir(choisirRegistreFamille(x.code, e.target.value || null), 'Registre enregistré', {
-                        detail: `Famille « ${x.libelle} ».`,
-                        annuler: () => remettre(choisirRegistreFamille(x.code, avant)),
-                      });
-                    }}
-                    className="h-9 max-w-full rounded-[9px] border border-line bg-surface px-2.5 text-[13px]"
-                  >
-                    <option value="">— Registre à choisir —</option>
-                    {f.registresPossibles.map((r) => <option key={r.id} value={r.id}>{r.code} — {r.libelle}</option>)}
-                  </select>
-                ) : (
-                  <span className="text-text-muted">{x.registre ? `${x.registre.code} — ${x.registre.libelle}` : 'Registre à choisir'}</span>
-                )}
+      {configurer && f && (
+        <Fenetre
+          titre={`Configurer ${f.configuration.length} registre${f.configuration.length > 1 ? 's' : ''}`}
+          onClose={() => setConfigurer(false)}
+          libelleValider="Configurer"
+          onSubmit={() =>
+            configurerFamillesActes()
+              .then((x) => {
+                setF(x);
+                setConfigurer(false);
+                toast.succes('Familles d’actes configurées', { detail: `${x.pretes} famille${x.pretes > 1 ? 's' : ''} prête${x.pretes > 1 ? 's' : ''} sur ${x.total}.` });
+              })
+              .catch((x) => toast.erreur('Configuration impossible', messageErreur(x)))
+          }
+          pied="Registres d’actes de la Direction, signés par le DN ou la DNA ; chaque création est tracée."
+        >
+          <ul className="list-disc space-y-1 pl-5 text-[13.5px]" data-testid="plan-configuration">
+            {f.configuration.map((c) => (
+              <li key={c.code}>
+                {c.creation ? 'Créer' : 'Rattacher'} le registre <b>{c.code}</b> pour « {c.famille} »
               </li>
             ))}
           </ul>
-        </Panneau>
+        </Fenetre>
       )}
       {nouveau && (
         <FenetreMouvement
@@ -414,5 +445,93 @@ function FenetreMouvement({ liste, onClose, onFait }: { liste: ListeMouvements; 
         onChange={set('motif')}
       />
     </FenetreFormulaire>
+  );
+}
+
+/** Familles d'actes (S7) : jauge, état par famille, prochain numéro (aperçu), actes de l'année, actions de l'API. */
+function PanneauFamilles({ f, onChange, onConfigurer }: { f: Familles; onChange: (x: Familles) => void; onConfigurer: () => void }) {
+  const toast = useToast();
+  const agir = (p: Promise<Familles>, titre: string) =>
+    p
+      .then((x) => {
+        onChange(x);
+        toast.succes(titre, { detail: `${x.pretes} famille${x.pretes > 1 ? 's' : ''} prête${x.pretes > 1 ? 's' : ''} sur ${x.total}.` });
+      })
+      .catch((x) => toast.erreur('Action impossible', messageErreur(x)));
+  return (
+    <Panneau titre="Familles d’actes" testid="familles-actes" className="mb-4 overflow-hidden">
+      <div className="flex flex-wrap items-center gap-3 border-b border-line px-[18px] py-3">
+        <div className="min-w-[220px] flex-1">
+          <p className="text-[14px] font-bold text-ink-900" data-testid="jauge-familles">
+            {f.pretes} famille{f.pretes > 1 ? 's' : ''} prête{f.pretes > 1 ? 's' : ''} sur {f.total}
+          </p>
+          <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-fond-gris" aria-hidden>
+            <div className="h-full rounded-full bg-sage" style={{ width: `${f.total ? Math.round((f.pretes / f.total) * 100) : 0}%` }} />
+          </div>
+          <p className="mt-1.5 text-[12.5px] text-text-muted">Sans registre, l’acte d’une famille ne peut être ni préparé ni signé. Chaque famille a sa séquence (continue, jamais réutilisée) et son signataire (DN ou DNA).</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {f.droits.gerer && f.configuration.length > 0 && (
+            <button type="button" className={BTN_PRINCIPAL} onClick={onConfigurer}>
+              Configurer les {f.configuration.length} registre{f.configuration.length > 1 ? 's' : ''} manquant{f.configuration.length > 1 ? 's' : ''}
+            </button>
+          )}
+          <Link href="/courrier/administration" className={BTN_SECONDAIRE}>
+            Registres du Courrier
+          </Link>
+        </div>
+      </div>
+      <div role="table" aria-label="Familles d’actes">
+        <div role="rowgroup">
+          <div role="row" className={`hidden h-[38px] items-center gap-3 border-b border-line bg-fond-doux px-4 text-[12px] font-semibold text-text-muted lg:grid ${GRILLE_FAMILLES}`}>
+            {['Famille', 'État', 'Registre', 'Prochain numéro', 'Actes de l’année', ''].map((c, i) => (
+              <span key={i} role="columnheader">
+                {c || <span className="sr-only">Actions</span>}
+              </span>
+            ))}
+          </div>
+        </div>
+        <div role="rowgroup">
+          {f.familles.map((x) => (
+            <LigneTableau key={x.code} grille={GRILLE_FAMILLES} testid="famille-acte">
+              <span className="block">
+                <b className="block font-semibold text-ink-900">{x.libelle}</b>
+                <small className="block text-[12px] text-text-muted">signataire : {x.signataire}</small>
+                {x.alerte && <small className={`block text-[12px] ${x.etat === 'BLOQUEE' ? 'text-clay' : 'text-ambre'}`}>{x.alerte}</small>}
+              </span>
+              <Pastille ton={ETAT_FAMILLE[x.etat].ton} testid="etat-famille">
+                {ETAT_FAMILLE[x.etat].libelle}
+              </Pastille>
+              {f.droits.gerer ? (
+                <select
+                  aria-label={`Registre de la famille ${x.libelle}`}
+                  value={x.registre?.id ?? ''}
+                  onChange={(e) => agir(choisirRegistreFamille(x.code, e.target.value || null) as Promise<Familles>, 'Registre enregistré')}
+                  className="h-9 max-w-full rounded-[9px] border border-line bg-surface px-2.5 text-[13px]"
+                >
+                  <option value="">— Aucun registre —</option>
+                  {f.registresPossibles.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.code} — {r.libelle}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <span className="text-text-muted">{x.registre ? `${x.registre.code} — ${x.registre.libelle}` : 'Aucun registre'}</span>
+              )}
+              <span className="block truncate font-mono text-[12.5px]" data-testid="prochain-numero">{x.prochainNumero ?? '—'}</span>
+              <span className="text-[13px]">{x.actesAnnee}</span>
+              <span className="flex lg:justify-end">
+                {x.action && (
+                  <button type="button" className={BTN_LIGNE} title={x.action.effet} onClick={() => agir(registreAttenduFamille(x.code), x.action!.libelle)}>
+                    {x.action.libelle}
+                  </button>
+                )}
+              </span>
+            </LigneTableau>
+          ))}
+        </div>
+      </div>
+    </Panneau>
   );
 }

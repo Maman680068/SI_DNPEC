@@ -162,6 +162,9 @@ fonctionnalité ajoute sa suite (`tests/e2e/api/`, `tests/e2e/ui/`) et sa ligne 
   Courrier dans le registre de leur **famille d'actes** (séquence + signataire), **appliqués au dossier à
   la signature** (`ActesService.surSignature`, dans la transaction de signature) ; une mutation ne vise
   qu'un AGENT/DRH/ADMIN (les autres passent par le changement de rôle) ; fin de contrat → `Agent.dateFinPrevue`.
+  Familles d'actes (S7, `rh/familles-actes.service.ts`) : état prête / à corriger / bloquée, codes attendus
+  (`CODE_ATTENDU`), registre créé par `RegistresService.create` et rattaché en une fois, prochain numéro par
+  `NumerotationService.apercu` (lecture du compteur, jamais de consommation).
   Fiches de poste (une par fonction, DRH), besoins de formation (chefs, Direction ; le DRH retient).
   **Plan de formation individuel** (`rh/formations.service.ts`, `docs/conception_plan_formation.md`) :
   sessions par agent (`SessionFormation` : souhaitée → planifiée → suivie, ou annulée), besoin d'origine

@@ -4,6 +4,7 @@ import { CourrierModule } from '../courrier/courrier.module';
 import { RhController } from './rh.controller';
 import { FormationsProfilController } from './formations-profil.controller';
 import { FormationsService } from './formations.service';
+import { FamillesActesService } from './familles-actes.service';
 import { EffectifsService } from './effectifs.service';
 import { CarriereService } from './carriere.service';
 import { ReferentielRhService } from './referentiel-rh.service';
@@ -13,7 +14,7 @@ import { DossiersSyntheseService } from './dossiers-synthese.service';
 @Module({
   imports: [CommunicationModule, CourrierModule],
   controllers: [RhController, FormationsProfilController],
-  providers: [EffectifsService, CarriereService, ReferentielRhService, DossiersSyntheseService, FormationsService],
+  providers: [EffectifsService, CarriereService, ReferentielRhService, DossiersSyntheseService, FormationsService, FamillesActesService],
   exports: [EffectifsService],
 })
 export class RhModule {}

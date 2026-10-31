@@ -48,14 +48,26 @@ export interface ListePieces {
   droits: { gerer: boolean };
 }
 
+export type EtatFamille = 'PRETE' | 'A_CORRIGER' | 'BLOQUEE';
 export interface FamilleActe {
   code: string;
   libelle: string;
   signataire: string;
-  registre: { id: string; code: string; libelle: string; isActive: boolean } | null;
+  etat: EtatFamille;
+  codeAttendu: string | null;
+  registre: { id: string; code: string; libelle: string; actif: boolean } | null;
+  alerte: string | null;
+  /** Aperçu du prochain numéro (sans consommer la séquence). */
+  prochainNumero: string | null;
+  actesAnnee: number;
+  /** Action proposée par l'API (« Créer le registre AFF », « Passer au registre AFF », « Lui donner ATT »). */
+  action: { libelle: string; effet: string } | null;
 }
 export interface Familles {
+  pretes: number;
+  total: number;
   familles: FamilleActe[];
+  configuration: { famille: string; code: string; creation: boolean }[];
   registresPossibles: { id: string; code: string; libelle: string }[];
   droits: { gerer: boolean };
 }
@@ -95,6 +107,8 @@ export interface Mouvement {
 export interface ListeMouvements {
   mouvements: Mouvement[];
   droits: { preparer: boolean };
+  compteurs: { enPreparation: number; enAttenteSignature: number; appliques: number; annules: number };
+  types: { valeur: TypeMouvement; libelle: string }[];
   /** Postes de responsabilité qu'une nomination peut viser : rôle, unité et intitulé de la fonction en découlent. */
   postes: { cle: string; role: string; divisionId: string | null; sectionId: string | null; celluleId: string | null; fonction: string; titulaire: string | null }[];
   agents: { id: string; firstName: string; lastName: string; role: string }[];

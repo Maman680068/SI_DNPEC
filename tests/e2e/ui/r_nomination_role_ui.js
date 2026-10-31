@@ -45,7 +45,7 @@ async function signerActe(acteId) {
     console.log('— DRH : nomination avec poste de responsabilité');
     let p = await loginPage(b0, 'drh');
     await p.goto(`${WEB}/rh?onglet=carriere`);
-    await p.getByRole('button', { name: 'Nouveau mouvement', exact: true }).click();
+    await p.getByRole('button', { name: 'Préparer un mouvement', exact: true }).click();
     const d = p.getByRole('dialog');
     // Refonte (étape 9) : agent choisi par recherche (taper le nom, cliquer la suggestion), mouvement en un clic.
     await d.getByRole('combobox', { name: 'Agent', exact: true }).fill(`NUA Écran ${S}`);

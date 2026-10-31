@@ -69,6 +69,17 @@ export class NumerotationService {
     return c.code;
   }
 
+  /**
+   * Aperçu du prochain numéro (S7, S9c) : lu dans le compteur, SANS le consommer — le numéro réel n'est
+   * attribué qu'à la signature ou à l'enregistrement (`attribuer`).
+   */
+  async apercu(registre: { id: string; code: string; gabaritNumero: string }, uniteKey: string, uniteCode: string, maintenant = new Date()) {
+    const annee = maintenant.getFullYear();
+    const c = await this.prisma.compteurRegistre.findUnique({ where: { registreId_uniteKey_annee: { registreId: registre.id, uniteKey, annee } }, select: { dernier: true } });
+    const sequence = (c?.dernier ?? 0) + 1;
+    return { annee, sequence, numero: this.formater(registre.gabaritNumero, { sequence, code: registre.code, annee, unite: uniteCode }), utilises: c?.dernier ?? 0 };
+  }
+
   /** Attribue le prochain numéro — à appeler UNIQUEMENT dans une transaction. */
   async attribuer(
     tx: Prisma.TransactionClient,

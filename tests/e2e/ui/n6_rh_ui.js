@@ -90,7 +90,7 @@ async function signerActe(acteId) {
   check('familles d’actes affichées avec leur signataire', /signataire/.test(await p.locator('[data-testid=familles-actes]').innerText()));
   const ag1 = await prisma.user.findUnique({ where: { id: ids.agent1 } });
   const nomAg1 = `${ag1.firstName} ${ag1.lastName}`;
-  await p.getByRole('button', { name: 'Nouveau mouvement', exact: true }).click();
+  await p.getByRole('button', { name: 'Préparer un mouvement', exact: true }).click();
   let d = p.getByRole('dialog');
   const avantVide = await prisma.mouvementCarriere.count();
   await d.getByRole('button', { name: 'Préparer le mouvement' }).click();
@@ -196,7 +196,7 @@ async function signerActe(acteId) {
   await p.locator('[data-testid=mouvement]', { hasText: `Chargé d’études principal ${S}` }).waitFor();
   const ongletsAgent = await onglets(p);
   check('agent : carrière et fiches de poste seulement', ongletsAgent.join('|') === 'Carrière et actes|Fiches de poste', ongletsAgent.join(', '));
-  check('agent : sa nomination appliquée, sans bouton d’instruction', (await p.getByRole('button', { name: 'Nouveau mouvement', exact: true }).count()) === 0);
+  check('agent : sa nomination appliquée, sans bouton d’instruction', (await p.getByRole('button', { name: 'Préparer un mouvement', exact: true }).count()) === 0);
   check('téléphone : sans défilement horizontal (RH)', await sansDefilementHorizontal(p));
   await p.screenshot({ path: `${E.SHOTS}/n6_carriere_mobile.png`, fullPage: true });
   await p.context().close();

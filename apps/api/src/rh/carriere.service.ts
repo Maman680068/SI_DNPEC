@@ -109,12 +109,18 @@ export class CarriereService implements OnModuleInit {
     return this.familles(actor);
   }
 
+
   // ------------------------------------------------------------------ mouvements
 
-  async liste(actor: AuthenticatedUser, userId?: string) {
+  async liste(actor: AuthenticatedUser, userId?: string, filtres: { annee?: number; type?: string } = {}) {
     const tout = estDrh(actor) || this.direction(actor);
     if (!tout && userId && userId !== actor.id) throw new ForbiddenException('Vous ne voyez que vos propres mouvements de carrière.');
-    const where: Prisma.MouvementCarriereWhereInput = tout ? (userId ? { userId } : {}) : { userId: actor.id, statut: StatutMouvementCarriere.APPLIQUE };
+    // S7 : filtres année (date d'effet) et type, appliqués par l'API (comme les compteurs).
+    const filtre: Prisma.MouvementCarriereWhereInput = {
+      ...(filtres.annee && Number.isInteger(filtres.annee) ? { dateEffet: { gte: new Date(Date.UTC(filtres.annee, 0, 1)), lt: new Date(Date.UTC(filtres.annee + 1, 0, 1)) } } : {}),
+      ...(filtres.type && (Object.keys(LIBELLE_TYPE) as string[]).includes(filtres.type) ? { type: filtres.type as TypeMouvementCarriere } : {}),
+    };
+    const where: Prisma.MouvementCarriereWhereInput = { ...(tout ? (userId ? { userId } : {}) : { userId: actor.id, statut: StatutMouvementCarriere.APPLIQUE }), ...filtre };
     const lignes = await this.prisma.mouvementCarriere.findMany({
       where,
       orderBy: [{ dateEffet: 'desc' }, { createdAt: 'desc' }],
@@ -135,6 +141,14 @@ export class CarriereService implements OnModuleInit {
         },
       })),
       droits: { preparer: drh },
+      // S7 : quatre compteurs sur les mouvements affichés (filtres compris).
+      compteurs: {
+        enPreparation: lignes.filter((m) => m.statut === StatutMouvementCarriere.PREPARE || (m.statut === StatutMouvementCarriere.EN_ACTE && m.acte?.statut === ActeStatut.ANNULE)).length,
+        enAttenteSignature: lignes.filter((m) => m.statut === StatutMouvementCarriere.EN_ACTE && m.acte?.statut !== ActeStatut.ANNULE).length,
+        appliques: lignes.filter((m) => m.statut === StatutMouvementCarriere.APPLIQUE).length,
+        annules: lignes.filter((m) => m.statut === StatutMouvementCarriere.ANNULE).length,
+      },
+      types: Object.entries(LIBELLE_TYPE).map(([valeur, libelle]) => ({ valeur, libelle })),
       // Postes de responsabilité qu'une nomination peut viser (rôle, unité et intitulé en découlent).
       postes: drh ? await listePostes(this.prisma) : [],
       agents: drh ? await this.prisma.user.findMany({ where: { status: UserStatus.ACTIF, role: { not: SystemRole.STAGIAIRE } }, select: { id: true, firstName: true, lastName: true, role: true }, orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }] }) : [],
