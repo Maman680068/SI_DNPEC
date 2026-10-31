@@ -460,9 +460,11 @@
         {
           "titre": "Organigramme",
           "etapes": [
+            "Organisation → « Organigramme » : en schéma, le DN en haut et la DNA dessous, les cellules sur le côté en pointillés (structures d’appui), les divisions sur la barre avec leurs sections ; une case à bord rouge n’a pas de responsable. Filtrez « Sans responsable » ou « Sans agent », zoomez, imprimez en A4 paysage ; cliquez une case pour sa fiche. « Liste » montre l’organigramme détaillé (gestion des unités).",
             "Onglet « Personnel et RH » (« Administration » pour la Direction et l’administrateur) → « Organisation » : sur une unité, le bouton « ⋯ » (« Plus d’actions ») propose « Ajouter une sous-unité » (division, section, cellule ou instance), « Modifier » (code ou libellé) et « Fermer ».",
             "« Fermer » demande un motif ; une unité ne se ferme que lorsqu’aucun agent ni aucune sous-unité ouverte n’y est plus rattaché. Son historique reste consultable (« Voir » sur l’unité, case « Afficher les unités fermées »).",
-            "Le responsable de chaque unité est déduit des nominations (changement de rôle, chef de cellule) ; « Pas de responsable désigné » signale un poste à pourvoir."
+            "Le responsable de chaque unité est déduit des nominations (changement de rôle, chef de cellule) ; « Pas de responsable désigné » signale un poste à pourvoir.",
+            "Onglets « Divisions & Sections » et « Cellules » : chefs, effectifs, sections sans chef, agents sans section ; vous pouvez changer le rattachement d’une cellule (DN ou DNA) et sa nature par le menu ⋯."
           ],
           "capture": "organigramme.png"
         },
@@ -647,7 +649,8 @@
             "Chaque nomination d’un chef est suivie le même jour d’un changement de rôle : l’acte signé de nomination met à jour la fonction du dossier, puis vous recevez la notification « Nomination à appliquer ». Onglet « Nominations » : le changement de rôle est pré-rempli (nouveau rôle, nouvelle unité, rôle proposé pour l’actuel titulaire du poste) → « Confirmer… » (motif : le numéro de l’acte ; la fonction de l’ancien titulaire suit son nouveau rôle, inscrite à son historique « suite à l’acte n° … »), ou « Refuser… » avec un motif que le DRH verra.",
             "Le même onglet liste les écarts entre la fonction du dossier et le rôle du compte, signalés chaque matin et dans la supervision (« Fonction et rôle des comptes »).",
             "La liste « Tous les comptes » montre aussi les rôles fonctionnels de chacun et si sa double authentification est activée (jamais son code). Dessous, « Agents sans compte » : les agents en activité du dossier RH qui n’ont pas encore de compte ; « Ouvrir un compte » ouvre la création préremplie et rattachée à l’agent. La Direction voit ces informations en lecture seule.",
-            "Vous n’avez pas accès au contenu métier des agents (tâches, stages, courrier des autres)."
+            "Vous n’avez pas accès au contenu métier des agents (tâches, stages, courrier des autres).",
+            "Organisation : « Désigner un chef » (schéma, Divisions & Sections, Cellules) ouvre la procédure de changement de rôle, préremplie avec le rôle et l’unité ; « Les affecter » range les agents d’une division sans section ; le menu ⋯ d’une cellule règle son rattachement, sa nature, son chef, sa suspension."
           ],
           "capture": "utilisateurs.png"
         },

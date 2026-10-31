@@ -219,6 +219,10 @@ fonctionnalité ajoute sa suite (`tests/e2e/api/`, `tests/e2e/ui/`) et sa ligne 
   mise à jour conditionnelle) ; `POST /meetings { demandeReunionId }` consomme l'autorisation dans la
   transaction de création (date et participants validés imposés). Participants : `ParticipantsReunionService`
   (unités du socle et leurs membres, sans stagiaires). Retour arrière `demandes_reunion_down.sql` (phase 39q).
+- Organisation (S8, `docs/conception_S8_organisation.md`) : `GET api/v1/organisation` (`org/organisation-vue.*`) calcule les
+  trois onglets (schéma, Divisions & Sections, Cellules) ; `cellules.rattachement` / `cellules.nature` (migration
+  `20261102080000_rattachement_cellules`, retour arrière `rattachement_cellules_down.sql`, phase 39r ; colonnes
+  ignorées par les empreintes des phases de reprise antérieures). « Désigner un chef » = `ChangeRoleModal` avec `cible`.
 - Stages (`stages/`, D6) : job quotidien `StagesRotationService.executer(now)` (appelable avec une
   date simulée) ; attestation finale = acte du Courrier (`ActesService`).
   Réglages (capacités, modèle d'attestation) : DRH **et** administrateur système

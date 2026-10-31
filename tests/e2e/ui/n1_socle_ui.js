@@ -23,6 +23,8 @@ const sansDefilementHorizontal = (p) => p.evaluate(() => document.documentElemen
   console.log('— Bureau : organigramme');
   let p = await loginPage(b, 'agent1');
   await p.goto(`${WEB}/organisation`);
+  // S8 : schéma par défaut sur écran large ; la liste (organigramme du socle) est derrière « Liste ».
+  await p.getByRole('button', { name: 'Liste', exact: true }).click();
   await p.locator('[data-testid=unite][data-code=DPE]').first().waitFor();
   check('agent : organigramme complet lisible (Direction, divisions, sections)', (await p.locator('[data-testid=unite][data-code=DNPEC]').count()) === 1 && (await p.locator('[data-testid=unite][data-code=SSR]').count()) === 1);
   // Correctif « colonne Actions » : les actions de gestion sont dans « Plus d'actions », absent pour l'agent.
@@ -47,6 +49,7 @@ const sansDefilementHorizontal = (p) => p.evaluate(() => document.documentElemen
   await p.locator('a[href="/organisation"]').first().waitFor();
   check('DRH : menu « Agents » présent', (await p.locator('a[href="/agents"]').count()) === 1);
   await p.goto(`${WEB}/organisation`);
+  await p.getByRole('button', { name: 'Liste', exact: true }).click();
   const dpe = p.locator('[data-testid=unite][data-code=DPE]').first();
   await dpe.waitFor();
   await dpe.locator(':scope > div').getByRole('button', { name: 'Plus d’actions pour DPE' }).click();

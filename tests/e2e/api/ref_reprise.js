@@ -24,7 +24,8 @@ const sql = (q) => prisma.$queryRawUnsafe(q);
 const tables = async () =>
   (await sql(`SELECT table_name AS t FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE' AND table_name NOT IN ('_prisma_migrations', 'journal_connexions', 'executions_taches', 'etat_supervision') ORDER BY 1`)).map((r) => r.t);
 // Les colonnes ajoutées par le lot sont retirées de l'empreinte : tout le reste doit être identique.
-const AJOUTEES = { tasks: ['numero'], activites: ['annee', 'numero'] };
+// « cellules » : colonnes du lot suivant (S8), réappliqué par la ré-application.
+const AJOUTEES = { tasks: ['numero'], activites: ['annee', 'numero'], cellules: ['rattachement', 'nature'] };
 async function empreinte(liste) {
   const res = {};
   for (const t of liste) {

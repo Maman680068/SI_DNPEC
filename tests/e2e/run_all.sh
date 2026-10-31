@@ -183,6 +183,8 @@ lancer "38m-decies-septies. CHROMIUM — SUPPLÉANCES : ONGLET « TOUTES LES SUP
 lancer "38m-undecies. REFONTE — INSTRUCTIONS : EXPORT EXCEL (MÊME PÉRIMÈTRE QUE LA LISTE, SANS TEXTE NI MOTIF), 403" api/u_instructions_export.js
 lancer "38m-duodecies-pre. ANNUAIRE REPENSÉ : BLOCS PAR UNITÉ, ÉTAT DU JOUR SANS MOTIF (CONGÉ, MISSION SIGNÉE, INTÉRIM), DISPONIBLES, RECHERCHE SANS ACCENTS, FICHE" api/s4_annuaire.js
 lancer "38m-duodecies. CHROMIUM — REFONTE : ANNUAIRE ET BOÎTE À SUGGESTIONS (BUREAU, TÉLÉPHONE)" ui/u_annuaire_suggestions_ui.js
+lancer "38m-duodecies-bis. ORGANISATION : VUE DES TROIS ONGLETS (DIRECTION, CELLULES DN / DNA, DIVISIONS, SECTIONS, CONGÉS DU JOUR, RÔLES), RATTACHEMENT DES CELLULES" api/s8_organisation.js
+lancer "38m-duodecies-ter. CHROMIUM — ORGANISATION : SCHÉMA, FILTRES, ZOOM, FICHE, DIVISIONS & SECTIONS, CELLULES, TÉLÉPHONE" ui/s8_organisation_ui.js
 lancer "38m-terdecies. REFONTE (ÉTAPE 9) — MON PROFIL (SON PROPRE PROFIL SEULEMENT), POINTS DE SUPERVISION DANS « À TRAITER » DE L’ADMINISTRATEUR" api/u_profil.js
 lancer "38m-quaterdecies. CHROMIUM — REFONTE (ÉTAPE 9) : MON PROFIL, CLOCHE, RECHERCHE PENDANT LA FRAPPE, « À TRAITER » DE L’ADMINISTRATEUR, PRÉNOM, SQUELETTE, DÉFILEMENT" ui/u_finitions_ui.js
 lancer "38n. CHROMIUM — ACCESSIBILITÉ WCAG 2.1 AA DES ÉCRANS PRINCIPAUX (AXE, BUREAU, TÉLÉPHONE, THÈMES CLAIR ET SOMBRE)" ui/n6_accessibilite_ui.js
@@ -211,6 +213,7 @@ if veut n1_reprise; then
   psql -q "$PSQL_URL" -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public;' >/dev/null 2>&1
   (cd "$API" && pnpm exec prisma migrate deploy >/dev/null 2>&1 && pnpm run -s db:seed >/dev/null) || { echo "Base neuve : échec"; exit 1; }
   # Retour arrière dans l'ordre inverse des lots : références courtes, B1, n7, N6, N5, N4, N3, N2 puis N1.
+  psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/rattachement_cellules_down.sql" >/dev/null || { echo "Retour arrière « rattachement des cellules » : échec"; exit 1; }
   psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/demandes_reunion_down.sql" >/dev/null || { echo "Retour arrière « demandes de réunion » : échec"; exit 1; }
   psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/formation_down.sql" >/dev/null || { echo "Retour arrière « plan de formation » : échec"; exit 1; }
   psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/ref_down.sql" >/dev/null || { echo "Retour arrière « références courtes » : échec"; exit 1; }
@@ -228,6 +231,7 @@ if veut n1_reprise; then
   export N1_MODE=apres; lancer "39g-2. N1 APPLIQUÉ : REPRISE CONTRÔLÉE, DONNÉES D'AVANT INTACTES" api/n1_reprise.js
   arreter_api
   # Retour arrière dans l'ordre inverse des lots : références courtes, B1, n7, N6, N5, N4, N3, N2 puis N1.
+  psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/rattachement_cellules_down.sql" >/dev/null || { echo "Retour arrière « rattachement des cellules » : échec"; exit 1; }
   psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/demandes_reunion_down.sql" >/dev/null || { echo "Retour arrière « demandes de réunion » : échec"; exit 1; }
   psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/formation_down.sql" >/dev/null || { echo "Retour arrière « plan de formation » : échec"; exit 1; }
   psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/ref_down.sql" >/dev/null || { echo "Retour arrière « références courtes » : échec"; exit 1; }
@@ -254,6 +258,7 @@ if veut n2_reprise; then
   for f in "$E2E_OUT"/logs/api-*.pid; do [ -f "$f" ] && kill "$(cat "$f")" 2>/dev/null; done; sleep 1
   psql -q "$PSQL_URL" -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public;' >/dev/null 2>&1
   (cd "$API" && pnpm exec prisma migrate deploy >/dev/null 2>&1 && pnpm run -s db:seed >/dev/null) || { echo "Base neuve : échec"; exit 1; }
+  psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/rattachement_cellules_down.sql" >/dev/null || { echo "Retour arrière « rattachement des cellules » : échec"; exit 1; }
   psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/demandes_reunion_down.sql" >/dev/null || { echo "Retour arrière « demandes de réunion » : échec"; exit 1; }
   psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/formation_down.sql" >/dev/null || { echo "Retour arrière « plan de formation » : échec"; exit 1; }
   psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/ref_down.sql" >/dev/null || { echo "Retour arrière « références courtes » : échec"; exit 1; }
@@ -267,6 +272,7 @@ if veut n2_reprise; then
   export N2_MODE=charger; lancer "39h-1. ÉTAT N1 : COMPTES ET JOURNAL D'AUDIT CHARGÉS, EMPREINTE" api/n2_reprise.js
   (cd "$API" && pnpm exec prisma migrate deploy >/dev/null 2>&1) || { echo "Migration N2 : échec"; exit 1; }
   export N2_MODE=apres; lancer "39h-2. N2 APPLIQUÉ : JOURNAL SCELLÉ, COMPTES AVEC AGENT, DONNÉES INTACTES" api/n2_reprise.js
+  psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/rattachement_cellules_down.sql" >/dev/null || { echo "Retour arrière « rattachement des cellules » : échec"; exit 1; }
   psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/demandes_reunion_down.sql" >/dev/null || { echo "Retour arrière « demandes de réunion » : échec"; exit 1; }
   psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/formation_down.sql" >/dev/null || { echo "Retour arrière « plan de formation » : échec"; exit 1; }
   psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/ref_down.sql" >/dev/null || { echo "Retour arrière « références courtes » : échec"; exit 1; }
@@ -291,6 +297,7 @@ if veut n3_reprise; then
   for f in "$E2E_OUT"/logs/api-*.pid; do [ -f "$f" ] && kill "$(cat "$f")" 2>/dev/null; done; sleep 1
   psql -q "$PSQL_URL" -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public;' >/dev/null 2>&1
   (cd "$API" && pnpm exec prisma migrate deploy >/dev/null 2>&1 && pnpm run -s db:seed >/dev/null) || { echo "Base neuve : échec"; exit 1; }
+  psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/rattachement_cellules_down.sql" >/dev/null || { echo "Retour arrière « rattachement des cellules » : échec"; exit 1; }
   psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/demandes_reunion_down.sql" >/dev/null || { echo "Retour arrière « demandes de réunion » : échec"; exit 1; }
   psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/formation_down.sql" >/dev/null || { echo "Retour arrière « plan de formation » : échec"; exit 1; }
   psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/ref_down.sql" >/dev/null || { echo "Retour arrière « références courtes » : échec"; exit 1; }
@@ -303,6 +310,7 @@ if veut n3_reprise; then
   export N3_MODE=charger; lancer "39i-1. ÉTAT N2 : TÂCHES, CONGÉS ET STAGE CHARGÉS, EMPREINTE" api/n3_reprise.js
   (cd "$API" && pnpm exec prisma migrate deploy >/dev/null 2>&1) || { echo "Migration N3 : échec"; exit 1; }
   export N3_MODE=apres; lancer "39i-2. N3 APPLIQUÉ : AVANCEMENT RECALCULÉ, AUCUN AVIS INVENTÉ, DONNÉES INTACTES" api/n3_reprise.js
+  psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/rattachement_cellules_down.sql" >/dev/null || { echo "Retour arrière « rattachement des cellules » : échec"; exit 1; }
   psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/demandes_reunion_down.sql" >/dev/null || { echo "Retour arrière « demandes de réunion » : échec"; exit 1; }
   psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/formation_down.sql" >/dev/null || { echo "Retour arrière « plan de formation » : échec"; exit 1; }
   psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/ref_down.sql" >/dev/null || { echo "Retour arrière « références courtes » : échec"; exit 1; }
@@ -326,6 +334,7 @@ if veut n4_reprise; then
   for f in "$E2E_OUT"/logs/api-*.pid; do [ -f "$f" ] && kill "$(cat "$f")" 2>/dev/null; done; sleep 1
   psql -q "$PSQL_URL" -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public;' >/dev/null 2>&1
   (cd "$API" && pnpm exec prisma migrate deploy >/dev/null 2>&1 && pnpm run -s db:seed >/dev/null) || { echo "Base neuve : échec"; exit 1; }
+  psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/rattachement_cellules_down.sql" >/dev/null || { echo "Retour arrière « rattachement des cellules » : échec"; exit 1; }
   psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/demandes_reunion_down.sql" >/dev/null || { echo "Retour arrière « demandes de réunion » : échec"; exit 1; }
   psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/formation_down.sql" >/dev/null || { echo "Retour arrière « plan de formation » : échec"; exit 1; }
   psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/ref_down.sql" >/dev/null || { echo "Retour arrière « références courtes » : échec"; exit 1; }
@@ -337,6 +346,7 @@ if veut n4_reprise; then
   export N4_MODE=charger; lancer "39j-1. ÉTAT N3 : DOCUMENTS CHARGÉS, EMPREINTE" api/n4_reprise.js
   (cd "$API" && pnpm exec prisma migrate deploy >/dev/null 2>&1) || { echo "Migration N4 : échec"; exit 1; }
   export N4_MODE=apres; lancer "39j-2. N4 APPLIQUÉ : TYPE, DATE, STATUT REPRIS, DONNÉES INTACTES" api/n4_reprise.js
+  psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/rattachement_cellules_down.sql" >/dev/null || { echo "Retour arrière « rattachement des cellules » : échec"; exit 1; }
   psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/demandes_reunion_down.sql" >/dev/null || { echo "Retour arrière « demandes de réunion » : échec"; exit 1; }
   psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/formation_down.sql" >/dev/null || { echo "Retour arrière « plan de formation » : échec"; exit 1; }
   psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/ref_down.sql" >/dev/null || { echo "Retour arrière « références courtes » : échec"; exit 1; }
@@ -359,6 +369,7 @@ if veut n5_reprise; then
   for f in "$E2E_OUT"/logs/api-*.pid; do [ -f "$f" ] && kill "$(cat "$f")" 2>/dev/null; done; sleep 1
   psql -q "$PSQL_URL" -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public;' >/dev/null 2>&1
   (cd "$API" && pnpm exec prisma migrate deploy >/dev/null 2>&1 && pnpm run -s db:seed >/dev/null) || { echo "Base neuve : échec"; exit 1; }
+  psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/rattachement_cellules_down.sql" >/dev/null || { echo "Retour arrière « rattachement des cellules » : échec"; exit 1; }
   psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/demandes_reunion_down.sql" >/dev/null || { echo "Retour arrière « demandes de réunion » : échec"; exit 1; }
   psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/formation_down.sql" >/dev/null || { echo "Retour arrière « plan de formation » : échec"; exit 1; }
   psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/ref_down.sql" >/dev/null || { echo "Retour arrière « références courtes » : échec"; exit 1; }
@@ -369,6 +380,7 @@ if veut n5_reprise; then
   export N5_MODE=charger; lancer "39k-1. ÉTAT N4 : TÂCHES ET NOTIFICATIONS CHARGÉES, EMPREINTE" api/n5_reprise.js
   (cd "$API" && pnpm exec prisma migrate deploy >/dev/null 2>&1) || { echo "Migration N5 : échec"; exit 1; }
   export N5_MODE=apres; lancer "39k-2. N5 APPLIQUÉ : RETARDS ANCIENS RÉPUTÉS SIGNALÉS, EMAILS PARTIS, DONNÉES INTACTES" api/n5_reprise.js
+  psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/rattachement_cellules_down.sql" >/dev/null || { echo "Retour arrière « rattachement des cellules » : échec"; exit 1; }
   psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/demandes_reunion_down.sql" >/dev/null || { echo "Retour arrière « demandes de réunion » : échec"; exit 1; }
   psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/formation_down.sql" >/dev/null || { echo "Retour arrière « plan de formation » : échec"; exit 1; }
   psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/ref_down.sql" >/dev/null || { echo "Retour arrière « références courtes » : échec"; exit 1; }
@@ -390,6 +402,7 @@ if veut n6_reprise; then
   for f in "$E2E_OUT"/logs/api-*.pid; do [ -f "$f" ] && kill "$(cat "$f")" 2>/dev/null; done; sleep 1
   psql -q "$PSQL_URL" -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public;' >/dev/null 2>&1
   (cd "$API" && pnpm exec prisma migrate deploy >/dev/null 2>&1 && pnpm run -s db:seed >/dev/null) || { echo "Base neuve : échec"; exit 1; }
+  psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/rattachement_cellules_down.sql" >/dev/null || { echo "Retour arrière « rattachement des cellules » : échec"; exit 1; }
   psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/demandes_reunion_down.sql" >/dev/null || { echo "Retour arrière « demandes de réunion » : échec"; exit 1; }
   psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/formation_down.sql" >/dev/null || { echo "Retour arrière « plan de formation » : échec"; exit 1; }
   psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/ref_down.sql" >/dev/null || { echo "Retour arrière « références courtes » : échec"; exit 1; }
@@ -399,6 +412,7 @@ if veut n6_reprise; then
   export N6_MODE=charger; lancer "39l-1. ÉTAT N5 : DOSSIERS, PIÈCES ET ORDRES DE MISSION CHARGÉS, EMPREINTE" api/n6_reprise.js
   (cd "$API" && pnpm exec prisma migrate deploy >/dev/null 2>&1) || { echo "Migration N6 : échec"; exit 1; }
   export N6_MODE=apres; lancer "39l-2. N6 APPLIQUÉ : COLONNES VIDES, PARAMÉTRAGE LIVRÉ, DONNÉES INTACTES" api/n6_reprise.js
+  psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/rattachement_cellules_down.sql" >/dev/null || { echo "Retour arrière « rattachement des cellules » : échec"; exit 1; }
   psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/demandes_reunion_down.sql" >/dev/null || { echo "Retour arrière « demandes de réunion » : échec"; exit 1; }
   psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/formation_down.sql" >/dev/null || { echo "Retour arrière « plan de formation » : échec"; exit 1; }
   psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/ref_down.sql" >/dev/null || { echo "Retour arrière « références courtes » : échec"; exit 1; }
@@ -418,6 +432,7 @@ if veut n7_reprise; then
   for f in "$E2E_OUT"/logs/api-*.pid; do [ -f "$f" ] && kill "$(cat "$f")" 2>/dev/null; done; sleep 1
   psql -q "$PSQL_URL" -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public;' >/dev/null 2>&1
   (cd "$API" && pnpm exec prisma migrate deploy >/dev/null 2>&1 && pnpm run -s db:seed >/dev/null) || { echo "Base neuve : échec"; exit 1; }
+  psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/rattachement_cellules_down.sql" >/dev/null || { echo "Retour arrière « rattachement des cellules » : échec"; exit 1; }
   psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/demandes_reunion_down.sql" >/dev/null || { echo "Retour arrière « demandes de réunion » : échec"; exit 1; }
   psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/formation_down.sql" >/dev/null || { echo "Retour arrière « plan de formation » : échec"; exit 1; }
   psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/ref_down.sql" >/dev/null || { echo "Retour arrière « références courtes » : échec"; exit 1; }
@@ -426,6 +441,7 @@ if veut n7_reprise; then
   export N7_MODE=charger; lancer "39m-1. ÉTAT N6 : NOMINATIONS SIGNÉES, MOUVEMENTS, EMPREINTE" api/n7_reprise.js
   (cd "$API" && pnpm exec prisma migrate deploy >/dev/null 2>&1) || { echo "Migration nomination : échec"; exit 1; }
   export N7_MODE=apres; lancer "39m-2. MIGRATION APPLIQUÉE : TABLE VIDE, DONNÉES INTACTES" api/n7_reprise.js
+  psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/rattachement_cellules_down.sql" >/dev/null || { echo "Retour arrière « rattachement des cellules » : échec"; exit 1; }
   psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/demandes_reunion_down.sql" >/dev/null || { echo "Retour arrière « demandes de réunion » : échec"; exit 1; }
   psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/formation_down.sql" >/dev/null || { echo "Retour arrière « plan de formation » : échec"; exit 1; }
   psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/ref_down.sql" >/dev/null || { echo "Retour arrière « références courtes » : échec"; exit 1; }
@@ -444,6 +460,7 @@ if veut b1_reprise; then
   for f in "$E2E_OUT"/logs/api-*.pid; do [ -f "$f" ] && kill "$(cat "$f")" 2>/dev/null; done; sleep 1
   psql -q "$PSQL_URL" -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public;' >/dev/null 2>&1
   (cd "$API" && pnpm exec prisma migrate deploy >/dev/null 2>&1 && pnpm run -s db:seed >/dev/null) || { echo "Base neuve : échec"; exit 1; }
+  psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/rattachement_cellules_down.sql" >/dev/null || { echo "Retour arrière « rattachement des cellules » : échec"; exit 1; }
   psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/demandes_reunion_down.sql" >/dev/null || { echo "Retour arrière « demandes de réunion » : échec"; exit 1; }
   psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/formation_down.sql" >/dev/null || { echo "Retour arrière « plan de formation » : échec"; exit 1; }
   psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/ref_down.sql" >/dev/null || { echo "Retour arrière « références courtes » : échec"; exit 1; }
@@ -451,6 +468,7 @@ if veut b1_reprise; then
   export B1_MODE=charger; lancer "39n-1. ÉTAT N7 : COMPTES, DOCUMENTS ET JOURNAL CHARGÉS, EMPREINTE" api/b1_reprise.js
   (cd "$API" && pnpm exec prisma migrate deploy >/dev/null 2>&1) || { echo "Migration B1 : échec"; exit 1; }
   export B1_MODE=apres; lancer "39n-2. MIGRATION APPLIQUÉE : TABLES VIDES, GARDE-FOUS EN BASE, DONNÉES INTACTES" api/b1_reprise.js
+  psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/rattachement_cellules_down.sql" >/dev/null || { echo "Retour arrière « rattachement des cellules » : échec"; exit 1; }
   psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/demandes_reunion_down.sql" >/dev/null || { echo "Retour arrière « demandes de réunion » : échec"; exit 1; }
   psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/formation_down.sql" >/dev/null || { echo "Retour arrière « plan de formation » : échec"; exit 1; }
   psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/ref_down.sql" >/dev/null || { echo "Retour arrière « références courtes » : échec"; exit 1; }
@@ -468,12 +486,14 @@ if veut ref_reprise; then
   for f in "$E2E_OUT"/logs/api-*.pid; do [ -f "$f" ] && kill "$(cat "$f")" 2>/dev/null; done; sleep 1
   psql -q "$PSQL_URL" -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public;' >/dev/null 2>&1
   (cd "$API" && pnpm exec prisma migrate deploy >/dev/null 2>&1 && pnpm run -s db:seed >/dev/null) || { echo "Base neuve : échec"; exit 1; }
+  psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/rattachement_cellules_down.sql" >/dev/null || { echo "Retour arrière « rattachement des cellules » : échec"; exit 1; }
   psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/demandes_reunion_down.sql" >/dev/null || { echo "Retour arrière « demandes de réunion » : échec"; exit 1; }
   psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/formation_down.sql" >/dev/null || { echo "Retour arrière « plan de formation » : échec"; exit 1; }
   psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/ref_down.sql" >/dev/null || { echo "Retour arrière « références courtes » : échec"; exit 1; }
   export REF_MODE=charger; lancer "39o-1. ÉTAT B1 : TÂCHES ET ACTIVITÉS CHARGÉES, EMPREINTE" api/ref_reprise.js
   (cd "$API" && pnpm exec prisma migrate deploy >/dev/null 2>&1) || { echo "Migration « références courtes » : échec"; exit 1; }
   export REF_MODE=apres; lancer "39o-2. MIGRATION APPLIQUÉE : NUMÉROS DANS L’ORDRE DE CRÉATION, UNIQUES, DONNÉES INTACTES" api/ref_reprise.js
+  psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/rattachement_cellules_down.sql" >/dev/null || { echo "Retour arrière « rattachement des cellules » : échec"; exit 1; }
   psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/demandes_reunion_down.sql" >/dev/null || { echo "Retour arrière « demandes de réunion » : échec"; exit 1; }
   psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/formation_down.sql" >/dev/null || { echo "Retour arrière « plan de formation » : échec"; exit 1; }
   psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/ref_down.sql" >/dev/null || { echo "Retour arrière « références courtes » : échec"; exit 1; }
@@ -490,11 +510,13 @@ if veut formation_reprise; then
   for f in "$E2E_OUT"/logs/api-*.pid; do [ -f "$f" ] && kill "$(cat "$f")" 2>/dev/null; done; sleep 1
   psql -q "$PSQL_URL" -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public;' >/dev/null 2>&1
   (cd "$API" && pnpm exec prisma migrate deploy >/dev/null 2>&1 && pnpm run -s db:seed >/dev/null) || { echo "Base neuve : échec"; exit 1; }
+  psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/rattachement_cellules_down.sql" >/dev/null || { echo "Retour arrière « rattachement des cellules » : échec"; exit 1; }
   psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/demandes_reunion_down.sql" >/dev/null || { echo "Retour arrière « demandes de réunion » : échec"; exit 1; }
   psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/formation_down.sql" >/dev/null || { echo "Retour arrière « plan de formation » : échec"; exit 1; }
   export FORMATION_MODE=charger; lancer "39p-1. AVANT : BESOINS DE FORMATION CHARGÉS, EMPREINTE" api/formation_reprise.js
   (cd "$API" && pnpm exec prisma migrate deploy >/dev/null 2>&1) || { echo "Migration « plan de formation » : échec"; exit 1; }
   export FORMATION_MODE=apres; lancer "39p-2. MIGRATION APPLIQUÉE : TABLE VIDE, GARDE-FOUS EN BASE, DONNÉES INTACTES" api/formation_reprise.js
+  psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/rattachement_cellules_down.sql" >/dev/null || { echo "Retour arrière « rattachement des cellules » : échec"; exit 1; }
   psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/demandes_reunion_down.sql" >/dev/null || { echo "Retour arrière « demandes de réunion » : échec"; exit 1; }
   psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/formation_down.sql" >/dev/null || { echo "Retour arrière « plan de formation » : échec"; exit 1; }
   export FORMATION_MODE=retour; lancer "39p-3. RETOUR ARRIÈRE : SCHÉMA ET DONNÉES D'AVANT" api/formation_reprise.js
@@ -510,15 +532,35 @@ if veut demandes_reunion_reprise; then
   for f in "$E2E_OUT"/logs/api-*.pid; do [ -f "$f" ] && kill "$(cat "$f")" 2>/dev/null; done; sleep 1
   psql -q "$PSQL_URL" -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public;' >/dev/null 2>&1
   (cd "$API" && pnpm exec prisma migrate deploy >/dev/null 2>&1 && pnpm run -s db:seed >/dev/null) || { echo "Base neuve : échec"; exit 1; }
+  psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/rattachement_cellules_down.sql" >/dev/null || { echo "Retour arrière « rattachement des cellules » : échec"; exit 1; }
   psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/demandes_reunion_down.sql" >/dev/null || { echo "Retour arrière « demandes de réunion » : échec"; exit 1; }
   export DEMANDES_MODE=charger; lancer "39q-1. AVANT : RÉUNIONS CHARGÉES, EMPREINTE" api/demandes_reunion_reprise.js
   (cd "$API" && pnpm exec prisma migrate deploy >/dev/null 2>&1) || { echo "Migration « demandes de réunion » : échec"; exit 1; }
   export DEMANDES_MODE=apres; lancer "39q-2. MIGRATION APPLIQUÉE : TABLES VIDES, GARDE-FOUS EN BASE, DONNÉES INTACTES" api/demandes_reunion_reprise.js
+  psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/rattachement_cellules_down.sql" >/dev/null || { echo "Retour arrière « rattachement des cellules » : échec"; exit 1; }
   psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/demandes_reunion_down.sql" >/dev/null || { echo "Retour arrière « demandes de réunion » : échec"; exit 1; }
   export DEMANDES_MODE=retour; lancer "39q-3. RETOUR ARRIÈRE : SCHÉMA ET DONNÉES D'AVANT" api/demandes_reunion_reprise.js
   (cd "$API" && pnpm exec prisma migrate deploy >/dev/null 2>&1) || { echo "Ré-application « demandes de réunion » : échec"; exit 1; }
   export DEMANDES_MODE=apres; lancer "39q-4. RÉ-APPLICATION" api/demandes_reunion_reprise.js
   unset DEMANDES_MODE
+  bash "$ICI/scripts/api.sh" normal >/dev/null || exit 1
+fi
+
+# S8 — Rattachement des cellules (colonnes « rattachement » et « nature », migration additive).
+if veut rattachement_cellules_reprise; then
+  echo; echo "################ 39r. MIGRATION « RATTACHEMENT DES CELLULES » — APRÈS, RETOUR ARRIÈRE, RÉ-APPLICATION"
+  for f in "$E2E_OUT"/logs/api-*.pid; do [ -f "$f" ] && kill "$(cat "$f")" 2>/dev/null; done; sleep 1
+  psql -q "$PSQL_URL" -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public;' >/dev/null 2>&1
+  (cd "$API" && pnpm exec prisma migrate deploy >/dev/null 2>&1 && pnpm run -s db:seed >/dev/null) || { echo "Base neuve : échec"; exit 1; }
+  psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/rattachement_cellules_down.sql" >/dev/null || { echo "Retour arrière « rattachement des cellules » : échec"; exit 1; }
+  export CELLULES_MODE=charger; lancer "39r-1. AVANT : CELLULES CHARGÉES, EMPREINTE" api/rattachement_cellules_reprise.js
+  (cd "$API" && pnpm exec prisma migrate deploy >/dev/null 2>&1) || { echo "Migration « rattachement des cellules » : échec"; exit 1; }
+  export CELLULES_MODE=apres; lancer "39r-2. MIGRATION APPLIQUÉE : VALEURS INITIALES PAR CODE, VALEURS FERMÉES, DONNÉES INTACTES" api/rattachement_cellules_reprise.js
+  psql -q -v ON_ERROR_STOP=1 "$PSQL_URL" -f "$API/prisma/retour-arriere/rattachement_cellules_down.sql" >/dev/null || { echo "Retour arrière « rattachement des cellules » : échec"; exit 1; }
+  export CELLULES_MODE=retour; lancer "39r-3. RETOUR ARRIÈRE : SCHÉMA ET DONNÉES D'AVANT" api/rattachement_cellules_reprise.js
+  (cd "$API" && pnpm exec prisma migrate deploy >/dev/null 2>&1) || { echo "Ré-application « rattachement des cellules » : échec"; exit 1; }
+  export CELLULES_MODE=apres; lancer "39r-4. RÉ-APPLICATION" api/rattachement_cellules_reprise.js
+  unset CELLULES_MODE
   bash "$ICI/scripts/api.sh" normal >/dev/null || exit 1
 fi
 

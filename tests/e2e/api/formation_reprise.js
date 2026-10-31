@@ -25,7 +25,7 @@ const tables = async () =>
 async function empreinte(liste) {
   const res = {};
   for (const t of liste) {
-    res[t] = (await sql(`SELECT md5(to_jsonb(x)::text) AS h FROM "${t}" x`)).map((l) => l.h).sort();
+    res[t] = (await sql(`SELECT md5((to_jsonb(x)${t === 'cellules' ? " - 'rattachement' - 'nature'" : ''})::text) AS h FROM "${t}" x`)).map((l) => l.h).sort();
   }
   return res;
 }

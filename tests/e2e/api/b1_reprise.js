@@ -26,7 +26,7 @@ const tables = async () =>
 // Colonnes du lot « références courtes » (postérieur) : retirées de l'empreinte des tâches et des activités.
 async function empreinte(liste) {
   const res = {};
-  for (const t of liste) res[t] = (await sql(`SELECT md5((to_jsonb(x)${t === 'tasks' ? " - 'numero'" : ''}${t === 'activites' ? " - 'numero' - 'annee'" : ''})::text) AS h FROM "${t}" x`)).map((l) => l.h).sort();
+  for (const t of liste) res[t] = (await sql(`SELECT md5((to_jsonb(x)${t === 'tasks' ? " - 'numero'" : ''}${t === 'cellules' ? " - 'rattachement' - 'nature'" : ''}${t === 'activites' ? " - 'numero' - 'annee'" : ''})::text) AS h FROM "${t}" x`)).map((l) => l.h).sort();
   return res;
 }
 function comparer(avant, maintenant) {

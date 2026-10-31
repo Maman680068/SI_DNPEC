@@ -374,6 +374,11 @@ model Cellule {
   chefId String? @unique
   chef   User?   @relation("CelluleChef", fields: [chefId], references: [id])
 
+  // S8 — rattachement hiérarchique ('DN' ou 'DNA') et nature affichée ('CELLULE', 'SERVICE', 'INSTANCE') :
+  // structures d'appui, à côté des divisions et non au-dessus. Modifiables par l'administrateur et le DRH.
+  rattachement String @default("DN")
+  nature       String @default("CELLULE")
+
   // Voir Division.isActive — même principe de suspension. Une Cellule suspendue
   // garde son chef actuel (aucun effet sur lui) mais ne peut pas en recevoir un
   // nouveau tant qu'elle est suspendue (CellulesService.assignChef).

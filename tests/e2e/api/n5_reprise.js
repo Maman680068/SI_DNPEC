@@ -31,7 +31,7 @@ const tables = async () =>
 async function empreinte(liste) {
   const res = {};
   const moins = COLONNES_N5.map((c) => ` - '${c}'`).join('');
-  for (const t of liste) res[t] = (await sql(`SELECT md5((to_jsonb(x)${moins}${t === 'tasks' ? " - 'numero'" : ''}${t === 'activites' ? " - 'numero' - 'annee'" : ''})::text) AS h FROM "${t}" x`)).map((l) => l.h).sort();
+  for (const t of liste) res[t] = (await sql(`SELECT md5((to_jsonb(x)${moins}${t === 'tasks' ? " - 'numero'" : ''}${t === 'cellules' ? " - 'rattachement' - 'nature'" : ''}${t === 'activites' ? " - 'numero' - 'annee'" : ''})::text) AS h FROM "${t}" x`)).map((l) => l.h).sort();
   return res;
 }
 function comparer(avant, maintenant) {

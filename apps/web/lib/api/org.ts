@@ -194,3 +194,69 @@ export interface FicheAnnuaire {
 }
 export const getAnnuaire = (q = '') => apiFetch<Annuaire>(`/api/v1/annuaire?q=${encodeURIComponent(q.trim())}`);
 export const getFicheAnnuaire = (id: string) => apiFetch<FicheAnnuaire>(`/api/v1/annuaire/${encodeURIComponent(id)}`);
+
+/** Organisation (S8, api/v1/organisation) : vue des trois onglets, calculée par l'API. */
+export interface ChefVue {
+  id: string;
+  nom: string;
+  suppleant: string | null;
+}
+export interface MembreVue {
+  id: string;
+  nom: string;
+  initiales: string;
+}
+export interface SectionVue {
+  id: string;
+  code: string;
+  nom: string;
+  actif: boolean;
+  chef: ChefVue | null;
+  agents: number;
+  etat: 'COMPLETE' | 'CHEF_A_DESIGNER' | 'SANS_AGENT';
+  equipe: MembreVue[];
+}
+export interface DivisionVue {
+  id: string;
+  code: string;
+  nom: string;
+  actif: boolean;
+  chef: ChefVue | null;
+  agents: number;
+  enConge: number;
+  sectionsActives: number;
+  sectionsSansChef: number;
+  agentsSansSection: { id: string; nom: string }[];
+  chefsDesignes: number;
+  postesChef: number;
+  sections: SectionVue[];
+  equipe: MembreVue[];
+}
+export interface CelluleVue {
+  id: string;
+  code: string;
+  nom: string;
+  actif: boolean;
+  nature: 'CELLULE' | 'SERVICE' | 'INSTANCE';
+  libelleNature: string;
+  rattachement: 'DN' | 'DNA';
+  chef: ChefVue | null;
+  agents: number;
+  enConge: number;
+  membresExternes: boolean;
+  roles: string[];
+  equipe: MembreVue[];
+}
+export interface VueOrganisation {
+  direction: { dn: ChefVue | null; dna: ChefVue | null; chargesAupresDn: MembreVue[] };
+  divisions: DivisionVue[];
+  cellules: CelluleVue[];
+  chiffres: { unites: number; sansResponsable: number };
+  droits: { structure: boolean; designerChef: boolean; rattachement: boolean };
+}
+export const getVueOrganisation = () => apiFetch<VueOrganisation>('/api/v1/organisation');
+export const modifierRattachementCellule = (id: string, v: { rattachement?: 'DN' | 'DNA'; nature?: 'CELLULE' | 'SERVICE' | 'INSTANCE' }) =>
+  apiFetch<VueOrganisation>(`/api/v1/organisation/cellules/${id}`, { method: 'PATCH', body: JSON.stringify(v) });
+/** Affectation d'un agent à une section (PATCH /users/:id/assignment, droits de l'API inchangés). */
+export const affecterSection = (userId: string, divisionId: string, sectionId: string) =>
+  apiFetch(`/users/${userId}/assignment`, { method: 'PATCH', body: JSON.stringify({ divisionId, sectionId }) });

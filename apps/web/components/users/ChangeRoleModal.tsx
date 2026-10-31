@@ -34,15 +34,28 @@ function Liste({ titre, lignes, vide }: { titre: string; lignes: string[]; vide?
  * des effets CALCULÉ PAR L'API (mêmes contrôles et mêmes effets que l'action),
  * puis confirmation. L'écran n'applique aucune règle lui-même.
  */
-export function ChangeRoleModal({ user, onClose, onChanged }: { user: AdminUser; onClose: () => void; onChanged: (role: SystemRole) => void }) {
+export function ChangeRoleModal({
+  user,
+  onClose,
+  onChanged,
+  cible,
+}: {
+  user: AdminUser;
+  onClose: () => void;
+  onChanged: (role: SystemRole) => void;
+  /** « Désigner un chef » (Organisation, S8) : rôle et rattachement proposés ; l'aperçu de l'API reste exigé. */
+  cible?: { role: SystemRole; rattachement: OrgAttachment };
+}) {
   const { getCelluleName, getDivisionName, getSectionName, getUserLabel, refreshOrg } = useOrg();
-  const [role, setRole] = useState<SystemRole>(user.role);
-  const [attachment, setAttachment] = useState<OrgAttachment>({
-    divisionId: user.divisionId,
-    sectionId: user.sectionId,
-    celluleId: user.celluleId,
-    supervisorId: user.supervisorId,
-  });
+  const [role, setRole] = useState<SystemRole>(cible?.role ?? user.role);
+  const [attachment, setAttachment] = useState<OrgAttachment>(
+    cible?.rattachement ?? {
+      divisionId: user.divisionId,
+      sectionId: user.sectionId,
+      celluleId: user.celluleId,
+      supervisorId: user.supervisorId,
+    },
+  );
   const [jobTitle, setJobTitle] = useState(user.jobTitle ?? '');
   const [motif, setMotif] = useState('');
   const [apercu, setApercu] = useState<ChangementRoleApercu | null>(null);

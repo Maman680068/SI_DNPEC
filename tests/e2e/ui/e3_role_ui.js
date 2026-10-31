@@ -82,9 +82,10 @@ async function action(zone, page, nom) {
   check('message de confirmation « Chef de cellule nommé »', /Chef de cellule nommé/.test(await p.getByTestId('toast').innerText()));
   await p.goto(WEB + '/organisation');
   await p.getByRole('tab', { name: 'Cellules' }).click();
-  const carte = p.locator('div', { hasText: 'Comité National de Coordination' }).filter({ has: p.getByRole('button', { name: 'Plus d’actions pour CNC' }) }).last();
+  // S8 : carte de cellule (responsable, menu ⋯).
+  const carte = p.locator('[data-testid=carte-cellule]', { hasText: 'Comité National de Coordination' });
   await carte.waitFor();
-  check('Organisation : nom du chef affiché', (await carte.innerText()).includes(`chef : V E3${S}`), (await carte.innerText()).split('\n').slice(0, 2).join(' / '));
+  check('Organisation : nom du chef affiché', (await carte.innerText()).includes(`Responsable : V E3${S}`), (await carte.innerText()).split('\n').slice(0, 3).join(' / '));
   await action(carte, p, 'Retirer le chef');
   await dlg(p).getByLabel('Motif', { exact: true }).fill('Fin de fonction');
   await p.screenshot({ path: `${SHOTS}/e3_retirer_chef_desktop.png` });
@@ -92,8 +93,8 @@ async function action(zone, page, nom) {
   const retire = await attendre(async () => !(await prisma.cellule.findUnique({ where: { id: cnc.id } })).chefId);
   const vv = await prisma.user.findUnique({ where: { id: v.id } });
   check('retrait : Chargé d’Études dans le CNC, chefId vidé', retire && vv.role === 'AGENT' && vv.celluleId === cnc.id);
-  await p.getByText('CNC · sans chef').waitFor();
-  check('Organisation : « sans chef » affiché', true);
+  await carte.getByTestId('sans-responsable').waitFor();
+  check('Organisation : « Sans responsable » affiché', true);
 
   console.log('— Mobile');
   const m = await loginPage(b, 'admin', { width: 390, height: 844 });
