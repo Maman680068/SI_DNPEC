@@ -50,23 +50,34 @@ export interface EntreeAudit {
   id: string;
   numero: number;
   date: string;
+  jour: string;
   action: string;
+  icone: string;
+  /** Phrase en français calculée par l'API (auteur + verbe + objet nommé ; générique si l'objet est protégé). */
+  phrase: string;
   libelle: string;
   evenement: string | null;
+  domaine: string;
+  sensible: boolean;
+  objet: { type: string; libelle: string; protege: boolean; lien: string | null };
   objetType: string;
-  objetId: string;
+  objetId: string | null;
+  avantApres: { champ: string; avant: string; apres: string }[];
   acteur: { id: string; nom: string } | null;
   auNomDe: { id: string; nom: string } | null;
   scellee: boolean;
+  empreinte: string | null;
 }
 
 export interface PageAudit {
-  droits: { peutVerifier: boolean };
+  droits: { peutVerifier: boolean; peutExporter: boolean };
   portee: string;
   total: number;
   page: number;
   taille: number;
   typesObjets: string[];
+  domaines: { valeur: string; libelle: string }[];
+  sceau: { intacte: boolean | null; entrees: number; derniereVerification: string | null; scellementEnRetard: number };
   entrees: EntreeAudit[];
 }
 

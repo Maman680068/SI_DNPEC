@@ -96,7 +96,7 @@ async function code(secret) {
   const tout = await call('admin', 'GET', '/api/v1/journal-audit?taille=200');
   check('administrateur : toute la Direction, droit de vérifier', tout.status === 200 && tout.body.portee === 'Toute la Direction' && tout.body.droits.peutVerifier === true && tout.body.total > 0);
   check('… jamais de métadonnées brutes (aucun contenu d’objet)', tout.body.entrees.every((e) => !('metadata' in e)) && !JSON.stringify(tout.body).includes('Password'));
-  check('… libellé lisible (consultation d’un élément protégé)', tout.body.entrees.some((e) => e.libelle === 'Consultation d’un élément protégé'));
+  check('… phrase lisible, objet protégé sans titre (« a consulté un élément protégé »)', tout.body.entrees.some((e) => e.libelle === 'a consulté' && / a consulté un élément protégé$/.test(e.phrase) && e.objet.protege && e.objetId === null));
   const dnJ = await call('dn', 'GET', '/api/v1/journal-audit');
   check('DN : toute la Direction, sans vérification', dnJ.body.portee === 'Toute la Direction' && dnJ.body.droits.peutVerifier === false);
   const moi = await call('agent1', 'GET', '/api/v1/journal-audit?taille=200');

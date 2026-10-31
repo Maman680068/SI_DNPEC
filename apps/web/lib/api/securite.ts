@@ -1,4 +1,4 @@
-import { apiFetch } from './client';
+import { apiFetch, telechargerFichier } from './client';
 import type { IndicateursSucces, ListeParametres, PageAudit, Supervision, VerificationAudit } from '../securite/types';
 
 export const listerParametres = () => apiFetch<ListeParametres>('/api/v1/parametres');
@@ -15,3 +15,9 @@ export const lireJournalAudit = (f: Record<string, string | number | undefined>)
   return apiFetch<PageAudit>(`/api/v1/journal-audit?${q.toString()}`);
 };
 export const verifierJournalAudit = () => apiFetch<VerificationAudit>('/api/v1/journal-audit/verification');
+/** Export CSV ou PDF des entrées filtrées (l'export est lui-même journalisé). */
+export const exporterJournalAudit = (f: Record<string, string | number | undefined>, format: 'csv' | 'pdf') => {
+  const q = new URLSearchParams({ format });
+  for (const [k, v] of Object.entries(f)) if (v !== undefined && v !== '' && k !== 'page' && k !== 'taille') q.set(k, String(v));
+  return telechargerFichier(`/api/v1/journal-audit/export?${q.toString()}`, null);
+};

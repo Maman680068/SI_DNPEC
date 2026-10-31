@@ -95,7 +95,8 @@ fonctionnalité ajoute sa suite (`tests/e2e/api/`, `tests/e2e/ui/`) et sa ligne 
 - Socle N2 (`socle/`) : réauthentification avant un objet protégé (`PreuveIdentiteService.exiger/
   estValide`, en-tête `X-Reauth`, `POST /api/v1/reauthentification`, 403 `REAUTH_REQUISE` non
   journalisé ; le web rejoue la requête après la fenêtre `ReauthProvider`) — niveau 2 du dossier du
-  personnel aujourd'hui, tout futur objet protégé ensuite. Journal d'audit **en écriture seule en
+  personnel aujourd'hui, tout futur objet protégé ensuite. Journal en français (S9a, `socle/journal-audit.phrases.ts` :
+  phrase, objet protégé générique, domaines, sensibles ; export CSV / PDF journalisé). Journal d'audit **en écriture seule en
   base** (déclencheurs), scellé et chaîné chaque minute (`audit_sceller`, `audit_verifier`) : ne
   jamais écrire d'UPDATE/DELETE sur `audit_logs`. Connexions dans `journal_connexions` (purgées),
   plus dans l'audit. Paramètres bornés (`ParametresService.valeur(cle)`, §13.6) ; tâches planifiées

@@ -1,27 +1,41 @@
 'use client';
 
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
-import { lireJournalAudit, verifierJournalAudit } from '../../../lib/api/securite';
+import Link from 'next/link';
+import { Fragment, useCallback, useEffect, useState } from 'react';
+import { Download, Eye, FilePlus2, FileText, LogIn, LogOut, Pencil, ShieldCheck, ShieldAlert, Trash2, Check, XCircle, Megaphone, X } from 'lucide-react';
+import { exporterJournalAudit, lireJournalAudit, verifierJournalAudit } from '../../../lib/api/securite';
 import type { EntreeAudit, PageAudit, VerificationAudit } from '../../../lib/securite/types';
 import { ACTIONS_AUDIT } from '../../../lib/securite/types';
 import { ErreurChargement, messageChargement } from '../../../components/ui/ErreurChargement';
-import { ChampDate } from '../../../components/ui/Formulaire';
+import { Case, ChampDate } from '../../../components/ui/Formulaire';
 import { SquelettePage } from '../../../components/ui/Squelette';
 import { messageErreur, useToast } from '../../../components/ui/Toast';
-import { ShieldCheck, X } from 'lucide-react';
-import { Bandeau, BarreOutils, BTN_LIGNE, BTN_SECONDAIRE, CleValeur, EnTetePage, EtatVide, Filtres, FiltreSelect, LigneTableau, Pastille, SectionFenetre, Tableau } from '../../../components/ui/Charte';
+import { Bandeau, BarreOutils, BTN_LIGNE, BTN_SECONDAIRE, CleValeur, EnTetePage, EtatVide, Filtres, FiltreSelect, Pastille, Recherche, SectionFenetre } from '../../../components/ui/Charte';
 import { FenetreDetail } from '../../../components/ui/FenetreDetail';
 
-const GRILLE = 'lg:grid-cols-[72px_120px_minmax(0,1fr)_minmax(0,1.2fr)_minmax(0,1fr)_104px_64px]';
-const dateHeure = (d: string) => new Date(d).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' });
+const heure = (d: string) => new Date(d).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 const dateComplete = (d: string) => new Date(d).toLocaleString('fr-FR', { dateStyle: 'long', timeStyle: 'medium' });
+const jourLong = (j: string) => new Date(`${j}T12:00:00Z`).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+const ICONES: Record<string, typeof Pencil> = {
+  CREATION: FilePlus2,
+  MODIFICATION: Pencil,
+  SUPPRESSION: Trash2,
+  VALIDATION: Check,
+  REJET: XCircle,
+  PUBLICATION: Megaphone,
+  CONNEXION: LogIn,
+  DECONNEXION: LogOut,
+  CONSULTATION: Eye,
+  EXPORT: Download,
+};
 
 /**
- * Journal d'audit (socle N2) : lecture seule, portée fixée par l'API selon l'annexe 1 (toute la
- * Direction pour le DN, la DNA et l'administrateur ; son périmètre pour un responsable ; ses propres
- * actions pour les autres). Jamais le contenu des éléments : action, objet, auteur, date. Refonte
- * (étape 8) : barre de filtres compacte (dates, objet, action, auteur), tableau, fenêtre de détail
- * d'une entrée (« Voir » ou clic sur la ligne).
+ * Journal d'audit (socle N2, refait en S9a) : chaque entrée est une phrase en français calculée par l'API
+ * (auteur, verbe, objet nommé ; libellé générique pour un objet protégé), regroupée par jour, avec une icône
+ * par action ; le sceau apparaît une fois en tête (état, nombre d'entrées, dernière vérification, « Vérifier
+ * maintenant ») ; fiche au clic (auteur, action, objet, lien, avant / après, empreinte) ; filtres recherche,
+ * période, auteur, domaine, action, « Sensibles seulement » ; export PDF et CSV (journalisé). Portée fixée
+ * par l'API selon l'annexe 1 ; le journal reste en écriture seule.
  */
 export default function JournalAuditPage() {
   const [page, setPage] = useState<PageAudit | null>(null);
@@ -53,7 +67,17 @@ export default function JournalAuditPage() {
     setFiltres({});
     setAuteurFiltre(null);
   };
-  const verifier = () => verifierJournalAudit().then(setVerif).catch((e) => toast.erreur('Vérification impossible', messageErreur(e)));
+  const verifier = () =>
+    verifierJournalAudit()
+      .then((v) => {
+        setVerif(v);
+        charger();
+      })
+      .catch((e) => toast.erreur('Vérification impossible', messageErreur(e)));
+  const exporter = (format: 'csv' | 'pdf') =>
+    exporterJournalAudit(filtres, format)
+      .then(() => toast.succes(`Export ${format.toUpperCase()} téléchargé`, { detail: 'L’export est lui-même inscrit au journal.' }))
+      .catch((e) => toast.erreur('Export impossible', messageErreur(e)));
 
   if (!page)
     return (
@@ -63,14 +87,20 @@ export default function JournalAuditPage() {
       </div>
     );
   const nbPages = Math.max(1, Math.ceil(page.total / page.taille));
-  const filtresActifs = ['du', 'au', 'entityType', 'action', 'acteurId'].filter((k) => filtres[k]).length;
-  /** Date d'un filtre : champ de date compact (libellé visible à gauche, celui du champ réservé aux lecteurs d'écran). */
+  const filtresActifs = ['du', 'au', 'domaine', 'action', 'acteurId', 'sensibles'].filter((k) => filtres[k]).length;
   const dateFiltre = (k: 'du' | 'au', libelle: string) => (
     <div className="flex items-center gap-1.5 text-[12.5px] text-text-muted md:w-[210px] [&>div]:mb-0 [&>div]:min-w-0 [&>div]:flex-1 [&_input]:!h-9 [&_label]:sr-only">
       <span aria-hidden className="w-6 flex-none md:w-auto">{libelle}</span>
       <ChampDate id={`journal-${k}`} label={k === 'du' ? 'Du' : 'Au'} value={filtres[k] ?? ''} onChange={(v) => filtre(k, v)} raccourcis={false} />
     </div>
   );
+  const parJour = page.entrees.reduce<{ jour: string; entrees: EntreeAudit[] }[]>((acc, e) => {
+    const dernier = acc[acc.length - 1];
+    if (dernier && dernier.jour === e.jour) dernier.entrees.push(e);
+    else acc.push({ jour: e.jour, entrees: [e] });
+    return acc;
+  }, []);
+  const s = page.sceau;
 
   return (
     <div>
@@ -82,18 +112,34 @@ export default function JournalAuditPage() {
           </>
         }
         actions={
-          page.droits.peutVerifier && (
-            <button type="button" className={BTN_SECONDAIRE} onClick={verifier}>
-              <ShieldCheck aria-hidden size={16} /> Vérifier l’intégrité
+          <div className="flex flex-wrap gap-2">
+            <button type="button" className={BTN_SECONDAIRE} onClick={() => exporter('pdf')}>
+              <FileText aria-hidden size={15} /> Exporter en PDF
             </button>
-          )
+            <button type="button" className={BTN_SECONDAIRE} onClick={() => exporter('csv')}>
+              <Download aria-hidden size={15} /> Exporter en CSV
+            </button>
+          </div>
         }
       />
-      <p className="-mt-1.5 mb-4 text-[12.5px] text-text-muted">
-        Le journal est en écriture seule : personne, administrateur compris, ne peut le modifier ni l’effacer.
-      </p>
+      {/* Le sceau, une seule fois en tête. */}
+      <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-line bg-surface px-4 py-3" data-testid="sceau-journal">
+        <span className={`grid h-10 w-10 place-items-center rounded-full ${s.intacte === false ? 'bg-clay-50 text-clay' : 'bg-sage-50 text-sage'}`} aria-hidden>
+          {s.intacte === false ? <ShieldAlert size={20} /> : <ShieldCheck size={20} />}
+        </span>
+        <div className="min-w-0 flex-1 text-[13px]">
+          <b className="block text-[14px] text-ink-900">{s.intacte === false ? 'Chaîne rompue : le journal a été altéré en dehors de l’application' : s.intacte ? 'Journal scellé, chaîne intacte' : 'Journal scellé, pas encore vérifié'}</b>
+          <span className="text-text-muted">
+            {s.entrees.toLocaleString('fr-FR')} entrées · dernière vérification : {s.derniereVerification ? dateComplete(s.derniereVerification) : 'jamais'} · vérifié automatiquement chaque nuit. Écriture seule : personne, administrateur compris, ne peut le modifier ni l’effacer.
+          </span>
+        </div>
+        {page.droits.peutVerifier && (
+          <button type="button" className={BTN_SECONDAIRE} onClick={verifier}>
+            <ShieldCheck aria-hidden size={16} /> Vérifier maintenant
+          </button>
+        )}
+      </div>
       <ErreurChargement message={erreur} />
-
       {verif && (
         <Bandeau ton={verif.intacte ? 'vert' : 'rouge'} testid="verification-audit">
           {verif.intacte
@@ -103,188 +149,158 @@ export default function JournalAuditPage() {
       )}
 
       <BarreOutils>
+        <Recherche value={filtres.q ?? ''} onChange={(v) => filtre('q', v)} placeholder="Auteur, objet, identifiant…" label="Rechercher dans le journal" />
         <Filtres actifs={filtresActifs} onEffacer={effacer}>
-        {dateFiltre('du', 'Du')}
-        {dateFiltre('au', 'au')}
-        <FiltreSelect
-          label="Type d’objet"
-          value={filtres.entityType ?? ''}
-          defaut=""
-          onChange={(v) => filtre('entityType', v)}
-          options={[{ value: '', label: 'Tous les objets' }, ...page.typesObjets.map((t) => ({ value: t, label: t }))]}
-        />
-        <FiltreSelect
-          label="Action"
-          value={filtres.action ?? ''}
-          defaut=""
-          onChange={(v) => filtre('action', v)}
-          options={[{ value: '', label: 'Toutes les actions' }, ...Object.entries(ACTIONS_AUDIT).map(([k, v]) => ({ value: k, label: v }))]}
-        />
-        {filtres.acteurId && (
-          <button
-            type="button"
-            className="inline-flex h-9 items-center gap-1.5 rounded-[9px] border border-ink bg-ink-50 px-2.5 text-[13px] font-semibold text-ink"
-            onClick={() => (filtre('acteurId', ''), setAuteurFiltre(null))}
-            aria-label={`Retirer le filtre sur l’auteur ${auteurFiltre ?? ''}`.trim()}
-            data-testid="filtre-auteur"
-          >
-            Auteur : {auteurFiltre ?? '…'}
-            <X aria-hidden size={14} />
-          </button>
-        )}
+          {dateFiltre('du', 'Du')}
+          {dateFiltre('au', 'au')}
+          <FiltreSelect label="Domaine" value={filtres.domaine ?? ''} defaut="" onChange={(v) => filtre('domaine', v)} options={[{ value: '', label: 'Tous les domaines' }, ...page.domaines.map((d) => ({ value: d.valeur, label: d.libelle }))]} />
+          <FiltreSelect label="Action" value={filtres.action ?? ''} defaut="" onChange={(v) => filtre('action', v)} options={[{ value: '', label: 'Toutes les actions' }, ...Object.entries(ACTIONS_AUDIT).map(([k, v]) => ({ value: k, label: v }))]} />
+          <div className="flex h-9 items-center [&>div]:mb-0">
+            <Case id="journal-sensibles" label="Sensibles seulement" checked={filtres.sensibles === '1'} onChange={(v) => filtre('sensibles', v ? '1' : '')} />
+          </div>
+          {filtres.acteurId && (
+            <button
+              type="button"
+              className="inline-flex h-9 items-center gap-1.5 rounded-[9px] border border-ink bg-ink-50 px-2.5 text-[13px] font-semibold text-ink"
+              onClick={() => (filtre('acteurId', ''), setAuteurFiltre(null))}
+              aria-label={`Retirer le filtre sur l’auteur ${auteurFiltre ?? ''}`.trim()}
+              data-testid="filtre-auteur"
+            >
+              Auteur : {auteurFiltre ?? '…'}
+              <X aria-hidden size={14} />
+            </button>
+          )}
         </Filtres>
       </BarreOutils>
 
-      <Tableau
-        label="Journal d’audit"
-        grille={GRILLE}
-        colonnes={['N°', 'Date', 'Auteur', 'Action', 'Objet', 'Scellement', <span key="a" className="sr-only">Détail</span>]}
-        vide={<EtatVide texte="Aucune entrée pour ces critères." action={Object.values(filtres).some(Boolean) ? <button type="button" className={BTN_LIGNE} onClick={effacer}>Effacer les filtres</button> : undefined} />}
-        pied={
-          <>
-            <span>{page.total} entrée(s)</span>
-            {nbPages > 1 && (
-              <span className="flex items-center gap-2">
-                <button type="button" className={`${BTN_LIGNE} disabled:opacity-50`} disabled={numero <= 1} onClick={() => setNumero((n) => n - 1)}>
-                  Précédent
-                </button>
-                Page {numero} / {nbPages}
-                <button type="button" className={`${BTN_LIGNE} disabled:opacity-50`} disabled={numero >= nbPages} onClick={() => setNumero((n) => n + 1)}>
-                  Suivant
-                </button>
-              </span>
-            )}
-          </>
-        }
-      >
-        {page.entrees.map((e) => (
-          <LigneTableau key={e.id} grille={GRILLE} testid="entree-audit" onClick={() => setDetail(e)} actif={detail?.id === e.id}>
-            <span className="font-mono text-[12px] text-text-muted">{e.numero}</span>
-            <span className="whitespace-nowrap text-text-muted">{dateHeure(e.date)}</span>
-            <span className="block">
-              {e.acteur ? <b className="font-semibold text-ink-900">{e.acteur.nom}</b> : <span className="text-text-muted">Système</span>}
-              {e.auNomDe && <small className="block text-[12px] text-text-muted">par intérim, au nom de {e.auNomDe.nom}</small>}
-            </span>
-            <span>{e.libelle}</span>
-            <span className="block truncate text-text-muted">
-              {e.objetType} <span className="font-mono text-[11.5px]">{e.objetId.length > 14 ? `${e.objetId.slice(0, 12)}…` : e.objetId}</span>
-            </span>
-            {e.scellee ? <Pastille ton="vert">Scellée</Pastille> : <Pastille ton="gris">En attente</Pastille>}
-            <button
-              type="button"
-              className={BTN_LIGNE}
-              onClick={(ev) => {
-                ev.stopPropagation();
-                setDetail(e);
-              }}
-              aria-label={`Voir l’entrée n° ${e.numero}`}
-            >
-              Voir
-            </button>
-          </LigneTableau>
-        ))}
-      </Tableau>
+      {page.entrees.length === 0 ? (
+        <div className="rounded-xl border border-line bg-surface">
+          <EtatVide texte="Aucune entrée ne correspond." action={filtresActifs || filtres.q ? <button type="button" className={BTN_SECONDAIRE} onClick={effacer}>Effacer les filtres</button> : undefined} />
+        </div>
+      ) : (
+        <div className="space-y-3" data-testid="journal">
+          {parJour.map(({ jour, entrees }) => (
+            <Fragment key={jour}>
+              <h2 className="text-[13px] font-bold capitalize text-text-muted" data-testid="jour-journal">
+                {jourLong(jour)}
+              </h2>
+              <ul className="divide-y divide-line-doux rounded-xl border border-line bg-surface">
+                {entrees.map((e) => {
+                  const Icone = ICONES[e.icone] ?? Pencil;
+                  return (
+                    <li key={e.id} data-testid="entree-audit" className="flex items-start gap-3 px-4 py-2.5">
+                      <span aria-hidden className={`mt-0.5 grid h-8 w-8 flex-none place-items-center rounded-full ${e.sensible ? 'bg-gold-50 text-ambre' : 'bg-ink-50 text-ink'}`}>
+                        <Icone size={15} />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[13.5px] text-text">{e.phrase}</p>
+                        <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[12px] text-text-muted">
+                          <span>{heure(e.date)}</span>
+                          <span>· n° {e.numero}</span>
+                          <span>· {e.domaine}</span>
+                          {e.sensible && <Pastille ton="ambre">Sensible</Pastille>}
+                          {!e.scellee && <Pastille ton="gris">En attente de scellement</Pastille>}
+                        </p>
+                      </div>
+                      <button type="button" className={BTN_LIGNE} aria-label={`Voir l’entrée n° ${e.numero}`} onClick={() => setDetail(e)}>
+                        Voir
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </Fragment>
+          ))}
+        </div>
+      )}
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-[13px] text-text-muted">
+        <span>
+          {page.total.toLocaleString('fr-FR')} entrée{page.total > 1 ? 's' : ''} · page {page.page} sur {nbPages}
+        </span>
+        <span className="flex gap-1.5">
+          <button type="button" className={BTN_LIGNE} disabled={numero <= 1} onClick={() => setNumero((n) => n - 1)}>
+            Précédentes
+          </button>
+          <button type="button" className={BTN_LIGNE} disabled={numero >= nbPages} onClick={() => setNumero((n) => n + 1)}>
+            Suivantes
+          </button>
+        </span>
+      </div>
 
       {detail && (
-        <FenetreEntree
-          e={detail}
+        <FenetreDetail
+          titre={`Entrée n° ${detail.numero}`}
           onClose={() => setDetail(null)}
-          filtrerAuteur={
-            detail.acteur
-              ? () => {
-                  setNumero(1);
-                  setFiltres((f) => ({ ...f, acteurId: detail.acteur!.id }));
-                  setAuteurFiltre(detail.acteur!.nom);
-                  setDetail(null);
-                }
-              : undefined
+          largeur={760}
+          testid="fenetre-entree-audit"
+          filAriane={['Journal d’audit']}
+          cote={
+            <div className="grid gap-2">
+              {detail.objet.lien && (
+                <Link href={detail.objet.lien} className={BTN_SECONDAIRE}>
+                  Ouvrir l’objet
+                </Link>
+              )}
+              {detail.acteur && (
+                <button
+                  type="button"
+                  className={BTN_SECONDAIRE}
+                  onClick={() => {
+                    filtre('acteurId', detail.acteur!.id);
+                    setAuteurFiltre(detail.acteur!.nom);
+                    setDetail(null);
+                  }}
+                >
+                  Voir les actions de cet auteur
+                </button>
+              )}
+            </div>
           }
-          filtrerObjet={() => {
-            filtre('entityType', detail.objetType);
-            setDetail(null);
-          }}
-        />
-      )}
-    </div>
-  );
-}
-
-/**
- * Détail d'une entrée du journal (fenêtre centrée deux colonnes) : uniquement ce que la liste
- * renvoie déjà — jamais les métadonnées brutes ni le contenu de l'objet (§2.2). À droite, filtres
- * rapides sur l'auteur ou le type d'objet, état du scellement.
- */
-function FenetreEntree({ e, onClose, filtrerAuteur, filtrerObjet }: { e: EntreeAudit; onClose: () => void; filtrerAuteur?: () => void; filtrerObjet: () => void }) {
-  return (
-    <FenetreDetail
-      titre={`${e.libelle} — ${e.objetType}`}
-      filAriane={['Journal d’audit', `Entrée n° ${e.numero}`]}
-      entete={
-        <div className="mt-3">
-          {e.scellee ? <Pastille ton="vert">Scellée</Pastille> : <Pastille ton="gris">En attente de scellement</Pastille>}
-        </div>
-      }
-      largeur={820}
-      onClose={onClose}
-      testid="fenetre-entree-audit"
-      cote={
-        <>
-          <div className="mb-4 flex flex-col gap-2">
-            {filtrerAuteur && (
-              <button type="button" className={`${BTN_SECONDAIRE} w-full`} onClick={filtrerAuteur}>
-                Voir les actions de cet auteur
-              </button>
-            )}
-            <button type="button" className={`${BTN_SECONDAIRE} w-full`} onClick={filtrerObjet}>
-              Voir ce type d’objet
-            </button>
-            <p className="text-[12px] leading-[1.45] text-text-muted">
-              {e.scellee
-                ? 'Entrée scellée et chaînée à la précédente : toute altération en dehors de l’application est détectée par « Vérifier l’intégrité ».'
-                : 'Entrée en attente de scellement : elle est chaînée au journal dans la minute.'}
-            </p>
-          </div>
-          <div className="mb-4 h-px bg-line" />
+        >
+          <p className="mb-3 text-[14px] font-semibold text-ink-900" data-testid="phrase-audit">
+            {detail.phrase}
+          </p>
           <CleValeur
-            largeur={90}
+            largeur={130}
             lignes={[
-              ['N°', <span key="n" className="font-mono">{e.numero}</span>],
-              ['Date', dateHeure(e.date)],
-              ['Action', ACTIONS_AUDIT[e.action] ?? e.action],
+              ['Date', dateComplete(detail.date)],
+              ['Auteur', detail.acteur ? `${detail.acteur.nom}${detail.auNomDe ? ` (par intérim, au nom de ${detail.auNomDe.nom})` : ''}` : 'Le système'],
+              ['Action', detail.libelle],
+              ['Objet', detail.objet.protege ? `${detail.objet.libelle} (protégé : sans titre ni contenu)` : detail.objet.libelle],
+              ['Domaine', detail.domaine],
+              ...(detail.objetId ? ([['Identifiant', <span key="i" className="break-all font-mono text-[12px]">{detail.objetId}</span>]] as [string, React.ReactNode][]) : []),
             ]}
           />
-        </>
-      }
-    >
-      <SectionFenetre titre="Événement">
-        <CleValeur
-          largeur={130}
-          lignes={[
-            ['Libellé', e.libelle],
-            ...(e.evenement ? ([['Code', <span key="c" className="font-mono text-[12.5px]">{e.evenement}</span>]] as [string, ReactNode][]) : []),
-            ['Horodatage', dateComplete(e.date)],
-          ]}
-        />
-      </SectionFenetre>
-      <SectionFenetre titre="Objet concerné">
-        <CleValeur
-          largeur={130}
-          lignes={[
-            ['Type', e.objetType],
-            ['Identifiant', <span key="i" className="break-all font-mono text-[12.5px]">{e.objetId}</span>],
-          ]}
-        />
-      </SectionFenetre>
-      <SectionFenetre titre="Auteur" className="mb-3">
-        <CleValeur
-          largeur={130}
-          lignes={[
-            ['Compte', e.acteur ? e.acteur.nom : 'Système'],
-            ...(e.auNomDe ? ([['Par intérim', `au nom de ${e.auNomDe.nom}`]] as [string, string][]) : []),
-          ]}
-        />
-      </SectionFenetre>
-      <p className="text-[12.5px] text-text-muted">Le journal ne montre jamais le contenu des éléments : seulement l’action, l’objet, l’auteur et la date.</p>
-    </FenetreDetail>
+          {detail.avantApres.length > 0 && (
+            <SectionFenetre titre="Avant / après">
+              <table className="w-full text-left text-[12.5px]" data-testid="avant-apres">
+                <thead>
+                  <tr className="text-text-muted">
+                    <th className="py-1 pr-3 font-semibold">Champ</th>
+                    <th className="py-1 pr-3 font-semibold">Avant</th>
+                    <th className="py-1 font-semibold">Après</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {detail.avantApres.map((l) => (
+                    <tr key={l.champ} className="border-t border-line-doux">
+                      <td className="py-1 pr-3">{l.champ}</td>
+                      <td className="break-all py-1 pr-3">{l.avant}</td>
+                      <td className="break-all py-1">{l.apres}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </SectionFenetre>
+          )}
+          <SectionFenetre titre="Scellement">
+            <p className="text-[12.5px] text-text-muted">
+              {detail.scellee ? 'Entrée scellée et chaînée à la précédente : toute altération en dehors de l’application est détectée par la vérification.' : 'En attente de scellement (moins d’une minute).'}
+            </p>
+            {detail.empreinte && <p className="mt-1 break-all font-mono text-[11.5px] text-text-muted" data-testid="empreinte-audit">Empreinte : {detail.empreinte}</p>}
+          </SectionFenetre>
+        </FenetreDetail>
+      )}
+    </div>
   );
 }

@@ -20,4 +20,12 @@ export class FiltresAuditDto {
   @IsOptional() @IsEnum(AuditAction) action?: AuditAction;
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) page?: number;
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(200) taille?: number;
+  // S9a : domaine, « Sensibles seulement », recherche libre.
+  @IsOptional() @IsString() @MaxLength(40) domaine?: string;
+  @IsOptional() @IsIn(['1', 'true', '0', 'false']) sensibles?: string;
+  @IsOptional() @IsString() @MaxLength(100) q?: string;
+}
+
+export class ExportAuditDto extends FiltresAuditDto {
+  @IsIn(['csv', 'pdf']) format!: 'csv' | 'pdf';
 }

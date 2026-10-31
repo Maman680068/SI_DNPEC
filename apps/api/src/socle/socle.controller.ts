@@ -9,7 +9,7 @@ import { RolesFonctionnelsService } from './roles-fonctionnels.service';
 import { CreerUniteDto, FermerUniteDto, ModifierUniteDto } from './dto/unites.dto';
 import { CreerAgentDto, DepartDto, ListerAgentsDto, ModifierAgentDto, MotifDto, ProlongerDto, ReactiverDto } from './dto/agents.dto';
 import { AttribuerRoleDto, ListerAttributionsDto, RetirerRoleDto } from './dto/attributions.dto';
-import { FiltresAuditDto, ModifierParametreDto, TestRestaurationDto } from './dto/securite.dto';
+import { ExportAuditDto, FiltresAuditDto, ModifierParametreDto, TestRestaurationDto } from './dto/securite.dto';
 import { ParametresService } from './parametres.service';
 import { SupervisionService } from './supervision.service';
 import { IndicateursSuccesService } from './indicateurs-succes.service';
@@ -75,6 +75,14 @@ export class SocleController {
   @Get('journal-audit')
   journal(@CurrentUser() u: AuthenticatedUser, @Query() f: FiltresAuditDto) {
     return this.journalAudit.lister(u, f);
+  }
+
+  /** Export CSV ou PDF des entrées filtrées (journalisé). */
+  @Get('journal-audit/export')
+  async exporterJournal(@CurrentUser() u: AuthenticatedUser, @Query() f: ExportAuditDto, @Res() res: Response) {
+    const { buffer, nom, type } = await this.journalAudit.exporter(u, f, f.format);
+    res.set({ 'Content-Type': type, 'Content-Disposition': `attachment; filename="${encodeURIComponent(nom)}"` });
+    res.send(buffer);
   }
 
   @Get('journal-audit/verification')

@@ -35,8 +35,8 @@ const sansDefilementHorizontal = (p) => p.evaluate(() => document.documentElemen
   await p.goto(`${WEB}/journal-audit`);
   await p.locator('[data-testid=entree-audit]').first().waitFor();
   const texte = await p.locator('main, body').first().innerText();
-  check('journal : « Vos propres actions », consultation de l’élément protégé visible', /Vos propres actions/.test(texte) && /Consultation d’un élément protégé/.test(texte));
-  check('… pas de vérification d’intégrité pour un agent', (await p.getByRole('button', { name: 'Vérifier l’intégrité' }).count()) === 0);
+  check('journal : « Vos propres actions », consultation de l’élément protégé visible', /Vos propres actions/.test(texte) && /a consulté un élément protégé/.test(texte));
+  check('… pas de vérification d’intégrité pour un agent', (await p.getByRole('button', { name: 'Vérifier maintenant' }).count()) === 0);
   await p.context().close();
 
   console.log('— Paramétrage et supervision (administrateur, bureau)');
@@ -83,17 +83,17 @@ const sansDefilementHorizontal = (p) => p.evaluate(() => document.documentElemen
   check('test de restauration déclaré : affiché « réussi »', true);
   await p.screenshot({ path: `${E.SHOTS}/n2_supervision_bureau.png`, fullPage: true });
   await p.goto(`${WEB}/journal-audit`);
-  await p.getByRole('button', { name: 'Vérifier l’intégrité' }).click();
+  await p.getByRole('button', { name: 'Vérifier maintenant' }).click();
   await p.locator('[data-testid=verification-audit]').waitFor();
   check('vérification d’intégrité : chaîne intacte', /Chaîne intacte/.test(await p.locator('[data-testid=verification-audit]').innerText()));
   await p.screenshot({ path: `${E.SHOTS}/n2_journal_bureau.png` });
   // Refonte (étape 8) : fenêtre de détail d'une entrée (« Voir »), sans métadonnées brutes, et filtre sur l'auteur.
-  const ligneParam = p.locator('[data-testid=entree-audit]').filter({ hasText: 'Paramètre modifié' }).first();
+  const ligneParam = p.locator('[data-testid=entree-audit]').filter({ hasText: 'a modifié un paramètre « connexions.conservationMois »' }).first();
   await ligneParam.getByRole('button', { name: /^Voir l’entrée n° \d+$/ }).click();
   const fe = p.getByTestId('fenetre-entree-audit');
   await fe.waitFor();
   const texteFe = await fe.innerText();
-  check('détail d’une entrée : libellé, objet et identifiant complet, auteur, scellement — sans ancienne ni nouvelle valeur', /Paramètre modifié — Parametre/.test(texteFe) && /connexions\.conservationMois/.test(texteFe) && /ADMIN Test/.test(texteFe) && /Scellée|En attente de scellement/.test(texteFe) && !/avant|apres/.test(texteFe), texteFe.replace(/\n/g, ' / ').slice(0, 300));
+  check('détail d’une entrée (S9a) : phrase, objet nommé et identifiant, auteur, scellement, avant / après', /ADMIN Test a modifié un paramètre « connexions\.conservationMois »/.test(texteFe) && /ADMIN Test/.test(texteFe) && /scellée|En attente de scellement/i.test(texteFe) && /Avant \/ après/.test(texteFe), texteFe.replace(/\n/g, ' / ').slice(0, 300));
   await p.screenshot({ path: `${E.SHOTS}/n2_journal_detail_bureau.png` });
   await fe.getByRole('button', { name: 'Voir les actions de cet auteur' }).click();
   await p.getByTestId('filtre-auteur').waitFor();
