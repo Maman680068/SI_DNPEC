@@ -314,7 +314,7 @@ export class GenerateurService {
     const f = await this.produire(actor, { ...dto, format: 'PDF' }, { enregistrer: true });
     const { fileKey } = await this.storage.save(f.buffer, f.fileName);
     const corps = dto.message?.trim() || `${LIBELLES[dto.type]} en pièce jointe.`;
-    await this.messages.send(actor, { recipientId: dto.destinataireId, body: corps, attachmentKey: fileKey, attachmentName: f.fileName });
+    await this.messages.send(actor, { recipientId: dto.destinataireId, body: corps }, { cle: fileKey, nom: f.fileName });
     await this.audit.log({ actorId: actor.id, action: AuditAction.MODIFICATION, entityType: 'DocumentGenere', entityId: dto.type, metadata: { event: 'transmis', destinataireId: dto.destinataireId, fichier: f.fileName } });
     return { transmis: true };
   }

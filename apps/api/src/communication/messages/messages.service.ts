@@ -1,9 +1,27 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { DirectMessage, NotificationType } from '@prisma/client';
+import { NotificationType, Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AuthenticatedUser } from '../../common/types/auth-user.type';
 import { CreateMessageDto } from '../dto/create-message.dto';
+
+/** Champs d'un message renvoyés au web : jamais la clé de stockage de la pièce jointe. */
+export const MESSAGE_SELECT = {
+  id: true,
+  senderId: true,
+  recipientId: true,
+  body: true,
+  attachmentName: true,
+  readAt: true,
+  createdAt: true,
+} satisfies Prisma.DirectMessageSelect;
+export type MessageVu = Prisma.DirectMessageGetPayload<{ select: typeof MESSAGE_SELECT }>;
+
+/** Pièce jointe posée par le serveur (document généré, fichier déposé) — jamais venue du navigateur. */
+export interface PieceJointeServeur {
+  cle: string;
+  nom: string;
+}
 
 /** Messagerie directe (RF-COM-01) — pas de restriction cascade, point à point entre deux comptes actifs. */
 @Injectable()
@@ -13,7 +31,7 @@ export class MessagesService {
     private readonly notifications: NotificationsService,
   ) {}
 
-  async send(actor: AuthenticatedUser, dto: CreateMessageDto): Promise<DirectMessage> {
+  async send(actor: AuthenticatedUser, dto: CreateMessageDto, piece?: PieceJointeServeur): Promise<MessageVu> {
     if (dto.recipientId === actor.id) {
       throw new ConflictException('Vous ne pouvez pas vous envoyer un message à vous-même.');
     }
@@ -25,9 +43,10 @@ export class MessagesService {
         senderId: actor.id,
         recipientId: dto.recipientId,
         body: dto.body,
-        attachmentKey: dto.attachmentKey,
-        attachmentName: dto.attachmentName,
+        attachmentKey: piece?.cle ?? null,
+        attachmentName: piece?.nom ?? null,
       },
+      select: MESSAGE_SELECT,
     });
 
     await this.notifications.notify(
@@ -50,9 +69,10 @@ export class MessagesService {
     const messages = await this.prisma.directMessage.findMany({
       where: { OR: [{ senderId: actor.id }, { recipientId: actor.id }] },
       orderBy: { createdAt: 'desc' },
+      select: MESSAGE_SELECT,
     });
 
-    const conversations = new Map<string, DirectMessage>();
+    const conversations = new Map<string, MessageVu>();
     for (const message of messages) {
       const otherUserId = message.senderId === actor.id ? message.recipientId : message.senderId;
       if (!conversations.has(otherUserId)) conversations.set(otherUserId, message);
@@ -73,6 +93,7 @@ export class MessagesService {
         ],
       },
       orderBy: { createdAt: 'asc' },
+      select: MESSAGE_SELECT,
     });
   }
 

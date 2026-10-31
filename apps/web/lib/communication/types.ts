@@ -3,7 +3,6 @@ export interface DirectMessage {
   senderId: string;
   recipientId: string;
   body: string;
-  attachmentKey: string | null;
   attachmentName: string | null;
   readAt: string | null;
   createdAt: string;
