@@ -394,3 +394,18 @@ Exploitation (sauvegardes, mise à jour PR → CI verte → migration → fusion
 - **Consommation du moteur de calcul** par les écrans (avec les simulations, lot B2).
 - Pages « toutes les versions » et « bases de référence » des modèles (lot B3).
 - Bloc « Dernières simulations » sur le tableau de bord (lot B2).
+
+### Pages d'administration (lot 3, S9)
+
+- Journal d'audit en français : `socle/journal-audit.phrases.ts` (phrase, objet protégé générique, domaines,
+  événements sensibles) ; export CSV / PDF journalisé (`GET api/v1/journal-audit/export`).
+- Utilisateurs : chiffres et sécurité par compte dans `GET api/v1/comptes/synthese` ; rappel de double
+  authentification et renvoi d'invitation (`POST api/v1/comptes/…`).
+- Courrier : `GET courrier/parametrage` (une lecture : alertes, registres par nature, habilitations par registre).
+- Logistique : `GET logistique/administration` ; `GestionnairesLogistiqueService.alerterSiAucun` (retrait et nuit).
+- Stages : `unites` dans `GET stages/capacites`, `POST stages/modele-attestation/verifier`,
+  `GET stages/modele-attestation/apercu`.
+- Charte : `Interrupteur` et `usePreference` (préférence d'affichage du navigateur, jamais un droit) ; « Masquer
+  les … de démonstration » activé par défaut sur les pages d'administration.
+- Détails : `docs/conception_S9_administration.md`.
+

@@ -214,7 +214,33 @@ export class StagesService {
       // Lot « Accès des stagiaires » : l'administrateur crée un nouveau stagiaire (compte et stage) d'ici.
       peutCreerNouveauStagiaire: actor.role === SystemRole.ADMIN_SYSTEME,
       capacites: await Promise.all(capacites.map(async (c) => ({ uniteKey: c.uniteKey, maximum: c.maximum, libelle: await this.libelleCle(c.uniteKey) }))),
+      unites: await this.occupationDuJour(new Map(capacites.map((c) => [c.uniteKey, c.maximum]))),
     };
+  }
+
+  /**
+   * S9e : chaque unité d'accueil (division, section, cellule) avec sa limite, son occupation du jour (périodes
+   * qui occupent une place aujourd'hui ; une division compte ses sections, comme le contrôle de capacité) et
+   * « complet ». Comptages seulement : aucun nom de stagiaire.
+   */
+  private async occupationDuJour(limites: Map<string, number>) {
+    const aujourdhui = jour(new Date());
+    const [divisions, cellules, periodes] = await Promise.all([
+      this.prisma.division.findMany({ orderBy: { code: 'asc' }, select: { id: true, code: true, name: true, sections: { orderBy: { code: 'asc' }, select: { id: true, code: true, name: true } } } }),
+      this.prisma.cellule.findMany({ orderBy: { code: 'asc' }, select: { id: true, code: true, name: true } }),
+      this.prisma.periodeStage.findMany({ where: { statut: { in: PERIODE_OCCUPANTE }, dateDebut: { lte: aujourdhui }, dateFin: { gte: aujourdhui } }, select: { divisionId: true, sectionId: true, celluleId: true } }),
+    ]);
+    const ligne = (uniteKey: string, sigle: string, nom: string, occupation: number, niveau: 'DIVISION' | 'SECTION' | 'CELLULE') => {
+      const maximum = limites.get(uniteKey) ?? null;
+      return { uniteKey, sigle, nom, niveau, maximum, occupation, complet: maximum !== null && occupation >= maximum };
+    };
+    const l = [];
+    for (const d of divisions) {
+      l.push(ligne(`DIV:${d.id}`, d.code, d.name, periodes.filter((p) => p.divisionId === d.id).length, 'DIVISION'));
+      for (const s of d.sections) l.push(ligne(`SEC:${s.id}`, `${d.code} · ${s.code}`, s.name, periodes.filter((p) => p.sectionId === s.id).length, 'SECTION'));
+    }
+    for (const c of cellules) l.push(ligne(`CEL:${c.id}`, c.code, c.name, periodes.filter((p) => p.celluleId === c.id).length, 'CELLULE'));
+    return l;
   }
 
   /** Planning (DRH, DN/DNA) : périodes occupantes dans une fenêtre, capacités. */

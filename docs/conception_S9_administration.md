@@ -76,3 +76,15 @@ Droits inchangés pour toutes les pages S9. Aucune migration.
   tableau des catégories (nature en étiquette, contenu, interrupteur « Validation du chef », menu ⋯ Renommer /
   Désactiver, « Afficher les désactivées »).
 
+## S9e. Réglages des stages
+
+- `GET stages/capacites` rend aussi `unites` : chaque division, section et cellule avec sa limite, son
+  occupation du jour (périodes qui occupent une place aujourd'hui ; une division compte ses sections, comme le
+  contrôle de capacité) et `complet`. Comptages seulement (l'administrateur ne voit jamais un stagiaire).
+- Planning visuel sur six mois : route existante `GET stages/planning?debut&fin` (DRH, DN, DNA), dessiné à
+  l'écran (une ligne par unité, une barre par période, en cours / prévu, trait d'aujourd'hui, lien vers le stage).
+- Modèle d'attestation : `POST stages/modele-attestation/verifier` contrôle un fichier sans rien enregistrer
+  (champs reconnus, inconnus, non utilisés) ; l'activation reste `POST stages/modele-attestation` (qui refait le
+  contrôle). `GET stages/modele-attestation/apercu` remplit le modèle actif avec un stagiaire fictif et
+  « APERÇU — SANS NUMÉRO » : aucun stage lu, aucun acte, aucune séquence consommée. Historique : les modèles
+  remplacés étaient déjà conservés (`actif = false`) — **aucune migration** ; la réponse du modèle les liste.

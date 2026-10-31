@@ -10,8 +10,9 @@ const S = Date.now().toString(36).slice(-5);
   await ouvrirPlus(adm);
   await adm.locator('a[href="/stages/parametres"]').click();
   await adm.getByRole('heading', { name: 'Réglages des stages' }).waitFor();
-  await adm.getByTestId('capacites').getByText(/Division Prévisions : /).waitFor();
-  check('admin : capacités affichées et modifiables', (await adm.getByRole('button', { name: 'Fixer la capacité' }).count()) === 1);
+  // S9e : une ligne par unité, limite modifiable sur la ligne.
+  await adm.getByTestId('capacites').getByLabel('Limite — DPE', { exact: true }).waitFor();
+  check('admin : capacités affichées et modifiables', (await adm.getByLabel('Limite — DPE', { exact: true }).inputValue()) !== '');
   check('admin : aucun planning, aucun lien vers les stages', (await adm.getByTestId('planning').count()) === 0 && (await adm.getByRole('link', { name: '← Stagiaires' }).count()) === 0);
   { const t = await adm.getByTestId('modele').innerText(); check('admin : modèle actif affiché (importé à l’écran après le paramétrage)', /Mon modele.docx/.test(t) && /importé le .* par ADMIN Test/.test(t), t.slice(0, 160)); }
   await adm.screenshot({ path: `${SHOTS}/p_reglages_stages_admin.png`, fullPage: true });
@@ -31,6 +32,6 @@ const S = Date.now().toString(36).slice(-5);
   const drh = await loginPage(b, 'drh');
   await drh.goto(`${WEB}/stages/parametres`);
   await drh.getByTestId('planning').waitFor();
-  check('DRH : capacités et planning', (await drh.getByRole('button', { name: 'Fixer la capacité' }).count()) === 1);
+  check('DRH : capacités et planning', (await drh.getByLabel('Limite — DPE', { exact: true }).count()) === 1);
   await b.close(); bilan();
 })().catch((e) => { console.error(e); process.exit(2); });

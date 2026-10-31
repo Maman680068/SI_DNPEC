@@ -1,5 +1,5 @@
 import { typeServi } from '../common/storage/type-servi';
-import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query, Res, StreamableFile, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Put, Query, Res, StreamableFile, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import type { Response } from 'express';
@@ -84,6 +84,18 @@ export class StagesController {
   @UseInterceptors(FileInterceptor('file', fichierOptions))
   importerModele(@CurrentUser() actor: AuthenticatedUser, @UploadedFile() file: Express.Multer.File | undefined) {
     return this.attestation.importerModele(actor, file);
+  }
+
+  @Post('modele-attestation/verifier')
+  @HttpCode(200)
+  @UseInterceptors(FileInterceptor('file', fichierOptions))
+  verifierModele(@CurrentUser() actor: AuthenticatedUser, @UploadedFile() file: Express.Multer.File | undefined) {
+    return this.attestation.verifierModele(actor, file);
+  }
+
+  @Get('modele-attestation/apercu')
+  async apercuModele(@CurrentUser() actor: AuthenticatedUser, @Res({ passthrough: true }) res: Response) {
+    return this.envoyer(res, await this.attestation.apercuModele(actor));
   }
 
   @Get('modele-attestation/fichier')

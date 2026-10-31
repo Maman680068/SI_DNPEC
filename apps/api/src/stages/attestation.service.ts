@@ -81,10 +81,77 @@ export class AttestationService {
   async modele(actor: AuthenticatedUser) {
     assertReglagesStages(actor);
     const m = await this.modeleActif();
+    // S9e : les modèles remplacés sont conservés (actif = false) — leur liste fait l'historique.
+    const anciens = await this.prisma.modeleAttestation.findMany({
+      where: { actif: false },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+      select: { id: true, type: true, fileName: true, createdAt: true, fileKey: true, importePar: { select: { id: true, firstName: true, lastName: true } } },
+    });
     return {
       champsDisponibles: CHAMPS_ATTESTATION,
       modele: m && { id: m.id, type: m.type, fileName: m.fileName, champs: m.champs, createdAt: m.createdAt, importePar: m.importePar, parDefaut: m.fileKey.startsWith(PREFIXE_INTEGRE) },
+      historique: anciens.map((a) => ({ id: a.id, type: a.type, fileName: a.fileName, createdAt: a.createdAt, importePar: a.importePar, parDefaut: a.fileKey.startsWith(PREFIXE_INTEGRE) })),
     };
+  }
+
+  /**
+   * S9e : contrôle d'un modèle AVANT activation — champs trouvés, champs inconnus, verdict ; rien n'est
+   * enregistré. Mêmes règles que l'import (qui refait le contrôle).
+   */
+  async verifierModele(actor: AuthenticatedUser, fichier: { buffer: Buffer; originalname: string } | undefined) {
+    assertReglagesStages(actor);
+    if (!fichier) throw new BadRequestException('Aucun fichier reçu.');
+    const nom = fichier.originalname.toLowerCase();
+    const type = nom.endsWith('.docx') ? ModeleAttestationType.DOCX : nom.endsWith('.pdf') ? ModeleAttestationType.PDF : null;
+    if (!type) return { valide: false, type: null, champs: [], inconnus: [], absents: [], message: 'Modèle attendu : document Word (.docx) ou PDF à champs de formulaire (.pdf).' };
+    let champs: string[];
+    try {
+      champs = type === ModeleAttestationType.DOCX ? this.champsDocx(fichier.buffer) : await this.champsPdf(fichier.buffer);
+    } catch (e) {
+      return { valide: false, type, champs: [], inconnus: [], absents: [], message: e instanceof Error ? e.message : 'Fichier illisible.' };
+    }
+    const inconnus = champs.filter((c) => !CLES.has(c));
+    const absents = CHAMPS_ATTESTATION.map((c) => c.cle).filter((c) => !champs.includes(c));
+    const message = inconnus.length
+      ? `Champs inconnus : ${inconnus.join(', ')}. Corrigez-les avant d’activer ce modèle.`
+      : !champs.length
+        ? 'Aucun champ trouvé : insérez des champs sous la forme {{NOM_COMPLET}}, {{DATE_DEBUT}}…'
+        : `Modèle valide : ${champs.length} champ(s) reconnu(s).`;
+    return { valide: !inconnus.length && champs.length > 0, type, champs: champs.filter((c) => CLES.has(c)), inconnus, absents, message };
+  }
+
+  /**
+   * S9e : aperçu du modèle actif rempli avec un stagiaire FICTIF — aucun stage lu, aucun numéro réel, aucune
+   * séquence consommée. PDF marqué « Aperçu » (ou Word rempli pour un modèle Word).
+   */
+  async apercuModele(actor: AuthenticatedUser): Promise<DocumentGenere> {
+    assertReglagesStages(actor);
+    const aujourdhui = new Date();
+    const debut = new Date(Date.UTC(aujourdhui.getUTCFullYear(), aujourdhui.getUTCMonth() - 3, 1));
+    const fin = new Date(Date.UTC(aujourdhui.getUTCFullYear(), aujourdhui.getUTCMonth(), 0));
+    const valeurs: Record<string, string> = {
+      PRENOM: 'Aminata',
+      NOM: 'EXEMPLE',
+      NOM_COMPLET: 'Aminata EXEMPLE',
+      ETABLISSEMENT: 'Université Gamal Abdel Nasser de Conakry',
+      DIPLOME: 'Master en économie',
+      ENCADRANT: 'Pr Mamadou Exemple',
+      DATE_DEBUT: dateFr(debut),
+      DATE_FIN: dateFr(fin),
+      DUREE: `${Math.round((fin.getTime() - debut.getTime()) / 86400000) + 1} jours`,
+      UNITES: 'Division Prévisions (exemple)',
+      TUTEURS: 'Tuteur Exemple',
+      NUMERO: 'APERÇU — SANS NUMÉRO',
+      SIGNATAIRE: 'Le Directeur National',
+      DATE_DU_JOUR: dateFr(aujourdhui),
+    };
+    const m = await this.modeleActif();
+    if (m?.type === ModeleAttestationType.DOCX) {
+      return { buffer: await this.remplirDocx(m.fileKey, valeurs), fileName: 'apercu-attestation.docx', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' };
+    }
+    const buffer = m?.type === ModeleAttestationType.PDF ? await this.remplirPdf(m.fileKey, valeurs, true) : await this.pdfStandard(valeurs, true);
+    return { buffer, fileName: 'apercu-attestation.pdf', mimeType: 'application/pdf' };
   }
 
   async importerModele(actor: AuthenticatedUser, fichier: { buffer: Buffer; originalname: string } | undefined) {

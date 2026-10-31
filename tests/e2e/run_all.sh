@@ -110,6 +110,7 @@ lancer "21a. D6 — RÔLE STAGIAIRE (TOUTES LES ROUTES)" api/d6_role_stagiaire.j
 lancer "21b. D6 — STAGES" api/d6_stages.js
 lancer "21c. D6 — ATTESTATION" api/d6_attestation.js
 lancer "21d. D6 — LISTES DE CHOIX" api/d6_listes.js
+lancer "21d-bis. RÉGLAGES DES STAGES : OCCUPATION DU JOUR, « COMPLET », CONTRÔLE DU MODÈLE AVANT ACTIVATION, APERÇU FICTIF SANS NUMÉRO, HISTORIQUE" api/s9e_reglages_stages.js
 lancer "21e. ACCÈS DES STAGIAIRES — COMPTE CRÉÉ AVEC LE STAGE (DRH, ADMINISTRATEUR), RÔLE STAGIAIRE SEUL, 409/403/400, DÉSACTIVATION À LA FIN" api/v_stagiaire_acces.js
 lancer "21e. D9 — LOGISTIQUE" api/d9_logistique.js
 lancer "21f. D9 — RÉSERVATIONS ET PRIORITÉ" api/d9_reservations.js
@@ -138,6 +139,7 @@ lancer "32-quater. MESSAGERIE : PIÈCES JOINTES (FICHIER CONTRÔLÉ PAR SON CONT
 lancer "32-quinquies. CHROMIUM — MESSAGERIE : TROMBONE À DEUX CHOIX, ENVOI, TÉLÉCHARGEMENT, CLASSER DANS LES ARCHIVES, CITER" ui/s3_pieces_jointes_ui.js
 lancer "33. CHROMIUM — D6 RÔLE STAGIAIRE" ui/d6_role_ui.js
 lancer "34. CHROMIUM — D6 STAGES" ui/d6_stages_ui.js
+lancer "34-ter. CHROMIUM — RÉGLAGES DES STAGES : CAPACITÉS EN TABLEAU, PLANNING SUR SIX MOIS, MODÈLE (APERÇU, CHAMPS COPIABLES, CONTRÔLE, HISTORIQUE)" ui/s9e_reglages_stages_ui.js
 lancer "34-bis. CHROMIUM — ACCÈS DES STAGIAIRES : NOUVEAU STAGIAIRE (DRH, ADMINISTRATEUR), DEMANDE D’ACCÈS" ui/v_stagiaire_acces_ui.js
 lancer "35. CHROMIUM — D9 LOGISTIQUE" ui/d9_logistique_ui.js
 lancer "35-bis. CHROMIUM — ADMINISTRATION DE LA LOGISTIQUE : ALERTE, GESTIONNAIRES, CIRCUIT, CATÉGORIES (INTERRUPTEUR, MENU, DÉSACTIVÉES)" ui/s9d_administration_logistique_ui.js

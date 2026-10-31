@@ -132,11 +132,25 @@ export interface Capacites {
   voitPlanning: boolean;
   peutCreerNouveauStagiaire: boolean;
   capacites: { uniteKey: string; maximum: number; libelle: string }[];
+  /** S9e : toutes les unités d'accueil, limite et occupation du jour (comptages, sans nom). */
+  unites: { uniteKey: string; sigle: string; nom: string; niveau: 'DIVISION' | 'SECTION' | 'CELLULE'; maximum: number | null; occupation: number; complet: boolean }[];
 }
 
 export interface ModeleAttestation {
   champsDisponibles: { cle: string; description: string }[];
   modele: { id: string; type: 'DOCX' | 'PDF'; fileName: string; champs: string[]; createdAt: string; importePar: Personne | null; parDefaut: boolean } | null;
+  /** Modèles remplacés (conservés). */
+  historique: { id: string; type: 'DOCX' | 'PDF'; fileName: string; createdAt: string; importePar: Personne | null; parDefaut: boolean }[];
+}
+
+/** Contrôle d'un modèle avant activation (rien n'est enregistré). */
+export interface VerificationModele {
+  valide: boolean;
+  type: 'DOCX' | 'PDF' | null;
+  champs: string[];
+  inconnus: string[];
+  absents: string[];
+  message: string;
 }
 
 export interface PeriodeInput {

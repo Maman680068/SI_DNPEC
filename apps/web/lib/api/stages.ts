@@ -1,5 +1,5 @@
 import { apiFetch, telechargerFichier } from './client';
-import type { Capacites, Candidat, FormatEvaluation, ListeStages, ModeleAttestation, PeriodeInput, Personne, Planning, Stage } from '../stages/types';
+import type { Capacites, Candidat, FormatEvaluation, ListeStages, ModeleAttestation, PeriodeInput, Personne, Planning, Stage, VerificationModele } from '../stages/types';
 
 const j = (body: unknown) => ({ body: JSON.stringify(body) });
 
@@ -50,6 +50,12 @@ export const creerActeAttestation = (id: string, registreId: string) => apiFetch
 export const prendreConnaissanceAttestation = (id: string) => apiFetch<Stage>(`/stages/${id}/attestation/prise-de-connaissance`, { method: 'POST' });
 
 export const telechargerModele = () => telechargerFichier('/stages/modele-attestation/fichier', null);
+export const telechargerApercuModele = () => telechargerFichier('/stages/modele-attestation/apercu', null);
+export function verifierModeleAttestation(fichier: File) {
+  const fd = new FormData();
+  fd.append('file', fichier);
+  return apiFetch<VerificationModele>('/stages/modele-attestation/verifier', { method: 'POST', body: fd });
+}
 export const telechargerProvisoire = (id: string) => telechargerFichier(`/stages/${id}/attestation/provisoire`, 'attestation-provisoire.pdf');
 export const telechargerDocument = (id: string) => telechargerFichier(`/stages/${id}/attestation/document`, null);
 export const telechargerFinale = (id: string) => telechargerFichier(`/stages/${id}/attestation/finale`, 'attestation-signee.pdf');

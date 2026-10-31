@@ -84,10 +84,11 @@ const toast = (p) => p.getByTestId('toast');
 
   console.log('— DRH : capacité d’accueil (paramètres) et refus affiché');
   await drh.goto(`${WEB}/stages/parametres`);
-  await drh.locator('[data-testid=capacites]').getByLabel('Division').selectOption(ids.DPE);
-  await drh.locator('[data-testid=capacites]').getByLabel('Section').selectOption(ids.SSR);
-  await drh.getByLabel('Maximum').fill('1');
-  await drh.getByRole('button', { name: 'Fixer la capacité' }).click();
+  // S9e : tableau des unités ; « Afficher toutes les unités » si la section n'a encore ni limite ni stagiaire.
+  const limiteSsr = drh.getByLabel('Limite — DPE · SSR', { exact: true });
+  if (!(await limiteSsr.count())) await drh.getByTestId('toutes-unites').click();
+  await limiteSsr.fill('1');
+  await drh.getByTestId('capacite').filter({ has: limiteSsr }).getByRole('button', { name: 'Enregistrer' }).click();
   await toast(drh).getByText('Capacité enregistrée').waitFor();
   check('capacité : message avec « Annuler » (remise en l’état par la même route)', (await toast(drh).getByRole('button', { name: 'Annuler' }).count()) === 1);
   check('capacité SSR = 1 enregistrée', (await prisma.capaciteAccueil.findUnique({ where: { uniteKey: `SEC:${ids.SSR}` } })).maximum === 1);
@@ -156,8 +157,10 @@ const toast = (p) => p.getByTestId('toast');
   fs.mkdirSync(TMP, { recursive: true });
   execSync(`python3 -c "import docx; d=docx.Document(); d.add_paragraph('ATTESTATION DE STAGE N° {{NUMERO}}'); d.add_paragraph('Nous attestons que {{NOM_COMPLET}}, de {{ETABLISSEMENT}}, a effectué un stage du {{DATE_DEBUT}} au {{DATE_FIN}} : {{UNITES}}.'); d.add_paragraph('{{SIGNATAIRE}}'); d.save('${TMP}/modele.docx')"`);
   await drh.goto(`${WEB}/stages/parametres`);
-  await drh.getByLabel('Nouveau modèle (.docx, ou .pdf à champs)').setInputFiles(`${TMP}/modele.docx`);
-  await drh.getByRole('button', { name: 'Importer' }).click();
+  // S9e : contrôle des champs avant activation.
+  await drh.getByLabel('Remplacer le modèle (.docx, ou .pdf à champs)').setInputFiles(`${TMP}/modele.docx`);
+  await drh.getByTestId('verification-modele').filter({ hasText: 'Modèle valide' }).waitFor();
+  await drh.getByRole('button', { name: 'Activer ce modèle' }).click();
   await toast(drh).getByText('Modèle importé').waitFor();
   check('modèle Word importé, champs utilisés affichés', /NOM_COMPLET/.test(await drh.locator('[data-testid=modele]').innerText()));
   await drh.screenshot({ path: `${SHOTS}/d6_parametres_drh_desktop.png`, fullPage: true });
