@@ -7,8 +7,8 @@ ne faisait rien.
 **Données** : aucune. **Droits** : inchangés (le composant ne fait qu'ouvrir le choix du fichier).
 
 **Écran** :
-- le cadre entier est un bouton (`role="button"`, `tabIndex=0`, nom accessible « <libellé> : glissez votre
-  fichier ici ou parcourez votre ordinateur », aide reliée par `aria-describedby`) ; clic, Entrée et Espace
+- le cadre entier est un bouton (`role="button"`, `tabIndex=0`, nom accessible « Glissez votre fichier ici ou
+  parcourez votre ordinateur » (le libellé du champ reste porté par le champ de fichier, une seule cible par libellé), aide reliée par `aria-describedby`) ; clic, Entrée et Espace
   ouvrent le choix du fichier ; curseur main, survol et contour au clavier ;
 - « parcourez votre ordinateur » n'est plus un bouton imbriqué (texte souligné au survol) ; le champ
   `input type=file` est sorti du cadre et retiré de l'ordre de tabulation : aucun élément interactif

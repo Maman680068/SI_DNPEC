@@ -855,7 +855,8 @@ export function ZoneDepot({
       <div
         role="button"
         tabIndex={0}
-        aria-label={`${typeof label === 'string' ? `${label} : ` : ''}glissez ${multiple ? 'vos fichiers' : 'votre fichier'} ici ou parcourez votre ordinateur`}
+        // Nom propre au cadre (sans le libellé du champ, porté par le champ de fichier lui-même).
+        aria-label={`Glissez ${multiple ? 'vos fichiers' : 'votre fichier'} ici ou parcourez votre ordinateur`}
         aria-describedby={`${id}-aide`}
         data-testid="zone-depot"
         onClick={(e) => {

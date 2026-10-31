@@ -32,6 +32,7 @@ const { browser, loginPage, check, bilan, WEB } = require('./helpers');
   await (await fc).setFiles({ name: 'clic_zone.txt', mimeType: 'text/plain', buffer: Buffer.from('zone cliquable') });
   await dlg.getByTestId('fichiers-choisis').waitFor();
   check('fichier choisi par le cadre : pris dans le formulaire', (await dlg.getByTestId('fichiers-choisis').innerText()).includes('clic_zone.txt'));
+  check('le libellé « Fichier » ne désigne que le champ (cadre nommé à part)', (await dlg.getByLabel('Fichier', { exact: true }).count()) === 1);
   check('curseur main sur le cadre', (await zone.evaluate((e) => getComputedStyle(e).cursor)) === 'pointer');
   await b.close();
   process.exitCode = bilan() ? 1 : 0;
