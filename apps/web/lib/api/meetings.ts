@@ -1,6 +1,10 @@
 import { apiFetch } from './client';
 import type {
   ConvertDecisionInput,
+  DemandeReunion,
+  DemandesReunion,
+  DroitsReunions,
+  ParticipantsPossibles,
   CreateMeetingInput,
   DecisionsASuivre,
   DecisionsReleve,
@@ -68,3 +72,17 @@ export function remindDecision(id: string): Promise<unknown> {
 export function getDecisionsASuivre(): Promise<DecisionsASuivre> {
   return apiFetch<DecisionsASuivre>('/api/v1/decisions/a-suivre');
 }
+
+// ---- Demandes de réunion (S1) ------------------------------------------------
+
+export const getDroitsReunions = () => apiFetch<DroitsReunions>('/api/v1/reunions/droits');
+export const getParticipantsPossibles = () => apiFetch<ParticipantsPossibles>('/api/v1/reunions/participants-possibles');
+export const getDemandesReunion = () => apiFetch<DemandesReunion>('/api/v1/demandes-reunion');
+export const getDemandeReunion = (id: string) => apiFetch<DemandeReunion>(`/api/v1/demandes-reunion/${id}`);
+export const demanderReunion = (v: { objet: string; explication: string; debut: string; fin: string; participantIds: string[]; uniteIds: string[] }) =>
+  apiFetch<DemandeReunion>('/api/v1/demandes-reunion', { method: 'POST', body: JSON.stringify(v) });
+export const accepterDemandeReunion = (id: string, v: { debut?: string; fin?: string; participantIds?: string[]; uniteIds?: string[] }) =>
+  apiFetch<DemandeReunion>(`/api/v1/demandes-reunion/${id}/accepter`, { method: 'POST', body: JSON.stringify(v) });
+export const refuserDemandeReunion = (id: string, motif: string) =>
+  apiFetch<DemandeReunion>(`/api/v1/demandes-reunion/${id}/refuser`, { method: 'POST', body: JSON.stringify({ motif }) });
+export const transmettreDemandeReunion = (id: string) => apiFetch<DemandeReunion>(`/api/v1/demandes-reunion/${id}/transmettre`, { method: 'POST' });

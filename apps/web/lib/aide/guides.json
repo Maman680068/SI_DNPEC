@@ -112,7 +112,8 @@
           "titre": "Messagerie, réunions, documents",
           "etapes": [
             "« Messagerie » : messagerie directe avec n’importe quel collègue, annonces et sondages qui vous sont adressés. « Nouveau message » : cliquez dans le champ, vos correspondants récents puis tout le personnel s’affichent ; tapez quelques lettres du prénom, du nom, de la fonction ou du sigle de l’unité, dans n’importe quel ordre et sans vous soucier des accents. Le trombone propose deux choix : « Depuis mon ordinateur » (PDF, Word, Excel ou image, 10 Mo au plus ; seules les deux personnes de la conversation peuvent le télécharger) et « Depuis les Archives » (« Citer un document des Archives » : vos documents récents et ceux déjà échangés s’affichent aussitôt ; seuls ceux qui ont le droit d’ouvrir le document en voient le titre). Sur un fichier reçu ou envoyé, « Classer dans les Archives » le dépose dans les Archives de votre unité. À droite, la fiche de votre interlocuteur rappelle les documents échangés et vos tâches en commun.",
-            "« Réunions » : vos invitations ; répondez « Je participe » ou « Absent ». L’organisateur complète le compte rendu par « Modifier la réunion ». Vous pouvez aussi créer une réunion et réserver une salle.",
+            "« Réunions » : vos invitations ; répondez « Je participe » ou « Absent ». L’organisateur complète le compte rendu par « Modifier la réunion ».",
+            "« Demander une réunion » : objet, courte explication, date et heures proposées, participants (« Ajouter une unité » ajoute toute une unité, puis ajoutez ou retirez des personnes). Votre chef accepte (il peut changer la date ou les participants), refuse avec un motif ou transmet à son propre chef ; « Mes demandes de réunion » montre où en est la vôtre. Une fois acceptée, la notification « Créer la réunion » ouvre le formulaire prérempli : date et participants validés sont verrouillés, vous ajoutez la salle et l’ordre du jour. L’autorisation sert une seule fois et expire si la date passe.",
             "« Archives & documents » : les documents de votre division et les documents publiés. Au dépôt, indiquez le type, la date et la période couverte ; chaque document porte un statut (Brouillon, Validé, Diffusable) repris sur le fichier téléchargé."
           ],
           "capture": "reunions.png"
@@ -182,7 +183,8 @@
           "etapes": [
             "Bouton doré « Créer » (en haut) → « Nouvelle tâche » : titre, échéance, priorité, confidentialité, puis « Assigner à » un ou plusieurs agents de votre section.",
             "Le tableau de bord montre l’avancement, les retards et les tâches à valider.",
-            "Ouvrez une tâche soumise pour la valider, ou « Rejeter » : la fenêtre « Rejeter la tâche » demande le motif."
+            "Ouvrez une tâche soumise pour la valider, ou « Rejeter » : la fenêtre « Rejeter la tâche » demande le motif.",
+            "Réunions : vous créez vos réunions directement (« Nouvelle réunion » ; « Ajouter une unité » invite toute une unité, sous-unités comprises). Les demandes de vos agents arrivent dans « À traiter » et dans « Demandes de réunion à décider » : « Accepter » (date et participants modifiables), « Refuser » (motif obligatoire, visible du demandeur) ou « Transmettre à mon chef »."
           ],
           "capture": "taches.png"
         },
@@ -255,7 +257,8 @@
           "titre": "Votre périmètre",
           "etapes": [
             "Vous voyez les tâches, congés et demandes de toute votre division (ou cellule), sections comprises.",
-            "Le tableau de bord résume la charge, les retards et ce qui attend votre décision."
+            "Le tableau de bord résume la charge, les retards et ce qui attend votre décision.",
+            "Réunions : vous créez vos réunions directement (« Nouvelle réunion » ; « Ajouter une unité » invite toute une unité, sous-unités comprises). Les demandes de vos agents arrivent dans « À traiter » et dans « Demandes de réunion à décider » : « Accepter » (date et participants modifiables), « Refuser » (motif obligatoire, visible du demandeur) ou « Transmettre à mon chef »."
           ],
           "capture": "tableau-de-bord.png"
         },
@@ -325,7 +328,8 @@
           "etapes": [
             "Le tableau de bord couvre toute la DNPEC : tâches, retards, congés, courrier à imputer, stagiaires, logistique.",
             "La visibilité s’arrête où commence le contenu protégé (congés maladie, plis personnels, informations personnelles du dossier) : c’est le principe du « besoin d’en connaître ».",
-            "Congés & absences : l’onglet « Suivi de l’équipe » montre les demandes de la Direction en lecture ; c’est le DRH qui décide, sauf pour une demande du DRH lui-même, que vous décidez (onglet « À traiter »). Sans chef dans l’unité, c’est vous qui donnez l’avis."
+            "Congés & absences : l’onglet « Suivi de l’équipe » montre les demandes de la Direction en lecture ; c’est le DRH qui décide, sauf pour une demande du DRH lui-même, que vous décidez (onglet « À traiter »). Sans chef dans l’unité, c’est vous qui donnez l’avis.",
+            "Réunions : les demandes de réunion transmises jusqu’à la Direction arrivent dans « Demandes de réunion à décider » ; vous acceptez ou refusez (vous ne pouvez plus transmettre)."
           ],
           "capture": "tableau-de-bord.png"
         },

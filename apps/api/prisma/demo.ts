@@ -58,6 +58,7 @@ import { MessagesService } from '../src/communication/messages/messages.service'
 import { TasksService } from '../src/tasks/tasks.service';
 import { BroadcastMode } from '../src/tasks/dto/broadcast-task.dto';
 import { MeetingsService } from '../src/meetings/meetings.service';
+import { DemandesReunionService } from '../src/meetings/demandes-reunion.service';
 import { DecisionsService } from '../src/meetings/decisions.service';
 import { LeaveRequestsService } from '../src/leaves/leave-requests/leave-requests.service';
 import { SuggestionsService } from '../src/suggestions/suggestions.service';
@@ -460,6 +461,20 @@ async function reunions(ctx: Ctx) {
       // Cette semaine, par une cheffe de section.
       const chefS1 = await acteur(prisma, u.chefSection1!.id);
       await svc.create(chefS1, { title: `${T}Point hebdomadaire de la Section Analyses`, startAt: iso(1, 10), endAt: iso(1, 11), participantIds: [u.agent1!.id, u.agent2!.id] });
+    },
+  );
+  await bloc(
+    'Demandes de réunion (S1 : une en attente chez la cheffe de section, une acceptée puis créée)',
+    async () => (await prisma.demandeReunion.count({ where: { objet: { startsWith: T } } })) > 0,
+    async () => {
+      const dem = app.get(DemandesReunionService);
+      const a1 = await acteur(prisma, u.agent1!.id);
+      await dem.demander(a1, { objet: `${T}Revue des hypothèses de croissance`, explication: 'Caler les hypothèses avant la note de conjoncture.', debut: iso(7, 9), fin: iso(7, 10), participantIds: [u.agent2!.id], uniteIds: [] });
+      const a2 = await acteur(prisma, u.agent2!.id);
+      const d = await dem.demander(a2, { objet: `${T}Atelier sur les comptes trimestriels`, explication: 'Partager la méthode de calcul.', debut: iso(9, 14), fin: iso(9, 15), participantIds: [u.agent1!.id], uniteIds: [] });
+      const chefS1 = await acteur(prisma, u.chefSection1!.id);
+      await dem.accepter(chefS1, d.id, {});
+      await svc.create(a2, { title: `${T}Atelier sur les comptes trimestriels`, agenda: 'Méthode et calendrier.', startAt: iso(9, 14), endAt: iso(9, 15), participantIds: [], demandeReunionId: d.id });
     },
   );
 }
@@ -960,6 +975,8 @@ async function supprimer(prisma: PrismaClient) {
   n('Fiches de poste', await prisma.fichePoste.deleteMany({ where: { fonction: { startsWith: T } } }));
   n('Sessions de formation', await prisma.sessionFormation.deleteMany({ where: { OR: [{ agentId: { in: U } }, { creeParId: { in: U } }, { intitule: { startsWith: T } }] } }));
   n('Besoins de formation', await prisma.besoinFormation.deleteMany({ where: { OR: [{ creeParId: { in: U } }, { intitule: { startsWith: T } }] } }));
+  // Demandes de réunion (S1 ; étapes : cascade), avant les réunions qu'elles ont permises.
+  n('Demandes de réunion', await prisma.demandeReunion.deleteMany({ where: { OR: [{ demandeurId: { in: U } }, { objet: { startsWith: T } }] } }));
   // Réunions (participants, décisions : cascade).
   n('Réunions', await prisma.meeting.deleteMany({ where: { createdById: { in: U } } }));
   // Congés et soldes.

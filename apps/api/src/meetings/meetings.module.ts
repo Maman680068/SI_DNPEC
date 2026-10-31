@@ -6,11 +6,15 @@ import { MeetingsController } from './meetings.controller';
 import { MeetingsService } from './meetings.service';
 import { DecisionsController } from './decisions.controller';
 import { DecisionsService } from './decisions.service';
+import { DemandesReunionController } from './demandes-reunion.controller';
+import { DemandesReunionService } from './demandes-reunion.service';
+import { ParticipantsReunionController } from './participants-reunion.controller';
+import { ParticipantsReunionService } from './participants-reunion.service';
 
 @Module({
   imports: [OrgModule, CommunicationModule, LogistiqueModule],
-  controllers: [MeetingsController, DecisionsController],
-  providers: [MeetingsService, DecisionsService],
-  exports: [MeetingsService, DecisionsService],
+  controllers: [MeetingsController, DecisionsController, DemandesReunionController, ParticipantsReunionController],
+  providers: [MeetingsService, DecisionsService, DemandesReunionService, ParticipantsReunionService],
+  exports: [MeetingsService, DecisionsService, DemandesReunionService],
 })
 export class MeetingsModule {}

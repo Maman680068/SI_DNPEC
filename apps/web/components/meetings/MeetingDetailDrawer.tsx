@@ -210,6 +210,11 @@ export function MeetingDetailDrawer({
               <CalendarDays aria-hidden size={14} />
               {dateHeure(meeting)}
             </span>
+            {meeting.demandeReunion && (
+              <span className="font-semibold text-sage" data-testid="validee-par">
+                Validée par {meeting.demandeReunion.decidePar ? `${meeting.demandeReunion.decidePar.firstName} ${meeting.demandeReunion.decidePar.lastName}` : 'la hiérarchie'}
+              </span>
+            )}
             {salle && (
               <span className="flex items-center gap-1.5">
                 <MapPin aria-hidden size={14} />

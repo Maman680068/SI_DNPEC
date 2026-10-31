@@ -33,7 +33,7 @@ const RESULTATS_MAX = 60;
 
 /**
  * Recherche de personnes (S2) : tout le personnel ACTIF (messagerie sans restriction de cascade,
- * RF-COM-01 ; mêmes champs non sensibles que `/users/search` : ni email, ni téléphone). Sans texte :
+ * RF-COM-01 ; mêmes champs non sensibles que la route `users/search` : ni email, ni téléphone). Sans texte :
  * correspondants récents d'abord, puis tout le personnel ; avec texte : moteur `common/recherche/texte`
  * (sans accents, chaque mot dans prénom, nom, fonction ou sigle d'unité, débuts de mot en premier).
  */

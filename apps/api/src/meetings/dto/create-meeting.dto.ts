@@ -42,4 +42,9 @@ export class CreateMeetingDto {
   @IsOptional()
   @IsBoolean()
   prioritaire?: boolean;
+
+  // S1 — création avec une demande acceptée (autorisation à usage unique du demandeur).
+  @IsOptional()
+  @IsString()
+  demandeReunionId?: string;
 }

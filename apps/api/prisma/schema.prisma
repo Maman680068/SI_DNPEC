@@ -643,9 +643,13 @@ model User {
   instructionsEmises        Instruction[]            @relation("InstructionEmetteur")
   instructionsRecues        Instruction[]            @relation("InstructionDestinataire")
   instructionsConcernant    Instruction[]            @relation("InstructionAgentConcerne")
+  sessionsFormation         SessionFormation[]       @relation("SessionFormationAgent")
+  // S1 — demandes de réunion : demandées, décidées, étapes.
+  demandesReunion           DemandeReunion[]         @relation("DemandeReunionDemandeur")
+  demandesReunionDecid      DemandeReunion[]         @relation("DemandeReunionDecidePar")
+  etapesDemandeReunion      EtapeDemandeReunion[]    @relation("EtapeDemandeReunionPar")
 
   @@map("users")
-  sessionsFormation  SessionFormation[] @relation("SessionFormationAgent")
 }
 
 // Sessions actives, pour la fonction de déconnexion à distance / partout
@@ -1295,6 +1299,9 @@ model Meeting {
 
   // Socle N4 — documents de la GED issus de la réunion (SIG-RF-GED-08).
   documentsIssus Document[] @relation("DocumentSourceMeeting")
+
+  // S1 — demande de réunion validée dont la réunion est issue (« Validée par … »).
+  demandeReunion DemandeReunion?
 
   @@map("meetings")
 }
@@ -3165,7 +3172,7 @@ model BesoinFormation {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  sessions  SessionFormation[]
+  sessions SessionFormation[]
 
   @@index([annee])
   @@map("besoins_formation")
@@ -3173,21 +3180,21 @@ model BesoinFormation {
 
 /// Plan de formation individuel : session de formation d'un agent (compte), issue ou non d'un besoin retenu.
 model SessionFormation {
-  id            String                @id @default(cuid())
+  id            String               @id @default(cuid())
   intitule      String
   agentId       String
-  agent         User                  @relation("SessionFormationAgent", fields: [agentId], references: [id])
+  agent         User                 @relation("SessionFormationAgent", fields: [agentId], references: [id])
   besoinId      String?
-  besoin        BesoinFormation?      @relation(fields: [besoinId], references: [id])
-  dateDebut     DateTime              @db.Date
-  dateFin       DateTime?             @db.Date
+  besoin        BesoinFormation?     @relation(fields: [besoinId], references: [id])
+  dateDebut     DateTime             @db.Date
+  dateFin       DateTime?            @db.Date
   dureeJours    Int?
   organisme     String?
-  etat          EtatSessionFormation  @default(SOUHAITEE)
+  etat          EtatSessionFormation @default(SOUHAITEE)
   creeParId     String
   alerteDebutAt DateTime?
-  createdAt     DateTime              @default(now())
-  updatedAt     DateTime              @updatedAt
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
 
   @@index([agentId])
   @@index([etat, dateDebut])
@@ -3388,4 +3395,68 @@ model TravailCalcul {
   @@index([statut, prochaineTentativeLe])
   @@index([versionId])
   @@map("travaux_calcul")
+}
+
+// ----------------------------------------------------------------------------
+// S1 — Demandes de réunion (docs/conception_S1_demandes_reunion.md) : un chargé d'études ne crée plus de
+// réunion directement ; il la demande à son chef le plus proche, qui accepte (date et participants
+// modifiables), refuse (motif) ou transmet à son propre chef, jusqu'au DN ou à la DNA. Une demande
+// acceptée vaut autorisation à usage unique de créer la réunion (expirée si la date passe).
+// ----------------------------------------------------------------------------
+
+enum EtatDemandeReunion {
+  EN_ATTENTE
+  ACCEPTEE
+  REFUSEE
+  UTILISEE
+
+  @@map("etat_demande_reunion")
+}
+
+model DemandeReunion {
+  id             String             @id @default(cuid())
+  demandeurId    String
+  demandeur      User               @relation("DemandeReunionDemandeur", fields: [demandeurId], references: [id])
+  objet          String
+  explication    String
+  // Date et heures proposées, puis validées (le décideur peut les modifier en acceptant).
+  debut          DateTime
+  fin            DateTime
+  // Participants figés au moment du choix (unités dépliées en personnes) ; unités choisies, pour mémoire.
+  participantIds String[]
+  uniteIds       String[]
+  etat           EtatDemandeReunion @default(EN_ATTENTE)
+  // Décideur(s) courant(s) : le chef le plus proche (plusieurs si le niveau en compte plusieurs, ex. DN et DNA).
+  decideurIds    String[]
+  decideParId    String?
+  decidePar      User?              @relation("DemandeReunionDecidePar", fields: [decideParId], references: [id])
+  decideeLe      DateTime?
+  motifRefus     String?
+  // Réunion créée avec l'autorisation (usage unique).
+  reunionId      String?            @unique
+  reunion        Meeting?           @relation(fields: [reunionId], references: [id], onDelete: SetNull)
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  etapes EtapeDemandeReunion[]
+
+  @@index([demandeurId])
+  @@index([etat])
+  @@map("demandes_reunion")
+}
+
+// Historique d'une demande : DEMANDEE, TRANSMISE, ACCEPTEE, REFUSEE, REUNION_CREEE.
+model EtapeDemandeReunion {
+  id        String         @id @default(cuid())
+  demandeId String
+  demande   DemandeReunion @relation(fields: [demandeId], references: [id], onDelete: Cascade)
+  action    String
+  parId     String?
+  par       User?          @relation("EtapeDemandeReunionPar", fields: [parId], references: [id])
+  versIds   String[]
+  motif     String?
+  le        DateTime       @default(now())
+
+  @@index([demandeId])
+  @@map("etapes_demande_reunion")
 }

@@ -124,21 +124,22 @@ const statut = async (id) => (await prisma.reservation.findUnique({ where: { id 
   check('trigger : insertion chevauchante refusée en SQL direct', /chevauche/.test(await sqlErreur(`INSERT INTO reservations (id, "ressourceId", "titulaireId", "creeeParId", debut, fin, objet, statut, "updatedAt") VALUES ('x${S}', '${A.id}', '${ids.agent1}', '${ids.agent1}', '${t(20.5)}', '${t(22)}', 'SQL', 'CONFIRMEE', now())`)));
   check('trigger : suppression refusée', /ne peut pas être supprimée/.test(await sqlErreur(`DELETE FROM reservations WHERE id = '${gagnant.id}'`)));
 
+  // S1 : un chargé d'études ne crée plus de réunion directement (il la demande) — les chefs SSR et SFP, pairs.
   console.log('— Réunions : salle réservée avec la réunion');
   const reunion = (k, h1, h2, extra = {}) => call(k, 'POST', '/meetings', { title: `Revue ${k} ${S}`, startAt: t(h1), endAt: h2 ? t(h2) : undefined, participantIds: [], ...extra });
-  expect('salle sans heure de fin', await reunion('agent1', 30, null, { ressourceId: A.id }), 400);
-  const m1 = await reunion('agent1', 30, 31, { ressourceId: A.id });
-  expect('agent1 crée une réunion avec la salle A', m1, 201);
+  expect('salle sans heure de fin', await reunion('chefssr', 30, null, { ressourceId: A.id }), 400);
+  const m1 = await reunion('chefssr', 30, 31, { ressourceId: A.id });
+  expect('le chef SSR crée une réunion avec la salle A', m1, 201);
   check('lieu = salle, réservation confirmée liée', m1.body.location === `Salle A ${S}` && m1.body.reservation.statut === 'CONFIRMEE');
   const avant = await prisma.meeting.count();
-  expect('réunion d’un pair sur la même salle', await reunion('agent2', 30, 31, { ressourceId: A.id }), 409);
+  expect('réunion d’un pair sur la même salle', await reunion('chefsfp', 30, 31, { ressourceId: A.id }), 409);
   check('aucune réunion créée quand la salle est refusée', (await prisma.meeting.count()) === avant);
-  expect('le titulaire ne libère pas la salle hors de la réunion', await call('agent1', 'POST', `/logistique/reservations/${m1.body.reservation.id}/annuler`, {}), 409);
+  expect('le titulaire ne libère pas la salle hors de la réunion', await call('chefssr', 'POST', `/logistique/reservations/${m1.body.reservation.id}/annuler`, {}), 409);
   const m2 = await reunion('chefdpe', 30, 31, { ressourceId: A.id, prioritaire: true });
   expect('le chef de la DPE prend la salle pour sa réunion (priorité)', m2, 201);
-  const m1b = (await call('agent1', 'GET', `/meetings/${m1.body.id}`)).body;
-  check('réunion d’agent1 conservée, sans salle', m1b.status === 'PLANIFIEE' && m1b.location === null && m1b.reservation.statut === 'ANNULEE_PRIORITE');
-  const n2 = (await notif(ids.agent1, 'RESERVATION_ANNULEE_PRIORITE', t0))[0];
+  const m1b = (await call('chefssr', 'GET', `/meetings/${m1.body.id}`)).body;
+  check('réunion du chef SSR conservée, sans salle', m1b.status === 'PLANIFIEE' && m1b.location === null && m1b.reservation.statut === 'ANNULEE_PRIORITE');
+  const n2 = (await notif(ids.chefssr, 'RESERVATION_ANNULEE_PRIORITE', t0))[0];
   check('notification : prioritaire nommé, réunion conservée', /CHEFDPE/.test(n2.body) && /réunion est conservée/.test(n2.body));
   expect('le chef annule sa réunion', await call('chefdpe', 'POST', `/meetings/${m2.body.id}/cancel`, { reason: 'Reportée' }), 201);
   check('salle libérée par l’annulation de la réunion', (await statut(m2.body.reservation.id)) === 'ANNULEE' && (await dispo('agent2', 30, 31)).libre);

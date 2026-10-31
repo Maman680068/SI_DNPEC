@@ -68,7 +68,7 @@ const compte = async () => ({
   check('sous-tâches et commentaires', (await prisma.task.count({ where: { createdBy: demo, parentTaskId: { not: null } } })) === 3 && (await prisma.taskComment.count({ where: { author: demo } })) >= 4);
   check('tâche rejetée avec motif (retour en cours, motif conservé)', (await prisma.task.count({ where: { createdBy: demo, validationComment: { contains: 'taux de change' }, status: 'EN_COURS' } })) === 1 && (await prisma.taskComment.count({ where: { author: demo, body: { startsWith: 'Rejet : ' } } })) === 1);
   check('tâche diffusée à toute la division', (await prisma.task.count({ where: { title: 'TEST — Mise à jour des fiches de poste' } })) >= 5);
-  check('4 réunions dont une passée avec compte rendu et décisions', n.reunions === 4 && (await prisma.meeting.count({ where: { createdBy: demo, startAt: { lt: new Date() }, minutesText: { not: null } } })) === 1 && (await prisma.decision.count({ where: { meeting: { createdBy: demo } } })) === 2);
+  check('5 réunions (dont celle d’une demande acceptée) dont une passée avec compte rendu et décisions', n.reunions === 5 && (await prisma.meeting.count({ where: { createdBy: demo, startAt: { lt: new Date() }, minutesText: { not: null } } })) === 1 && (await prisma.decision.count({ where: { meeting: { createdBy: demo } } })) === 2);
   // Instructions de la Direction (étape 9) : émises par le DN de démonstration seulement, jamais au nom d'un DN réel.
   const dnDemo = comptes.find((u) => u.email === D.email('dn'));
   const instructionsDemo = await prisma.instruction.count({ where: { objet: { startsWith: 'TEST — ' } } });
@@ -102,6 +102,7 @@ const compte = async () => ({
   check('véhicule (N6) : 2 pleins en litres, compteur 58 800 km, affecté à l’ordre de mission N4 de démonstration', !!vehicule && vehicule.pleins.length === 2 && vehicule.kilometrage === 58800 && vehicule.missions.length === 1 && vehicule.missions[0].agentId === idsDemo.find((x) => x === vehicule.missions[0].agentId));
   check('fiche de poste et besoin de formation (N6)', (await prisma.fichePoste.count({ where: { fonction: { startsWith: 'TEST — ' } } })) === 1 && (await prisma.besoinFormation.count({ where: { intitule: { startsWith: 'TEST — ' }, creeParId: { in: idsDemo } } })) === 1);
   check('plan de formation individuel : une session planifiée (besoin retenu), une suivie', (await prisma.sessionFormation.count({ where: { intitule: { startsWith: 'TEST — ' }, etat: 'PLANIFIEE', besoinId: { not: null }, agentId: { in: idsDemo } } })) === 1 && (await prisma.sessionFormation.count({ where: { intitule: { startsWith: 'TEST — ' }, etat: 'SUIVIE', agentId: { in: idsDemo } } })) === 1);
+  check('demandes de réunion (S1) : une en attente, une acceptée et utilisée (réunion créée par le demandeur)', (await prisma.demandeReunion.count({ where: { objet: { startsWith: 'TEST — ' }, etat: 'EN_ATTENTE', demandeurId: { in: idsDemo } } })) === 1 && (await prisma.demandeReunion.count({ where: { objet: { startsWith: 'TEST — ' }, etat: 'UTILISEE', reunionId: { not: null } } })) === 1);
   const modeleDemo = await prisma.modele.findUnique({ where: { code: 'TEST_DEMONSTRATION' }, include: { versions: true, affectations: { where: { fin: null } } } });
   const analystes = await prisma.affectationModelisation.count({ where: { role: 'ANALYSTE', fin: null, userId: { in: idsDemo } } });
   check(

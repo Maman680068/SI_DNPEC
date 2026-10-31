@@ -2,14 +2,16 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Plus } from 'lucide-react';
-import { getDecisionsASuivre, getMeetings } from '../../../lib/api/meetings';
-import type { DecisionsASuivre as Decisions, Meeting } from '../../../lib/meetings/types';
+import { getDecisionsASuivre, getDemandeReunion, getDemandesReunion, getMeetings } from '../../../lib/api/meetings';
+import type { DecisionsASuivre as Decisions, DemandeReunion, DemandesReunion, Meeting } from '../../../lib/meetings/types';
 import { useAuth } from '../../../lib/auth/AuthProvider';
 import { LigneReunion } from '../../../components/meetings/MeetingCard';
 import { CreateMeetingModal } from '../../../components/meetings/CreateMeetingModal';
 import { MeetingDetailDrawer } from '../../../components/meetings/MeetingDetailDrawer';
 import { SemaineReunions } from '../../../components/meetings/SemaineReunions';
 import { DecisionsASuivre } from '../../../components/meetings/DecisionsASuivre';
+import { DemanderReunionModal, FenetreDemande, PanneauDemandes } from '../../../components/meetings/DemandesReunion';
+import { messageErreur, useToast } from '../../../components/ui/Toast';
 import { BTN_PRINCIPAL, EnTetePage, EtatVide, FiltreSelect, Filtres } from '../../../components/ui/Charte';
 import { SquelettePage } from '../../../components/ui/Squelette';
 import { Chargement, ErreurChargement, messageChargement } from '../../../components/ui/ErreurChargement';
@@ -30,6 +32,12 @@ export default function ReunionsPage() {
   const [decisions, setDecisions] = useState<Decisions | null>(null);
   const [erreurDecisions, setErreurDecisions] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  // S1 — droits (créer directement / demander) et demandes, calculés par l'API.
+  const [demandes, setDemandes] = useState<DemandesReunion | null>(null);
+  const [demander, setDemander] = useState(false);
+  const [demandeOuverte, setDemandeOuverte] = useState<DemandeReunion | null>(null);
+  const [demandeACreer, setDemandeACreer] = useState<DemandeReunion | null>(null);
+  const toast = useToast();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [lundi, setLundi] = useState(semaineCourante);
   const [filtre, setFiltre] = useState<Filtre>('toutes');
@@ -44,10 +52,29 @@ export default function ReunionsPage() {
       .catch((err) => setErreurDecisions(messageChargement(err)));
   }, []);
 
+  const loadDemandes = useCallback(() => {
+    getDemandesReunion()
+      .then(setDemandes)
+      .catch((err) => setErreurChargement(messageChargement(err)));
+  }, []);
+
   useEffect(() => {
     loadMeetings();
     loadDecisions();
-  }, [loadMeetings, loadDecisions]);
+    loadDemandes();
+  }, [loadMeetings, loadDecisions, loadDemandes]);
+
+  // Liens des notifications : « ?demande=<id> » (examiner, voir le motif), « &creer=1 » (créer la réunion
+  // validée), « ?onglet=demandes » (À traiter du tableau de bord).
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search);
+    const id = q.get('demande');
+    if (id)
+      getDemandeReunion(id)
+        .then((d) => (q.get('creer') === '1' && d.droits.creerReunion ? setDemandeACreer(d) : setDemandeOuverte(d)))
+        .catch((e) => toast.erreur('Demande de réunion', messageErreur(e)));
+    if (q.get('onglet') === 'demandes') setTimeout(() => document.getElementById('demandes-reunion')?.scrollIntoView({ block: 'start' }), 300);
+  }, []);
 
   // Ouvre directement une réunion depuis un lien de notification
   // ("/reunions?id=<id>") — lu une seule fois au montage, comme le fait
@@ -57,8 +84,15 @@ export default function ReunionsPage() {
     if (id) setSelectedId(id);
   }, []);
 
-  // Menu « Créer » de la barre du haut (« /reunions?nouvelle=1 »).
-  useDemandeCreation('reunion', () => setShowCreateModal(true));
+  // Menu « Créer » de la barre du haut (« /reunions?nouvelle=1 ») : créer, ou demander selon les droits.
+  const [creationDemandee, setCreationDemandee] = useState(false);
+  useDemandeCreation('reunion', () => setCreationDemandee(true));
+  useEffect(() => {
+    if (!creationDemandee || !demandes) return;
+    setCreationDemandee(false);
+    if (demandes.droits.creerReunion) setShowCreateModal(true);
+    else if (demandes.droits.demanderReunion) setDemander(true);
+  }, [creationDemandee, demandes]);
 
   const selected = meetings?.find((m) => m.id === selectedId) ?? null;
 
@@ -76,18 +110,25 @@ export default function ReunionsPage() {
   function handleCreated(meeting: Meeting) {
     setMeetings((prev) => (prev ? [meeting, ...prev] : [meeting]));
     setShowCreateModal(false);
+    setDemandeACreer(null);
+    loadDemandes();
   }
 
   function handleUpdated(updated: Meeting) {
     setMeetings((prev) => prev?.map((m) => (m.id === updated.id ? updated : m)) ?? prev);
   }
 
-  const boutonNouvelle = (
+  const boutonNouvelle = demandes?.droits.creerReunion ? (
     <button type="button" className={BTN_PRINCIPAL} onClick={() => setShowCreateModal(true)}>
       <Plus aria-hidden size={17} />
       Nouvelle réunion
     </button>
-  );
+  ) : demandes?.droits.demanderReunion ? (
+    <button type="button" className={BTN_PRINCIPAL} onClick={() => setDemander(true)}>
+      <Plus aria-hidden size={17} />
+      Demander une réunion
+    </button>
+  ) : null;
 
   return (
     <div>
@@ -98,6 +139,7 @@ export default function ReunionsPage() {
         erreurChargement ? <Chargement erreur={erreurChargement} /> : <SquelettePage />
       ) : (
         <>
+          {demandes && <PanneauDemandes aDecider={demandes.aDecider} miennes={demandes.miennes} onOuvrir={(d) => (d.droits.creerReunion ? setDemandeACreer(d) : setDemandeOuverte(d))} />}
           <SemaineReunions meetings={meetings} lundi={lundi} onLundi={setLundi} onOuvrir={setSelectedId} />
           <div className="mt-4 grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_330px]">
             <section aria-label={periode === 'avenir' ? 'À venir' : 'Réunions passées'} data-testid="liste-reunions" className="rounded-xl border border-line bg-surface">
@@ -144,6 +186,27 @@ export default function ReunionsPage() {
       )}
 
       {showCreateModal && <CreateMeetingModal onClose={() => setShowCreateModal(false)} onCreated={handleCreated} />}
+      {demandeACreer && <CreateMeetingModal demande={demandeACreer} onClose={() => setDemandeACreer(null)} onCreated={handleCreated} />}
+      {demander && (
+        <DemanderReunionModal
+          onClose={() => setDemander(false)}
+          onFait={() => {
+            setDemander(false);
+            loadDemandes();
+          }}
+        />
+      )}
+      {demandeOuverte && (
+        <FenetreDemande
+          demande={demandeOuverte}
+          onClose={() => setDemandeOuverte(null)}
+          onChange={loadDemandes}
+          onCreer={(d) => {
+            setDemandeOuverte(null);
+            setDemandeACreer(d);
+          }}
+        />
+      )}
       {selected && (
         <MeetingDetailDrawer
           meeting={selected}

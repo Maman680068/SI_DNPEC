@@ -30,6 +30,8 @@ export interface Meeting {
   participants: MeetingParticipant[];
   // D9 — salle réservée avec la réunion (statut : éviction pour priorité, refus...).
   reservation: { id: string; statut: 'EN_ATTENTE' | 'CONFIRMEE' | 'REFUSEE' | 'ANNULEE' | 'ANNULEE_PRIORITE'; ressource: { id: string; nom: string } } | null;
+  // S1 — réunion issue d'une demande validée (« Validée par … »).
+  demandeReunion?: { id: string; decidePar: { firstName: string; lastName: string } | null } | null;
 }
 
 export interface CreateMeetingInput {
@@ -39,6 +41,8 @@ export interface CreateMeetingInput {
   startAt: string;
   endAt?: string;
   participantIds: string[];
+  /** S1 — création avec une demande acceptée (date et participants imposés par l’API). */
+  demandeReunionId?: string;
   ressourceId?: string;
   prioritaire?: boolean;
 }
@@ -103,4 +107,53 @@ export interface DecisionASuivre extends Omit<Decision, 'droits'> {
 export interface DecisionsASuivre {
   enRetard: number;
   decisions: DecisionASuivre[];
+}
+
+// ---- Demandes de réunion (S1) ----------------------------------------------
+
+export type EtatDemandeReunion = 'EN_ATTENTE' | 'ACCEPTEE' | 'REFUSEE' | 'UTILISEE' | 'EXPIREE';
+export const LIBELLE_ETAT_DEMANDE: Record<EtatDemandeReunion, string> = {
+  EN_ATTENTE: 'En attente de décision',
+  ACCEPTEE: 'Acceptée : à créer',
+  REFUSEE: 'Refusée',
+  UTILISEE: 'Réunion créée',
+  EXPIREE: 'Expirée',
+};
+export const LIBELLE_ETAPE_DEMANDE: Record<string, string> = {
+  DEMANDEE: 'Demandée',
+  TRANSMISE: 'Transmise',
+  ACCEPTEE: 'Acceptée',
+  REFUSEE: 'Refusée',
+  REUNION_CREEE: 'Réunion créée',
+};
+export interface DemandeReunion {
+  id: string;
+  objet: string;
+  explication: string;
+  debut: string;
+  fin: string;
+  demandeur: { id: string; nom: string };
+  participants: { id: string; nom: string }[];
+  unites: { id: string; code: string; libelle: string }[];
+  etat: EtatDemandeReunion;
+  decideurs: string[];
+  decidePar: string | null;
+  decideeLe: string | null;
+  motifRefus: string | null;
+  reunionId: string | null;
+  etapes: { action: string; par: string | null; vers: string[]; motif: string | null; le: string }[];
+  droits: { accepter: boolean; refuser: boolean; transmettre: boolean; creerReunion: boolean };
+}
+export interface DemandesReunion {
+  miennes: DemandeReunion[];
+  aDecider: DemandeReunion[];
+  droits: DroitsReunions;
+}
+export interface DroitsReunions {
+  creerReunion: boolean;
+  demanderReunion: boolean;
+}
+export interface ParticipantsPossibles {
+  personnes: { id: string; nom: string; fonction: string | null; unite: string | null }[];
+  unites: { id: string; code: string; libelle: string; type: string; niveau: number; membres: string[] }[];
 }

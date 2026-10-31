@@ -2,33 +2,40 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '../../lib/auth/AuthProvider';
-import { getDirectory } from '../../lib/api/org';
-import { createMeeting } from '../../lib/api/meetings';
+import { createMeeting, getParticipantsPossibles } from '../../lib/api/meetings';
 import { getDisponibilite } from '../../lib/api/logistique';
 import type { Disponibilite } from '../../lib/logistique/types';
-import type { Meeting } from '../../lib/meetings/types';
-import { ChampDate, FenetreFormulaire, Grille2, Liste, Saisie, SelecteurPersonnes, ZoneTexte, type Personne } from '../ui/Formulaire';
+import type { DemandeReunion, Meeting, ParticipantsPossibles } from '../../lib/meetings/types';
+import { ChampDate, FenetreFormulaire, Grille2, Liste, Saisie, ZoneTexte } from '../ui/Formulaire';
+import { SelecteurParticipants } from './SelecteurParticipants';
 import { messageErreur, useToast } from '../ui/Toast';
+
+const deuxChiffres = (n: number) => String(n).padStart(2, '0');
+const jourDe = (d: Date) => `${d.getFullYear()}-${deuxChiffres(d.getMonth() + 1)}-${deuxChiffres(d.getDate())}`;
+const heureDe = (d: Date) => `${deuxChiffres(d.getHours())}:${deuxChiffres(d.getMinutes())}`;
 
 /** « 2026-11-12 » + « 10:30 » → date locale ; null si incomplet. */
 const instant = (jour: string, heure: string) => (jour && /^\d{2}:\d{2}$/.test(heure) ? new Date(`${jour}T${heure}`) : null);
 
 /**
  * « Nouvelle réunion » (refonte, étape 9) : titre, date, heures de début et de fin, salle proposée par
- * l'API pour le créneau (ou lieu libre), ordre du jour, participants (annuaire du personnel actif ;
- * l'API refuse ce qui n'est pas permis).
+ * l'API pour le créneau (ou lieu libre), ordre du jour, participants (unités entières et personnes,
+ * sans les stagiaires). `demande` (S1) : réunion d'une demande acceptée — date, heures et participants
+ * validés par le chef, verrouillés ; le demandeur choisit la salle et l'ordre du jour.
  */
-export function CreateMeetingModal({ onClose, onCreated }: { onClose: () => void; onCreated: (meeting: Meeting) => void }) {
+export function CreateMeetingModal({ onClose, onCreated, demande }: { onClose: () => void; onCreated: (meeting: Meeting) => void; demande?: DemandeReunion | null }) {
   const { user: currentUser } = useAuth();
   const toast = useToast();
-  const [title, setTitle] = useState('');
+  const verrou = !!demande;
+  const [title, setTitle] = useState(demande?.objet ?? '');
   const [agenda, setAgenda] = useState('');
   const [location, setLocation] = useState('');
-  const [jour, setJour] = useState('');
-  const [heureDebut, setHeureDebut] = useState('');
-  const [heureFin, setHeureFin] = useState('');
-  const [personnes, setPersonnes] = useState<Personne[]>([]);
-  const [participantIds, setParticipantIds] = useState<string[]>([]);
+  const [jour, setJour] = useState(demande ? jourDe(new Date(demande.debut)) : '');
+  const [heureDebut, setHeureDebut] = useState(demande ? heureDe(new Date(demande.debut)) : '');
+  const [heureFin, setHeureFin] = useState(demande ? heureDe(new Date(demande.fin)) : '');
+  const [possibles, setPossibles] = useState<ParticipantsPossibles | null>(null);
+  const [participantIds, setParticipantIds] = useState<string[]>(demande ? demande.participants.map((p) => p.id) : []);
+  const [uniteIds, setUniteIds] = useState<string[]>(demande ? demande.unites.map((u) => u.id) : []);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // D9 — salles proposées par l'API pour le créneau : libres, ou occupées
@@ -40,9 +47,9 @@ export function CreateMeetingModal({ onClose, onCreated }: { onClose: () => void
   const fin = instant(jour, heureFin);
 
   useEffect(() => {
-    getDirectory()
-      .then((l) => setPersonnes(l.filter((u) => u.id !== currentUser?.id).map((u) => ({ id: u.id, nom: `${u.firstName} ${u.lastName}`, detail: u.jobTitle }))))
-      .catch(() => setPersonnes([]));
+    getParticipantsPossibles()
+      .then(setPossibles)
+      .catch(() => setPossibles({ personnes: [], unites: [] }));
   }, [currentUser?.id]);
 
   const cleCreneau = debut && fin && fin > debut ? `${debut.toISOString()}|${fin.toISOString()}` : '';
@@ -80,6 +87,7 @@ export function CreateMeetingModal({ onClose, onCreated }: { onClose: () => void
         startAt: debut.toISOString(),
         endAt: fin ? fin.toISOString() : undefined,
         participantIds,
+        ...(demande ? { demandeReunionId: demande.id } : {}),
         ...(salle ? { ressourceId: salle.id, prioritaire: salle.libre ? undefined : true } : {}),
       });
       const n = participantIds.length;
@@ -99,6 +107,7 @@ export function CreateMeetingModal({ onClose, onCreated }: { onClose: () => void
   return (
     <FenetreFormulaire
       titre="Nouvelle réunion"
+      sousTitre={demande ? <span data-testid="demande-validee">Demande validée par {demande.decidePar ?? 'votre chef'} : date et participants verrouillés.</span> : undefined}
       onClose={onClose}
       onSubmit={handleSubmit}
       libelleValider="Créer la réunion"
@@ -113,11 +122,22 @@ export function CreateMeetingModal({ onClose, onCreated }: { onClose: () => void
     >
       <Saisie id="reunion-titre" label="Titre" value={title} onChange={setTitle} required maxLength={300} messageObligatoire="Donnez un titre à la réunion." />
       <Grille2>
-        <ChampDate id="reunion-date" label="Date" value={jour} onChange={setJour} required messageObligatoire="Choisissez la date de la réunion." />
-        <Grille2>
-          <Saisie id="reunion-debut" label="Début" type="time" value={heureDebut} onChange={setHeureDebut} required messageObligatoire="Indiquez l’heure de début." />
-          <Saisie id="reunion-fin" label="Fin" type="time" facultatif value={heureFin} onChange={setHeureFin} />
-        </Grille2>
+        {verrou ? (
+          <div className="mb-3.5" data-testid="date-verrouillee">
+            <p className="mb-1.5 text-[13px] font-semibold text-text">Date et heures validées</p>
+            <p className="rounded-[10px] border border-line bg-fond-doux px-3 py-2 text-[13px] text-text">
+              {new Date(demande!.debut).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}, {heureDebut} – {heureFin}
+            </p>
+          </div>
+        ) : (
+          <>
+            <ChampDate id="reunion-date" label="Date" value={jour} onChange={setJour} required messageObligatoire="Choisissez la date de la réunion." />
+            <Grille2>
+              <Saisie id="reunion-debut" label="Début" type="time" value={heureDebut} onChange={setHeureDebut} required messageObligatoire="Indiquez l’heure de début." />
+              <Saisie id="reunion-fin" label="Fin" type="time" facultatif value={heureFin} onChange={setHeureFin} />
+            </Grille2>
+          </>
+        )}
       </Grille2>
       <Liste
         id="reunion-salle"
@@ -138,7 +158,7 @@ export function CreateMeetingModal({ onClose, onCreated }: { onClose: () => void
       )}
       {!salle && <Saisie id="reunion-lieu" label="Lieu" facultatif value={location} onChange={setLocation} placeholder="Bureau, salle extérieure, visioconférence…" />}
       <ZoneTexte id="reunion-ordre" label="Ordre du jour" facultatif value={agenda} onChange={setAgenda} placeholder="Un point par ligne…" lignes={3} />
-      <SelecteurPersonnes id="reunion-participants" label="Participants" facultatif options={personnes} valeurs={participantIds} onChange={setParticipantIds} placeholder="Rechercher un participant…" />
+      <SelecteurParticipants possibles={possibles} valeurs={participantIds} onChange={setParticipantIds} unitesChoisies={uniteIds} onUnites={setUniteIds} verrouille={verrou} />
     </FenetreFormulaire>
   );
 }

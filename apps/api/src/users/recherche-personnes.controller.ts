@@ -4,7 +4,7 @@ import { OuvertAuxStagiaires } from '../common/decorators/ouvert-aux-stagiaires.
 import { AuthenticatedUser } from '../common/types/auth-user.type';
 import { RecherchePersonnesService } from './recherche-personnes.service';
 
-/** Recherche de personnes de la messagerie (ouverte aux stagiaires, comme `/users/search`). */
+/** Recherche de personnes de la messagerie (ouverte aux stagiaires, comme la route `users/search`). */
 @Controller('api/v1/personnes')
 export class RecherchePersonnesController {
   constructor(private readonly recherche: RecherchePersonnesService) {}

@@ -208,6 +208,12 @@ fonctionnalité ajoute sa suite (`tests/e2e/api/`, `tests/e2e/ui/`) et sa ligne 
   service, essais `calcul.tentativesMax` / `calcul.delaiRelanceSecondes`). Exécution interne `POST
   api/v1/modeles/:id/executer` (analystes et responsables, version active, bornes réglées). En e2e, le service
   tourne derrière un relais de test (`tests/e2e/outils/relais_calcul.js` : endormi, coupé).
+- Réunions (S1, `docs/conception_S1_demandes_reunion.md`) : création directe réservée à `creeReunionDirectement`
+  (`meetings/createurs.ts` : chefs, DN, DNA, assistants, DRH) ; les autres passent par `DemandesReunionService`
+  (décideurs `chefsLesPlusProches`, intérim du décideur, transmission jusqu'au DN/DNA, décision unique par
+  mise à jour conditionnelle) ; `POST /meetings { demandeReunionId }` consomme l'autorisation dans la
+  transaction de création (date et participants validés imposés). Participants : `ParticipantsReunionService`
+  (unités du socle et leurs membres, sans stagiaires). Retour arrière `demandes_reunion_down.sql` (phase 39q).
 - Stages (`stages/`, D6) : job quotidien `StagesRotationService.executer(now)` (appelable avec une
   date simulée) ; attestation finale = acte du Courrier (`ActesService`).
   Réglages (capacités, modèle d'attestation) : DRH **et** administrateur système

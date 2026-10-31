@@ -39,6 +39,7 @@ const demo = { email: { endsWith: `@${D.DOMAINE}` } };
     fichesPosteTEST: await prisma.fichePoste.count({ where: { fonction: { startsWith: 'TEST — ' } } }),
     besoinsFormationTEST: await prisma.besoinFormation.count({ where: { intitule: { startsWith: 'TEST — ' } } }),
     sessionsFormationTEST: await prisma.sessionFormation.count({ where: { intitule: { startsWith: 'TEST — ' } } }),
+    demandesReunionTEST: await prisma.demandeReunion.count({ where: { objet: { startsWith: 'TEST — ' } } }),
     actesNonNumérotés: await prisma.acteCourrier.count({ where: { registre: { code: 'TEST-DEP' }, numero: null } }),
     modèlesTEST: await prisma.modele.count({ where: { code: 'TEST_DEMONSTRATION' } }),
     rôlesModélisation: await prisma.affectationModelisation.count({ where: { userId: { in: (await prisma.user.findMany({ where: demo, select: { id: true } })).map((x) => x.id) } } }),

@@ -5,6 +5,7 @@ import { AuthenticatedUser } from '../common/types/auth-user.type';
 import { TasksService } from '../tasks/tasks.service';
 import { LeaveRequestsService } from '../leaves/leave-requests/leave-requests.service';
 import { MeetingsService } from '../meetings/meetings.service';
+import { DemandesReunionService } from '../meetings/demandes-reunion.service';
 import { InstructionsService } from '../instructions/instructions.service';
 import { MessagesService } from '../communication/messages/messages.service';
 import { CourrierTableauDeBordService } from '../courrier/tableau-de-bord.service';
@@ -50,6 +51,7 @@ export class NavigationService {
     private readonly reservations: ReservationsService,
     private readonly stages: StagesService,
     private readonly supervision: SupervisionService,
+    private readonly demandesReunion: DemandesReunionService,
   ) {}
 
   async navigation(actor: AuthenticatedUser, maintenant = new Date()) {
@@ -71,7 +73,7 @@ export class NavigationService {
       };
     }
 
-    const [instructions, reunions, enAttente, courrier, logistique, reservationsAValider, stages] = await Promise.all([
+    const [instructions, reunionsProches, enAttente, courrier, logistique, reservationsAValider, stages, demandesReunion] = await Promise.all([
       this.instructions.liste(actor),
       this.prisma.meeting.count({
         where: { AND: [this.meetings.getMeetingVisibilityWhere(actor), { status: MeetingStatus.PLANIFIEE, startAt: { gte: maintenant, lte: new Date(maintenant.getTime() + 7 * J) } }] },
@@ -82,7 +84,10 @@ export class NavigationService {
       this.reservations.aValiderCount(actor),
       // Même décompte que l'écran Stagiaires (périodes à accepter, évaluations, rapports…).
       this.stages.list(actor).then((l) => l.stages.reduce((n, s) => n + s.aTraiter, 0)),
+      // S1 — demandes de réunion adressées à la personne (ou au titulaire de son intérim).
+      this.demandesReunion.aDeciderCount(actor),
     ]);
+    const reunions = reunionsProches + demandesReunion;
 
     const instructionsRecues = instructions.recues.filter((i) => INSTRUCTIONS_OUVERTES.includes(i.statut)).length;
     const avis = enAttente.filter((r) => r.droits.peutDonnerAvis).length;
@@ -90,6 +95,7 @@ export class NavigationService {
     ajouter('conges-avis', 'Avis de congé à donner', avis, '/leaves?onglet=validation');
     ajouter('conges-decision', 'Congés à décider', decisions, '/leaves?onglet=validation');
     ajouter('instructions', 'Instructions reçues à traiter', instructionsRecues, '/instructions');
+    ajouter('demandes-reunion', 'Demandes de réunion à décider', demandesReunion, '/reunions?onglet=demandes');
     ajouter('courrier-imputer', 'Courrier à imputer', courrier.aImputer, '/courrier?rubrique=aImputer');
     ajouter('courrier-traiter', 'Courrier à traiter', courrier.aTraiter, '/courrier?rubrique=aTraiter');
     ajouter('courrier-viser', 'Actes à viser', courrier.aViser, '/courrier?rubrique=aViser');

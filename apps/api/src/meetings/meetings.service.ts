@@ -1,6 +1,6 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { AuditAction, MeetingResponseStatus, MeetingStatus, NotificationType, Prisma, SystemRole, UserStatus } from '@prisma/client';
+import { AuditAction, EtatDemandeReunion, MeetingResponseStatus, MeetingStatus, NotificationType, Prisma, SystemRole, UserStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../common/audit/audit.service';
 import { CascadeService } from '../org/cascade/cascade.service';
@@ -11,6 +11,7 @@ import { RespondMeetingDto } from './dto/respond-meeting.dto';
 import { CancelMeetingDto } from './dto/cancel-meeting.dto';
 import { UpdateMeetingDto } from './dto/update-meeting.dto';
 import { ReservationCreee, ReservationsService } from '../logistique/reservations.service';
+import { creeReunionDirectement } from './createurs';
 
 // Délai avant le début d'une réunion auquel le rappel planifié se déclenche
 // (voir sendDueReminders) — constante simple, pas de variable d'environnement
@@ -38,16 +39,17 @@ const MEETING_SELECT = {
   // D9 — salle réservée avec la réunion (statut visible : une éviction pour
   // priorité ou un refus laisse la réunion sans salle).
   reservation: { select: { id: true, statut: true, ressource: { select: { id: true, nom: true } } } },
+  // S1 — réunion issue d'une demande validée : « Validée par … ».
+  demandeReunion: { select: { id: true, decidePar: { select: { firstName: true, lastName: true } } } },
 } satisfies Prisma.MeetingSelect;
 
 type MeetingWithParticipants = Prisma.MeetingGetPayload<{ select: typeof MEETING_SELECT }>;
 
 /**
- * Réunions (RF-CPL-03, §4.6) — calendrier partagé. Créable par n'importe qui
- * pour n'importe qui, comme la messagerie (RF-COM-01) : une invitation est
- * opt-in par invité (accepter/décliner), pas une diffusion imposée comme une
- * annonce — donc aucune restriction de rôle à la création, contrairement à
- * CAN_ANNOUNCE_ROLES côté annonces.
+ * Réunions (RF-CPL-03, §4.6) — calendrier partagé. Création directe : chefs, DN, DNA, assistants de
+ * direction, DRH (`createurs.ts`) ; un chargé d'études (ou l'administrateur système) demande la réunion à
+ * son chef (`DemandesReunionService`) et ne la crée qu'avec une demande acceptée, à usage unique, dont la
+ * date et les participants validés s'imposent (S1).
  */
 @Injectable()
 export class MeetingsService {
@@ -86,6 +88,19 @@ export class MeetingsService {
   }
 
   async create(actor: AuthenticatedUser, dto: CreateMeetingDto): Promise<MeetingWithParticipants> {
+    // S1 — demande acceptée : autorisation à usage unique du demandeur, date et participants verrouillés.
+    let demandeId: string | null = null;
+    if (dto.demandeReunionId) {
+      const d = await this.prisma.demandeReunion.findUnique({ where: { id: dto.demandeReunionId } });
+      if (!d) throw new NotFoundException('Demande de réunion introuvable');
+      if (d.demandeurId !== actor.id || actor.interimForId) throw new ForbiddenException('Seul le demandeur crée la réunion de sa demande.');
+      if (d.etat !== EtatDemandeReunion.ACCEPTEE || d.reunionId) throw new ConflictException('Cette autorisation a déjà servi ou la demande n’est pas acceptée.');
+      if (d.debut.getTime() <= Date.now()) throw new ConflictException('L’autorisation a expiré : la date validée est passée.');
+      demandeId = d.id;
+      dto = { ...dto, startAt: d.debut.toISOString(), endAt: d.fin.toISOString(), participantIds: d.participantIds };
+    } else if (!creeReunionDirectement(actor)) {
+      throw new ForbiddenException('Demandez la réunion à votre chef : « Demander une réunion ».');
+    }
     const startAt = new Date(dto.startAt);
     const endAt = dto.endAt ? new Date(dto.endAt) : undefined;
     if (endAt && endAt <= startAt) {
@@ -123,6 +138,12 @@ export class MeetingsService {
           },
           select: { id: true },
         });
+        if (demandeId) {
+          // Consommation conditionnelle : une seule réunion par autorisation, même en cas d'envoi double.
+          const r = await tx.demandeReunion.updateMany({ where: { id: demandeId, etat: EtatDemandeReunion.ACCEPTEE, reunionId: null }, data: { etat: EtatDemandeReunion.UTILISEE, reunionId: created.id } });
+          if (!r.count) throw new ConflictException('Cette autorisation a déjà servi.');
+          await tx.etapeDemandeReunion.create({ data: { demandeId, action: 'REUNION_CREEE', parId: actor.id, versIds: [] } });
+        }
         let res: ReservationCreee | null = null;
         if (dto.ressourceId) {
           res = await this.reservations.creerDansTransaction(tx, actor, {
