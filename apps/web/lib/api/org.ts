@@ -147,3 +147,50 @@ export interface PersonneTrouvee {
 export function rechercherPersonnes(q: string): Promise<{ recents: PersonneTrouvee[]; personnes: PersonneTrouvee[] }> {
   return apiFetch(`/api/v1/personnes/recherche?q=${encodeURIComponent(q.trim())}`);
 }
+
+/** Annuaire repensé (S4, api/v1/annuaire) : personnes, unités, état du jour, résultats de recherche. */
+export type EtatDuJour = 'EN_CONGE' | 'EN_MISSION' | null;
+export interface PersonneAnnuaireV1 {
+  id: string;
+  prenom: string;
+  nom: string;
+  fonction: string;
+  section: string | null;
+  sigle: string | null;
+  bloc: string;
+  badge: string | null;
+  etat: EtatDuJour;
+  supplee: string | null;
+}
+export interface UniteAnnuaire {
+  id: string;
+  sigle: string;
+  libelle: string;
+  type: string;
+  chef: string | null;
+  nombre: number;
+  membres: string[];
+}
+export interface Annuaire {
+  disponibles: number;
+  total: number;
+  personnes: PersonneAnnuaireV1[];
+  unites: UniteAnnuaire[];
+  resultats: string[] | null;
+}
+export interface FicheAnnuaire {
+  id: string;
+  prenom: string;
+  nom: string;
+  fonction: string;
+  unite: string;
+  rendCompteA: string[];
+  suppleant: string | null;
+  supplee: string | null;
+  etat: EtatDuJour;
+  equipe: { id: string; nom: string }[];
+  peutEcrire: boolean;
+  peutAssigner: boolean;
+}
+export const getAnnuaire = (q = '') => apiFetch<Annuaire>(`/api/v1/annuaire?q=${encodeURIComponent(q.trim())}`);
+export const getFicheAnnuaire = (id: string) => apiFetch<FicheAnnuaire>(`/api/v1/annuaire/${encodeURIComponent(id)}`);

@@ -1,5 +1,5 @@
-// Refonte de l'interface (étape 8) — Annuaire (cartes, arbre des unités, filtre Fonction, vue Liste,
-// bouton Message (aucune adresse email exposée, comme avant), fiche en fenêtre deux colonnes) et Boîte à suggestions (dépôt, fenêtre de
+// Refonte de l'interface (étape 8, annuaire repensé S4) — Annuaire (vue « Par unité » : blocs, chef en tête,
+// sigles, fiche à droite ; vue « Liste » ; recherche sans accents ; bouton Message, aucune adresse email) et Boîte à suggestions (dépôt, fenêtre de
 // décision de la Direction, lecture seule pour l'auteur, filtres), bureau 1440 et téléphone 390.
 // Mêmes droits qu'avant : l'agent ne voit pas la boîte de réception, n'assigne pas de tâche.
 // Finitions (étape 9) : filtres repliés derrière « Filtres (N) » sur téléphone, squelette de chargement,
@@ -34,61 +34,66 @@ const attendre = (p, fn, arg) => p.waitForFunction(fn, arg, { timeout: 8000 }).t
     if (q !== p) await q.context().close();
   }
 
-  console.log('— Annuaire (agent, bureau)');
+  console.log('— Annuaire (agent, bureau) : vue « Par unité »');
+  const api = (await call('agent1', 'GET', '/api/v1/annuaire')).body;
   // Squelette pendant le chargement (réponse de l'annuaire retardée).
-  await p.route('**/users/directory', async (r) => { await new Promise((x) => setTimeout(x, 800)); await r.continue(); });
+  await p.route(/\/api\/v1\/annuaire\?q=$/, async (r) => { await new Promise((x) => setTimeout(x, 800)); await r.continue(); });
   await p.goto(`${WEB}/annuaire`);
   await p.getByRole('heading', { name: 'Annuaire', exact: true }).waitFor();
   check('chargement : squelette (pas de « Chargement… »)', (await p.locator('[data-testid=squelette]').count()) >= 1 && (await p.getByText('Chargement…').count()) === 0);
   await p.locator('[data-testid=personne-annuaire]').first().waitFor();
-  await p.unroute('**/users/directory');
-  check('en-tête : « N personnes · N divisions · N cellules »', (await p.getByText(/^\d+ personnes · \d+ divisions? · \d+ cellules?$/).count()) === 1);
-  check(`cartes : une par personne active (${annuaire.length})`, (await p.locator('[data-testid=personne-annuaire]').count()) === annuaire.length);
-  const arbre = p.getByRole('navigation', { name: 'Unités' });
-  check('arbre des unités avec compteurs (Direction, divisions, sections, cellules)', (await arbre.getByRole('button').count()) >= 4 && /Direction\s*\d+/.test(await arbre.innerText()));
-  await arbre.getByRole('button', { name: new RegExp(`^${dpe.name}`) }).click();
-  const nbDpe = annuaire.filter((x) => x.divisionId === ids.DPE).length;
-  check(`arbre : « ${dpe.name} » → ${nbDpe} cartes, chef affiché`, await attendre(p, (n) => document.querySelectorAll('[data-testid=personne-annuaire]').length === n, nbDpe) && (await p.getByText(`Chef : ${chefdpe.firstName} ${chefdpe.lastName}`).count()) === 1);
+  await p.unroute(/\/api\/v1\/annuaire\?q=$/);
+  check(`en-tête : « ${api.total} personnes · ${api.disponibles} disponibles aujourd’hui » (API)`, (await p.getByTestId('compteur-disponibles').innerText()).includes(`${api.disponibles} disponible`));
+  check('vue « Par unité » par défaut', (await p.getByRole('button', { name: 'Par unité' }).getAttribute('aria-pressed')) === 'true');
+  const vues = api.unites.filter((u) => u.nombre > 0);
+  check(`un bloc par unité non vide (${vues.length}), une carte par personne (${api.total})`, (await p.getByTestId('bloc-unite').count()) === vues.length && (await p.locator('[data-testid=personne-annuaire]').count()) === api.total);
+  const sigles = p.getByTestId('sigles-unites');
+  check('colonne des sigles : unités non vides seulement', (await sigles.getByRole('link').count()) === vues.length);
+  if (api.unites.some((u) => u.nombre === 0)) check('unités vides repliées sous « Unités sans agent (n) »', /Unités sans agent \(\d+\)/.test(await p.getByTestId('unites-vides').innerText()));
+  const bloc = p.locator('[data-testid=bloc-unite]', { hasText: dpe.name });
+  check('bloc DPE : sigle, chef, nombre d’agents ; chef en tête sur fond doré avec badge', /DPE/.test(await bloc.innerText()) && (await bloc.getByText(`Chef : ${chefdpe.firstName} ${chefdpe.lastName}`).count()) === 1 && (await bloc.locator('[data-testid=personne-annuaire]').first().getAttribute('data-chef')) === 'oui' && /Chef de division/.test(await bloc.locator('[data-testid=personne-annuaire]').first().innerText()));
   const carte = p.locator('[data-testid=personne-annuaire]', { hasText: `${chefdpe.firstName} ${chefdpe.lastName}` });
   check('carte : bouton « Message » vers la messagerie (nom accessible)', (await carte.getByRole('link', { name: `Envoyer un message à ${chefdpe.firstName} ${chefdpe.lastName}` }).getAttribute('href')) === `/communication?with=${chefdpe.id}`);
   check('carte : aucune adresse email (annuaire sans champ sensible, inchangé)', (await p.locator('main a[href^="mailto:"]').count()) === 0);
   await p.screenshot({ path: `${E.SHOTS}/u_annuaire_cartes_bureau.png` });
-  await p.getByLabel('Fonction', { exact: true }).selectOption({ index: 1 });
-  check('filtre Fonction : encadré (actif), cartes filtrées', (await p.locator('[data-testid=personne-annuaire]').count()) <= nbDpe);
-  await p.getByLabel('Fonction', { exact: true }).selectOption('');
+  await carte.getByRole('button', { name: `Voir la fiche de ${chefdpe.firstName} ${chefdpe.lastName}` }).click();
+  const fiche = p.getByTestId('fiche-annuaire');
+  await fiche.waitFor();
+  check('fiche à droite : unité complète, « rend compte à », équipe, bouton Message', /Rend compte à/.test(await fiche.innerText()) && /Équipe/.test(await fiche.innerText()) && (await fiche.getByTestId('fiche-message').count()) === 1 && (await p.getByTestId('fiche-annuaire-colonne').count()) === 1);
+  check('agent : pas d’« Assigner une tâche » (droit de l’API)', (await fiche.getByRole('button', { name: 'Assigner une tâche' }).count()) === 0);
+  await p.getByLabel('Rechercher un nom, une fonction, une unité ou un sigle').fill(chefdpe.lastName.toLowerCase());
+  await attendre(p, () => document.querySelectorAll('[data-testid=personne-annuaire]').length <= 3);
+  check('recherche à chaque lettre (sans majuscules) : cartes filtrées, nom en gras', (await p.locator('[data-testid=personne-annuaire]', { hasText: `${chefdpe.firstName} ${chefdpe.lastName}` }).count()) === 1 && (await carte.locator('b b').count()) >= 1);
+  await p.getByLabel('Rechercher un nom, une fonction, une unité ou un sigle').fill('');
   await p.getByRole('button', { name: 'Liste', exact: true }).click();
   await p.getByRole('table', { name: 'Annuaire' }).waitFor();
-  check('vue Liste : tableau (Personne, Fonction, Unité), même nombre de lignes', (await p.getByRole('columnheader', { name: 'Fonction' }).count()) === 1 && (await p.locator('[data-testid=personne-annuaire]').count()) === nbDpe);
-  check('bascule : « Liste » pressé', (await p.getByRole('button', { name: 'Liste', exact: true }).getAttribute('aria-pressed')) === 'true');
-  await p.locator('[data-testid=personne-annuaire]', { hasText: `${chefdpe.firstName} ${chefdpe.lastName}` }).click();
-  const fiche = p.locator('[data-testid=fiche-personne]');
-  await fiche.waitFor();
-  const ficheT = await fiche.innerText();
-  check('fiche en fenêtre : fonction, unité, « Envoyer un message », sans email', ficheT.includes('Fonction') && (await fiche.getByRole('button', { name: 'Envoyer un message' }).count()) === 1 && (await fiche.locator('a[href^="mailto:"]').count()) === 0);
-  check('agent : pas d’« Assigner une tâche » (inchangé)', (await fiche.getByRole('button', { name: 'Assigner une tâche' }).count()) === 0);
-  await fiche.getByRole('button', { name: 'Fermer', exact: true }).click();
-  await p.getByLabel('Rechercher un nom, un poste ou une unité').fill(`introuvable${S}`);
-  check('recherche sans résultat : état vide qui propose d’effacer les filtres', (await p.getByRole('button', { name: 'Effacer les filtres' }).count()) === 1);
+  check('vue « Liste » conservée : tableau (Personne, Fonction, Unité, Aujourd’hui), une ligne par personne', (await p.getByRole('columnheader', { name: 'Fonction' }).count()) === 1 && (await p.locator('[data-testid=personne-annuaire]').count()) === api.total);
+  await p.getByLabel('Rechercher un nom, une fonction, une unité ou un sigle').fill(`introuvable${S}`);
+  await attendre(p, () => !document.querySelector('[data-testid=personne-annuaire]'));
+  check('recherche sans résultat : état vide', (await p.getByText('Aucune personne ne correspond.').count()) === 1);
+  await p.context().close();
+
+  p = await loginPage(b, 'chefdpe', BUREAU);
+  await p.goto(`${WEB}/annuaire`);
+  const carteAgent = p.locator('[data-testid=personne-annuaire]', { hasText: 'AGENT1' }).first();
+  await carteAgent.waitFor();
+  await carteAgent.getByRole('button').first().click();
+  await p.getByTestId('fiche-annuaire').waitFor();
+  check('chef de division : « Assigner une tâche » sur un agent de sa division (droit de l’API)', (await p.getByTestId('fiche-annuaire').getByRole('button', { name: 'Assigner une tâche' }).count()) === 1);
   await p.context().close();
 
   console.log('— Annuaire (téléphone)');
   p = await loginPage(b, 'agent1', TELEPHONE);
   await p.goto(`${WEB}/annuaire?q=${encodeURIComponent(chefdpe.lastName)}`);
   await p.locator('[data-testid=personne-annuaire]').first().waitFor();
-  check('?q= : recherche pré-remplie', (await p.getByLabel('Rechercher un nom, un poste ou une unité').inputValue()) === chefdpe.lastName);
-  check('téléphone : filtres repliés derrière « Filtres » (unité masquée, arbre masqué)', (await p.getByRole('button', { name: 'Filtres', exact: true }).isVisible()) && !(await p.getByLabel('Unité', { exact: true }).isVisible()) && !(await p.getByRole('navigation', { name: 'Unités' }).isVisible()));
-  await p.getByRole('button', { name: 'Filtres', exact: true }).click();
-  const panneau = p.getByRole('dialog', { name: 'Filtres' });
-  await panneau.getByLabel('Unité', { exact: true }).selectOption(`division:${ids.DPE}`);
-  await panneau.getByRole('button', { name: 'Appliquer' }).click();
-  check('téléphone : unité choisie dans le panneau → bouton « Filtres (1) »', (await p.getByRole('button', { name: 'Filtres (1)' }).count()) === 1);
-  await p.getByRole('button', { name: 'Filtres (1)' }).click();
-  await panneau.getByRole('button', { name: 'Effacer les filtres' }).click();
-  await panneau.getByRole('button', { name: 'Appliquer' }).click();
-  check('téléphone : « Effacer les filtres » → « Filtres » sans compteur', (await p.getByRole('button', { name: 'Filtres', exact: true }).count()) === 1);
-  check('téléphone : sans défilement horizontal (cartes)', await sansDefilementHorizontal(p));
+  check('?q= : recherche pré-remplie', (await p.getByLabel('Rechercher un nom, une fonction, une unité ou un sigle').inputValue()) === chefdpe.lastName);
+  check('téléphone : unités en boutons qui défilent (rangée horizontale)', await p.getByTestId('sigles-unites').evaluate((e) => getComputedStyle(e).overflowX === 'auto' && getComputedStyle(e).display === 'flex'));
+  check('téléphone : sans défilement horizontal de la page (cartes empilées)', await sansDefilementHorizontal(p));
   const boutonsVisibles = await p.locator('[data-testid=personne-annuaire]').first().getByRole('link').evaluateAll((els) => els.every((e) => e.getBoundingClientRect().right <= window.innerWidth));
-  check('téléphone : boutons Message et Email dans l’écran', boutonsVisibles);
+  check('téléphone : bouton Message dans l’écran', boutonsVisibles);
+  await p.locator('[data-testid=personne-annuaire]').first().getByRole('button').first().click();
+  await p.getByTestId('fiche-annuaire').waitFor();
+  check('téléphone : fiche en fenêtre', (await p.getByTestId('fiche-annuaire').isVisible()));
   await p.screenshot({ path: `${E.SHOTS}/u_annuaire_mobile.png` });
   await p.context().close();
 

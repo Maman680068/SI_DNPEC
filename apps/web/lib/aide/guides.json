@@ -32,7 +32,8 @@
             "Un lien reçu par e-mail ouvre directement la bonne page, même s’il faut d’abord se reconnecter.",
             "Après chaque action (tâche validée, courrier imputé, demande envoyée…), un message bref s’affiche en bas à droite ; « Annuler » y figure quand l’action peut être défaite. Une erreur s’affiche au même endroit, en rouge.",
             "Dans les formulaires, un champ oublié est signalé en rouge sous le champ avant tout envoi ; les dates se choisissent dans un calendrier (raccourcis « Aujourd’hui », « Dans 1 semaine », « Fin du mois ») et les fichiers se glissent dans la zone de dépôt.",
-            "Sur téléphone, les filtres d’une liste se trouvent derrière le bouton « Filtres »."
+            "Sur téléphone, les filtres d’une liste se trouvent derrière le bouton « Filtres ».",
+            "Annuaire (onglet « Échanges ») : vue « Par unité » — un bloc par unité avec son chef en tête (fond doré), les sigles à gauche pour y aller directement — ou vue « Liste ». Cherchez un nom, une fonction, une unité ou un sigle, sans vous soucier des accents. « En congé », « En mission » ou « Intérim » indiquent la situation du jour (jamais le motif) ; en haut, le nombre de personnes disponibles aujourd’hui. Cliquez une personne pour sa fiche : unité, à qui elle rend compte, son suppléant, son équipe, « Message »."
           ],
           "capture": "tableau-de-bord.png"
         },

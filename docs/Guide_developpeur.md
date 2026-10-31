@@ -330,7 +330,9 @@ fonctionnalité ajoute sa suite (`tests/e2e/api/`, `tests/e2e/ui/`) et sa ligne 
   `api/v1/rh/dossiers` (DRH : complétude, alertes, « Cat. / éch. », prise de service, ancienneté en années
   révolues et lien `attestation` vers l'attestation de travail préremplie — `documents-generes?onglet=attestations&
   nouvelle=1&agent=`, ouverte seulement si l'API la permet), `api/v1/rh/effectifs/export.xlsx`, `api/v1/instructions/export.xlsx`. L'annuaire
-  n'expose ni email ni téléphone.
+  n'expose ni email ni téléphone. Annuaire repensé (S4, `api/v1/annuaire`, `users/annuaire.*`) : blocs par unité,
+  état du jour calculé sans motif (congé approuvé, mission à l'acte signé, suppléance), recherche par le moteur
+  `common/recherche/texte.ts` (S2, aussi `api/v1/personnes/recherche` de la messagerie).
 - Formulaires (refonte, étape 9) : `components/ui/Formulaire.tsx` — `FenetreFormulaire` (large, deux colonnes
   avec `Grille2`, phrase `pied` à gauche, bouton principal à droite, validation dans la fenêtre avant l'envoi :
   `required` + `messageObligatoire`, règles propres par `valider` → message sous le champ ; refus de l'API en bas),
