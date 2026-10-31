@@ -47,14 +47,27 @@ export interface JourFerie {
   date: string;
   libelle: string;
   nature: 'FIXE' | 'RELIGIEUX';
+  weekEnd?: boolean;
+  passe?: boolean;
+  prochain?: boolean;
+}
+
+/** Congés approuvés à recalculer après un changement du calendrier (détail pour le DRH seul). */
+export interface CongesARecalculer {
+  nombre: number;
+  conges: { id: string; agent: string; debut: string; fin: string; joursEnregistres: number; joursRecalcules: number }[];
 }
 
 export interface CalendrierFeries {
   annee: number;
   jours: JourFerie[];
+  prochain: { date: string; libelle: string; dansJours: number } | null;
+  chiffres: { saisis: number; enSemaine: number; weekEnd: number };
   fixesManquantes: { date: string; libelle: string }[];
   religieusesSaisies: boolean;
-  droits: { gerer: boolean };
+  religieusesProposees: { cle: string; libelle: string; date: string | null; aVerifier: boolean; dejaSaisie: boolean }[];
+  aRecalculer: CongesARecalculer;
+  droits: { gerer: boolean; recalculer: boolean };
 }
 
 export type EtapeConge = 'AVIS_ATTENDU' | 'DECISION_ATTENDUE' | 'APPROUVEE' | 'REFUSEE' | 'ANNULEE';

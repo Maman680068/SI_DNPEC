@@ -113,6 +113,8 @@ fonctionnalité ajoute sa suite (`tests/e2e/api/`, `tests/e2e/ui/`) et sa ligne 
   lecture tracée) ; DN/DNA et reste de la cascade : « Absence — motif protégé ». Certificat médical :
   agent et DRH seuls. Jours fériés (`JoursFeriesService`, `api/v1/jours-feries`, admin + DRH) exclus
   des heures ouvrées et du décompte des jours de congé ; alerte annuelle (tâche `jours-feries`).
+  S6 : chiffres, propositions des fêtes religieuses (`dimancheDePaques`, `DATES_ESTIMEES`), ajout en lot, congés
+  approuvés à recalculer (`aRecalculer`, détail au DRH) et `POST api/v1/jours-feries/conges/:id/recalculer` (DRH).
   Avancement des tâches **calculé en base** (déclencheurs ; `PATCH /tasks/:id/progress` → 409).
   Stage : encadreur principal (DRH) et rapport (stagiaire dépose, encadreur valide/renvoie).
   Messages directs purgés après 3 ans (`ConservationService`, tâche `purge-messages`).

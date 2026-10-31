@@ -1,13 +1,13 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
-import { AuditAction, NotificationType, Prisma, RoleFonctionnel, SystemRole, UserStatus } from '@prisma/client';
+import { AuditAction, LeaveRequestStatus, NotificationType, Prisma, RoleFonctionnel, SystemRole, UserStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../common/audit/audit.service';
 import { AuthenticatedUser } from '../common/types/auth-user.type';
 import { NotificationsService } from '../communication/notifications/notifications.service';
 import { TachesPlanifieesService } from './taches-planifiees.service';
 import { detenteursWhere, estDrh } from './roles-fonctionnels';
-import { JourFerieDto, ModifierJourFerieDto } from './dto/jours-feries.dto';
+import { JourFerieDto, LotJoursFeriesDto, ModifierJourFerieDto } from './dto/jours-feries.dto';
 
 /** Fêtes fixes nationales de Guinée (mois-jour), reprises d'une année sur l'autre ; les fêtes
  * religieuses (Tabaski, fin du Ramadan, Maouloud, lundi de Pâques…) se saisissent chaque année. */
@@ -20,6 +20,42 @@ export const FETES_FIXES: [string, string][] = [
   ['12-25', 'Noël'],
 ];
 export const NATURES_JOUR_FERIE = ['FIXE', 'RELIGIEUX'] as const;
+
+/** Dimanche de Pâques (calendrier grégorien, algorithme dit « anonyme »), au format AAAA-MM-JJ. */
+export function dimancheDePaques(annee: number): string {
+  const a = annee % 19;
+  const b = Math.floor(annee / 100);
+  const c = annee % 100;
+  const d = Math.floor(b / 4);
+  const e = b % 4;
+  const f = Math.floor((b + 8) / 25);
+  const g = Math.floor((b - f + 1) / 3);
+  const h = (19 * a + b - d - g + 15) % 30;
+  const i = Math.floor(c / 4);
+  const k = c % 4;
+  const l = (32 + 2 * e + 2 * i - h - k) % 7;
+  const m = Math.floor((a + 11 * h + 22 * l) / 451);
+  const mois = Math.floor((h + l - 7 * m + 114) / 31);
+  const jourDuMois = ((h + l - 7 * m + 114) % 31) + 1;
+  return `${annee}-${String(mois).padStart(2, '0')}-${String(jourDuMois).padStart(2, '0')}`;
+}
+
+/**
+ * Fêtes religieuses à date variable : dates ESTIMÉES (calendrier lunaire, à vérifier avec le décret de
+ * l'année), table tenue dans le code. Année absente : champs vides, date à saisir.
+ */
+const FETES_RELIGIEUSES = [
+  { cle: 'LAILATOUL_QADR', libelle: 'Lailatoul Qadr' },
+  { cle: 'KORITE', libelle: 'Korité (fin du Ramadan)' },
+  { cle: 'LUNDI_PAQUES', libelle: 'Lundi de Pâques' },
+  { cle: 'TABASKI', libelle: 'Tabaski' },
+  { cle: 'LENDEMAIN_TABASKI', libelle: 'Lendemain de la Tabaski (si décrété)' },
+  { cle: 'MAOULOUD', libelle: 'Maouloud' },
+] as const;
+const DATES_ESTIMEES: Record<number, Partial<Record<(typeof FETES_RELIGIEUSES)[number]['cle'], string>>> = {
+  2026: { LAILATOUL_QADR: '03-17', KORITE: '03-20', TABASKI: '05-27', LENDEMAIN_TABASKI: '05-28', MAOULOUD: '08-25' },
+};
+const estWeekEnd = (d: Date) => d.getUTCDay() === 0 || d.getUTCDay() === 6;
 const J = 864e5;
 const jour = (d: string | Date) => (typeof d === 'string' ? d.slice(0, 10) : d.toISOString().slice(0, 10));
 const CLE_ALERTE = (annee: number) => `jours-feries.alerte.${annee}`;
@@ -70,20 +106,104 @@ export class JoursFeriesService {
 
   // ------------------------------------------------------------------ écran
 
-  async lister(actor: AuthenticatedUser, annee: number) {
+  async lister(actor: AuthenticatedUser, annee: number, maintenant = new Date()) {
     const jours = await this.prisma.jourFerie.findMany({
       where: { date: { gte: new Date(Date.UTC(annee, 0, 1)), lt: new Date(Date.UTC(annee + 1, 0, 1)) } },
       orderBy: { date: 'asc' },
       select: { id: true, date: true, libelle: true, nature: true },
     });
     const presentes = new Set(jours.map((j) => jour(j.date).slice(5)));
+    const aujourdhui = jour(maintenant);
+    // Prochain jour férié, tous calendriers confondus (pas seulement l'année affichée).
+    const prochain = await this.prisma.jourFerie.findFirst({ where: { date: { gte: new Date(`${aujourdhui}T00:00:00Z`) } }, orderBy: { date: 'asc' }, select: { id: true, date: true, libelle: true } });
+    const vus = jours.map((j) => ({ ...j, weekEnd: estWeekEnd(j.date), passe: jour(j.date) < aujourdhui, prochain: j.id === prochain?.id }));
+    const gerer = this.peutGerer(actor);
     return {
       annee,
-      jours,
+      jours: vus,
+      prochain: prochain ? { date: jour(prochain.date), libelle: prochain.libelle, dansJours: Math.round((new Date(`${jour(prochain.date)}T00:00:00Z`).getTime() - new Date(`${aujourdhui}T00:00:00Z`).getTime()) / J) } : null,
+      chiffres: { saisis: vus.length, enSemaine: vus.filter((j) => !j.weekEnd).length, weekEnd: vus.filter((j) => j.weekEnd).length },
       fixesManquantes: FETES_FIXES.filter(([md]) => !presentes.has(md)).map(([md, libelle]) => ({ date: `${annee}-${md}`, libelle })),
       religieusesSaisies: jours.some((j) => j.nature === 'RELIGIEUX'),
-      droits: { gerer: this.peutGerer(actor) },
+      // « Vérifier et ajouter » : fêtes religieuses proposées, lundi de Pâques calculé, les autres estimées.
+      religieusesProposees: gerer ? this.religieusesProposees(annee, jours) : [],
+      aRecalculer: await this.aRecalculer(actor, annee),
+      droits: { gerer, recalculer: estDrh(actor) },
     };
+  }
+
+  private religieusesProposees(annee: number, jours: { date: Date; libelle: string }[]) {
+    const pris = new Set(jours.map((j) => jour(j.date)));
+    const paques = new Date(`${dimancheDePaques(annee)}T00:00:00Z`);
+    const lundi = jour(new Date(paques.getTime() + J));
+    return FETES_RELIGIEUSES.map((f) => {
+      const md = DATES_ESTIMEES[annee]?.[f.cle];
+      const date = f.cle === 'LUNDI_PAQUES' ? lundi : md ? `${annee}-${md}` : null;
+      return { cle: f.cle, libelle: f.libelle, date, aVerifier: f.cle !== 'LUNDI_PAQUES', dejaSaisie: !!date && pris.has(date) };
+    });
+  }
+
+  /**
+   * Congés approuvés de l'année dont le nombre de jours enregistré (figé à l'approbation) ne correspond
+   * plus au calendrier des jours fériés — à recalculer congé par congé par le DRH. L'administrateur n'en
+   * voit que le nombre (aucun nom, aucune période) ; les autres rien.
+   */
+  async aRecalculer(actor: AuthenticatedUser, annee: number): Promise<{ nombre: number; conges: { id: string; agent: string; debut: string; fin: string; joursEnregistres: number; joursRecalcules: number }[] }> {
+    if (!this.peutGerer(actor)) return { nombre: 0, conges: [] };
+    const debut = new Date(Date.UTC(annee, 0, 1));
+    const fin = new Date(Date.UTC(annee + 1, 0, 1));
+    const conges = await this.prisma.leaveRequest.findMany({
+      where: { status: LeaveRequestStatus.APPROUVEE, startDate: { lt: fin }, endDate: { gte: debut } },
+      select: { id: true, startDate: true, endDate: true, daysCount: true, user: { select: { firstName: true, lastName: true } } },
+      orderBy: { startDate: 'asc' },
+    });
+    if (!conges.length) return { nombre: 0, conges: [] };
+    const feries = await this.ensemble(new Date(Math.min(...conges.map((c) => c.startDate.getTime()))), new Date(Math.max(...conges.map((c) => c.endDate.getTime()))));
+    const ecarts = conges
+      .map((c) => {
+        const calendaires = Math.floor((Date.UTC(c.endDate.getUTCFullYear(), c.endDate.getUTCMonth(), c.endDate.getUTCDate()) - Date.UTC(c.startDate.getUTCFullYear(), c.startDate.getUTCMonth(), c.startDate.getUTCDate())) / J) + 1;
+        let f = 0;
+        for (let k = 0; k < calendaires; k++) if (feries.has(jour(new Date(Date.UTC(c.startDate.getUTCFullYear(), c.startDate.getUTCMonth(), c.startDate.getUTCDate()) + k * J)))) f++;
+        return { c, recalcule: Math.max(0, calendaires - f) };
+      })
+      .filter((x) => x.recalcule !== x.c.daysCount);
+    if (!estDrh(actor)) return { nombre: ecarts.length, conges: [] };
+    return {
+      nombre: ecarts.length,
+      conges: ecarts.map(({ c, recalcule }) => ({ id: c.id, agent: `${c.user.firstName} ${c.user.lastName}`, debut: jour(c.startDate), fin: jour(c.endDate), joursEnregistres: c.daysCount, joursRecalcules: recalcule })),
+    };
+  }
+
+  /** Recalcul d'UN congé approuvé selon le calendrier actuel (DRH), solde ajusté d'autant, audité. */
+  async recalculerConge(actor: AuthenticatedUser, id: string) {
+    if (!estDrh(actor)) throw new ForbiddenException('Le recalcul d’un congé est fait par le DRH.');
+    const c = await this.prisma.leaveRequest.findUnique({ where: { id }, select: { id: true, status: true, userId: true, leaveTypeId: true, startDate: true, endDate: true, daysCount: true } });
+    if (!c) throw new NotFoundException('Congé introuvable');
+    if (c.status !== LeaveRequestStatus.APPROUVEE) throw new ConflictException('Seul un congé approuvé se recalcule.');
+    const { jours } = await this.joursDecomptes(c.startDate, c.endDate);
+    const apres = Math.max(0, jours);
+    if (apres === c.daysCount) throw new ConflictException('Ce congé est déjà à jour du calendrier.');
+    const ecart = apres - c.daysCount;
+    await this.prisma.$transaction(async (tx) => {
+      // Mise à jour conditionnelle : deux recalculs simultanés n'ajustent le solde qu'une fois.
+      const r = await tx.leaveRequest.updateMany({ where: { id, daysCount: c.daysCount, status: LeaveRequestStatus.APPROUVEE }, data: { daysCount: apres } });
+      if (!r.count) throw new ConflictException('Ce congé vient d’être modifié : rechargez la liste.');
+      await tx.leaveBalance.updateMany({ where: { userId: c.userId, leaveTypeId: c.leaveTypeId, year: c.startDate.getFullYear() }, data: { usedDays: { increment: ecart } } });
+    });
+    await this.audit.log({ actorId: actor.id, action: AuditAction.MODIFICATION, entityType: 'LeaveRequest', entityId: id, metadata: { event: 'recalcul_jours_feries', avant: c.daysCount, apres } });
+    return { id, joursAvant: c.daysCount, joursApres: apres };
+  }
+
+  /** « Vérifier et ajouter » : plusieurs jours fériés d'un coup (jamais en double). */
+  async ajouterLot(actor: AuthenticatedUser, dto: LotJoursFeriesDto) {
+    this.exigerGestion(actor);
+    let ajoutes = 0;
+    for (const j of dto.jours) {
+      const r = await this.prisma.jourFerie.createMany({ data: [{ date: new Date(`${jour(j.date)}T00:00:00Z`), libelle: j.libelle.trim(), nature: j.nature, creeParId: actor.id }], skipDuplicates: true });
+      ajoutes += r.count;
+    }
+    await this.audit.log({ actorId: actor.id, action: AuditAction.CREATION, entityType: 'JourFerie', entityId: String(dto.annee), metadata: { event: 'fetes_ajoutees_en_lot', ajoutes } });
+    return { ajoutes, calendrier: await this.lister(actor, dto.annee) };
   }
 
   async creer(actor: AuthenticatedUser, dto: JourFerieDto) {
@@ -92,7 +212,7 @@ export class JoursFeriesService {
     try {
       const j = await this.prisma.jourFerie.create({ data: { date, libelle: dto.libelle.trim(), nature: dto.nature, creeParId: actor.id }, select: { id: true, date: true, libelle: true, nature: true } });
       await this.audit.log({ actorId: actor.id, action: AuditAction.CREATION, entityType: 'JourFerie', entityId: j.id, metadata: { date: jour(date), libelle: j.libelle, nature: j.nature } });
-      return j;
+      return { ...j, aRecalculer: await this.aRecalculer(actor, date.getUTCFullYear()) };
     } catch (e) {
       if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') throw new ConflictException('Ce jour est déjà férié.');
       throw e;
@@ -110,7 +230,7 @@ export class JoursFeriesService {
         select: { id: true, date: true, libelle: true, nature: true },
       });
       await this.audit.log({ actorId: actor.id, action: AuditAction.MODIFICATION, entityType: 'JourFerie', entityId: id, metadata: { avant: { date: jour(avant.date), libelle: avant.libelle }, apres: { date: jour(j.date), libelle: j.libelle } } });
-      return j;
+      return { ...j, aRecalculer: await this.aRecalculer(actor, j.date.getUTCFullYear()) };
     } catch (e) {
       if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') throw new ConflictException('Ce jour est déjà férié.');
       throw e;
@@ -123,7 +243,7 @@ export class JoursFeriesService {
     if (!j) throw new NotFoundException('Jour férié introuvable');
     await this.prisma.jourFerie.delete({ where: { id } });
     await this.audit.log({ actorId: actor.id, action: AuditAction.SUPPRESSION, entityType: 'JourFerie', entityId: id, metadata: { date: jour(j.date), libelle: j.libelle } });
-    return { supprime: true };
+    return { supprime: true, aRecalculer: await this.aRecalculer(actor, j.date.getUTCFullYear()) };
   }
 
   /** Ajoute à l'année les fêtes fixes nationales qui lui manquent (jamais en double). */

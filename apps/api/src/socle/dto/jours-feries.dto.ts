@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsDateString, IsIn, IsInt, IsOptional, IsString, Length, Max, Min } from 'class-validator';
+import { ArrayMaxSize, ArrayMinSize, IsArray, IsDateString, IsIn, IsInt, IsOptional, IsString, Length, Max, Min, ValidateNested } from 'class-validator';
 import { NATURES_JOUR_FERIE } from '../jours-feries.service';
 
 export class JourFerieDto {
@@ -35,4 +35,20 @@ export class AnneeDto {
   @Min(2000)
   @Max(2100)
   annee!: number;
+}
+
+/** « Vérifier et ajouter » : fêtes cochées, dates vérifiées. */
+export class LotJoursFeriesDto {
+  @Type(() => Number)
+  @IsInt()
+  @Min(2000)
+  @Max(2100)
+  annee!: number;
+
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(20)
+  @ValidateNested({ each: true })
+  @Type(() => JourFerieDto)
+  jours!: JourFerieDto[];
 }

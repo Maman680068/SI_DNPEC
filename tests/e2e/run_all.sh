@@ -164,6 +164,8 @@ lancer "38m-ter. CHROMIUM — NOMINATION D’UN CHEF : POSTE À LA PRÉPARATION,
 lancer "38m-quater. REFONTE DE L’INTERFACE : COMPTEURS DU MENU, « À TRAITER », MENU « CRÉER », TÂCHES À VALIDER = DROIT DE VALIDER, STAGIAIRE" api/u_navigation.js
 lancer "38m-quinquies. REFONTE — CONGÉS : CONTEXTE DE LA FENÊTRE D’AVIS ET DE DÉCISION (ABSENTS DE L’ÉQUIPE, TÂCHES, SOLDE ANNUEL SEUL), 403" api/u_conges_contexte.js
 lancer "38m-quinquies-bis. REFONTE (ÉTAPE 9) — CONGÉS : SIMULATION DE LA DEMANDE (JOURS, FÉRIÉS, REPRISE, SOLDE), 401/404/400/403" api/u_conges_simulation.js
+lancer "38m-quinquies-ter. JOURS FÉRIÉS : CHIFFRES, FÊTES RELIGIEUSES PROPOSÉES (PÂQUES CALCULÉ), AJOUT EN LOT, CONGÉS APPROUVÉS À RECALCULER PAR LE DRH" api/s6_jours_feries.js
+lancer "38m-quinquies-quater. CHROMIUM — JOURS FÉRIÉS : ‹ ANNÉE ›, CHIFFRES, LISTE PAR MOIS, VÉRIFIER ET AJOUTER, VUE ANNUELLE" ui/s6_jours_feries_ui.js
 lancer "38m-sexies. REFONTE — ARCHIVES : DOCUMENTS À VALIDER, PUBLIÉS, MOT-CLÉ, PÉRIODE COUVERTE, 403" api/u_archives.js
 lancer "38m-septies. REFONTE — MESSAGERIE : FICHE DE L’INTERLOCUTEUR (DOCUMENTS ÉCHANGÉS, TÂCHES EN COMMUN), 403" api/u_messagerie_contexte.js
 lancer "38m-octies. REFONTE — RÉUNIONS : DÉCISIONS À SUIVRE, 403" api/u_decisions_a_suivre.js

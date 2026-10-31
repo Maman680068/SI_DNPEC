@@ -1,5 +1,5 @@
 import { apiFetch, telechargerFichier } from './client';
-import type { CalendrierFeries, ContexteConge, SimulationConge, CreateLeaveRequestInput, JourFerie, LeaveBalanceView, LeaveRequest, LeaveType } from '../leaves/types';
+import type { CalendrierFeries, CongesARecalculer, ContexteConge, SimulationConge, CreateLeaveRequestInput, JourFerie, LeaveBalanceView, LeaveRequest, LeaveType } from '../leaves/types';
 
 export function getLeaveTypes(): Promise<LeaveType[]> {
   return apiFetch<LeaveType[]>('/leave-types');
@@ -66,9 +66,12 @@ export function telechargerCertificat(id: string): Promise<void> {
 // Calendrier des jours fériés (socle N3)
 export const getJoursFeries = (annee: number) => apiFetch<CalendrierFeries>(`/api/v1/jours-feries?annee=${annee}`);
 export const creerJourFerie = (input: { date: string; libelle: string; nature: 'FIXE' | 'RELIGIEUX' }) =>
-  apiFetch<JourFerie>('/api/v1/jours-feries', { method: 'POST', body: JSON.stringify(input) });
+  apiFetch<JourFerie & { aRecalculer: CongesARecalculer }>('/api/v1/jours-feries', { method: 'POST', body: JSON.stringify(input) });
 export const modifierJourFerie = (id: string, input: Partial<{ date: string; libelle: string; nature: 'FIXE' | 'RELIGIEUX' }>) =>
-  apiFetch<JourFerie>(`/api/v1/jours-feries/${id}`, { method: 'PATCH', body: JSON.stringify(input) });
-export const supprimerJourFerie = (id: string) => apiFetch<{ supprime: boolean }>(`/api/v1/jours-feries/${id}`, { method: 'DELETE' });
+  apiFetch<JourFerie & { aRecalculer: CongesARecalculer }>(`/api/v1/jours-feries/${id}`, { method: 'PATCH', body: JSON.stringify(input) });
+export const supprimerJourFerie = (id: string) => apiFetch<{ supprime: boolean; aRecalculer: CongesARecalculer }>(`/api/v1/jours-feries/${id}`, { method: 'DELETE' });
+export const ajouterJoursFeriesLot = (annee: number, jours: { date: string; libelle: string; nature: 'FIXE' | 'RELIGIEUX' }[]) =>
+  apiFetch<{ ajoutes: number; calendrier: CalendrierFeries }>('/api/v1/jours-feries/lot', { method: 'POST', body: JSON.stringify({ annee, jours }) });
+export const recalculerConge = (id: string) => apiFetch<{ id: string; joursAvant: number; joursApres: number }>(`/api/v1/jours-feries/conges/${id}/recalculer`, { method: 'POST' });
 export const reprendreFetesFixes = (annee: number) =>
   apiFetch<CalendrierFeries>('/api/v1/jours-feries/fetes-fixes', { method: 'POST', body: JSON.stringify({ annee }) });

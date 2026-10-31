@@ -506,7 +506,7 @@
             "Vous voyez le type d’un congé maladie ; « Afficher le motif » et le certificat médical joint par l’agent vous demandent votre mot de passe. Chaque lecture est tracée. Le chef qui donne l’avis voit aussi le motif, jamais le certificat.",
             "Onglet « Suivi de l’équipe » : toutes les demandes de la Direction. Une demande que vous déposez vous-même est décidée par le DN ou la DNA.",
             "Le délai d’avis du chef (48 heures ouvrées par défaut) se règle dans « Paramétrage et supervision » par l’administrateur.",
-            "Onglet « Jours fériés » : saisissez chaque année les fêtes religieuses (Tabaski, fin du Ramadan, Maouloud, lundi de Pâques…) ; « Ajouter les fêtes fixes » reprend les fêtes nationales. Une alerte vous prévient en début d’année si l’année suivante est vide."
+            "Onglet « Jours fériés » : ‹ › pour changer d’année, « Préparer [année suivante] » reprend les fêtes nationales ; « Vérifier et ajouter » propose les fêtes religieuses (lundi de Pâques calculé, les autres dates estimées « à vérifier » selon le décret). Si un congé déjà approuvé couvre un jour férié ajouté ou modifié, il apparaît dans « congés à recalculer » : le DRH le recalcule (le solde est ajusté). Une alerte vous prévient en début d’année si l’année suivante est vide."
           ],
           "capture": "jours-feries.png"
         },
@@ -696,8 +696,9 @@
         {
           "titre": "Jours fériés",
           "etapes": [
-            "Congés & absences → onglet « Jours fériés » : choisissez l’année ; les fêtes fixes nationales sont pré-remplies (« Ajouter les fêtes fixes » pour une nouvelle année).",
-            "Saisissez les fêtes religieuses avec leur date de l’année (« Ajouter un jour férié ») ; « Modifier » si la date officielle change, « Supprimer » si besoin.",
+            "Congés & absences → onglet « Jours fériés » : ‹ › pour changer d’année ; « Préparer [année suivante] » y reprend les fêtes fixes nationales. En haut : le prochain jour férié, le nombre de jours saisis, ceux en semaine et ceux en week-end ; « Vue annuelle » montre les 12 mois (fête fixe en bleu, religieuse en vert, aujourd’hui entouré).",
+            "Fêtes religieuses : « Vérifier et ajouter » ouvre la liste préremplie (lundi de Pâques calculé ; Korité, Tabaski, Maouloud… estimées « à vérifier ») : cochez, corrigez la date selon le décret, puis « Ajouter les fêtes cochées ». Sinon « Ajouter un jour férié » ; le menu ⋯ d’un jour donne « Modifier » et « Supprimer ».",
+            "Un jour férié ajouté, déplacé ou supprimé sur la période d’un congé déjà approuvé ne change pas ce congé tout seul : la liste « congés à recalculer » apparaît au-dessus du calendrier et le DRH clique « Recalculer » congé par congé (jours et solde ajustés, recalcul tracé).",
             "Les jours fériés sont exclus du délai d’avis du chef (heures ouvrées) et du décompte des jours de congé. En début d’année, une alerte vous prévient si l’année suivante n’a aucun jour férié."
           ],
           "capture": "jours-feries.png"
