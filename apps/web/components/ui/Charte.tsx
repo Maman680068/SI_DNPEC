@@ -129,7 +129,7 @@ export function BandeCompteurs({ items, variante = 'empile', label }: { items: C
     );
   };
   return variante === 'cartes' ? (
-    <section aria-label={label} className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+    <section aria-label={label} className={`mb-4 grid grid-cols-2 gap-3 ${items.length === 5 ? 'lg:grid-cols-5' : 'lg:grid-cols-4'}`}>
       {items.map(cellule)}
     </section>
   ) : (
@@ -451,3 +451,42 @@ export function Initiales({ texte, taille = 34 }: { texte: string; taille?: numb
 }
 
 export const initialesDe = (prenom?: string | null, nom?: string | null) => `${(prenom ?? '').replace(/^TEST — /, '').charAt(0)}${(nom ?? '').charAt(0)}`.toUpperCase();
+
+/**
+ * Interrupteur libellé (role="switch"). `memoire` : clé de préférence du navigateur (localStorage) —
+ * simple confort d'affichage, jamais un droit ; la valeur par défaut s'applique si elle est illisible.
+ */
+export function Interrupteur({ label, actif, onChange, testid }: { label: string; actif: boolean; onChange: (v: boolean) => void; testid?: string }) {
+  return (
+    <label className="inline-flex cursor-pointer items-center gap-2 text-[13px] font-semibold text-text">
+      <button type="button" role="switch" aria-checked={actif} aria-label={label} data-testid={testid} onClick={() => onChange(!actif)} className={`relative h-[22px] w-[38px] flex-none rounded-full transition-colors ${actif ? 'bg-sage' : 'bg-line-fort'}`}>
+        <span className={`absolute top-[3px] h-4 w-4 rounded-full bg-white shadow transition-all ${actif ? 'left-[19px]' : 'left-[3px]'}`} />
+      </button>
+      <span aria-hidden>{label}</span>
+    </label>
+  );
+}
+
+/** Préférence d'affichage gardée dans le navigateur (lecture et écriture protégées). */
+export function usePreference(cle: string, defaut: boolean): [boolean, (v: boolean) => void] {
+  const [v, setV] = useState(defaut);
+  useEffect(() => {
+    try {
+      const s = window.localStorage.getItem(cle);
+      if (s === '1' || s === '0') setV(s === '1');
+    } catch {
+      /* préférence illisible : valeur par défaut */
+    }
+  }, [cle]);
+  return [
+    v,
+    (n: boolean) => {
+      setV(n);
+      try {
+        window.localStorage.setItem(cle, n ? '1' : '0');
+      } catch {
+        /* navigation privée : préférence non gardée */
+      }
+    },
+  ];
+}

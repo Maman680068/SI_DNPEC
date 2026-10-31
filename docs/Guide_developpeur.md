@@ -261,6 +261,10 @@ fonctionnalité ajoute sa suite (`tests/e2e/api/`, `tests/e2e/ui/`) et sa ligne 
   secret**) ; « Agents sans compte » (agents EN_ACTIVITE sans compte) avec `droits.ouvrirCompte`
   (administrateur ; création `POST /users { agentId }`, « aucun compte sans agent » inchangé). DN et
   DNA en lecture seule ; 403 pour les autres et en intérim.
+- Utilisateurs (S9b) : la synthèse rend aussi les **chiffres** de tête, le sigle d'unité, la dernière connexion
+  (journal des connexions), la marque de démonstration et `renvoyerInvitation` ; `POST api/v1/comptes/rappel-double-authentification`
+  et `POST api/v1/comptes/:id/renvoyer-invitation` (administrateur, journalisés). Charte : `Interrupteur` et
+  `usePreference` (préférence d'affichage du navigateur, jamais un droit).
 - Sessions (`auth/services/session.service.ts`) : rotation du jeton de renouvellement à chaque usage, par
   remplacement conditionnel (une seule rotation même si deux requêtes arrivent ensemble). Le jeton tout juste
   remplacé reste accepté `DELAI_GRACE_ROTATION_MS` (30 s), **sans nouvelle rotation** et jamais pour une session

@@ -78,7 +78,7 @@ async function action(zone, page, nom) {
   await dlg(p).getByLabel('Motif', { exact: true }).fill('Nomination à la tête du CNC');
   await dlg(p).getByRole('button', { name: 'Nommer chef' }).click();
   check('v est Chef de Cellule du CNC', await attendre(async () => (await prisma.cellule.findUnique({ where: { id: cnc.id } })).chefId === v.id));
-  await ligne(p, v).getByRole('cell', { name: 'Chef de Cellule', exact: true }).waitFor();
+  await ligne(p, v).getByTestId('role-compte').filter({ hasText: /^Chef de Cellule/ }).waitFor();
   check('message de confirmation « Chef de cellule nommé »', /Chef de cellule nommé/.test(await p.getByTestId('toast').innerText()));
   await p.goto(WEB + '/organisation');
   await p.getByRole('tab', { name: 'Cellules' }).click();

@@ -133,6 +133,8 @@ const VERBE_EVENEMENT: Record<string, string> = {
   registre_attendu: 'a configuré le registre de',
   rattachement: 'a modifié le rattachement de',
   verification_audit: 'a vérifié',
+  rappel_double_authentification: 'a envoyé un rappel de double authentification pour',
+  invitation_renvoyee: 'a renvoyé l’invitation pour',
 };
 /** Événements toujours sensibles. */
 export const EVENEMENTS_SENSIBLES = ['acces_objet_protege', 'export', 'duplicata', 'recalcul_jours_feries'];

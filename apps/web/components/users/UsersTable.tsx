@@ -11,6 +11,8 @@ import { ChangeRoleModal } from './ChangeRoleModal';
 import { useToast } from '../ui/Toast';
 import { MenuActions, type ActionMenu } from '../ui/MenuActions';
 import { RolesModelisationModal } from './RolesModelisationModal';
+import { renvoyerInvitation, type CompteSynthese } from '../../lib/api/users';
+import { ApiError } from '../../lib/api/client';
 
 const STATUS_BADGE_TONE: Record<UserStatus, 'sage' | 'clay' | 'muted'> = {
   EN_ATTENTE: 'muted',
@@ -50,6 +52,12 @@ function attachmentLabel(
   return '—';
 }
 
+/** Dernière connexion réussie (journal des connexions) ; « Jamais connecté » sinon. */
+function connexion(iso: string | null): string {
+  if (!iso) return 'Jamais connecté';
+  return `Dernière connexion le ${new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}`;
+}
+
 export function UsersTable({
   users,
   canManage,
@@ -58,7 +66,7 @@ export function UsersTable({
 }: {
   users: AdminUser[];
   /** Rôles fonctionnels (libellés) et double authentification, calculés par l'API (api/v1/comptes/synthese). */
-  complements?: Map<string, { rolesFonctionnels: string[]; doubleAuthentification: boolean }>;
+  complements?: Map<string, CompteSynthese>;
   /** ADMIN_SYSTEME uniquement — DN/DNA voient cette liste en lecture seule
    * (PATCH /users/:id/status et POST /org/cellules/:id/chef sont réservés à
    * ADMIN_SYSTEME côté API). */
@@ -81,7 +89,18 @@ export function UsersTable({
     ...(user.status === 'ACTIF' ? [{ label: 'Changer de rôle', onSelect: () => setChangingRoleFor(user) }] : []),
     // Domaine B (lot B1) : analyste, responsable ou suppléant d'un modèle — jamais pour un stagiaire.
     ...(user.status === 'ACTIF' && user.role !== 'STAGIAIRE' ? [{ label: 'Rôles de modélisation', onSelect: () => setRolesModelisationDe(user) }] : []),
+    // S9b : compte jamais utilisé (droit calculé par l'API) — nouvel e-mail avec un lien neuf.
+    ...(complements?.get(user.id)?.renvoyerInvitation ? [{ label: 'Renvoyer l’invitation', onSelect: () => void renvoyer(user) }] : []),
   ];
+
+  async function renvoyer(user: AdminUser) {
+    try {
+      await renvoyerInvitation(user.id);
+      toast.succes('Invitation renvoyée', { detail: `${user.firstName} ${user.lastName} reçoit un nouveau lien pour choisir son mot de passe (7 jours).` });
+    } catch (e) {
+      toast.erreur(e instanceof ApiError ? e.message : 'L’invitation n’a pas pu être renvoyée.');
+    }
+  }
 
   if (users.length === 0) {
     return <div className="rounded-xl border border-line bg-surface"><EtatVide texte="Aucun compte." /></div>;
@@ -105,10 +124,10 @@ export function UsersTable({
               <Pastille ton={PASTILLE[STATUS_BADGE_TONE[user.status]]}>{STATUS_BADGE_LABEL[user.status]}</Pastille>
             </div>
             <div className="mb-3 text-[12.5px] text-text-muted">
-              {ROLE_LABEL[user.role]} · {attachmentLabel(user, getDivisionName, getSectionName, getCelluleName, getUserLabel)}
+              {ROLE_LABEL[user.role]} · {complements?.get(user.id)?.sigleUnite ?? attachmentLabel(user, getDivisionName, getSectionName, getCelluleName, getUserLabel)}
               {complements?.get(user.id) && (
                 <span className="block">
-                  {complements.get(user.id)!.rolesFonctionnels.join(', ') || 'Aucun rôle fonctionnel'} · Double authentification : {complements.get(user.id)!.doubleAuthentification ? 'activée' : 'non'}
+                  {complements.get(user.id)!.rolesFonctionnels.join(', ') || 'Aucun rôle fonctionnel'} · Double authentification : {complements.get(user.id)!.doubleAuthentification ? 'activée' : 'non'} · {connexion(complements.get(user.id)!.derniereConnexion)}
                 </span>
               )}
             </div>
@@ -125,57 +144,71 @@ export function UsersTable({
       </div>
 
       <div className="hidden overflow-x-auto rounded-xl border border-line bg-surface md:block">
+        {/* S9b : aucun texte coupé — nom et e-mail l'un sous l'autre, rôle et sigle d'unité dessous,
+         * rôles fonctionnels en étiquettes, colonne « Sécurité » (double authentification, dernière connexion). */}
         <table className="w-full text-left text-[13px]">
           <thead>
             <tr className="h-[38px] border-b border-line bg-fond-doux text-[12px] font-semibold text-text-muted">
-              <th scope="col" className="px-3 py-2">Nom</th>
-              <th scope="col" className="px-3 py-2">Email</th>
-              <th scope="col" className="px-3 py-2">Rôle</th>
-              <th scope="col" className="px-3 py-2">Rattachement</th>
+              <th scope="col" className="px-3 py-2">Personne</th>
+              <th scope="col" className="px-3 py-2">Rôle et unité</th>
               {complements && <th scope="col" className="px-3 py-2">Rôles fonctionnels</th>}
-              {complements && <th scope="col" className="px-3 py-2">Double authentification</th>}
+              {complements && <th scope="col" className="px-3 py-2">Sécurité</th>}
               <th scope="col" className="px-3 py-2">Statut</th>
               {canManage && <th scope="col" className="px-3 py-2"><span className="sr-only">Actions</span></th>}
             </tr>
           </thead>
           <tbody>
-            {users.map((user) => (
-              <tr key={user.id} className="border-b border-line-doux last:border-0 hover:bg-survol">
-                {/* Une seule ligne par cellule (texte long raccourci, complet au survol) : toutes les lignes ont la même hauteur. */}
-                <td className="max-w-[160px] truncate whitespace-nowrap px-3 py-2.5 font-semibold text-ink-900" title={`${user.firstName} ${user.lastName}`}>
-                  {user.firstName} {user.lastName}
-                </td>
-                <td className="max-w-[180px] truncate whitespace-nowrap px-3 py-2.5 text-text-muted" title={user.email}>{user.email}</td>
-                <td className="max-w-[150px] truncate whitespace-nowrap px-3 py-2.5" title={ROLE_LABEL[user.role]}>{ROLE_LABEL[user.role]}</td>
-                <td className="max-w-[160px] truncate whitespace-nowrap px-3 py-2.5 text-text-muted" title={attachmentLabel(user, getDivisionName, getSectionName, getCelluleName, getUserLabel)}>
-                  {attachmentLabel(user, getDivisionName, getSectionName, getCelluleName, getUserLabel)}
-                </td>
-                {complements && (
-                  <td className="max-w-[170px] truncate whitespace-nowrap px-3 py-2.5 text-text-muted" data-testid="roles-fonctionnels" title={complements.get(user.id)?.rolesFonctionnels.join(', ')}>
-                    {complements.get(user.id)?.rolesFonctionnels.join(', ') || '—'}
+            {users.map((user) => {
+              const c = complements?.get(user.id);
+              return (
+                <tr key={user.id} className="border-b border-line-doux align-top last:border-0 hover:bg-survol" data-testid="ligne-compte">
+                  <td className="break-words px-3 py-2.5">
+                    <b className="block font-semibold text-ink-900">{user.firstName} {user.lastName}</b>
+                    <span className="block break-all text-[12px] text-text-muted">{user.email}</span>
                   </td>
-                )}
-                {complements && (
-                  <td className="whitespace-nowrap px-3 py-2.5" data-testid="double-authentification">
-                    {complements.get(user.id)?.doubleAuthentification ? <Pastille ton="vert">Activée</Pastille> : <span className="text-text-muted">Non</span>}
+                  <td className="px-3 py-2.5" data-testid="role-compte">
+                    <span className="block">{ROLE_LABEL[user.role]}</span>
+                    <span className="block text-[12px] text-text-muted" title={attachmentLabel(user, getDivisionName, getSectionName, getCelluleName, getUserLabel)}>
+                      {c?.sigleUnite ?? attachmentLabel(user, getDivisionName, getSectionName, getCelluleName, getUserLabel)}
+                    </span>
                   </td>
-                )}
-                <td className="whitespace-nowrap px-3 py-2.5">
-                  <Pastille ton={PASTILLE[STATUS_BADGE_TONE[user.status]]}>{STATUS_BADGE_LABEL[user.status]}</Pastille>
-                </td>
-                {canManage && (
-                  <td className="w-px whitespace-nowrap px-3 py-2.5">
-                    {/* Un seul bouton visible, les autres actions dans « Plus d'actions » : lignes de même hauteur. */}
-                    <div className="flex justify-end gap-1.5">
-                      <button type="button" className={BTN_LIGNE} onClick={() => setManagingAccountFor(user)}>
-                        Gérer
-                      </button>
-                      <MenuActions actions={autresActions(user)} />
-                    </div>
+                  {complements && (
+                    <td className="px-3 py-2.5" data-testid="roles-fonctionnels">
+                      {c && c.rolesFonctionnels.length > 0 ? (
+                        <span className="flex flex-wrap gap-1">
+                          {c.rolesFonctionnels.map((r) => (
+                            <Pastille key={r} ton="encre">{r}</Pastille>
+                          ))}
+                        </span>
+                      ) : (
+                        <span className="text-text-muted">—</span>
+                      )}
+                    </td>
+                  )}
+                  {complements && (
+                    <td className="whitespace-nowrap px-3 py-2.5" data-testid="double-authentification">
+                      {c?.doubleAuthentification ? <Pastille ton="vert">2FA activée</Pastille> : <Pastille ton={c?.droitsEleves ? 'rouge' : 'ambre'}>2FA : Non</Pastille>}
+                      <span className="mt-1 block text-[12px] text-text-muted" data-testid="derniere-connexion">{connexion(c?.derniereConnexion ?? null)}</span>
+                    </td>
+                  )}
+                  <td className="whitespace-nowrap px-3 py-2.5">
+                    <Pastille ton={PASTILLE[STATUS_BADGE_TONE[user.status]]}>{STATUS_BADGE_LABEL[user.status]}</Pastille>
+                    {c?.demonstration && <span className="mt-1 block text-[12px] text-text-muted">Démonstration</span>}
                   </td>
-                )}
-              </tr>
-            ))}
+                  {canManage && (
+                    <td className="w-px whitespace-nowrap px-3 py-2.5">
+                      {/* Un seul bouton visible, les autres actions dans « Plus d'actions ». */}
+                      <div className="flex justify-end gap-1.5">
+                        <button type="button" className={BTN_LIGNE} onClick={() => setManagingAccountFor(user)}>
+                          Gérer
+                        </button>
+                        <MenuActions actions={autresActions(user)} />
+                      </div>
+                    </td>
+                  )}
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

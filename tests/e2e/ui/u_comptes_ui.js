@@ -16,9 +16,11 @@ const S = Date.now().toString(36).slice(-5);
   let p = await loginPage(b, 'admin', { width: 1440, height: 900 });
   await p.goto(`${WEB}/users`);
   await p.getByRole('columnheader', { name: 'Rôles fonctionnels' }).waitFor();
-  check('colonnes « Rôles fonctionnels » et « Double authentification »', (await p.getByRole('columnheader', { name: 'Double authentification' }).count()) === 1);
+  check('colonnes « Rôles fonctionnels » et « Sécurité » (S9b)', (await p.getByRole('columnheader', { name: 'Sécurité' }).count()) === 1);
   const ligneDrh = p.locator('tr', { has: p.locator('[data-testid=roles-fonctionnels]', { hasText: 'Directeur des Ressources Humaines' }) });
   check('DRH : son rôle fonctionnel en clair ; double authentification « Non »', (await ligneDrh.count()) >= 1 && /Non/.test(await ligneDrh.first().getByTestId('double-authentification').innerText()));
+  // S9b : « Agents sans compte » devient un onglet.
+  await p.getByRole('tab', { name: /Agents sans compte/ }).click();
   const bloc = p.getByTestId('agents-sans-compte');
   const ligne = bloc.locator('[data-testid=agent-sans-compte]', { hasText: agent.matricule });
   await ligne.waitFor();
@@ -43,8 +45,11 @@ const S = Date.now().toString(36).slice(-5);
   console.log('— DN : lecture seule');
   p = await loginPage(b, 'dn', { width: 1440, height: 900 });
   await p.goto(`${WEB}/users`);
-  await p.getByTestId('agents-sans-compte').waitFor();
+  await p.getByRole('columnheader', { name: 'Rôles fonctionnels' }).waitFor();
   check('DN : colonnes visibles, aucun bouton « Ouvrir un compte » ni « Nouveau compte »', (await p.getByRole('columnheader', { name: 'Rôles fonctionnels' }).count()) === 1 && (await p.getByRole('button', { name: 'Ouvrir un compte' }).count()) === 0 && (await p.getByRole('button', { name: 'Nouveau compte' }).count()) === 0);
+  await p.getByRole('tab', { name: /Agents sans compte/ }).click();
+  await p.getByTestId('agents-sans-compte').waitFor();
+  check('DN : onglet « Agents sans compte » sans « Ouvrir un compte »', (await p.getByRole('button', { name: 'Ouvrir un compte' }).count()) === 0);
   await p.context().close();
 
   await b.close(); await prisma.$disconnect();

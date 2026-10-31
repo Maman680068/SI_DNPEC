@@ -67,11 +67,36 @@ export const refuserChangementRole = (id: string, motif: string) =>
   apiFetch(`/api/v1/changements-role/${id}/refus`, { method: 'POST', body: JSON.stringify({ motif }) });
 
 /** Comptes et habilitations : rôles fonctionnels, double authentification, agents sans compte (administrateur, DN, DNA). */
+export interface CompteSynthese {
+  id: string;
+  rolesFonctionnels: string[];
+  doubleAuthentification: boolean;
+  droitsEleves: boolean;
+  sigleUnite: string | null;
+  derniereConnexion: string | null;
+  demonstration: boolean;
+  renvoyerInvitation: boolean;
+}
 export interface SyntheseComptes {
-  droits: { ouvrirCompte: boolean };
-  comptes: { id: string; rolesFonctionnels: string[]; doubleAuthentification: boolean }[];
+  droits: { ouvrirCompte: boolean; envoyerRappel: boolean; examinerInscriptions: boolean };
+  chiffres: {
+    actifs: number;
+    suspendus: number;
+    suspendusDemonstration: number;
+    inscriptionsAExaminer: number;
+    actifsSansDoubleAuthentification: number;
+    droitsElevesSansDoubleAuthentification: number;
+    jamaisConnectes: number;
+  };
+  comptes: CompteSynthese[];
   agentsSansCompte: { id: string; matricule: string; nom: string; prenoms: string; fonction: string | null; unite: string | null; dateCreation: string }[];
 }
 export function getSyntheseComptes(): Promise<SyntheseComptes> {
   return apiFetch<SyntheseComptes>('/api/v1/comptes/synthese');
+}
+export function envoyerRappelDoubleAuthentification(): Promise<{ personnes: number }> {
+  return apiFetch('/api/v1/comptes/rappel-double-authentification', { method: 'POST' });
+}
+export function renvoyerInvitation(id: string): Promise<{ envoye: boolean }> {
+  return apiFetch(`/api/v1/comptes/${id}/renvoyer-invitation`, { method: 'POST' });
 }
